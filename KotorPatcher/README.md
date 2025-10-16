@@ -208,7 +208,62 @@ The runtime is designed to be **lightweight**:
 3. Ensure patch functions have correct calling convention
 4. Check for memory corruption in patch code
 
+## Current Limitations
+
+### Simple JMP Trampolines (No Stolen Bytes)
+
+The current implementation uses **simple 5-byte JMP trampolines** that completely replace the original instructions at the hook point. This has important implications:
+
+**What This Means:**
+- Original instructions at the hook address are **overwritten** and lost
+- Patch functions cannot execute the original code they replaced
+- Patches must **completely replace** the hooked function's behavior
+- Works best for hooking at function entry points
+
+**Compatibility Constraints:**
+- Patches targeting different addresses: ✅ **Compatible**
+- Patches targeting overlapping addresses: ❌ **Incompatible** (prevented by byte verification)
+- Mid-function hooks: ⚠️ **Limited** (original instructions lost)
+
+**Example:**
+```
+Original game code at 0x401234:
+  55 8B EC 83 EC 20  (push ebp; mov ebp,esp; sub esp,0x20)
+
+After patching:
+  E9 C7 FD 0F 00     (jmp to patch DLL)
+
+The patch function must implement the ENTIRE behavior -
+it cannot call the original code.
+```
+
+**Validation:**
+- KPatchCore validates no overlapping hook addresses
+- Runtime verifies original bytes before patching
+- Conflicts are detected and prevented
+
+**See Future Enhancements below for the planned stolen bytes implementation.**
+
 ## Future Enhancements
+
+### High Priority
+
+- [ ] **Detour Trampolines with Stolen Bytes** (Phase 2)
+  - Disassemble instructions at hook point to preserve them
+  - Allocate executable trampoline memory
+  - Copy stolen bytes + JMP back to original code
+  - Allow patches to call original function before/after their logic
+  - Benefits:
+    - Patches can wrap/extend functionality (not just replace)
+    - Mid-function hooks work safely
+    - Original code preserved and callable
+  - Implementation:
+    - Add length disassembler (Zydis, Capstone, or minimal hde32)
+    - Allocate trampolines with `VirtualAlloc(PAGE_EXECUTE_READWRITE)`
+    - Provide "original function" pointer to patch functions
+    - Add hook type field to config: `type = "detour"` vs `type = "simple_jmp"`
+
+### Medium Priority
 
 - [ ] Hot-reload patches without restarting game
 - [ ] Config reload on file change

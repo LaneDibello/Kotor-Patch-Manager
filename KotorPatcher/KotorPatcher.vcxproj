@@ -151,11 +151,15 @@
     <ClCompile Include="src\dllmain.cpp" />
     <ClCompile Include="src\patcher.cpp" />
     <ClCompile Include="src\trampoline.cpp" />
+    <ClCompile Include="src\wrappers\wrapper_x86_win32.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\config_reader.h" />
     <ClInclude Include="include\patcher.h" />
     <ClInclude Include="include\trampoline.h" />
+    <ClInclude Include="include\wrappers\wrapper_base.h" />
+    <ClInclude Include="include\wrappers\wrapper_context.h" />
+    <ClInclude Include="include\wrappers\wrapper_x86_win32.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

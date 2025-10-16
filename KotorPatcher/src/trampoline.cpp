@@ -1,6 +1,16 @@
 #include "trampoline.h"
 #include <cstring>
 
+// NOTE: Current implementation uses SIMPLE trampolines (5-byte relative JMP)
+// that completely replace original instructions at the hook point.
+//
+// LIMITATION: Original instructions are lost and cannot be executed by patches.
+// Patches must completely replace the hooked function's behavior.
+//
+// FUTURE: Implement "stolen bytes" detour trampolines that preserve original
+// instructions in an allocated trampoline, allowing patches to call original code.
+// See README.md "Future Enhancements" section for details.
+
 namespace KotorPatcher {
     namespace Trampoline {
 

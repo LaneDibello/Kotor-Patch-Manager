@@ -11,13 +11,11 @@ namespace KotorPatcher {
 
         // Helper function to convert hex string to DWORD
         static bool ParseHexAddress(const std::string& hexStr, DWORD& outAddress) {
-            // Remove "0x" prefix if present
             std::string cleaned = hexStr;
             if (cleaned.size() >= 2 && cleaned[0] == '0' && (cleaned[1] == 'x' || cleaned[1] == 'X')) {
                 cleaned = cleaned.substr(2);
             }
 
-            // Parse hex string
             char* endPtr = nullptr;
             unsigned long value = strtoul(cleaned.c_str(), &endPtr, 16);
 
@@ -37,7 +35,6 @@ namespace KotorPatcher {
             outBytes.reserve(arr->size());
 
             for (const auto& elem : *arr) {
-                // Bytes can be represented as integers in TOML
                 if (elem.is_integer()) {
                     int64_t val = elem.as_integer()->get();
                     if (val < 0 || val > 255) {
@@ -176,6 +173,51 @@ namespace KotorPatcher {
                     if (patch.originalBytes.empty()) {
                         OutputDebugStringA("[Config] original_bytes array is empty\n");
                         continue;
+                    }
+
+                    // === Parse Hook Type (Optional, defaults to INLINE) ===
+                    auto typeStr = hookTable->at_path("type").value<std::string>();
+                    if (typeStr) {
+                        std::string type = *typeStr;
+                        if (_stricmp(type.c_str(), "inline") == 0) {
+                            patch.type = HookType::INLINE;
+                        }
+                        else if (_stricmp(type.c_str(), "replace") == 0) {
+                            patch.type = HookType::REPLACE;
+                        }
+                        else if (_stricmp(type.c_str(), "wrap") == 0) {
+                            patch.type = HookType::WRAP;
+                        }
+                        else {
+                            OutputDebugStringA(("[Config] Unknown hook type '" + type + "', defaulting to INLINE\n").c_str());
+                            patch.type = HookType::INLINE;
+                        }
+                    }
+                    else {
+                        // Default to INLINE (safest option)
+                        patch.type = HookType::INLINE;
+                    }
+
+                    // === Parse State Preservation Options (Optional) ===
+                    auto preserveRegs = hookTable->at_path("preserve_registers").value<bool>();
+                    if (preserveRegs) {
+                        patch.preserveRegisters = *preserveRegs;
+                    }
+
+                    auto preserveFlags = hookTable->at_path("preserve_flags").value<bool>();
+                    if (preserveFlags) {
+                        patch.preserveFlags = *preserveFlags;
+                    }
+
+                    // === Parse Exclude From Restore (Optional) ===
+                    auto excludeArray = hookTable->at_path("exclude_from_restore").as_array();
+                    if (excludeArray) {
+                        for (const auto& regElem : *excludeArray) {
+                            if (regElem.is_string()) {
+                                std::string regName = regElem.as_string()->get();
+                                patch.excludeFromRestore.push_back(regName);
+                            }
+                        }
                     }
 
                     // Successfully parsed hook - add to list
