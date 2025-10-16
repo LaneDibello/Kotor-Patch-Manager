@@ -1,4 +1,4 @@
-#include "../../include/wrappers/wrapper_x86_win32.h"
+#include "wrapper_x86_win32.h"
 #include <cstring>
 
 namespace KotorPatcher {

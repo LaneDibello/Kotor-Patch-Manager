@@ -59,6 +59,7 @@ See `examples/patch_config.toml` for a complete example.
 1. Game launcher loads `kotor_patcher.dll` (added to import table by KPatchCore)
 2. Windows calls `DllMain` with `DLL_PROCESS_ATTACH`
 3. `InitializePatcher()` is invoked:
+   - Initializes platform-specific wrapper generator
    - Locates DLL's own path using `GetModuleHandleA` + `GetModuleFileNameA`
    - Reads `patch_config.toml` from same directory
    - Calls `Config::ParseConfig()` to parse configuration
@@ -70,7 +71,168 @@ For each patch hook:
 1. **Load DLL**: `LoadLibrary(patch.dllPath)`
 2. **Get Function**: `GetProcAddress(handle, patch.functionName)`
 3. **Verify Bytes**: Check that bytes at hook address match `original_bytes`
-4. **Write Trampoline**: Write 5-byte JMP instruction: `E9 [4-byte offset]`
+4. **Generate Wrapper**: Create runtime wrapper stub (for INLINE/WRAP types)
+5. **Write Trampoline**: Write 5-byte JMP to wrapper: `E9 [4-byte offset]`
+
+### Hook Types
+
+The patcher supports three types of hooks:
+
+#### INLINE (Default, Recommended)
+- **Automatic state management**: Saves all registers + EFLAGS
+- **Pass PatchContext**: Your function receives full CPU state
+- **Selective modification**: Use `exclude_from_restore` to modify specific registers
+- **Easiest to use**: Write simple C code, no assembly required
+
+```cpp
+extern "C" __declspec(dllexport)
+void MyPatch(PatchContext* ctx) {
+    // Inspect state
+    DWORD param = ctx->GetParameter(0);
+
+    // Modify return value
+    ctx->SetReturnValue(42);
+}
+```
+
+**Config:**
+```toml
+type = "inline"
+exclude_from_restore = ["eax"]  # Allow patch to modify EAX
+```
+
+#### REPLACE (Legacy, Advanced)
+- **No wrapper**: Direct JMP to patch function
+- **Manual management**: You handle stack frame, registers, everything
+- **Full control**: For assembly experts or performance-critical hooks
+
+```cpp
+extern "C" __declspec(dllexport) __declspec(naked)
+void MyAssemblyPatch() {
+    __asm {
+        push ebp
+        mov ebp, esp
+        // ... your code ...
+        pop ebp
+        ret
+    }
+}
+```
+
+**Config:**
+```toml
+type = "replace"
+```
+
+#### WRAP (Future - Phase 2)
+- **Before/after**: Call patch, then execute original function
+- **Requires detours**: Needs stolen bytes trampoline system
+- **Not yet fully implemented**
+
+### Wrapper System
+
+The wrapper system automatically generates runtime code to manage CPU state for patches.
+
+#### Wrapper Generation Process (INLINE hooks)
+
+1. **Allocate executable memory**: `VirtualAlloc` with `PAGE_EXECUTE_READWRITE`
+2. **Generate x86 assembly**:
+   ```asm
+   wrapper_stub:
+       pushad              ; Save all 8 general-purpose registers
+       pushfd              ; Save EFLAGS
+
+       ; Build PatchContext structure on stack
+       push [original_function]
+       push [return_address]
+       push [original_esp]
+
+       ; Call patch with context pointer
+       lea eax, [esp]
+       push eax
+       call patch_function
+       add esp, 4
+
+       ; Clean up context fields
+       add esp, 12
+
+       ; Restore state (respecting exclude_from_restore)
+       popfd               ; Restore flags
+       popad               ; Restore registers (or selective POP)
+
+       ret                 ; Return to caller
+   ```
+3. **Flush instruction cache**: Ensure CPU sees new code
+4. **Return wrapper address**: Game will JMP to this wrapper
+
+#### PatchContext Structure
+
+Patches receive a pointer to this structure containing full CPU state:
+
+```cpp
+struct PatchContext {
+    // Registers (in PUSHAD order)
+    DWORD edi, esi, ebp, esp_at_pushad;
+    DWORD ebx, edx, ecx, eax;
+
+    // Flags
+    DWORD eflags;
+
+    // Stack info
+    DWORD original_esp;    // ESP before hook
+    DWORD return_address;  // Where game called from
+
+    // Detour support (Phase 2)
+    void* original_function;
+
+    // Helpers
+    DWORD GetParameter(int index);
+    void SetReturnValue(DWORD value);
+    void SetRegister(const char* name, DWORD value);
+};
+```
+
+**Common EFLAGS masks:**
+- `FLAG_CARRY` (0x0001)
+- `FLAG_ZERO` (0x0040)
+- `FLAG_SIGN` (0x0080)
+- `FLAG_OVERFLOW` (0x0800)
+
+#### Register Exclusion System
+
+By default, ALL registers are restored after your patch runs. To allow modifications:
+
+```toml
+exclude_from_restore = ["eax", "edx"]
+```
+
+This generates selective restore code:
+```asm
+pop edi        ; Restore EDI
+pop esi        ; Restore ESI
+pop ebp        ; Restore EBP
+add esp, 4     ; Skip ESP (not restored)
+pop ebx        ; Restore EBX
+add esp, 4     ; Skip EDX (excluded)
+pop ecx        ; Restore ECX
+add esp, 4     ; Skip EAX (excluded)
+```
+
+#### Platform Extensibility
+
+The wrapper system is designed for future cross-platform support:
+
+```
+wrappers/
+  wrapper_base.h          - Abstract interface
+  wrapper_context.h       - Platform-independent context
+  wrapper_x86_win32.cpp   - Current: Windows 32-bit
+  wrapper_x86_64_win64.cpp  - Future: Windows 64-bit
+  wrapper_x86_macos.cpp     - Future: macOS Intel
+  wrapper_arm64_macos.cpp   - Future: macOS Apple Silicon
+```
+
+Each platform implements `WrapperGeneratorBase` with its own codegen.
 
 ### Trampoline Mechanism
 
@@ -208,6 +370,13 @@ The runtime is designed to be **lightweight**:
 3. Ensure patch functions have correct calling convention
 4. Check for memory corruption in patch code
 
+## Documentation
+
+- **[Wrapper System Guide](docs/WRAPPER_SYSTEM.md)** - Complete guide to the wrapper system and PatchContext
+- **[Quick Start Guide](docs/QUICK_START.md)** - Step-by-step testing instructions
+- **[Implementation Details](docs/IMPLEMENTATION_COMPLETE.md)** - Full technical implementation summary
+- **[Future Enhancements](docs/FUTURE_ENHANCEMENTS.md)** - Planned features (detour trampolines, etc.)
+
 ## Current Limitations
 
 ### Simple JMP Trampolines (No Stolen Bytes)
@@ -242,7 +411,7 @@ it cannot call the original code.
 - Runtime verifies original bytes before patching
 - Conflicts are detected and prevented
 
-**See Future Enhancements below for the planned stolen bytes implementation.**
+**See [Future Enhancements](docs/FUTURE_ENHANCEMENTS.md) for the planned stolen bytes implementation.**
 
 ## Future Enhancements
 

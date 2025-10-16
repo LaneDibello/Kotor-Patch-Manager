@@ -1,7 +1,7 @@
 #include "patcher.h"
 #include "config_reader.h"
 #include "trampoline.h"
-#include "wrappers/wrapper_base.h"
+#include "wrapper_base.h"
 #include <fstream>
 
 namespace KotorPatcher {
@@ -27,7 +27,7 @@ namespace KotorPatcher {
 
         // Get DLL directory
         char dllPath[MAX_PATH];
-        HMODULE hModule = GetModuleHandleA("kotor_patcher.dll");
+        HMODULE hModule = GetModuleHandleA("KotorPatcher.dll");
         if (!hModule || GetModuleFileNameA(hModule, dllPath, MAX_PATH) == 0) {
             return false;
         }

@@ -4,7 +4,7 @@
 
 // Include toml++ header-only library
 #define TOML_EXCEPTIONS 0  // Disable exceptions for better error handling
-#include "../external/toml.hpp"
+#include "toml.hpp"
 
 namespace KotorPatcher {
     namespace Config {
