@@ -39,7 +39,7 @@ public class PatchApplicator
         public bool InjectLoader { get; init; } = true;
 
         /// <summary>
-        /// Path to kotor_patcher.dll (if null, assumes it's in same directory as game exe)
+        /// Path to KotorPatcher.dll (if null, assumes it's in same directory as game exe)
         /// </summary>
         public string? PatcherDllPath { get; init; }
     }
@@ -331,12 +331,12 @@ public class PatchApplicator
             {
                 messages.Add("Step 7/7: Injecting loader DLL...");
 
-                // Copy kotor_patcher.dll to game directory if path provided
+                // Copy KotorPatcher.dll to game directory if path provided
                 if (!string.IsNullOrEmpty(options.PatcherDllPath))
                 {
-                    var destPath = Path.Combine(gameDir, "kotor_patcher.dll");
+                    var destPath = Path.Combine(gameDir, "KotorPatcher.dll");
                     File.Copy(options.PatcherDllPath, destPath, overwrite: true);
-                    messages.Add($"  Copied kotor_patcher.dll to game directory");
+                    messages.Add($"  Copied KotorPatcher.dll to game directory");
                 }
 
                 var injectResult = LoaderInjector.InjectLoader(options.GameExePath, verifyBackup: options.CreateBackup);
@@ -355,7 +355,7 @@ public class PatchApplicator
             else
             {
                 messages.Add("Step 7/7: Skipping loader injection (disabled)");
-                messages.Add("  ⚠️ You will need to manually load kotor_patcher.dll");
+                messages.Add("  ⚠️ You will need to manually load KotorPatcher.dll");
             }
 
             return new InstallResult

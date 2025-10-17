@@ -6,7 +6,7 @@ using PeNet.Header.Pe;
 namespace KPatchCore.Applicators;
 
 /// <summary>
-/// Injects the kotor_patcher.dll into a game executable by modifying the PE import table
+/// Injects the KotorPatcher.dll into a game executable by modifying the PE import table
 /// </summary>
 /// <remarks>
 /// ⚠️ EXPERIMENTAL: PE import table modification is complex and has limitations.
@@ -27,7 +27,7 @@ public static class LoaderInjector
     /// <summary>
     /// The name of the patcher DLL that will be injected
     /// </summary>
-    public const string PatcherDllName = "kotor_patcher.dll";
+    public const string PatcherDllName = "KotorPatcher.dll";
 
     /// <summary>
     /// Injects the patcher DLL into an executable's import table
@@ -492,7 +492,7 @@ public static class LoaderInjector
         public required List<string> ImportedDlls { get; init; }
 
         /// <summary>
-        /// Whether kotor_patcher.dll is already imported
+        /// Whether KotorPatcher.dll is already imported
         /// </summary>
         public required bool HasPatcherDll { get; init; }
 

@@ -136,13 +136,13 @@ public static class PatchRemover
                 messages.Add($"  Removed patch_config.toml");
             }
 
-            // Remove kotor_patcher.dll (optional - might be used by other tools)
-            var patcherDllPath = Path.Combine(gameDir, "kotor_patcher.dll");
+            // Remove KotorPatcher.dll (optional - might be used by other tools)
+            var patcherDllPath = Path.Combine(gameDir, "KotorPatcher.dll");
             if (File.Exists(patcherDllPath))
             {
                 File.Delete(patcherDllPath);
-                removedFiles.Add("kotor_patcher.dll");
-                messages.Add($"  Removed kotor_patcher.dll");
+                removedFiles.Add("KotorPatcher.dll");
+                messages.Add($"  Removed KotorPatcher.dll");
             }
 
             // Step 4: Verify clean state
@@ -363,7 +363,7 @@ public static class PatchRemover
         public string? ConfigPath { get; set; }
 
         /// <summary>
-        /// Whether kotor_patcher.dll is injected
+        /// Whether KotorPatcher.dll is injected
         /// </summary>
         public bool LoaderInjected { get; set; }
 

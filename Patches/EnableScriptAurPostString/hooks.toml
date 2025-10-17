@@ -1,0 +1,29 @@
+[[hooks]]
+# Hook at the point right after CStr() is called and we have the string in EAX
+# This is at address 0x005cb41c in ExecuteCommandAurPostString
+address = 0x005cb41c
+
+# The function exported from our patch DLL
+function = "EnableAurPostString_Hook"
+
+# Original bytes at 0x005cb41c:
+# 8d 4c 24 0c    LEA ECX, [ESP+0xc]
+# c7 44 24 1c    MOV dword ptr [ESP+0x1c], 0xffffffff
+# We need at least 5 bytes for a JMP instruction
+# Original instruction is 4 bytes, so we'll include part of the next one
+original_bytes = [0x8d, 0x4c, 0x24, 0x0c, 0xc7]
+
+# Hook type: inline
+# This means we'll replace the original code with a JMP to our wrapper
+# The wrapper system will:
+# 1. Save all registers
+# 2. Call our function
+# 3. Restore all registers
+# 4. Execute the original instructions we overwrote
+# 5. Jump back to continue execution
+type = "inline"
+
+# We need to preserve EAX since it contains the string pointer
+# But actually, the wrapper system preserves all registers by default for inline hooks
+# We don't need to exclude anything from restoration since we're just calling a function
+exclude_from_restore = []

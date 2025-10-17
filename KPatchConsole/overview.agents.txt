@@ -34,7 +34,7 @@ The system uses a **two-component architecture**:
    - Redirects game code execution to patch functions
 
 ### Why This Approach?
-- **Minimal EXE modification**: Only add `kotor_patcher.dll` to import table (easily reversible)
+- **Minimal EXE modification**: Only add `KotorPatcher.dll` to import table (easily reversible)
 - **Enable/disable patches without touching EXE**: Just edit config file
 - **No code cave hunting**: Patch code lives in DLLs with unlimited space
 - **Compatibility**: Patches don't conflict unless hooking exact same address
@@ -44,7 +44,7 @@ The system uses a **two-component architecture**:
 
 ```
 kotor-patcher/
-├── runtime/                        # C++ component (kotor_patcher.dll)
+├── runtime/                        # C++ component (KotorPatcher.dll)
 │   ├── include/
 │   │   ├── patcher.h              # Main patcher interface
 │   │   ├── trampoline.h           # Memory patching/trampoline writing
@@ -107,7 +107,7 @@ kotor-patcher/
 
 ## Component Details
 
-### 1. Runtime Component: kotor_patcher.dll (C++)
+### 1. Runtime Component: KotorPatcher.dll (C++)
 
 **Purpose**: Lightweight DLL that gets injected into the game process and applies patches at runtime.
 
@@ -124,7 +124,7 @@ kotor-patcher/
 **Initialization Flow**:
 1. `DllMain` called with `DLL_PROCESS_ATTACH` when game loads the DLL
 2. `InitializePatcher()` is invoked
-3. Find DLL's own location using `GetModuleHandleA("kotor_patcher.dll")` + `GetModuleFileNameA`
+3. Find DLL's own location using `GetModuleHandleA("KotorPatcher.dll")` + `GetModuleFileNameA`
 4. Extract directory path to locate `patch_config.toml`
 5. Parse config to get list of enabled patches
 6. For each patch:
@@ -164,7 +164,7 @@ Patch function executes, then returns to game's caller
 
 **Build Configuration**:
 - Target: Win32 (x86) - KOTOR is 32-bit
-- Output: `kotor_patcher.dll`
+- Output: `KotorPatcher.dll`
 - Runtime Library: /MT (static linking for minimal dependencies)
 
 ### 2. Core Library: KPatchCore (C#)
@@ -175,7 +175,7 @@ Patch function executes, then returns to game's caller
 - Parse patch manifests (TOML format)
 - Detect game version and locate installations
 - Validate patches (dependencies, conflicts, version compatibility)
-- Modify game EXE to import `kotor_patcher.dll`
+- Modify game EXE to import `KotorPatcher.dll`
 - Manage backups and restoration
 - Generate `patch_config.toml` for runtime
 - Provide tooling for patch authors to build patches
@@ -341,11 +341,11 @@ _FixedResolutionHandler:
 
 4. **Inject Loader**:
    - Modify EXE's PE import table
-   - Add entry for `kotor_patcher.dll`
+   - Add entry for `KotorPatcher.dll`
    - This is the ONLY modification to the EXE
 
 5. **Deploy Files**:
-   - Copy `kotor_patcher.dll` to game folder
+   - Copy `KotorPatcher.dll` to game folder
    - Copy enabled patch DLLs to `patches/` subfolder
    - Extract any patch resources
 
@@ -383,10 +383,10 @@ dll = "patches/bugfix-pack.dll"
 ### What Happens When User Launches Game:
 
 1. **Windows Loader**:
-   - Sees `kotor_patcher.dll` in import table
+   - Sees `KotorPatcher.dll` in import table
    - Loads it before game code runs
 
-2. **kotor_patcher.dll Initialization**:
+2. **KotorPatcher.dll Initialization**:
    - `DllMain` called with `DLL_PROCESS_ATTACH`
    - `InitializePatcher()` executes:
      - Find own location
@@ -495,7 +495,7 @@ KotorPatcher-v1.0.0/
 ├── kpatch.exe              # CLI tool
 ├── KPatchCore.dll          # Business logic
 ├── runtime/
-│   ├── kotor_patcher.dll   # Windows x86
+│   ├── KotorPatcher.dll   # Windows x86
 │   └── kotor_patcher.dylib # (Future) macOS
 ├── patches/                # Empty - user adds patches here
 ├── docs/
@@ -515,7 +515,7 @@ KotorPatcher-v1.0.0/
 ### ✅ Completed:
 - Architecture design
 - Project structure in Visual Studio
-- `kotor_patcher.dll` core implementation:
+- `KotorPatcher.dll` core implementation:
   - DLL entry point
   - Patch loading logic
   - Trampoline writing (memory patching)

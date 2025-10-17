@@ -34,7 +34,7 @@ Modifying PE import tables is **extremely complex** and error-prone because:
 Instead of modifying the import table, use **DLL search order hijacking**:
 - Place `version.dll` or another commonly-imported system DLL in game directory
 - This proxy DLL loads the real system DLL
-- Then loads `kotor_patcher.dll`
+- Then loads `KotorPatcher.dll`
 - No PE modification required!
 
 **Pros**: No risk of corrupting executable
@@ -42,7 +42,7 @@ Instead of modifying the import table, use **DLL search order hijacking**:
 
 ### Approach 2: AppInit_DLLs (Global)
 Use Windows registry `AppInit_DLLs` feature:
-- Register `kotor_patcher.dll` to load into all processes
+- Register `KotorPatcher.dll` to load into all processes
 - Filter in DllMain to only activate for KOTOR
 
 **Pros**: No PE modification
@@ -51,7 +51,7 @@ Use Windows registry `AppInit_DLLs` feature:
 ### Approach 3: Launcher Application
 Create a launcher that:
 - Starts KOTOR suspended
-- Injects `kotor_patcher.dll` using `CreateRemoteThread` + `LoadLibrary`
+- Injects `KotorPatcher.dll` using `CreateRemoteThread` + `LoadLibrary`
 - Resumes execution
 
 **Pros**: Clean, no PE modification, full control
@@ -83,7 +83,7 @@ Use a library specifically designed for PE modification:
 Create `KotorPatcherLauncher.exe` that:
 1. Locates KOTOR executable
 2. Starts it with `CREATE_SUSPENDED`
-3. Injects `kotor_patcher.dll` via `CreateRemoteThread`
+3. Injects `KotorPatcher.dll` via `CreateRemoteThread`
 4. Resumes main thread
 5. Optionally: Monitor for crashes and provide error reporting
 

@@ -1,0 +1,124 @@
+Alright moment of truth, let's generate an actual real patch. This patch will be called "EnableScriptAurPostString".
+
+So for context there is a scriptfunction often called within the internal game scripts called AurPostString, that is meant for debug purposes. Because of it's debug nature that actual string posting part has been disabled. I want to re-enable that.
+
+As you can see from this assembly all of the needed arguments for poosting this string are pulled off the VM stack and put into the current stack. And finally the string is converted to a C-string:
+
+```
+                         ************************************************
+                         *                     FUNCTION                     *
+                         ************************************************
+                         undefined4  __thiscall  CSWVirtualMachineCommands::ExecuteCommandAurPostString
+     005cb350  6a  ff         PUSH      -0x1
+     005cb352  68  f8  3a     PUSH      FrameHandler_00723af8
+               72  00
+     005cb357  64  a1  00     MOV       EAX , FS : [ 0x0 ]
+               00  00  00
+     005cb35d  50            PUSH      EAX
+     005cb35e  64  89  25     MOV       dword ptr   FS : [ 0x0 ] , ESP
+               00  00  00 
+               00
+     005cb365  83  ec  14     SUB       ESP , 0x14
+     005cb368  8d  4c  24     LEA       ECX => local_14 , [ ESP   +   0xc ]
+               0c
+     005cb36c  e8  1f  7e     CALL      CExoString::CExoString                  CExoString * CExoString(C
+               fe  ff
+     005cb371  8b  0d  00     MOV       ECX , dword ptr   [ VirtualMachine ]
+               3a  7a  00
+     005cb377  8d  44  24     LEA       EAX => local_14 , [ ESP   +   0xc ]
+               0c
+     005cb37b  50            PUSH      EAX
+     005cb37c  c7  44  24     MOV       dword ptr   [ ESP   +   0x20 ] => local_4 , 0x0
+               20  00  00 
+               00  00
+     005cb384  e8  f7  5c     CALL      CVirtualMachine::StackPopString         void StackPopString(CVirt
+               00  00
+     005cb389  85  c0         TEST      EAX , EAX
+     005cb38b  74  28         JZ        LAB_005cb3b5
+     005cb38d  8d  4c  24     LEA       ECX , [ ESP ]
+               00
+     005cb391  51            PUSH      ECX
+     005cb392  8b  0d  00     MOV       ECX , dword ptr   [ VirtualMachine ]
+               3a  7a  00
+     005cb398  e8  63  5c     CALL      CVirtualMachine::StackPopInteger        int StackPopInteger(CVirt
+               00  00
+     005cb39d  85  c0         TEST      EAX , EAX
+     005cb39f  74  14         JZ        LAB_005cb3b5
+     005cb3a1  8b  0d  00     MOV       ECX , dword ptr   [ VirtualMachine ]
+               3a  7a  00
+     005cb3a7  8d  54  24     LEA       EDX , [ ESP   +   0x4 ]
+               04
+     005cb3ab  52            PUSH      EDX
+     005cb3ac  e8  4f  5c     CALL      CVirtualMachine::StackPopInteger        int StackPopInteger(CVirt
+               00  00
+     005cb3b1  85  c0         TEST      EAX , EAX
+     005cb3b3  75  27         JNZ       LAB_005cb3dc
+                         LAB_005cb3b5                                      XREF[2]:   ExecuteCommandAurPostString[2]:    005cb38b (
+     005cb3b5  8d  4c  24     LEA       ECX , [ ESP   +   0xc ]
+               0c
+     005cb3b9  c7  44  24     MOV       dword ptr   [ ESP   +   0x1c ] , 0xffffffff
+               1c  ff  ff 
+               ff  ff
+     005cb3c1  e8  5a  a8     CALL      CExoString::~CExoString                 void ~CExoString(CExoStri
+               01  00
+     005cb3c6  b8  2f  f8     MOV       EAX , 0xfffff82f
+               ff  ff
+     005cb3cb  8b  4c  24     MOV       ECX , dword ptr   [ ESP   +   0x14 ]
+               14
+     005cb3cf  64  89  0d     MOV       dword ptr   FS : [ 0x0 ] , ECX
+               00  00  00 
+               00
+     005cb3d6  83  c4  20     ADD       ESP , 0x20
+     005cb3d9  c2  08  00     RET       0x8
+                         LAB_005cb3dc                                      XREF[1]:   ExecuteCommandAurPostString:    005cb3b3 (j)  
+     005cb3dc  8b  0d  00     MOV       ECX , dword ptr   [ VirtualMachine ]
+               3a  7a  00
+     005cb3e2  8d  44  24     LEA       EAX , [ ESP   +   0x8 ]
+               08
+     005cb3e6  50            PUSH      EAX
+     005cb3e7  e8  34  5c     CALL      CVirtualMachine::StackPopFloat          int StackPopFloat(CVirtua
+               00  00
+     005cb3ec  85  c0         TEST      EAX , EAX
+     005cb3ee  8d  4c  24     LEA       ECX , [ ESP   +   0xc ]
+               0c
+     005cb3f2  75  23         JNZ       LAB_005cb417
+     005cb3f4  c7  44  24     MOV       dword ptr   [ ESP   +   0x1c ] , 0xffffffff
+               1c  ff  ff 
+               ff  ff
+     005cb3fc  e8  1f  a8     CALL      CExoString::~CExoString                 void ~CExoString(CExoStri
+               01  00
+     005cb401  b8  2f  f8     MOV       EAX , 0xfffff82f
+               ff  ff
+     005cb406  8b  4c  24     MOV       ECX , dword ptr   [ ESP   +   0x14 ]
+               14
+     005cb40a  64  89  0d     MOV       dword ptr   FS : [ 0x0 ] , ECX
+               00  00  00 
+               00
+     005cb411  83  c4  20     ADD       ESP , 0x20
+     005cb414  c2  08  00     RET       0x8
+                         LAB_005cb417                                      XREF[1]:   ExecuteCommandAurPostString:    005cb3f2 (j)  
+     005cb417  e8  54  a2     CALL      CExoString::CStr                        char * CStr(CExoString * 
+               01  00
+     005cb41c  8d  4c  24     LEA       ECX , [ ESP   +   0xc ]
+               0c
+     005cb420  c7  44  24     MOV       dword ptr   [ ESP   +   0x1c ] , 0xffffffff
+               1c  ff  ff 
+               ff  ff
+     005cb428  e8  f3  a7     CALL      CExoString::~CExoString                 void ~CExoString(CExoStri
+               01  00
+     005cb42d  8b  4c  24     MOV       ECX , dword ptr   [ ESP   +   0x14 ]
+               14
+     005cb431  33  c0         XOR       EAX , EAX
+     005cb433  64  89  0d     MOV       dword ptr   FS : [ 0x0 ] , ECX
+               00  00  00 
+               00
+     005cb43a  83  c4  20     ADD       ESP , 0x20
+     005cb43d  c2  08  00     RET       0x8
+
+```
+
+So at address 0x005cb41c we have a char * `string` in EAX, a float `life` in [ESP + 8], an int `y` in [ESP + 4], and an int `x` in [ESP].
+
+In this patch I want to jump to code that will organize these variables such that they may be passed into this function `void __cdecl AurPostString(char *param_1,int y,int x,float life)`. Note this is a cdecl, so the parameters will be in Stack[0x4] through Stack[0x10]. This function, `AurPostString`, is located at `0x0044d490` in the gog version of kotor 1 windows. After which teh parameters should be cleaned up, and we should return to back to where we left off, with calling the CExoString destructor, etc. Of course the wrapper will also preserve any register changes as well.
+
+Let's build out this patch, and test to see if it works. There are calls to this script function all over the place so it should be pretty easy to verify by just playing the game a bit. 

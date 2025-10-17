@@ -147,12 +147,20 @@ public class PatchRepository
                 hooks = parseResult.Data;
             }
 
-            // Verify binary exists
-            var binaryPath = $"binaries/windows_x86.dll";
+            // Verify binary exists (try both forward and backslash)
+            var binaryPath = "binaries/windows_x86.dll";
             var binaryEntry = archive.GetEntry(binaryPath);
+
+            // Try backslash path if forward slash didn't work (Windows ZIP compatibility)
             if (binaryEntry == null)
             {
-                return PatchResult<PatchEntry>.Fail($"Missing {binaryPath} in patch archive");
+                binaryPath = "binaries\\windows_x86.dll";
+                binaryEntry = archive.GetEntry(binaryPath);
+            }
+
+            if (binaryEntry == null)
+            {
+                return PatchResult<PatchEntry>.Fail($"Missing binaries/windows_x86.dll in patch archive");
             }
 
             var entry = new PatchEntry
@@ -215,11 +223,19 @@ public class PatchRepository
         {
             using var archive = ZipFile.OpenRead(patch.KPatchPath);
 
+            // Try both forward slash and backslash (Windows ZIP compatibility)
             var binaryPath = "binaries/windows_x86.dll";
             var binaryEntry = archive.GetEntry(binaryPath);
+
             if (binaryEntry == null)
             {
-                return PatchResult<string>.Fail($"Binary not found in archive: {binaryPath}");
+                binaryPath = "binaries\\windows_x86.dll";
+                binaryEntry = archive.GetEntry(binaryPath);
+            }
+
+            if (binaryEntry == null)
+            {
+                return PatchResult<string>.Fail($"Binary not found in archive: binaries/windows_x86.dll");
             }
 
             Directory.CreateDirectory(targetDirectory);

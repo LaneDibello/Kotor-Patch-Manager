@@ -11,13 +11,13 @@
 
 ## Overall Architecture
 
-KPatchCore is the C# business logic library that handles patch installation at installation time. It works with the C++ runtime (kotor_patcher.dll) which handles patches at game runtime.
+KPatchCore is the C# business logic library that handles patch installation at installation time. It works with the C++ runtime (KotorPatcher.dll) which handles patches at game runtime.
 
 ### What KPatchCore Does:
 1. Parse patch manifests (.kpatch files)
 2. Detect game version and locate installations
 3. Validate patches (dependencies, conflicts, version compatibility)
-4. Modify game EXE to import `kotor_patcher.dll`
+4. Modify game EXE to import `KotorPatcher.dll`
 5. Manage backups and restoration
 6. Generate `patch_config.toml` for runtime
 
@@ -110,7 +110,7 @@ Ensure patches are valid and compatible.
 
 **Applicators/**
 - `LoaderInjector.cs` - ✅ Modify PE import table using PeNet
-  - Add `kotor_patcher.dll` to import table
+  - Add `KotorPatcher.dll` to import table
   - This is the ONLY modification to game EXE
   - Must be reversible
   - ⚠️ **Note**: Current implementation is experimental. See `PE_INJECTION_NOTES.md` for limitations and alternative approaches (launcher injection recommended)
@@ -260,12 +260,12 @@ void MyPatchFunction() {
 1. **KPatchCore** (C#):
    - Validates patches
    - Creates backup
-   - Modifies EXE import table → adds `kotor_patcher.dll`
-   - Copies `kotor_patcher.dll` to game directory
+   - Modifies EXE import table → adds `KotorPatcher.dll`
+   - Copies `KotorPatcher.dll` to game directory
    - Copies patch DLLs to `patches/` subfolder
    - Generates `patch_config.toml`
 
-2. **kotor_patcher.dll** (C++):
+2. **KotorPatcher.dll** (C++):
    - Loaded by game at startup
    - Reads `patch_config.toml`
    - Loads patch DLLs

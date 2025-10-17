@@ -9,7 +9,12 @@
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build)",
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run --help)",
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run -- --help)",
-      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run -- --status \"C:\\Users\\laned\\Documents\\KotOR Installs\\swkotor.exe\")"
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run -- --status \"C:\\Users\\laned\\Documents\\KotOR Installs\\swkotor.exe\")",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run -- --test-phase3)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run --project ../KPatchConsole/KPatchConsole/KPatchConsole.csproj -- --test-phase3)",
+      "Bash(powershell.exe -Command \"Get-FileHash -Algorithm SHA256 ''C:\\Users\\laned\\Documents\\KotOR Installs\\swkotor.exe'' | Select-Object -ExpandProperty Hash\")",
+      "Read(//mnt/c/Users/laned/Documents/KotOR Patches/**)",
+      "Bash(unzip:*)"
     ],
     "deny": [],
     "ask": []

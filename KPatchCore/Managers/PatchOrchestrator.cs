@@ -40,7 +40,7 @@ public class PatchOrchestrator
     /// <param name="patchIds">Patch IDs to install</param>
     /// <param name="createBackup">Whether to create a backup before installation</param>
     /// <param name="injectLoader">Whether to inject the loader DLL</param>
-    /// <param name="patcherDllPath">Path to kotor_patcher.dll (optional)</param>
+    /// <param name="patcherDllPath">Path to KotorPatcher.dll (optional)</param>
     /// <returns>Installation result</returns>
     public PatchApplicator.InstallResult InstallPatches(
         string gameExePath,
