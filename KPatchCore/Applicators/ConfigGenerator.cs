@@ -57,7 +57,6 @@ public static class ConfigGenerator
 
                 foreach (var hook in patch.Hooks)
                 {
-                    // Create original_bytes array
                     var originalBytesArray = new TomlArray();
                     foreach (var b in hook.OriginalBytes)
                     {
@@ -72,7 +71,7 @@ public static class ConfigGenerator
                         ["type"] = hook.Type.ToString().ToLowerInvariant()
                     };
 
-                    // Add optional wrapper system fields
+                    // optional wrapper system fields
                     if (!hook.PreserveRegisters)
                     {
                         hookTable["preserve_registers"] = false;
@@ -104,7 +103,6 @@ public static class ConfigGenerator
 
         model["patches"] = patchesArray;
 
-        // Convert to TOML string
         return Toml.FromModel(model);
     }
 
@@ -120,7 +118,6 @@ public static class ConfigGenerator
             // Generate TOML
             var tomlString = GenerateConfigString(config);
 
-            // Try to parse it back
             var model = Toml.ToModel(tomlString);
 
             if (!model.ContainsKey("patches"))

@@ -4,7 +4,12 @@
       "Read(//mnt/c/Users/laned/source/Repos/KotOR Patch Manager/**)",
       "Bash(/mnt/c/Program Files/dotnet/dotnet.exe build)",
       "Bash(/mnt/c/Program Files/dotnet/dotnet.exe run --test-phase4)",
-      "Bash(/mnt/c/Program Files/dotnet/dotnet.exe run:*)"
+      "Bash(/mnt/c/Program Files/dotnet/dotnet.exe run:*)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build \"/mnt/c/Users/laned/source/Repos/KotOR Patch Manager/KPatchConsole/KPatchConsole.sln\")",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run --help)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run -- --help)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run -- --status \"C:\\Users\\laned\\Documents\\KotOR Installs\\swkotor.exe\")"
     ],
     "deny": [],
     "ask": []

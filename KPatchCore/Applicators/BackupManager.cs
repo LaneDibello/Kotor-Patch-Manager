@@ -28,16 +28,10 @@ public static class BackupManager
 
         try
         {
-            // Compute hash and size
             var (hash, fileSize) = FileHasher.ComputeHashAndSize(exePath);
-
-            // Generate backup path
             var backupPath = PathHelpers.GetBackupPath(exePath);
-
-            // Copy file to backup location
             File.Copy(exePath, backupPath, overwrite: false);
 
-            // Create backup metadata
             var backupInfo = new BackupInfo
             {
                 OriginalPath = Path.GetFullPath(exePath),
@@ -49,7 +43,6 @@ public static class BackupManager
                 InstalledPatches = installedPatches ?? new List<string>()
             };
 
-            // Save metadata to JSON file
             var metadataPath = $"{backupPath}.json";
             var saveResult = SaveBackupMetadata(backupInfo, metadataPath);
             if (!saveResult.Success)
@@ -83,7 +76,6 @@ public static class BackupManager
             return PatchResult.Fail($"Backup file not found: {backup.BackupPath}");
         }
 
-        // Verify backup integrity if requested
         if (verifyIntegrity && !backup.VerifyIntegrity())
         {
             return PatchResult.Fail("Backup integrity check failed - file may be corrupted");
@@ -179,7 +171,6 @@ public static class BackupManager
             return PatchResult<BackupInfo>.Fail($"No backup found for: {exePath}");
         }
 
-        // Try to load metadata
         var metadataPath = $"{backupPath}.json";
         if (File.Exists(metadataPath))
         {
@@ -222,14 +213,12 @@ public static class BackupManager
         {
             var deleted = new List<string>();
 
-            // Delete backup file
             if (File.Exists(backup.BackupPath))
             {
                 File.Delete(backup.BackupPath);
                 deleted.Add(Path.GetFileName(backup.BackupPath));
             }
 
-            // Delete metadata file
             var metadataPath = $"{backup.BackupPath}.json";
             if (File.Exists(metadataPath))
             {

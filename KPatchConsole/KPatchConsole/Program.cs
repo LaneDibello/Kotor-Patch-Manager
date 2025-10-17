@@ -12,72 +12,440 @@ internal class Program
 {
     static int Main(string[] args)
     {
-        Console.WriteLine("=== KPatchCore Smoke Tests ===\n");
-
-        if (args.Length > 0 && args[0] == "--test-models")
-        {
-            return TestModels();
-        }
-        else if (args.Length > 0 && args[0] == "--test-common")
-        {
-            return TestCommon();
-        }
-        else if (args.Length > 0 && args[0] == "--test-parsers")
-        {
-            return TestParsers();
-        }
-        else if (args.Length > 0 && args[0] == "--test-phase3")
-        {
-            return TestPhase3();
-        }
-        else if (args.Length > 0 && args[0] == "--test-phase4")
-        {
-            return TestPhase4();
-        }
-        else if (args.Length > 0 && args[0] == "--test-phase5")
-        {
-            return TestPhase5(args.Length > 1 ? args[1] : null);
-        }
-        else if (args.Length > 0 && args[0] == "--test-phase6")
-        {
-            return TestPhase6();
-        }
-        else if (args.Length > 0 && args[0] == "--test-all")
-        {
-            var result1 = TestModels();
-            var result2 = TestCommon();
-            var result3 = TestParsers();
-            var result4 = TestPhase3();
-            var result5 = TestPhase4();
-            var result6 = TestPhase5(null);
-            var result7 = TestPhase6();
-            return result1 == 0 && result2 == 0 && result3 == 0 && result4 == 0 && result5 == 0 && result6 == 0 && result7 == 0 ? 0 : 1;
-        }
-        else
+        if (args.Length == 0)
         {
             ShowUsage();
             return 0;
         }
+
+        var command = args[0].ToLower();
+
+        // Test commands
+        if (command.StartsWith("--test"))
+        {
+            Console.WriteLine("=== KPatchCore Smoke Tests ===\n");
+
+            return command switch
+            {
+                "--test-models" => TestModels(),
+                "--test-common" => TestCommon(),
+                "--test-parsers" => TestParsers(),
+                "--test-phase3" => TestPhase3(),
+                "--test-phase4" => TestPhase4(),
+                "--test-phase5" => TestPhase5(args.Length > 1 ? args[1] : null),
+                "--test-phase6" => TestPhase6(),
+                "--test-all" => RunAllTests(),
+                _ => ShowUsageAndReturn(1)
+            };
+        }
+
+        // Production commands
+        return command switch
+        {
+            "--install" or "-i" => InstallCommand(args),
+            "--list" or "-l" => ListCommand(args),
+            "--uninstall" or "-u" => UninstallCommand(args),
+            "--status" or "-s" => StatusCommand(args),
+            "--help" or "-h" => ShowUsageAndReturn(0),
+            _ => UnknownCommandAndReturn(command)
+        };
+    }
+
+    static int ShowUsageAndReturn(int exitCode)
+    {
+        ShowUsage();
+        return exitCode;
+    }
+
+    static int UnknownCommandAndReturn(string command)
+    {
+        Console.WriteLine($"Unknown command: {command}\n");
+        ShowUsage();
+        return 1;
+    }
+
+    static int RunAllTests()
+    {
+        var result1 = TestModels();
+        var result2 = TestCommon();
+        var result3 = TestParsers();
+        var result4 = TestPhase3();
+        var result5 = TestPhase4();
+        var result6 = TestPhase5(null);
+        var result7 = TestPhase6();
+        return result1 == 0 && result2 == 0 && result3 == 0 && result4 == 0 && result5 == 0 && result6 == 0 && result7 == 0 ? 0 : 1;
     }
 
     static void ShowUsage()
     {
         Console.WriteLine("KPatch Console - KOTOR Patch Manager");
+        Console.WriteLine("\nUsage:");
+        Console.WriteLine("  kpatch --install <game_exe> <patch_dir> [patch_ids...]");
+        Console.WriteLine("  kpatch --list <patch_dir>");
+        Console.WriteLine("  kpatch --uninstall <game_exe>");
+        Console.WriteLine("  kpatch --status <game_exe>");
+        Console.WriteLine("\nCommands:");
+        Console.WriteLine("  -i, --install     Install patches to game");
+        Console.WriteLine("                    Args: <game_exe> <patch_dir> [patch_ids...]");
+        Console.WriteLine("                    If no patch IDs provided, lists available patches");
+        Console.WriteLine();
+        Console.WriteLine("  -l, --list        List available patches in directory");
+        Console.WriteLine("                    Args: <patch_dir>");
+        Console.WriteLine();
+        Console.WriteLine("  -u, --uninstall   Remove all patches from game");
+        Console.WriteLine("                    Args: <game_exe>");
+        Console.WriteLine();
+        Console.WriteLine("  -s, --status      Check patch installation status");
+        Console.WriteLine("                    Args: <game_exe>");
+        Console.WriteLine();
+        Console.WriteLine("  -h, --help        Show this help message");
         Console.WriteLine("\nSmoke Tests:");
-        Console.WriteLine("  --test-models    Test all model classes");
-        Console.WriteLine("  --test-common    Test common utilities");
-        Console.WriteLine("  --test-parsers   Test TOML and PE parsers");
-        Console.WriteLine("  --test-phase3    Test Phase 3 (BackupManager, ConfigGenerator, GameDetector)");
-        Console.WriteLine("  --test-phase4    Test Phase 4 (All Validators)");
+        Console.WriteLine("  --test-models     Test all model classes");
+        Console.WriteLine("  --test-common     Test common utilities");
+        Console.WriteLine("  --test-parsers    Test TOML and PE parsers");
+        Console.WriteLine("  --test-phase3     Test Phase 3 (BackupManager, ConfigGenerator, GameDetector)");
+        Console.WriteLine("  --test-phase4     Test Phase 4 (All Validators)");
         Console.WriteLine("  --test-phase5 [exe_path]");
-        Console.WriteLine("                   Test Phase 5 (LoaderInjector) - optionally provide exe path");
-        Console.WriteLine("  --test-phase6    Test Phase 6 (Orchestration - Repository, Applicator, etc.)");
-        Console.WriteLine("  --test-all       Run all tests");
-        Console.WriteLine("\nFuture commands:");
-        Console.WriteLine("  --install        Install patches (not yet implemented)");
-        Console.WriteLine("  --list           List available patches (not yet implemented)");
-        Console.WriteLine("  --uninstall      Remove patches (not yet implemented)");
+        Console.WriteLine("                    Test Phase 5 (LoaderInjector) - optionally provide exe path");
+        Console.WriteLine("  --test-phase6     Test Phase 6 (Orchestration - Repository, Applicator, etc.)");
+        Console.WriteLine("  --test-all        Run all tests");
+        Console.WriteLine("\nExamples:");
+        Console.WriteLine("  kpatch --list ./patches");
+        Console.WriteLine("  kpatch --install C:/Games/KOTOR/swkotor.exe ./patches bugfix-pack widescreen");
+        Console.WriteLine("  kpatch --status C:/Games/KOTOR/swkotor.exe");
+        Console.WriteLine("  kpatch --uninstall C:/Games/KOTOR/swkotor.exe");
     }
+
+    // ==================== Production Commands ====================
+
+    static int ListCommand(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            Console.WriteLine("Error: Missing patch directory argument");
+            Console.WriteLine("\nUsage: kpatch --list <patch_dir>");
+            return 1;
+        }
+
+        var patchDir = args[1];
+
+        try
+        {
+            Console.WriteLine($"=== Available Patches in {patchDir} ===\n");
+
+            var orchestrator = new PatchOrchestrator(patchDir);
+            var patches = orchestrator.GetAvailablePatches();
+
+            if (patches.Count == 0)
+            {
+                Console.WriteLine("No patches found in directory.");
+                Console.WriteLine($"\nLooking for .kpatch files in: {Path.GetFullPath(patchDir)}");
+                return 0;
+            }
+
+            Console.WriteLine($"Found {patches.Count} patch(es):\n");
+
+            foreach (var patch in patches.Values)
+            {
+                Console.WriteLine($"[{patch.Manifest.Id}]");
+                Console.WriteLine($"  Name:        {patch.Manifest.Name}");
+                Console.WriteLine($"  Version:     {patch.Manifest.Version}");
+                Console.WriteLine($"  Author:      {patch.Manifest.Author}");
+                Console.WriteLine($"  Description: {patch.Manifest.Description}");
+
+                if (patch.Manifest.Requires.Count > 0)
+                {
+                    Console.WriteLine($"  Requires:    {string.Join(", ", patch.Manifest.Requires)}");
+                }
+
+                if (patch.Manifest.Conflicts.Count > 0)
+                {
+                    Console.WriteLine($"  Conflicts:   {string.Join(", ", patch.Manifest.Conflicts)}");
+                }
+
+                Console.WriteLine($"  Hooks:       {patch.Hooks.Count}");
+                Console.WriteLine($"  Versions:    {patch.Manifest.SupportedVersions.Count} supported");
+                Console.WriteLine();
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error listing patches: {ex.Message}");
+            return 1;
+        }
+    }
+
+    static int StatusCommand(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            Console.WriteLine("Error: Missing game executable argument");
+            Console.WriteLine("\nUsage: kpatch --status <game_exe>");
+            return 1;
+        }
+
+        var gameExePath = args[1];
+
+        try
+        {
+            Console.WriteLine($"=== Patch Status for {Path.GetFileName(gameExePath)} ===\n");
+
+            if (!File.Exists(gameExePath))
+            {
+                Console.WriteLine($"Error: Game executable not found: {gameExePath}");
+                return 1;
+            }
+
+            // Create a temporary orchestrator (doesn't need patches directory for status check)
+            var tempDir = PathHelpers.CreateTempDirectory();
+            var orchestrator = new PatchOrchestrator(tempDir);
+
+            // Check if patched
+            var isPatchedResult = orchestrator.IsPatched(gameExePath);
+
+            if (!isPatchedResult.Success)
+            {
+                Console.WriteLine($"Error checking patch status: {isPatchedResult.Error}");
+                PathHelpers.SafeDeleteDirectory(tempDir);
+                return 1;
+            }
+
+            // Get detailed info
+            var infoResult = orchestrator.GetInstallationInfo(gameExePath);
+
+            if (!infoResult.Success || infoResult.Data == null)
+            {
+                Console.WriteLine($"Error getting installation info: {infoResult.Error}");
+                PathHelpers.SafeDeleteDirectory(tempDir);
+                return 1;
+            }
+
+            var info = infoResult.Data;
+
+            // Display status
+            Console.WriteLine($"Patched:        {(isPatchedResult.Data ? "YES" : "NO")}");
+            Console.WriteLine($"Backup:         {(info.HasBackup ? "YES" : "NO")}");
+
+            if (info.HasBackup && info.BackupPath != null)
+            {
+                Console.WriteLine($"Backup Path:    {Path.GetFileName(info.BackupPath)}");
+                Console.WriteLine($"Backup Date:    {info.BackupDate:yyyy-MM-dd HH:mm:ss}");
+            }
+
+            Console.WriteLine($"Loader Injected: {(info.LoaderInjected ? "YES" : "NO")}");
+            Console.WriteLine($"Config File:     {(info.HasConfig ? "YES" : "NO")}");
+
+            if (info.InstalledPatches.Count > 0)
+            {
+                Console.WriteLine($"\nInstalled Patches ({info.InstalledPatches.Count}):");
+                foreach (var patchId in info.InstalledPatches)
+                {
+                    Console.WriteLine($"  - {patchId}");
+                }
+            }
+
+            if (info.PatchDlls.Count > 0)
+            {
+                Console.WriteLine($"\nPatch DLLs ({info.PatchDlls.Count}):");
+                foreach (var dll in info.PatchDlls)
+                {
+                    Console.WriteLine($"  - {dll}");
+                }
+            }
+
+            PathHelpers.SafeDeleteDirectory(tempDir);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking status: {ex.Message}");
+            return 1;
+        }
+    }
+
+    static int UninstallCommand(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            Console.WriteLine("Error: Missing game executable argument");
+            Console.WriteLine("\nUsage: kpatch --uninstall <game_exe>");
+            return 1;
+        }
+
+        var gameExePath = args[1];
+
+        try
+        {
+            Console.WriteLine($"=== Uninstalling Patches from {Path.GetFileName(gameExePath)} ===\n");
+
+            if (!File.Exists(gameExePath))
+            {
+                Console.WriteLine($"Error: Game executable not found: {gameExePath}");
+                return 1;
+            }
+
+            // Create a temporary orchestrator (doesn't need patches directory for uninstall)
+            var tempDir = PathHelpers.CreateTempDirectory();
+            var orchestrator = new PatchOrchestrator(tempDir);
+
+            // Perform uninstall
+            var result = orchestrator.UninstallPatches(gameExePath);
+
+            // Display progress messages
+            foreach (var message in result.Messages)
+            {
+                Console.WriteLine(message);
+            }
+
+            if (result.Success)
+            {
+                Console.WriteLine("\n=== Uninstallation Complete ===");
+                Console.WriteLine($"Backup Restored: {(result.BackupRestored ? "YES" : "NO")}");
+
+                if (result.RemovedFiles.Count > 0)
+                {
+                    Console.WriteLine($"\nRemoved Files ({result.RemovedFiles.Count}):");
+                    foreach (var file in result.RemovedFiles)
+                    {
+                        Console.WriteLine($"  - {file}");
+                    }
+                }
+
+                PathHelpers.SafeDeleteDirectory(tempDir);
+                return 0;
+            }
+            else
+            {
+                Console.WriteLine($"\n=== Uninstallation Failed ===");
+                Console.WriteLine($"Error: {result.Error}");
+                PathHelpers.SafeDeleteDirectory(tempDir);
+                return 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during uninstall: {ex.Message}");
+            return 1;
+        }
+    }
+
+    static int InstallCommand(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            Console.WriteLine("Error: Missing required arguments");
+            Console.WriteLine("\nUsage: kpatch --install <game_exe> <patch_dir> [patch_ids...]");
+            Console.WriteLine("\nIf no patch IDs are provided, available patches will be listed.");
+            return 1;
+        }
+
+        var gameExePath = args[1];
+        var patchDir = args[2];
+        var patchIds = args.Length > 3 ? args.Skip(3).ToArray() : Array.Empty<string>();
+
+        try
+        {
+            // Validate inputs
+            if (!File.Exists(gameExePath))
+            {
+                Console.WriteLine($"Error: Game executable not found: {gameExePath}");
+                return 1;
+            }
+
+            if (!Directory.Exists(patchDir))
+            {
+                Console.WriteLine($"Error: Patch directory not found: {patchDir}");
+                return 1;
+            }
+
+            // Create orchestrator
+            var orchestrator = new PatchOrchestrator(patchDir);
+
+            // If no patch IDs provided, list available patches and exit
+            if (patchIds.Length == 0)
+            {
+                Console.WriteLine("No patch IDs provided. Available patches:\n");
+                var patches = orchestrator.GetAvailablePatches();
+
+                if (patches.Count == 0)
+                {
+                    Console.WriteLine("No patches found in directory.");
+                    return 1;
+                }
+
+                foreach (var patch in patches.Values)
+                {
+                    Console.WriteLine($"  {patch.Manifest.Id,-20} - {patch.Manifest.Name}");
+                }
+
+                Console.WriteLine($"\nUsage: kpatch --install {gameExePath} {patchDir} [patch_ids...]");
+                return 0;
+            }
+
+            // Begin installation
+            Console.WriteLine($"=== Installing Patches to {Path.GetFileName(gameExePath)} ===\n");
+            Console.WriteLine($"Game:    {gameExePath}");
+            Console.WriteLine($"Patches: {patchDir}");
+            Console.WriteLine($"IDs:     {string.Join(", ", patchIds)}\n");
+
+            // Perform installation
+            var result = orchestrator.InstallPatches(
+                gameExePath: gameExePath,
+                patchIds: patchIds,
+                createBackup: true,
+                injectLoader: true
+            );
+
+            // Display progress messages
+            foreach (var message in result.Messages)
+            {
+                Console.WriteLine(message);
+            }
+
+            if (result.Success)
+            {
+                Console.WriteLine("\n=== Installation Complete ===");
+
+                if (result.DetectedVersion != null)
+                {
+                    Console.WriteLine($"Game Version: {result.DetectedVersion.DisplayName}");
+                }
+
+                Console.WriteLine($"Installed Patches ({result.InstalledPatches.Count}):");
+                foreach (var patchId in result.InstalledPatches)
+                {
+                    Console.WriteLine($"  - {patchId}");
+                }
+
+                if (result.Backup != null)
+                {
+                    Console.WriteLine($"\nBackup: {Path.GetFileName(result.Backup.BackupPath)}");
+                }
+
+                if (result.ConfigPath != null)
+                {
+                    Console.WriteLine($"Config: {Path.GetFileName(result.ConfigPath)}");
+                }
+
+                return 0;
+            }
+            else
+            {
+                Console.WriteLine($"\n=== Installation Failed ===");
+                Console.WriteLine($"Error: {result.Error}");
+                return 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during installation: {ex.Message}");
+            return 1;
+        }
+    }
+
+    // ==================== Test Commands ====================
 
     static int TestModels()
     {
