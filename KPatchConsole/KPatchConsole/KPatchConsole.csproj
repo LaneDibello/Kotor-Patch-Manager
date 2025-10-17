@@ -11,4 +11,10 @@
     <ProjectReference Include="..\..\KPatchCore\KPatchCore.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="TestData\*.toml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
