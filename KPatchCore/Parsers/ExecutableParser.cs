@@ -1,11 +1,14 @@
 using KPatchCore.Models;
-using PeNet;
 
 namespace KPatchCore.Parsers;
 
 /// <summary>
-/// Parses PE (Portable Executable) files to extract metadata
+/// Parses PE (Portable Executable) files to extract basic metadata
 /// </summary>
+/// <remarks>
+/// Simplified implementation without external PE libraries.
+/// Only extracts essential information needed for patch validation.
+/// </remarks>
 public static class ExecutableParser
 {
     /// <summary>
@@ -29,35 +32,14 @@ public static class ExecutableParser
         public required bool Is64Bit { get; init; }
 
         /// <summary>
-        /// Product version from version info (e.g., "1.03")
+        /// Machine type from PE header
         /// </summary>
-        public string? ProductVersion { get; init; }
-
-        /// <summary>
-        /// File version from version info (e.g., "1.0.3.0")
-        /// </summary>
-        public string? FileVersion { get; init; }
-
-        /// <summary>
-        /// Company name from version info
-        /// </summary>
-        public string? CompanyName { get; init; }
-
-        /// <summary>
-        /// Product name from version info
-        /// </summary>
-        public string? ProductName { get; init; }
-
-        /// <summary>
-        /// Number of imports (imported DLLs)
-        /// </summary>
-        public int ImportCount { get; init; }
-
-        /// <summary>
-        /// List of imported DLL names
-        /// </summary>
-        public List<string> ImportedDlls { get; init; } = new();
+        public required ushort MachineType { get; init; }
     }
+
+    // PE constants
+    private const ushort IMAGE_FILE_MACHINE_I386 = 0x014C;  // x86
+    private const ushort IMAGE_FILE_MACHINE_AMD64 = 0x8664; // x64
 
     /// <summary>
     /// Parses a PE executable and extracts metadata
@@ -74,40 +56,42 @@ public static class ExecutableParser
         try
         {
             var fileInfo = new FileInfo(exePath);
-            var peFile = new PeFile(exePath);
 
-            // Check if it's a valid PE file by checking if ImageNtHeaders exists
-            if (peFile.ImageNtHeaders == null)
+            using var stream = File.OpenRead(exePath);
+            using var reader = new BinaryReader(stream);
+
+            // Read DOS header
+            var dosSignature = reader.ReadUInt16(); // "MZ"
+            if (dosSignature != 0x5A4D) // MZ
             {
-                return PatchResult<ExecutableInfo>.Fail($"File is not a valid PE executable: {exePath}");
+                return PatchResult<ExecutableInfo>.Fail(
+                    $"Not a valid PE executable (invalid DOS signature): {exePath}");
             }
 
-            // Determine architecture from Machine type
-            bool is32Bit = peFile.Is32Bit;
-            bool is64Bit = peFile.Is64Bit;
+            // Skip to e_lfanew offset (at 0x3C)
+            stream.Seek(0x3C, SeekOrigin.Begin);
+            var peHeaderOffset = reader.ReadInt32();
 
-            // Extract version info (if available)
-            // Note: PeNet's version info API is complex, skipping for now
-            // We'll primarily rely on file hash for version detection
-            string? productVersion = null;
-            string? fileVersion = null;
-            string? companyName = null;
-            string? productName = null;
-
-            // Get imports
-            var importedDlls = new List<string>();
-            int importCount = 0;
-
-            if (peFile.ImportedFunctions != null)
+            // Read PE signature
+            stream.Seek(peHeaderOffset, SeekOrigin.Begin);
+            var peSignature = reader.ReadUInt32(); // "PE\0\0"
+            if (peSignature != 0x00004550) // PE\0\0
             {
-                var uniqueDlls = peFile.ImportedFunctions
-                    .Select(import => import.DLL)
-                    .Where(dll => !string.IsNullOrWhiteSpace(dll))
-                    .Distinct()
-                    .ToList();
+                return PatchResult<ExecutableInfo>.Fail(
+                    $"Not a valid PE executable (invalid PE signature): {exePath}");
+            }
 
-                importedDlls.AddRange(uniqueDlls);
-                importCount = uniqueDlls.Count;
+            // Read COFF header (IMAGE_FILE_HEADER)
+            var machineType = reader.ReadUInt16();
+
+            // Determine architecture
+            var is32Bit = machineType == IMAGE_FILE_MACHINE_I386;
+            var is64Bit = machineType == IMAGE_FILE_MACHINE_AMD64;
+
+            if (!is32Bit && !is64Bit)
+            {
+                return PatchResult<ExecutableInfo>.Fail(
+                    $"Unsupported architecture (machine type: 0x{machineType:X4}): {exePath}");
             }
 
             var executableInfo = new ExecutableInfo
@@ -115,12 +99,7 @@ public static class ExecutableParser
                 FileSize = fileInfo.Length,
                 Is32Bit = is32Bit,
                 Is64Bit = is64Bit,
-                ProductVersion = productVersion,
-                FileVersion = fileVersion,
-                CompanyName = companyName,
-                ProductName = productName,
-                ImportCount = importCount,
-                ImportedDlls = importedDlls
+                MachineType = machineType
             };
 
             return PatchResult<ExecutableInfo>.Ok(
@@ -135,22 +114,13 @@ public static class ExecutableParser
     }
 
     /// <summary>
-    /// Checks if an executable already imports a specific DLL
+    /// Checks if a file is a valid PE executable
     /// </summary>
-    /// <param name="exePath">Path to the executable</param>
-    /// <param name="dllName">DLL name to check (case-insensitive)</param>
-    /// <returns>Result indicating whether the DLL is imported</returns>
-    public static PatchResult<bool> HasImport(string exePath, string dllName)
+    /// <param name="exePath">Path to the file</param>
+    /// <returns>True if the file is a valid PE executable</returns>
+    public static bool IsValidPE(string exePath)
     {
         var result = ParseExecutable(exePath);
-        if (!result.Success || result.Data == null)
-        {
-            return PatchResult<bool>.Fail(result.Error ?? "Failed to parse executable");
-        }
-
-        var hasImport = result.Data.ImportedDlls
-            .Any(dll => dll.Equals(dllName, StringComparison.OrdinalIgnoreCase));
-
-        return PatchResult<bool>.Ok(hasImport);
+        return result.Success;
     }
 }

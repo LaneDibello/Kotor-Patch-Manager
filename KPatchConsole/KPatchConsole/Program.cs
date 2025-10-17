@@ -234,7 +234,7 @@ internal class Program
                 Console.WriteLine($"Backup Date:    {info.BackupDate:yyyy-MM-dd HH:mm:ss}");
             }
 
-            Console.WriteLine($"Loader Injected: {(info.LoaderInjected ? "YES" : "NO")}");
+            Console.WriteLine($"Launcher:        {(info.LauncherInstalled ? "YES" : "NO")}");
             Console.WriteLine($"Config File:     {(info.HasConfig ? "YES" : "NO")}");
 
             if (info.InstalledPatches.Count > 0)
@@ -395,7 +395,7 @@ internal class Program
                 gameExePath: gameExePath,
                 patchIds: patchIds,
                 createBackup: true,
-                injectLoader: true
+                copyLauncher: true
             );
 
             // Display progress messages
@@ -2109,120 +2109,13 @@ internal class Program
 
     static int TestPhase5(string? exePath)
     {
-        Console.WriteLine("--- Testing Phase 5 LoaderInjector ---\n");
-        var passed = 0;
-        var failed = 0;
-
-        // Default to KOTOR exe if no path provided
-        if (string.IsNullOrEmpty(exePath))
-        {
-            exePath = @"C:\Users\laned\Documents\KotOR Installs\swkotor.exe";
-        }
-
-        Console.WriteLine($"Using executable: {exePath}\n");
-
-        // Test LoaderInjector.IsLoaderInjected
-        Console.Write("Testing LoaderInjector.IsLoaderInjected... ");
-        try
-        {
-            if (File.Exists(exePath))
-            {
-                var result = LoaderInjector.IsLoaderInjected(exePath);
-
-                if (result.Success)
-                {
-                    Console.WriteLine($"✓ PASSED (Injected: {result.Data})");
-                    passed++;
-                }
-                else
-                {
-                    Console.WriteLine($"✗ FAILED - {result.Error}");
-                    failed++;
-                }
-            }
-            else
-            {
-                Console.WriteLine("⊘ SKIPPED - Executable not found");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"✗ FAILED - {ex.Message}");
-            failed++;
-        }
-
-        // Test LoaderInjector.GetImportTableInfo
-        Console.Write("Testing LoaderInjector.GetImportTableInfo... ");
-        try
-        {
-            if (File.Exists(exePath))
-            {
-                var result = LoaderInjector.GetImportTableInfo(exePath);
-
-                if (result.Success && result.Data != null)
-                {
-                    var info = result.Data;
-                    Console.WriteLine($"✓ PASSED ({info.Summary})");
-                    Console.WriteLine($"  Imports: {string.Join(", ", info.ImportedDlls.Take(5))}{(info.ImportedDlls.Count > 5 ? "..." : "")}");
-                    passed++;
-                }
-                else
-                {
-                    Console.WriteLine($"✗ FAILED - {result.Error}");
-                    failed++;
-                }
-            }
-            else
-            {
-                Console.WriteLine("⊘ SKIPPED - Executable not found");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"✗ FAILED - {ex.Message}");
-            failed++;
-        }
-
-        // Test LoaderInjector with a dummy executable
-        Console.Write("Testing LoaderInjector with dummy executable... ");
-        try
-        {
-            // Use the console app itself as a test target
-            var testExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
-
-            if (testExePath != null && File.Exists(testExePath))
-            {
-                var result = LoaderInjector.IsLoaderInjected(testExePath);
-
-                if (result.Success)
-                {
-                    Console.WriteLine($"✓ PASSED (Can analyze PE imports)");
-                    passed++;
-                }
-                else
-                {
-                    Console.WriteLine($"✗ FAILED - {result.Error}");
-                    failed++;
-                }
-            }
-            else
-            {
-                Console.WriteLine("⊘ SKIPPED - Could not find test executable");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"✗ FAILED - {ex.Message}");
-            failed++;
-        }
-
-        // Note about injection testing
-        Console.WriteLine("\n⚠️  Note: Actual PE modification testing skipped for safety.");
-        Console.WriteLine("    LoaderInjector.InjectLoader() is marked experimental.");
-        Console.WriteLine("    See PE_INJECTION_NOTES.md for alternative approaches.");
-
-        Console.WriteLine($"\nPhase 5 Tests: {passed} passed, {failed} failed");
-        return failed == 0 ? 0 : 1;
+        Console.WriteLine("--- Testing Phase 5 (LoaderInjector - REMOVED) ---\n");
+        Console.WriteLine("⚠️  Phase 5 tests have been removed.");
+        Console.WriteLine("    LoaderInjector was replaced with KPatchLauncher.");
+        Console.WriteLine("    The launcher uses Windows API DLL injection instead of PE modification.");
+        Console.WriteLine("    PE modification was experimental and unreliable.");
+        Console.WriteLine("\n✓ Phase 5 is now obsolete - launcher approach is used instead.");
+        return 0;
     }
 
     static int TestPhase6()

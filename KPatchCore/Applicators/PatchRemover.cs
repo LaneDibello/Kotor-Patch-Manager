@@ -145,6 +145,15 @@ public static class PatchRemover
                 messages.Add($"  Removed KotorPatcher.dll");
             }
 
+            // Remove KPatchLauncher.exe
+            var launcherPath = Path.Combine(gameDir, "KPatchLauncher.exe");
+            if (File.Exists(launcherPath))
+            {
+                File.Delete(launcherPath);
+                removedFiles.Add("KPatchLauncher.exe");
+                messages.Add($"  Removed KPatchLauncher.exe");
+            }
+
             // Step 4: Verify clean state
             messages.Add("Step 4/4: Verifying clean state...");
             var isClean = !File.Exists(configPath) && !Directory.Exists(patchesDir);
@@ -228,16 +237,16 @@ public static class PatchRemover
             var hasPatchesDir = Directory.Exists(patchesDir) &&
                                 Directory.GetFiles(patchesDir, "*.dll").Length > 0;
 
-            // Check if loader is injected
-            var loaderResult = LoaderInjector.IsLoaderInjected(gameExePath);
-            var hasLoader = loaderResult.Success && loaderResult.Data;
+            // Check if launcher exists
+            var launcherPath = Path.Combine(gameDir, "KPatchLauncher.exe");
+            var hasLauncher = File.Exists(launcherPath);
 
-            var isPatched = hasConfig || hasPatchesDir || hasLoader;
+            var isPatched = hasConfig || hasPatchesDir || hasLauncher;
 
             var details = new List<string>();
             if (hasConfig) details.Add("patch_config.toml exists");
             if (hasPatchesDir) details.Add("patches directory exists");
-            if (hasLoader) details.Add("loader is injected");
+            if (hasLauncher) details.Add("launcher exists");
 
             var message = isPatched
                 ? $"Patches installed ({string.Join(", ", details)})"
@@ -305,9 +314,9 @@ public static class PatchRemover
                 info.ConfigPath = configPath;
             }
 
-            // Check loader injection
-            var loaderResult = LoaderInjector.IsLoaderInjected(gameExePath);
-            info.LoaderInjected = loaderResult.Success && loaderResult.Data;
+            // Check for launcher
+            var launcherPath = Path.Combine(gameDir, "KPatchLauncher.exe");
+            info.LauncherInstalled = File.Exists(launcherPath);
 
             return PatchResult<InstallationInfo>.Ok(info);
         }
@@ -363,14 +372,14 @@ public static class PatchRemover
         public string? ConfigPath { get; set; }
 
         /// <summary>
-        /// Whether KotorPatcher.dll is injected
+        /// Whether KPatchLauncher.exe is installed
         /// </summary>
-        public bool LoaderInjected { get; set; }
+        public bool LauncherInstalled { get; set; }
 
         /// <summary>
         /// Summary string
         /// </summary>
         public string Summary =>
-            $"{InstalledPatches.Count} patches, Backup: {(HasBackup ? "YES" : "NO")}, Loader: {(LoaderInjected ? "YES" : "NO")}";
+            $"{InstalledPatches.Count} patches, Backup: {(HasBackup ? "YES" : "NO")}, Launcher: {(LauncherInstalled ? "YES" : "NO")}";
     }
 }

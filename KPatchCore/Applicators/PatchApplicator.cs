@@ -34,14 +34,19 @@ public class PatchApplicator
         public bool CreateBackup { get; init; } = true;
 
         /// <summary>
-        /// Whether to inject the loader DLL into the executable
-        /// </summary>
-        public bool InjectLoader { get; init; } = true;
-
-        /// <summary>
         /// Path to KotorPatcher.dll (if null, assumes it's in same directory as game exe)
         /// </summary>
         public string? PatcherDllPath { get; init; }
+
+        /// <summary>
+        /// Path to KPatchLauncher.exe to copy to game directory (if null, no launcher copied)
+        /// </summary>
+        public string? LauncherExePath { get; init; }
+
+        /// <summary>
+        /// Whether to copy the launcher to the game directory
+        /// </summary>
+        public bool CopyLauncher { get; init; } = true;
     }
 
     /// <summary>
@@ -326,36 +331,38 @@ public class PatchApplicator
 
             messages.Add($"  Config generated: patch_config.toml");
 
-            // Step 7: Inject loader (optional)
-            if (options.InjectLoader)
+            // Step 7: Copy patcher DLL and launcher
+            messages.Add("Step 7/7: Installing patcher and launcher...");
+
+            // Copy KotorPatcher.dll to game directory if path provided
+            if (!string.IsNullOrEmpty(options.PatcherDllPath))
             {
-                messages.Add("Step 7/7: Injecting loader DLL...");
-
-                // Copy KotorPatcher.dll to game directory if path provided
-                if (!string.IsNullOrEmpty(options.PatcherDllPath))
-                {
-                    var destPath = Path.Combine(gameDir, "KotorPatcher.dll");
-                    File.Copy(options.PatcherDllPath, destPath, overwrite: true);
-                    messages.Add($"  Copied KotorPatcher.dll to game directory");
-                }
-
-                var injectResult = LoaderInjector.InjectLoader(options.GameExePath, verifyBackup: options.CreateBackup);
-                if (!injectResult.Success)
-                {
-                    messages.Add($"  ⚠️ Warning: Loader injection failed: {injectResult.Error}");
-                    messages.Add($"  ⚠️ You may need to use a launcher or external tool for DLL loading");
-                    messages.Add($"  ⚠️ See PE_INJECTION_NOTES.md for alternatives");
-                    // Don't fail the entire installation - patches are still installed
-                }
-                else
-                {
-                    messages.Add($"  Loader injected successfully");
-                }
+                var destPath = Path.Combine(gameDir, "KotorPatcher.dll");
+                File.Copy(options.PatcherDllPath, destPath, overwrite: true);
+                messages.Add($"  Copied KotorPatcher.dll to game directory");
             }
             else
             {
-                messages.Add("Step 7/7: Skipping loader injection (disabled)");
-                messages.Add("  ⚠️ You will need to manually load KotorPatcher.dll");
+                messages.Add($"  ⚠️ Warning: KotorPatcher.dll path not provided");
+                messages.Add($"  ⚠️ Make sure KotorPatcher.dll is in game directory");
+            }
+
+            // Copy KPatchLauncher.exe to game directory if requested
+            if (options.CopyLauncher && !string.IsNullOrEmpty(options.LauncherExePath))
+            {
+                var launcherDestPath = Path.Combine(gameDir, "KPatchLauncher.exe");
+                File.Copy(options.LauncherExePath, launcherDestPath, overwrite: true);
+                messages.Add($"  Copied KPatchLauncher.exe to game directory");
+                messages.Add($"  ✓ Run KPatchLauncher.exe to start the game with patches");
+            }
+            else if (options.CopyLauncher)
+            {
+                messages.Add($"  ⚠️ Warning: Launcher path not provided, skipping launcher copy");
+                messages.Add($"  ⚠️ You will need to use an external DLL injector");
+            }
+            else
+            {
+                messages.Add($"  Skipping launcher copy (disabled)");
             }
 
             return new InstallResult

@@ -14,7 +14,14 @@
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" run --project ../KPatchConsole/KPatchConsole/KPatchConsole.csproj -- --test-phase3)",
       "Bash(powershell.exe -Command \"Get-FileHash -Algorithm SHA256 ''C:\\Users\\laned\\Documents\\KotOR Installs\\swkotor.exe'' | Select-Object -ExpandProperty Hash\")",
       "Read(//mnt/c/Users/laned/Documents/KotOR Patches/**)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Read(//mnt/c/Users/laned/Documents/KotOR Installs/CHEAT/**)",
+      "Bash(powershell.exe -Command \"Get-Item ''KotorPatcher.dll'' | Select-Object Name, Length, LastWriteTime, @{Name=''Is64Bit'';Expression={(Test-Path -Path $_.FullName -PathType Leaf) -and ((Get-Item $_.FullName).Extension -eq ''.dll'')}}\")",
+      "Bash(\"/mnt/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.42.34433/bin/Hostx64/x86/dumpbin.exe\" /HEADERS \"C:\\Users\\laned\\Documents\\KotOR Installs\\CHEAT\\KotorPatcher.dll\")",
+      "Bash(\"/mnt/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/dumpbin.exe\" /HEADERS \"C:\\Users\\laned\\Documents\\KotOR Installs\\CHEAT\\KotorPatcher.dll\")",
+      "Bash(\"/mnt/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/dumpbin.exe\" /IMPORTS \"C:\\Users\\laned\\Documents\\KotOR Installs\\CHEAT\\swkotor.exe\")",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build \"/mnt/c/Users/laned/source/Repos/KotOR Patch Manager/KPatchCore/KPatchCore.csproj\")",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" publish -c Release -o publish)"
     ],
     "deny": [],
     "ask": []

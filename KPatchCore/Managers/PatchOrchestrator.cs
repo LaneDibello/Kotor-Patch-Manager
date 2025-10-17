@@ -39,23 +39,26 @@ public class PatchOrchestrator
     /// <param name="gameExePath">Path to the game executable</param>
     /// <param name="patchIds">Patch IDs to install</param>
     /// <param name="createBackup">Whether to create a backup before installation</param>
-    /// <param name="injectLoader">Whether to inject the loader DLL</param>
+    /// <param name="copyLauncher">Whether to copy the launcher to the game directory</param>
     /// <param name="patcherDllPath">Path to KotorPatcher.dll (optional)</param>
+    /// <param name="launcherExePath">Path to KPatchLauncher.exe (optional)</param>
     /// <returns>Installation result</returns>
     public PatchApplicator.InstallResult InstallPatches(
         string gameExePath,
         IEnumerable<string> patchIds,
         bool createBackup = true,
-        bool injectLoader = true,
-        string? patcherDllPath = null)
+        bool copyLauncher = true,
+        string? patcherDllPath = null,
+        string? launcherExePath = null)
     {
         var options = new PatchApplicator.InstallOptions
         {
             GameExePath = gameExePath,
             PatchIds = patchIds.ToList(),
             CreateBackup = createBackup,
-            InjectLoader = injectLoader,
-            PatcherDllPath = patcherDllPath
+            CopyLauncher = copyLauncher,
+            PatcherDllPath = patcherDllPath,
+            LauncherExePath = launcherExePath
         };
 
         return _applicator.InstallPatches(options);
