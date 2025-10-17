@@ -1,8 +1,10 @@
 using KPatchCore.Applicators;
 using KPatchCore.Common;
 using KPatchCore.Detectors;
+using KPatchCore.Managers;
 using KPatchCore.Models;
 using KPatchCore.Parsers;
+using KPatchCore.Validators;
 
 namespace KPatchConsole;
 
@@ -28,13 +30,28 @@ internal class Program
         {
             return TestPhase3();
         }
+        else if (args.Length > 0 && args[0] == "--test-phase4")
+        {
+            return TestPhase4();
+        }
+        else if (args.Length > 0 && args[0] == "--test-phase5")
+        {
+            return TestPhase5(args.Length > 1 ? args[1] : null);
+        }
+        else if (args.Length > 0 && args[0] == "--test-phase6")
+        {
+            return TestPhase6();
+        }
         else if (args.Length > 0 && args[0] == "--test-all")
         {
             var result1 = TestModels();
             var result2 = TestCommon();
             var result3 = TestParsers();
             var result4 = TestPhase3();
-            return result1 == 0 && result2 == 0 && result3 == 0 && result4 == 0 ? 0 : 1;
+            var result5 = TestPhase4();
+            var result6 = TestPhase5(null);
+            var result7 = TestPhase6();
+            return result1 == 0 && result2 == 0 && result3 == 0 && result4 == 0 && result5 == 0 && result6 == 0 && result7 == 0 ? 0 : 1;
         }
         else
         {
@@ -51,6 +68,10 @@ internal class Program
         Console.WriteLine("  --test-common    Test common utilities");
         Console.WriteLine("  --test-parsers   Test TOML and PE parsers");
         Console.WriteLine("  --test-phase3    Test Phase 3 (BackupManager, ConfigGenerator, GameDetector)");
+        Console.WriteLine("  --test-phase4    Test Phase 4 (All Validators)");
+        Console.WriteLine("  --test-phase5 [exe_path]");
+        Console.WriteLine("                   Test Phase 5 (LoaderInjector) - optionally provide exe path");
+        Console.WriteLine("  --test-phase6    Test Phase 6 (Orchestration - Repository, Applicator, etc.)");
         Console.WriteLine("  --test-all       Run all tests");
         Console.WriteLine("\nFuture commands:");
         Console.WriteLine("  --install        Install patches (not yet implemented)");
@@ -1189,6 +1210,877 @@ internal class Program
         }
 
         Console.WriteLine($"\nPhase 3 Tests: {passed} passed, {failed} failed");
+        return failed == 0 ? 0 : 1;
+    }
+
+    static int TestPhase4()
+    {
+        Console.WriteLine("--- Testing Phase 4 Validators ---\n");
+        var passed = 0;
+        var failed = 0;
+
+        // Test PatchValidator - valid manifest
+        Console.Write("Testing PatchValidator with valid manifest... ");
+        try
+        {
+            var manifest = new PatchManifest
+            {
+                Id = "test-patch",
+                Name = "Test Patch",
+                Version = "1.0.0",
+                Author = "Test Author",
+                Description = "Test description",
+                Requires = new List<string> { "dep1" },
+                Conflicts = new List<string> { "conflict1" },
+                SupportedVersions = new Dictionary<string, string>
+                {
+                    ["kotor1_gog_103"] = "ABC123"
+                }
+            };
+
+            var result = PatchValidator.ValidateManifest(manifest);
+
+            if (result.Success)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"✗ FAILED - {result.Error}");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test PatchValidator - invalid ID
+        Console.Write("Testing PatchValidator rejects invalid ID... ");
+        try
+        {
+            var manifest = new PatchManifest
+            {
+                Id = "INVALID_ID", // Should be lowercase with hyphens
+                Name = "Test",
+                Version = "1.0.0",
+                Author = "Test",
+                Description = "Test",
+                SupportedVersions = new Dictionary<string, string> { ["key"] = "val" }
+            };
+
+            var result = PatchValidator.ValidateManifest(manifest);
+
+            if (!result.Success && result.Error?.Contains("Invalid patch ID") == true)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Should reject invalid ID");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test PatchValidator - self-reference
+        Console.Write("Testing PatchValidator rejects self-reference... ");
+        try
+        {
+            var manifest = new PatchManifest
+            {
+                Id = "self-ref",
+                Name = "Test",
+                Version = "1.0.0",
+                Author = "Test",
+                Description = "Test",
+                Requires = new List<string> { "self-ref" }, // Requires itself
+                SupportedVersions = new Dictionary<string, string> { ["key"] = "val" }
+            };
+
+            var result = PatchValidator.ValidateManifest(manifest);
+
+            if (!result.Success && result.Error?.Contains("cannot require itself") == true)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Should reject self-reference");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test HookValidator - valid hook
+        Console.Write("Testing HookValidator with valid hook... ");
+        try
+        {
+            var hook = new Hook
+            {
+                Address = 0x401234,
+                Function = "TestFunction",
+                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
+                Type = HookType.Inline
+            };
+
+            var result = HookValidator.ValidateHook(hook);
+
+            if (result.Success)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"✗ FAILED - {result.Error}");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test HookValidator - detect overlapping hooks
+        Console.Write("Testing HookValidator detects overlapping hooks... ");
+        try
+        {
+            var hook1 = new Hook
+            {
+                Address = 0x401234,
+                Function = "Hook1",
+                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 }
+            };
+            var hook2 = new Hook
+            {
+                Address = 0x401234, // Same address
+                Function = "Hook2",
+                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 }
+            };
+
+            var result = HookValidator.ValidateHooks(new[] { hook1, hook2 });
+
+            if (!result.Success && result.Error?.Contains("Multiple hooks at address") == true)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Should detect overlapping hooks");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test HookValidator - multi-patch conflicts
+        Console.Write("Testing HookValidator detects inter-patch conflicts... ");
+        try
+        {
+            var patches = new Dictionary<string, List<Hook>>
+            {
+                ["patch1"] = new List<Hook>
+                {
+                    new Hook
+                    {
+                        Address = 0x401234,
+                        Function = "Patch1Hook",
+                        OriginalBytes = new byte[] { 0x55 }
+                    }
+                },
+                ["patch2"] = new List<Hook>
+                {
+                    new Hook
+                    {
+                        Address = 0x401234, // Same address as patch1
+                        Function = "Patch2Hook",
+                        OriginalBytes = new byte[] { 0x55 }
+                    }
+                }
+            };
+
+            var result = HookValidator.ValidateMultiPatchHooks(patches);
+
+            if (!result.Success && result.Error?.Contains("conflicts detected") == true)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Should detect inter-patch conflicts");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test DependencyValidator - valid dependencies
+        Console.Write("Testing DependencyValidator with satisfied dependencies... ");
+        try
+        {
+            var patches = new Dictionary<string, PatchManifest>
+            {
+                ["base-patch"] = new PatchManifest
+                {
+                    Id = "base-patch",
+                    Name = "Base",
+                    Version = "1.0.0",
+                    Author = "Test",
+                    Description = "Base patch",
+                    SupportedVersions = new Dictionary<string, string> { ["v"] = "h" }
+                },
+                ["dependent-patch"] = new PatchManifest
+                {
+                    Id = "dependent-patch",
+                    Name = "Dependent",
+                    Version = "1.0.0",
+                    Author = "Test",
+                    Description = "Depends on base",
+                    Requires = new List<string> { "base-patch" },
+                    SupportedVersions = new Dictionary<string, string> { ["v"] = "h" }
+                }
+            };
+
+            var result = DependencyValidator.ValidateDependencies(
+                patches,
+                new[] { "base-patch", "dependent-patch" }
+            );
+
+            if (result.Success)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"✗ FAILED - {result.Error}");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test DependencyValidator - missing dependencies
+        Console.Write("Testing DependencyValidator detects missing dependencies... ");
+        try
+        {
+            var patches = new Dictionary<string, PatchManifest>
+            {
+                ["dependent-patch"] = new PatchManifest
+                {
+                    Id = "dependent-patch",
+                    Name = "Dependent",
+                    Version = "1.0.0",
+                    Author = "Test",
+                    Description = "Depends on missing patch",
+                    Requires = new List<string> { "missing-patch" },
+                    SupportedVersions = new Dictionary<string, string> { ["v"] = "h" }
+                }
+            };
+
+            var result = DependencyValidator.ValidateDependencies(
+                patches,
+                new[] { "dependent-patch" }
+            );
+
+            if (!result.Success && result.Error?.Contains("requires") == true)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Should detect missing dependencies");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test DependencyValidator - circular dependencies
+        Console.Write("Testing DependencyValidator detects circular dependencies... ");
+        try
+        {
+            var patches = new Dictionary<string, PatchManifest>
+            {
+                ["patch-a"] = new PatchManifest
+                {
+                    Id = "patch-a",
+                    Name = "A",
+                    Version = "1.0.0",
+                    Author = "Test",
+                    Description = "Requires B",
+                    Requires = new List<string> { "patch-b" },
+                    SupportedVersions = new Dictionary<string, string> { ["v"] = "h" }
+                },
+                ["patch-b"] = new PatchManifest
+                {
+                    Id = "patch-b",
+                    Name = "B",
+                    Version = "1.0.0",
+                    Author = "Test",
+                    Description = "Requires A",
+                    Requires = new List<string> { "patch-a" },
+                    SupportedVersions = new Dictionary<string, string> { ["v"] = "h" }
+                }
+            };
+
+            var result = DependencyValidator.DetectCircularDependencies(patches);
+
+            if (!result.Success && result.Error?.Contains("Circular") == true)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Should detect circular dependencies");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test DependencyValidator - install order calculation
+        Console.Write("Testing DependencyValidator calculates install order... ");
+        try
+        {
+            var patches = new Dictionary<string, PatchManifest>
+            {
+                ["base"] = new PatchManifest
+                {
+                    Id = "base",
+                    Name = "Base",
+                    Version = "1.0.0",
+                    Author = "Test",
+                    Description = "Base",
+                    SupportedVersions = new Dictionary<string, string> { ["v"] = "h" }
+                },
+                ["middle"] = new PatchManifest
+                {
+                    Id = "middle",
+                    Name = "Middle",
+                    Version = "1.0.0",
+                    Author = "Test",
+                    Description = "Middle",
+                    Requires = new List<string> { "base" },
+                    SupportedVersions = new Dictionary<string, string> { ["v"] = "h" }
+                },
+                ["top"] = new PatchManifest
+                {
+                    Id = "top",
+                    Name = "Top",
+                    Version = "1.0.0",
+                    Author = "Test",
+                    Description = "Top",
+                    Requires = new List<string> { "middle" },
+                    SupportedVersions = new Dictionary<string, string> { ["v"] = "h" }
+                }
+            };
+
+            var result = DependencyValidator.CalculateInstallOrder(
+                patches,
+                new[] { "top", "middle", "base" }
+            );
+
+            if (result.Success && result.Data != null)
+            {
+                var order = result.Data;
+                if (order.Count == 3 &&
+                    order[0] == "base" &&
+                    order[1] == "middle" &&
+                    order[2] == "top")
+                {
+                    Console.WriteLine("✓ PASSED");
+                    passed++;
+                }
+                else
+                {
+                    Console.WriteLine($"✗ FAILED - Wrong order: {string.Join(" -> ", order)}");
+                    failed++;
+                }
+            }
+            else
+            {
+                Console.WriteLine($"✗ FAILED - {result.Error}");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test GameVersionValidator
+        Console.Write("Testing GameVersionValidator with supported version... ");
+        try
+        {
+            var manifest = new PatchManifest
+            {
+                Id = "test",
+                Name = "Test",
+                Version = "1.0.0",
+                Author = "Test",
+                Description = "Test",
+                SupportedVersions = new Dictionary<string, string>
+                {
+                    ["kotor1_gog_103"] = "ABC123DEF456"
+                }
+            };
+
+            var gameVersion = new GameVersion
+            {
+                Platform = Platform.Windows,
+                Distribution = Distribution.GOG,
+                Version = "1.03",
+                Architecture = Architecture.x86,
+                FileSize = 5242880,
+                Hash = "ABC123DEF456"
+            };
+
+            var result = GameVersionValidator.ValidateGameVersion(manifest, gameVersion);
+
+            if (result.Success)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"✗ FAILED - {result.Error}");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test GameVersionValidator - unsupported version
+        Console.Write("Testing GameVersionValidator rejects unsupported version... ");
+        try
+        {
+            var manifest = new PatchManifest
+            {
+                Id = "test",
+                Name = "Test",
+                Version = "1.0.0",
+                Author = "Test",
+                Description = "Test",
+                SupportedVersions = new Dictionary<string, string>
+                {
+                    ["kotor1_gog_103"] = "ABC123"
+                }
+            };
+
+            var gameVersion = new GameVersion
+            {
+                Platform = Platform.Windows,
+                Distribution = Distribution.Steam,
+                Version = "1.03",
+                Architecture = Architecture.x86,
+                FileSize = 5242880,
+                Hash = "DIFFERENT_HASH"
+            };
+
+            var result = GameVersionValidator.ValidateGameVersion(manifest, gameVersion);
+
+            if (!result.Success && result.Error?.Contains("does not support") == true)
+            {
+                Console.WriteLine("✓ PASSED");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Should reject unsupported version");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        Console.WriteLine($"\nPhase 4 Tests: {passed} passed, {failed} failed");
+        return failed == 0 ? 0 : 1;
+    }
+
+    static int TestPhase5(string? exePath)
+    {
+        Console.WriteLine("--- Testing Phase 5 LoaderInjector ---\n");
+        var passed = 0;
+        var failed = 0;
+
+        // Default to KOTOR exe if no path provided
+        if (string.IsNullOrEmpty(exePath))
+        {
+            exePath = @"C:\Users\laned\Documents\KotOR Installs\swkotor.exe";
+        }
+
+        Console.WriteLine($"Using executable: {exePath}\n");
+
+        // Test LoaderInjector.IsLoaderInjected
+        Console.Write("Testing LoaderInjector.IsLoaderInjected... ");
+        try
+        {
+            if (File.Exists(exePath))
+            {
+                var result = LoaderInjector.IsLoaderInjected(exePath);
+
+                if (result.Success)
+                {
+                    Console.WriteLine($"✓ PASSED (Injected: {result.Data})");
+                    passed++;
+                }
+                else
+                {
+                    Console.WriteLine($"✗ FAILED - {result.Error}");
+                    failed++;
+                }
+            }
+            else
+            {
+                Console.WriteLine("⊘ SKIPPED - Executable not found");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test LoaderInjector.GetImportTableInfo
+        Console.Write("Testing LoaderInjector.GetImportTableInfo... ");
+        try
+        {
+            if (File.Exists(exePath))
+            {
+                var result = LoaderInjector.GetImportTableInfo(exePath);
+
+                if (result.Success && result.Data != null)
+                {
+                    var info = result.Data;
+                    Console.WriteLine($"✓ PASSED ({info.Summary})");
+                    Console.WriteLine($"  Imports: {string.Join(", ", info.ImportedDlls.Take(5))}{(info.ImportedDlls.Count > 5 ? "..." : "")}");
+                    passed++;
+                }
+                else
+                {
+                    Console.WriteLine($"✗ FAILED - {result.Error}");
+                    failed++;
+                }
+            }
+            else
+            {
+                Console.WriteLine("⊘ SKIPPED - Executable not found");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test LoaderInjector with a dummy executable
+        Console.Write("Testing LoaderInjector with dummy executable... ");
+        try
+        {
+            // Use the console app itself as a test target
+            var testExePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+
+            if (testExePath != null && File.Exists(testExePath))
+            {
+                var result = LoaderInjector.IsLoaderInjected(testExePath);
+
+                if (result.Success)
+                {
+                    Console.WriteLine($"✓ PASSED (Can analyze PE imports)");
+                    passed++;
+                }
+                else
+                {
+                    Console.WriteLine($"✗ FAILED - {result.Error}");
+                    failed++;
+                }
+            }
+            else
+            {
+                Console.WriteLine("⊘ SKIPPED - Could not find test executable");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Note about injection testing
+        Console.WriteLine("\n⚠️  Note: Actual PE modification testing skipped for safety.");
+        Console.WriteLine("    LoaderInjector.InjectLoader() is marked experimental.");
+        Console.WriteLine("    See PE_INJECTION_NOTES.md for alternative approaches.");
+
+        Console.WriteLine($"\nPhase 5 Tests: {passed} passed, {failed} failed");
+        return failed == 0 ? 0 : 1;
+    }
+
+    static int TestPhase6()
+    {
+        Console.WriteLine("--- Testing Phase 6 Orchestration ---\n");
+        var passed = 0;
+        var failed = 0;
+
+        // Test PatchRemover.HasPatchesInstalled
+        Console.Write("Testing PatchRemover.HasPatchesInstalled... ");
+        try
+        {
+            var kotorPath = @"C:\Users\laned\Documents\KotOR Installs\swkotor.exe";
+
+            if (File.Exists(kotorPath))
+            {
+                var result = PatchRemover.HasPatchesInstalled(kotorPath);
+
+                if (result.Success)
+                {
+                    Console.WriteLine($"✓ PASSED (Patched: {result.Data})");
+                    passed++;
+                }
+                else
+                {
+                    Console.WriteLine($"✗ FAILED - {result.Error}");
+                    failed++;
+                }
+            }
+            else
+            {
+                Console.WriteLine("⊘ SKIPPED - KOTOR exe not found");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test PatchRemover.GetInstallationInfo
+        Console.Write("Testing PatchRemover.GetInstallationInfo... ");
+        try
+        {
+            var kotorPath = @"C:\Users\laned\Documents\KotOR Installs\swkotor.exe";
+
+            if (File.Exists(kotorPath))
+            {
+                var result = PatchRemover.GetInstallationInfo(kotorPath);
+
+                if (result.Success && result.Data != null)
+                {
+                    var info = result.Data;
+                    Console.WriteLine($"✓ PASSED");
+                    Console.WriteLine($"  {info.Summary}");
+                    passed++;
+                }
+                else
+                {
+                    Console.WriteLine($"✗ FAILED - {result.Error}");
+                    failed++;
+                }
+            }
+            else
+            {
+                Console.WriteLine("⊘ SKIPPED - KOTOR exe not found");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test PatchRepository with empty directory
+        Console.Write("Testing PatchRepository with empty directory... ");
+        try
+        {
+            var testDir = PathHelpers.CreateTempDirectory();
+            var repo = new PatchRepository(testDir);
+
+            var result = repo.ScanPatches();
+
+            if (result.Success && repo.PatchCount == 0)
+            {
+                Console.WriteLine("✓ PASSED (No patches found, as expected)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine($"✗ FAILED - Expected 0 patches, got {repo.PatchCount}");
+                failed++;
+            }
+
+            PathHelpers.SafeDeleteDirectory(testDir);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test PatchRepository with non-existent directory
+        Console.Write("Testing PatchRepository with non-existent directory... ");
+        try
+        {
+            var repo = new PatchRepository("/nonexistent/path");
+            var result = repo.ScanPatches();
+
+            if (!result.Success && result.Error?.Contains("not found") == true)
+            {
+                Console.WriteLine("✓ PASSED (Correctly reports missing directory)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Should fail for non-existent directory");
+                failed++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test PatchOrchestrator construction
+        Console.Write("Testing PatchOrchestrator construction... ");
+        try
+        {
+            var testDir = PathHelpers.CreateTempDirectory();
+            var orchestrator = new PatchOrchestrator(testDir);
+
+            if (orchestrator.AvailablePatchCount == 0)
+            {
+                Console.WriteLine("✓ PASSED (Orchestrator initialized)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Unexpected patches found");
+                failed++;
+            }
+
+            PathHelpers.SafeDeleteDirectory(testDir);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test PatchOrchestrator.GetAvailablePatches
+        Console.Write("Testing PatchOrchestrator.GetAvailablePatches... ");
+        try
+        {
+            var testDir = PathHelpers.CreateTempDirectory();
+            var orchestrator = new PatchOrchestrator(testDir);
+
+            var patches = orchestrator.GetAvailablePatches();
+
+            if (patches != null && patches.Count == 0)
+            {
+                Console.WriteLine("✓ PASSED (Empty patch collection)");
+                passed++;
+            }
+            else
+            {
+                Console.WriteLine("✗ FAILED - Expected empty collection");
+                failed++;
+            }
+
+            PathHelpers.SafeDeleteDirectory(testDir);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Test PatchOrchestrator.IsPatched
+        Console.Write("Testing PatchOrchestrator.IsPatched... ");
+        try
+        {
+            var testDir = PathHelpers.CreateTempDirectory();
+            var orchestrator = new PatchOrchestrator(testDir);
+            var kotorPath = @"C:\Users\laned\Documents\KotOR Installs\swkotor.exe";
+
+            if (File.Exists(kotorPath))
+            {
+                var result = orchestrator.IsPatched(kotorPath);
+
+                if (result.Success)
+                {
+                    Console.WriteLine($"✓ PASSED (Can check patch status)");
+                    passed++;
+                }
+                else
+                {
+                    Console.WriteLine($"✗ FAILED - {result.Error}");
+                    failed++;
+                }
+            }
+            else
+            {
+                Console.WriteLine("⊘ SKIPPED - KOTOR exe not found");
+            }
+
+            PathHelpers.SafeDeleteDirectory(testDir);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ FAILED - {ex.Message}");
+            failed++;
+        }
+
+        // Note about full integration tests
+        Console.WriteLine("\n⚠️  Note: Full installation/removal tests require .kpatch files.");
+        Console.WriteLine("    Create test .kpatch files to test:");
+        Console.WriteLine("    - PatchRepository.LoadPatch()");
+        Console.WriteLine("    - PatchApplicator.InstallPatches()");
+        Console.WriteLine("    - PatchRemover.RemoveAllPatches()");
+        Console.WriteLine("    - End-to-end orchestration workflow");
+        Console.WriteLine("\n    See PHASE6_NOTES.md for .kpatch file format.");
+
+        Console.WriteLine($"\nPhase 6 Tests: {passed} passed, {failed} failed");
         return failed == 0 ? 0 : 1;
     }
 }

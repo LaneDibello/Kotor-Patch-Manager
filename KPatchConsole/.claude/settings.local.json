@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//mnt/c/Users/laned/source/Repos/KotOR Patch Manager/**)",
+      "Bash(/mnt/c/Program Files/dotnet/dotnet.exe build)",
+      "Bash(/mnt/c/Program Files/dotnet/dotnet.exe run --test-phase4)",
+      "Bash(/mnt/c/Program Files/dotnet/dotnet.exe run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

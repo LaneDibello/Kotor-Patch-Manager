@@ -3,8 +3,11 @@
 ## Current Status
 - ✅ **Phase 1 Complete**: Models & Common utilities
 - ✅ **Phase 2 Complete**: Parsers (ManifestParser, HooksParser, ExecutableParser)
-- 🚧 **In Progress**: Phase 3 - Simple Operations
-- ⏳ **Next**: Phase 4 - Validators
+- ✅ **Phase 3 Complete**: Simple Operations (BackupManager, ConfigGenerator, GameDetector)
+- ✅ **Phase 4 Complete**: Validators (all 4 validators)
+- ✅ **Phase 5 Complete**: PE Manipulation (LoaderInjector - experimental)
+- ✅ **Phase 6 Complete**: Orchestration (PatchRepository, PatchApplicator, PatchRemover, PatchOrchestrator)
+- ⏳ **Next**: Phase 7 - Console Application (MVP)
 
 ## Overall Architecture
 
@@ -103,31 +106,41 @@ Ensure patches are valid and compatible.
 - `DependencyValidator.cs` - Verify dependencies satisfied, no conflicts
 - `GameVersionValidator.cs` - Ensure patch supports detected game version
 
-### Phase 5: PE Manipulation (Complex)
+### ✅ Phase 5: PE Manipulation (Complex) - COMPLETE
 
 **Applicators/**
-- `LoaderInjector.cs` - Modify PE import table using PeNet
+- `LoaderInjector.cs` - ✅ Modify PE import table using PeNet
   - Add `kotor_patcher.dll` to import table
   - This is the ONLY modification to game EXE
   - Must be reversible
+  - ⚠️ **Note**: Current implementation is experimental. See `PE_INJECTION_NOTES.md` for limitations and alternative approaches (launcher injection recommended)
 
-### Phase 6: Orchestration
+### ✅ Phase 6: Orchestration - COMPLETE
 
 High-level operations that tie everything together.
 
 **Applicators/**
-- `PatchApplicator.cs` - Orchestrate full patch installation
+- `PatchApplicator.cs` - ✅ Orchestrate full patch installation
   - Detect game version
-  - Validate patches
-  - Create backup
-  - Inject loader
-  - Deploy files
-  - Generate config
-- `PatchRemover.cs` - Remove patches/restore backups
+  - Validate patches (dependencies, conflicts, version compatibility, hook conflicts)
+  - Create backup (with automatic restoration on failure)
+  - Extract patch DLLs to patches/ subdirectory
+  - Generate patch_config.toml
+  - Inject loader (optional, experimental)
+- `PatchRemover.cs` - ✅ Remove patches/restore backups
+  - Find and restore backups
+  - Remove all patch files
+  - Installation status queries
 
 **Managers/**
-- `PatchRepository.cs` - Manage collection of .kpatch files
-- `PatchOrchestrator.cs` - Main public API facade
+- `PatchRepository.cs` - ✅ Manage collection of .kpatch files
+  - Scan directories for .kpatch archives
+  - Load and parse manifests and hooks
+  - Extract patch DLLs
+- `PatchOrchestrator.cs` - ✅ Main public API facade
+  - High-level InstallPatches() and UninstallPatches() methods
+  - Patch repository queries
+  - Installation status checks
 
 **PatchOrchestrator Public API:**
 ```csharp
