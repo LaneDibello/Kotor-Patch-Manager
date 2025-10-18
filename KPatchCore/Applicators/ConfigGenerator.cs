@@ -99,6 +99,22 @@ public static class ConfigGenerator
                         hookTable["exclude_from_restore"] = excludeArray;
                     }
 
+                    // Add parameters if any (for INLINE hooks)
+                    if (hook.Parameters.Count > 0)
+                    {
+                        var parametersArray = new TomlTableArray();
+                        foreach (var param in hook.Parameters)
+                        {
+                            var paramTable = new TomlTable
+                            {
+                                ["source"] = param.Source,
+                                ["type"] = param.Type.ToString().ToLowerInvariant()
+                            };
+                            parametersArray.Add(paramTable);
+                        }
+                        hookTable["parameters"] = parametersArray;
+                    }
+
                     hooksArray.Add(hookTable);
                 }
 

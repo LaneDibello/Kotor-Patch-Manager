@@ -239,6 +239,34 @@ namespace KotorPatcher {
                         }
                     }
 
+                    // Parse parameters (optional, for INLINE hooks)
+                    auto parametersArray = hookTable->at_path("parameters").as_array();
+                    if (parametersArray) {
+                        for (const auto& paramElem : *parametersArray) {
+                            auto paramTable = paramElem.as_table();
+                            if (!paramTable) continue;
+
+                            ParameterInfo param;
+                            auto source = paramTable->at_path("source").value<std::string>();
+                            if (!source) continue;
+                            param.source = *source;
+
+                            auto typeStr = paramTable->at_path("type").value<std::string>();
+                            if (!typeStr) continue;
+
+                            std::string type = *typeStr;
+                            if (_stricmp(type.c_str(), "int") == 0) param.type = ParameterType::INT;
+                            else if (_stricmp(type.c_str(), "uint") == 0) param.type = ParameterType::UINT;
+                            else if (_stricmp(type.c_str(), "pointer") == 0) param.type = ParameterType::POINTER;
+                            else if (_stricmp(type.c_str(), "float") == 0) param.type = ParameterType::FLOAT;
+                            else if (_stricmp(type.c_str(), "byte") == 0) param.type = ParameterType::BYTE;
+                            else if (_stricmp(type.c_str(), "short") == 0) param.type = ParameterType::SHORT;
+                            else continue; // Invalid type
+
+                            patch.parameters.push_back(param);
+                        }
+                    }
+
                     // Successfully parsed hook - add to list
                     outPatches.push_back(patch);
 

@@ -50,6 +50,9 @@ namespace KotorPatcher {
 
             // Helper: Calculate relative offset for JMP/CALL
             DWORD CalculateRelativeOffset(void* from, void* to);
+
+            // Helper: Extract parameter from source and push onto stack
+            void ExtractAndPushParameter(BYTE*& code, const ParameterInfo& param, int savedStateOffset);
         };
 
     } // namespace Wrappers

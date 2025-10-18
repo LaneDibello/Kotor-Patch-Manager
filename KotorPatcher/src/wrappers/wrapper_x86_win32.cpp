@@ -1,5 +1,7 @@
 #include "wrapper_x86_win32.h"
+#include "patcher.h"
 #include <cstring>
+#include <algorithm>
 
 namespace KotorPatcher {
     namespace Wrappers {
@@ -93,51 +95,47 @@ namespace KotorPatcher {
                 EmitByte(code, 0x9C);  // PUSHFD
             }
 
-            // ===== BUILD CONTEXT STRUCTURE =====
+            // ===== CALCULATE ORIGINAL ESP =====
+            // The patch function expects to see the original stack layout
+            // We need to calculate where ESP was before our wrapper modified it
 
-            // At this point, stack layout is:
-            // [ESP+0] = EFLAGS (if preserved)
-            // [ESP+4] = EDI (from PUSHAD)
-            // [ESP+8] = ESI
-            // ... etc
-
-            // Push additional context fields
-
-            // Push original_function pointer
-            EmitByte(code, 0x68);  // PUSH imm32
-            EmitDword(code, reinterpret_cast<DWORD>(config.originalFunction));
-
-            // Push return_address (caller's return address)
-            // It's above our saved state on the stack
-            // Calculate offset based on what we pushed
-            int returnAddrOffset = 0;
-            if (config.preserveFlags) returnAddrOffset += 4;
-            if (config.preserveRegisters) returnAddrOffset += 32;  // PUSHAD saves 8 regs * 4 bytes
-
-            EmitByte(code, 0xFF);  // PUSH [ESP + offset]
-            EmitByte(code, 0xB4);
-            EmitByte(code, 0x24);
-            EmitDword(code, returnAddrOffset + 4);  // +4 for the original_function we just pushed
-
-            // Push original_esp
-            // ESP before we modified it = current ESP + all our pushes + 4 (for return addr)
-            int totalPushed = 8;  // original_function + return_address
+            int totalPushed = 0;
             if (config.preserveFlags) totalPushed += 4;
             if (config.preserveRegisters) totalPushed += 32;
+            // +4 for the return address that was pushed when game called the hook
 
-            EmitByte(code, 0x8D);  // LEA EAX, [ESP + offset]
-            EmitByte(code, 0x84);
-            EmitByte(code, 0x24);
-            EmitDword(code, totalPushed + 4);  // +4 for return address
-            EmitByte(code, 0x50);  // PUSH EAX
+            // Save current ESP to EBX (we'll restore it later)
+            // MOV EBX, ESP
+            EmitByte(code, 0x89);  // MOV r/m32, r32
+            EmitByte(code, 0xE3);  // ModRM: EBX = ESP
 
-            // Now ESP points to complete PatchContext structure
-            // Context layout matches PatchContext_x86 struct
+            // Restore ESP to original value before wrapper
+            // ADD ESP, totalPushed
+            if (totalPushed <= 127) {
+                EmitByte(code, 0x83);  // ADD ESP, imm8
+                EmitByte(code, 0xC4);
+                EmitByte(code, static_cast<BYTE>(totalPushed));
+            } else {
+                EmitByte(code, 0x81);  // ADD ESP, imm32
+                EmitByte(code, 0xC4);
+                EmitDword(code, totalPushed);
+            }
+
+            // ===== EXTRACT AND PUSH PARAMETERS =====
+            // If the hook has parameters defined, extract them and push onto stack
+            // Parameters are pushed in reverse order for __cdecl (right-to-left)
+
+            if (!config.parameters.empty()) {
+                // Push parameters in reverse order (last parameter first)
+                for (int i = static_cast<int>(config.parameters.size()) - 1; i >= 0; i--) {
+                    const auto& param = config.parameters[i];
+                    ExtractAndPushParameter(code, param, totalPushed);
+                }
+            }
 
             // ===== CALL PATCH FUNCTION =====
-
-            // Pass context pointer as parameter
-            EmitByte(code, 0x54);  // PUSH ESP (context pointer)
+            // Now ESP points to the original stack layout (if no params)
+            // Or has parameters pushed (if params specified)
 
             // CALL patch_function
             EmitByte(code, 0xE8);  // CALL rel32
@@ -146,27 +144,26 @@ namespace KotorPatcher {
             DWORD callOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
             EmitDword(code, callOffset);
 
-            // Clean up parameter (4 bytes)
-            EmitByte(code, 0x83);  // ADD ESP, 4
-            EmitByte(code, 0xC4);
-            EmitByte(code, 0x04);
+            // ===== CLEAN UP PARAMETERS =====
+            // For __cdecl, caller cleans up the stack
+            if (!config.parameters.empty()) {
+                int paramBytes = static_cast<int>(config.parameters.size()) * 4;
+                if (paramBytes <= 127) {
+                    EmitByte(code, 0x83);  // ADD ESP, imm8
+                    EmitByte(code, 0xC4);
+                    EmitByte(code, static_cast<BYTE>(paramBytes));
+                } else {
+                    EmitByte(code, 0x81);  // ADD ESP, imm32
+                    EmitByte(code, 0xC4);
+                    EmitDword(code, paramBytes);
+                }
+            }
 
-            // ===== RESTORE CONTEXT FIELDS =====
-
-            // Pop original_esp (we don't need to restore this)
-            EmitByte(code, 0x83);  // ADD ESP, 4
-            EmitByte(code, 0xC4);
-            EmitByte(code, 0x04);
-
-            // Pop return_address (discard)
-            EmitByte(code, 0x83);  // ADD ESP, 4
-            EmitByte(code, 0xC4);
-            EmitByte(code, 0x04);
-
-            // Pop original_function (discard)
-            EmitByte(code, 0x83);  // ADD ESP, 4
-            EmitByte(code, 0xC4);
-            EmitByte(code, 0x04);
+            // ===== RESTORE WRAPPER ESP =====
+            // Restore ESP back to point to our saved state
+            // MOV ESP, EBX
+            EmitByte(code, 0x89);  // MOV r/m32, r32
+            EmitByte(code, 0xDC);  // ModRM: ESP = EBX
 
             // ===== EPILOGUE: Restore CPU State =====
 
@@ -301,6 +298,98 @@ namespace KotorPatcher {
             OutputDebugStringA("[Wrapper] Generated WRAP wrapper (partial implementation)\n");
 
             return wrapperMem;
+        }
+
+        // ===== Parameter Extraction =====
+
+        void WrapperGenerator_x86_Win32::ExtractAndPushParameter(BYTE*& code, const ParameterInfo& param, int savedStateOffset) {
+            std::string source = param.source;
+
+            // Convert to lowercase for comparison
+            std::transform(source.begin(), source.end(), source.begin(), ::tolower);
+
+            // ECX is our temp register for reading values
+            // We use ECX because it's caller-saved and won't affect the hook function
+
+            // Check if source is a register
+            if (source == "eax") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+48]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 48);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "ebx") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+36]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 36);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "ecx") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+44]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 44);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "edx") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+40]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 40);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "esi") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+24]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 24);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "edi") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+20]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 20);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "ebp") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+28]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 28);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            // Check if source is a stack offset like "esp+0", "esp+4", etc.
+            else if (source.find("esp+") == 0 || source.find("esp-") == 0) {
+                // Parse the offset
+                int offset = 0;
+                try {
+                    offset = std::stoi(source.substr(4));
+                } catch (...) {
+                    OutputDebugStringA(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
+                    return;
+                }
+
+                // Read from [ESP + offset]
+                // Remember: ESP was restored to original value before this code runs
+                if (offset == 0) {
+                    // MOV ECX, [ESP]
+                    EmitByte(code, 0x8B);
+                    EmitByte(code, 0x0C);
+                    EmitByte(code, 0x24);
+                } else if (offset >= -128 && offset <= 127) {
+                    // MOV ECX, [ESP + imm8]
+                    EmitByte(code, 0x8B);
+                    EmitByte(code, 0x4C);
+                    EmitByte(code, 0x24);
+                    EmitByte(code, static_cast<BYTE>(offset));
+                } else {
+                    // MOV ECX, [ESP + imm32]
+                    EmitByte(code, 0x8B);
+                    EmitByte(code, 0x8C);
+                    EmitByte(code, 0x24);
+                    EmitDword(code, offset);
+                }
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else {
+                OutputDebugStringA(("[Wrapper] Unsupported parameter source: " + source + "\n").c_str());
+            }
         }
 
         // ===== Factory Function =====

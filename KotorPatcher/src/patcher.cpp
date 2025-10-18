@@ -133,7 +133,8 @@ namespace KotorPatcher {
             Wrappers::WrapperConfig wrapperConfig;
             wrapperConfig.patchFunction = funcAddr;
             wrapperConfig.hookAddress = patch.hookAddress;
-            wrapperConfig.stolenBytes = patch.stolenBytes;  // Pass stolen bytes for INLINE wrapper
+            wrapperConfig.stolenBytes = patch.stolenBytes;
+            wrapperConfig.parameters = patch.parameters;
 
             char debugMsg[256];
             sprintf_s(debugMsg, "[KotorPatcher] Got % d stolen bytes\n", wrapperConfig.stolenBytes.size());

@@ -81,6 +81,14 @@ public static class HooksParser
                 var preserveFlags = TryGetBool(hookTable, "preserve_flags") ?? true;
                 var excludeFromRestore = TryGetStringArray(hookTable, "exclude_from_restore") ?? new List<string>();
 
+                // Parse parameters (optional, for INLINE hooks)
+                var parametersResult = ParseParameters(hookTable, i);
+                if (!parametersResult.Success)
+                {
+                    return PatchResult<List<Hook>>.Fail(parametersResult.Error ?? "Failed to parse parameters");
+                }
+                var parameters = parametersResult.Data ?? new List<Parameter>();
+
                 var hook = new Hook
                 {
                     Address = address,
@@ -90,7 +98,8 @@ public static class HooksParser
                     Type = type,
                     PreserveRegisters = preserveRegisters,
                     PreserveFlags = preserveFlags,
-                    ExcludeFromRestore = excludeFromRestore
+                    ExcludeFromRestore = excludeFromRestore,
+                    Parameters = parameters
                 };
 
                 // Validate the hook
@@ -210,6 +219,75 @@ public static class HooksParser
             "replace" => HookType.Replace,
             "wrap" => HookType.Wrap,
             _ => HookType.Inline
+        };
+    }
+
+    private static PatchResult<List<Parameter>> ParseParameters(TomlTable hookTable, int hookIndex)
+    {
+        // Parameters are optional
+        if (!hookTable.TryGetValue("parameters", out var paramsObj) || paramsObj is not TomlTableArray paramsArray)
+        {
+            return PatchResult<List<Parameter>>.Ok(new List<Parameter>(), "No parameters specified");
+        }
+
+        var parameters = new List<Parameter>();
+
+        for (int i = 0; i < paramsArray.Count; i++)
+        {
+            var paramTable = paramsArray[i];
+
+            // Parse source (required)
+            if (!TryGetString(paramTable, "source", out var source))
+            {
+                return PatchResult<List<Parameter>>.Fail(
+                    $"Hook [{hookIndex}] parameter [{i}] missing required field: source");
+            }
+
+            // Parse type (required)
+            if (!TryGetString(paramTable, "type", out var typeStr))
+            {
+                return PatchResult<List<Parameter>>.Fail(
+                    $"Hook [{hookIndex}] parameter [{i}] missing required field: type");
+            }
+
+            var paramType = ParseParameterType(typeStr);
+            if (!paramType.HasValue)
+            {
+                return PatchResult<List<Parameter>>.Fail(
+                    $"Hook [{hookIndex}] parameter [{i}] has invalid type: '{typeStr}'. " +
+                    $"Valid types: int, uint, pointer, float, byte, short");
+            }
+
+            var parameter = new Parameter
+            {
+                Source = source,
+                Type = paramType.Value
+            };
+
+            // Validate parameter
+            if (!parameter.IsValid(out var error))
+            {
+                return PatchResult<List<Parameter>>.Fail(
+                    $"Hook [{hookIndex}] parameter [{i}] validation failed: {error}");
+            }
+
+            parameters.Add(parameter);
+        }
+
+        return PatchResult<List<Parameter>>.Ok(parameters, $"Parsed {parameters.Count} parameter(s)");
+    }
+
+    private static ParameterType? ParseParameterType(string typeStr)
+    {
+        return typeStr.ToLowerInvariant() switch
+        {
+            "int" => ParameterType.Int,
+            "uint" => ParameterType.UInt,
+            "pointer" => ParameterType.Pointer,
+            "float" => ParameterType.Float,
+            "byte" => ParameterType.Byte,
+            "short" => ParameterType.Short,
+            _ => null
         };
     }
 }

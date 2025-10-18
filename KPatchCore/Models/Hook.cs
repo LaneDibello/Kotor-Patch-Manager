@@ -71,6 +71,12 @@ public sealed class Hook
     public List<string> ExcludeFromRestore { get; init; } = new();
 
     /// <summary>
+    /// Parameters to extract and pass to the hook function (for Inline hooks)
+    /// If empty, hook function takes no parameters
+    /// </summary>
+    public List<Parameter> Parameters { get; init; } = new();
+
+    /// <summary>
     /// Validates that the hook configuration is valid
     /// </summary>
     public bool IsValid(out string? error)
@@ -97,6 +103,16 @@ public sealed class Hook
         {
             error = "OriginalBytes should be at least 5 bytes for proper verification";
             return false;
+        }
+
+        // Validate parameters
+        for (int i = 0; i < Parameters.Count; i++)
+        {
+            if (!Parameters[i].IsValid(out var paramError))
+            {
+                error = $"Parameter {i}: {paramError}";
+                return false;
+            }
         }
 
         error = null;

@@ -11,45 +11,11 @@
 typedef void (__cdecl *AurPostStringFunc)(char*, int, int, float);
 const DWORD AUR_POST_STRING_ADDR = 0x0044d490;
 
-// This function will be called by the wrapper system
-// It receives the parameters extracted from the game state
-// NOTE: Exported via exports.def file to avoid hot-patch stub
-extern "C" void __cdecl EnableAurPostString_Hook()
+// Attempt to use paramters
+extern "C" void __cdecl EnableAurPostString_Hook(char* string, int x, int y, float life)
 {
-    // At this point in the hook (0x005cb41c):
-    // EAX = char* string
-    // [ESP] = int x
-    // [ESP+4] = int y
-    // [ESP+8] = float life
-
-    char* string;
-    int x, y;
-    float life;
-
-    // Extract parameters from registers and stack
-    __asm {
-        // Save EAX (contains string pointer)
-        mov string, eax
-
-        // Get x from [ESP]
-        mov eax, dword ptr [esp]
-        mov x, eax
-
-        // Get y from [ESP+4]
-        mov eax, dword ptr [esp+4]
-        mov y, eax
-
-        // Get life from [ESP+8]
-        mov eax, dword ptr [esp+8]
-        mov life, eax
-    }
-
-    // Call the actual AurPostString function
-    // Note: __cdecl means parameters are pushed right to left
     AurPostStringFunc aurPostString = (AurPostStringFunc)AUR_POST_STRING_ADDR;
     aurPostString(string, y, x, life);
-
-    // Return - wrapper system will handle register restoration
 }
 
 // DLL Entry Point

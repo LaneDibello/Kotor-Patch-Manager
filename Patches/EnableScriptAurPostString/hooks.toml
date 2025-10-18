@@ -31,3 +31,20 @@ type = "inline"
 # But actually, the wrapper system preserves all registers by default for inline hooks
 # We don't need to exclude anything from restoration since we're just calling a function
 exclude_from_restore = []
+
+
+[[hooks.parameters]]
+source = "eax"        # string from EAX register
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+0"      # x from [ESP]
+type = "int"
+
+[[hooks.parameters]]
+source = "esp+4"      # y from [ESP+4]
+type = "int"
+
+[[hooks.parameters]]
+source = "esp+8"      # life from [ESP+8]
+type = "float"

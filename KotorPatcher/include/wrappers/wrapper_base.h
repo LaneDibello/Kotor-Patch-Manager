@@ -8,6 +8,9 @@
 // Allows supporting multiple platforms/architectures
 
 namespace KotorPatcher {
+    // Forward declare ParameterInfo to avoid circular dependency
+    struct ParameterInfo;
+
     namespace Wrappers {
 
         // Configuration for a wrapper stub
@@ -38,6 +41,9 @@ namespace KotorPatcher {
             // Registers to exclude from restoration
             // Allows patch to modify specific registers
             std::vector<std::string> excludeFromRestore;
+
+            // Parameters to extract and pass to hook function (for INLINE hooks)
+            std::vector<ParameterInfo> parameters;
 
             // Original function pointer (for WRAP type with detours)
             void* originalFunction = nullptr;

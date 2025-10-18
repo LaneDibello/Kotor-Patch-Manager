@@ -18,6 +18,22 @@ namespace KotorPatcher {
     // Convert string to HookType
     HookType ParseHookType(const std::string& typeStr);
 
+    // Parameter type for hook function parameters
+    enum class ParameterType {
+        INT,        // 32-bit integer
+        UINT,       // Unsigned 32-bit integer
+        POINTER,    // 32-bit pointer
+        FLOAT,      // 32-bit float
+        BYTE,       // 8-bit value
+        SHORT       // 16-bit value
+    };
+
+    // Parameter source location
+    struct ParameterInfo {
+        std::string source;     // e.g., "eax", "esp+0", "[esp+4]"
+        ParameterType type;     // Data type of the parameter
+    };
+
     // Configuration for a single hook point
     struct PatchInfo {
         // Basic patch information
@@ -38,6 +54,9 @@ namespace KotorPatcher {
         // Registers to exclude from restoration
         // Allows patches to modify specific registers (e.g., "eax", "edx")
         std::vector<std::string> excludeFromRestore;
+
+        // Parameters to extract and pass to hook function (for INLINE hooks)
+        std::vector<ParameterInfo> parameters;
 
         // Original function pointer (future: for detour trampolines)
         void* originalFunction = nullptr;
