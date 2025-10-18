@@ -52,7 +52,7 @@ namespace KotorPatcher {
             DWORD CalculateRelativeOffset(void* from, void* to);
 
             // Helper: Extract parameter from source and push onto stack
-            void ExtractAndPushParameter(BYTE*& code, const ParameterInfo& param, int savedStateOffset);
+            void ExtractAndPushParameter(BYTE*& code, const ParameterInfo& param, int savedStateOffset, int pushcCunt);
         };
 
     } // namespace Wrappers

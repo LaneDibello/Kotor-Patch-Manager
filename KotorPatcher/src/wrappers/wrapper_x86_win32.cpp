@@ -95,31 +95,34 @@ namespace KotorPatcher {
                 EmitByte(code, 0x9C);  // PUSHFD
             }
 
-            // ===== CALCULATE ORIGINAL ESP =====
-            // The patch function expects to see the original stack layout
-            // We need to calculate where ESP was before our wrapper modified it
+            // ===== CALCULATE STACK LAYOUT =====
+            // At this point, the stack layout is:
+            // [ESP+0]  = EFLAGS (if preserveFlags)
+            // [ESP+4]  = EDI    \
+            // [ESP+8]  = ESI     |
+            // [ESP+12] = EBP     |
+            // [ESP+16] = (ESP)   | PUSHAD saved these (32 bytes total)
+            // [ESP+20] = EBX     |
+            // [ESP+24] = EDX     |
+            // [ESP+28] = ECX     |
+            // [ESP+32] = EAX    /
+            // [ESP+36] = Return address (from game's CALL to hook)
+            // [ESP+40] = Original stack data (parameters, etc.)
 
-            int totalPushed = 0;
-            if (config.preserveFlags) totalPushed += 4;
-            if (config.preserveRegisters) totalPushed += 32;
-            // +4 for the return address that was pushed when game called the hook
+            // Calculate total bytes we've pushed onto the stack
+            int savedStateSize = 0;
+            if (config.preserveFlags) savedStateSize += 4;      // PUSHFD
+            if (config.preserveRegisters) savedStateSize += 32; // PUSHAD
 
-            // Save current ESP to EBX (we'll restore it later)
+            // Save current ESP to EBX (points to our saved state)
+            // We'll use this to read saved registers and restore ESP later
             // MOV EBX, ESP
             EmitByte(code, 0x89);  // MOV r/m32, r32
             EmitByte(code, 0xE3);  // ModRM: EBX = ESP
 
-            // Restore ESP to original value before wrapper
-            // ADD ESP, totalPushed
-            //if (totalPushed <= 127) {
-            //    EmitByte(code, 0x83);  // ADD ESP, imm8
-            //    EmitByte(code, 0xC4);
-            //    EmitByte(code, static_cast<BYTE>(totalPushed));
-            //} else {
-            //    EmitByte(code, 0x81);  // ADD ESP, imm32
-            //    EmitByte(code, 0xC4);
-            //    EmitDword(code, totalPushed);
-            //}
+            // IMPORTANT: We do NOT modify ESP here!
+            // If we did, PUSH instructions would overwrite our saved registers.
+            // Instead, we'll read parameters with adjusted offsets (see ExtractAndPushParameter)
 
             // ===== EXTRACT AND PUSH PARAMETERS =====
             // If the hook has parameters defined, extract them and push onto stack
@@ -127,9 +130,11 @@ namespace KotorPatcher {
 
             if (!config.parameters.empty()) {
                 // Push parameters in reverse order (last parameter first)
+                int pushCount = 0;
                 for (int i = static_cast<int>(config.parameters.size()) - 1; i >= 0; i--) {
                     const auto& param = config.parameters[i];
-                    ExtractAndPushParameter(code, param, totalPushed);
+                    ExtractAndPushParameter(code, param, savedStateSize, pushCount);
+                    pushCount++;
                 }
             }
 
@@ -302,88 +307,121 @@ namespace KotorPatcher {
 
         // ===== Parameter Extraction =====
 
-        void WrapperGenerator_x86_Win32::ExtractAndPushParameter(BYTE*& code, const ParameterInfo& param, int savedStateOffset) {
+        void WrapperGenerator_x86_Win32::ExtractAndPushParameter(BYTE*& code, const ParameterInfo& param, int savedStateSize, int pushCount = 0) {
+            // Stack layout constants (relative to EBX, which points to saved state)
+            // EBX points to where ESP was after PUSHAD/PUSHFD
+            //
+            // Saved state structure at [EBX]:
+            const int OFFSET_EFLAGS = 0;   // [EBX+0]  = EFLAGS (if preserved)
+            const int OFFSET_EDI    = 4;   // [EBX+4]  = EDI
+            const int OFFSET_ESI    = 8;   // [EBX+8]  = ESI
+            const int OFFSET_EBP    = 12;  // [EBX+12] = EBP
+            const int OFFSET_ESP    = 16;  // [EBX+16] = (original ESP value saved by PUSHAD)
+            const int OFFSET_EBX    = 20;  // [EBX+20] = EBX
+            const int OFFSET_EDX    = 24;  // [EBX+24] = EDX
+            const int OFFSET_ECX    = 28;  // [EBX+28] = ECX
+            const int OFFSET_EAX    = 32;  // [EBX+32] = EAX
+
+            // Original stack data (parameters, return address, etc.) is at:
+            // [ESP + savedStateSize + 4]
+            // The +4 accounts for the return address pushed by the game's CALL instruction
+            const int STACK_OFFSET_TO_ORIGINAL_DATA = savedStateSize;
+
             std::string source = param.source;
 
             // Convert to lowercase for comparison
             std::transform(source.begin(), source.end(), source.begin(), ::tolower);
 
-            // ECX is our temp register for reading values
-            // We use ECX because it's caller-saved and won't affect the hook function
+            // We use ECX as our temp register for reading values
+            // ECX is caller-saved in __cdecl, so it's safe to clobber
 
-            // Check if source is a register
+            // Check if source is a register (read from saved state)
             if (source == "eax") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+32]
-                EmitByte(code, 0x4B);
-                EmitByte(code, 32);
+                // MOV ECX, [EBX + OFFSET_EAX]
+                EmitByte(code, 0x8B);  // MOV r32, r/m32
+                EmitByte(code, 0x4B);  // ModRM: ECX, [EBX + disp8]
+                EmitByte(code, OFFSET_EAX);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             else if (source == "ebx") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+20]
+                // MOV ECX, [EBX + OFFSET_EBX]
+                EmitByte(code, 0x8B);
                 EmitByte(code, 0x4B);
-                EmitByte(code, 20);
+                EmitByte(code, OFFSET_EBX);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             else if (source == "ecx") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+28]
+                // MOV ECX, [EBX + OFFSET_ECX]
+                EmitByte(code, 0x8B);
                 EmitByte(code, 0x4B);
-                EmitByte(code, 28);
+                EmitByte(code, OFFSET_ECX);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             else if (source == "edx") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+24]
+                // MOV ECX, [EBX + OFFSET_EDX]
+                EmitByte(code, 0x8B);
                 EmitByte(code, 0x4B);
-                EmitByte(code, 24);
+                EmitByte(code, OFFSET_EDX);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             else if (source == "esi") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+8]
+                // MOV ECX, [EBX + OFFSET_ESI]
+                EmitByte(code, 0x8B);
                 EmitByte(code, 0x4B);
-                EmitByte(code, 8);
+                EmitByte(code, OFFSET_ESI);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             else if (source == "edi") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+4]
+                // MOV ECX, [EBX + OFFSET_EDI]
+                EmitByte(code, 0x8B);
                 EmitByte(code, 0x4B);
-                EmitByte(code, 4);
+                EmitByte(code, OFFSET_EDI);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             else if (source == "ebp") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+12]
+                // MOV ECX, [EBX + OFFSET_EBP]
+                EmitByte(code, 0x8B);
                 EmitByte(code, 0x4B);
-                EmitByte(code, 12);
+                EmitByte(code, OFFSET_EBP);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             // Check if source is a stack offset like "esp+0", "esp+4", etc.
             else if (source.find("esp+") == 0 || source.find("esp-") == 0) {
-                // Parse the offset
-                int offset = 0;
+                // Parse the user-specified offset from the parameter source
+                int userOffset = 0;
                 try {
-                    offset = std::stoi(source.substr(4)) + 36;
+                    userOffset = std::stoi(source.substr(4));
                 } catch (...) {
                     OutputDebugStringA(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
                     return;
                 }
 
-                // Read from [ESP + offset]
-                // Remember: ESP was restored to original value before this code runs
-                if (offset == 0) {
+                // Calculate the actual offset from current ESP
+                // ESP still points to saved state, so we need to account for:
+                // 1. The saved state size (PUSHAD + PUSHFD)
+                // 2. The return address (+4)
+                // 3. The user's requested offset
+                // 4. 4 times the number of push instructions before this one
+                int actualOffset = STACK_OFFSET_TO_ORIGINAL_DATA + userOffset + pushCount * 4;
+
+                // Generate MOV ECX, [ESP + actualOffset]
+                if (actualOffset == 0) {
                     // MOV ECX, [ESP]
-                    EmitByte(code, 0x8B);
-                    EmitByte(code, 0x0C);
-                    EmitByte(code, 0x24);
-                } else if (offset >= -128 && offset <= 127) {
+                    EmitByte(code, 0x8B);  // MOV r32, r/m32
+                    EmitByte(code, 0x0C);  // ModRM: ECX, [ESP]
+                    EmitByte(code, 0x24);  // SIB: [ESP]
+                } else if (actualOffset >= -128 && actualOffset <= 127) {
                     // MOV ECX, [ESP + imm8]
-                    EmitByte(code, 0x8B);
-                    EmitByte(code, 0x4C);
-                    EmitByte(code, 0x24);
-                    EmitByte(code, static_cast<BYTE>(offset));
+                    EmitByte(code, 0x8B);  // MOV r32, r/m32
+                    EmitByte(code, 0x4C);  // ModRM: ECX, [ESP + disp8]
+                    EmitByte(code, 0x24);  // SIB: [ESP]
+                    EmitByte(code, static_cast<BYTE>(actualOffset));
                 } else {
                     // MOV ECX, [ESP + imm32]
-                    EmitByte(code, 0x8B);
-                    EmitByte(code, 0x8C);
-                    EmitByte(code, 0x24);
-                    EmitDword(code, offset);
+                    EmitByte(code, 0x8B);  // MOV r32, r/m32
+                    EmitByte(code, 0x8C);  // ModRM: ECX, [ESP + disp32]
+                    EmitByte(code, 0x24);  // SIB: [ESP]
+                    EmitDword(code, actualOffset);
                 }
                 EmitByte(code, 0x51);  // PUSH ECX
             }
