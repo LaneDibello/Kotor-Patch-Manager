@@ -18,13 +18,15 @@
 
 3. Compile the DLL:
    ```cmd
-   cl /LD /O2 /MD aurpoststring_patch.cpp /link /DEF /OUT:windows_x86.dll
+   cl /LD /O2 /MD aurpoststring_patch.cpp /link /DEF:exports.def /OUT:windows_x86.dll
    ```
+
+   **IMPORTANT**: The `/DEF:exports.def` flag is crucial - it prevents the hot-patch stub (0xCC) from being added to exported functions.
 
 ### Option 2: Using cl.exe directly
 
 ```cmd
-"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\<version>\bin\Hostx64\x86\cl.exe" /LD /O2 /MD aurpoststring_patch.cpp /link /OUT:windows_x86.dll
+"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\<version>\bin\Hostx64\x86\cl.exe" /LD /O2 /MD aurpoststring_patch.cpp /link /DEF:exports.def /OUT:windows_x86.dll
 ```
 
 ## Compiler Flags Explained

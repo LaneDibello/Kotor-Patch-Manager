@@ -141,7 +141,9 @@ namespace KotorPatcher {
 
             // CALL patch_function
             EmitByte(code, 0xE8);  // CALL rel32
-            DWORD callOffset = CalculateRelativeOffset(code, config.patchFunction);
+            // Note: code now points one byte AFTER the 0xE8 opcode
+            // CalculateRelativeOffset needs the address of the opcode itself
+            DWORD callOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
             EmitDword(code, callOffset);
 
             // Clean up parameter (4 bytes)
@@ -230,7 +232,8 @@ namespace KotorPatcher {
 
             // JMP to patch function
             EmitByte(code, 0xE9);  // JMP rel32
-            DWORD jmpOffset = CalculateRelativeOffset(code, config.patchFunction);
+            // Note: code now points one byte AFTER the 0xE9 opcode
+            DWORD jmpOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
             EmitDword(code, jmpOffset);
 
             FlushInstructionCache(GetCurrentProcess(), wrapperMem, code - wrapperMem);
@@ -263,7 +266,8 @@ namespace KotorPatcher {
 
             // CALL patch function
             EmitByte(code, 0xE8);  // CALL rel32
-            DWORD callOffset = CalculateRelativeOffset(code, config.patchFunction);
+            // Note: code now points one byte AFTER the 0xE8 opcode
+            DWORD callOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
             EmitDword(code, callOffset);
 
             // Restore state

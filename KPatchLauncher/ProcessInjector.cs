@@ -278,21 +278,31 @@ public static class ProcessInjector
     {
         try
         {
+            Console.WriteLine($"[Injector] Injecting: {dllPath}");
+
             // Get LoadLibraryA address from kernel32.dll
             var hKernel32 = GetModuleHandle("kernel32.dll");
             if (hKernel32 == IntPtr.Zero)
             {
-                return PatchResult.Fail("Failed to get kernel32.dll module handle");
+                var msg = "Failed to get kernel32.dll module handle";
+                Console.WriteLine($"[Injector] ERROR: {msg}");
+                return PatchResult.Fail(msg);
             }
+            Console.WriteLine($"[Injector] kernel32.dll handle: 0x{hKernel32:X}");
 
             var pLoadLibraryA = GetProcAddress(hKernel32, "LoadLibraryA");
             if (pLoadLibraryA == IntPtr.Zero)
             {
-                return PatchResult.Fail("Failed to get LoadLibraryA address");
+                var msg = "Failed to get LoadLibraryA address";
+                Console.WriteLine($"[Injector] ERROR: {msg}");
+                return PatchResult.Fail(msg);
             }
+            Console.WriteLine($"[Injector] LoadLibraryA address: 0x{pLoadLibraryA:X}");
 
             // Allocate memory in the target process for the DLL path
             var dllPathBytes = Encoding.ASCII.GetBytes(dllPath + '\0');
+            Console.WriteLine($"[Injector] Allocating {dllPathBytes.Length} bytes in target process...");
+
             var pDllPath = VirtualAllocEx(
                 hProcess,
                 IntPtr.Zero,
@@ -303,10 +313,14 @@ public static class ProcessInjector
             if (pDllPath == IntPtr.Zero)
             {
                 var error = Marshal.GetLastWin32Error();
-                return PatchResult.Fail($"Failed to allocate memory in target process (error {error})");
+                var msg = $"Failed to allocate memory in target process (error {error})";
+                Console.WriteLine($"[Injector] ERROR: {msg}");
+                return PatchResult.Fail(msg);
             }
+            Console.WriteLine($"[Injector] Allocated memory at: 0x{pDllPath:X}");
 
             // Write the DLL path to the allocated memory
+            Console.WriteLine($"[Injector] Writing DLL path to target process memory...");
             var writeSuccess = WriteProcessMemory(
                 hProcess,
                 pDllPath,
@@ -317,10 +331,14 @@ public static class ProcessInjector
             if (!writeSuccess || bytesWritten.ToUInt32() != dllPathBytes.Length)
             {
                 var error = Marshal.GetLastWin32Error();
-                return PatchResult.Fail($"Failed to write DLL path to target process (error {error})");
+                var msg = $"Failed to write DLL path to target process (error {error})";
+                Console.WriteLine($"[Injector] ERROR: {msg}");
+                return PatchResult.Fail(msg);
             }
+            Console.WriteLine($"[Injector] Wrote {bytesWritten} bytes successfully");
 
             // Create a remote thread that calls LoadLibraryA with the DLL path
+            Console.WriteLine($"[Injector] Creating remote thread to call LoadLibraryA...");
             var hThread = CreateRemoteThread(
                 hProcess,
                 IntPtr.Zero,
@@ -333,24 +351,33 @@ public static class ProcessInjector
             if (hThread == IntPtr.Zero)
             {
                 var error = Marshal.GetLastWin32Error();
-                return PatchResult.Fail($"Failed to create remote thread (error {error})");
+                var msg = $"Failed to create remote thread (error {error})";
+                Console.WriteLine($"[Injector] ERROR: {msg}");
+                return PatchResult.Fail(msg);
             }
+            Console.WriteLine($"[Injector] Remote thread created with ID: {threadId}");
 
             // Wait for the thread to complete (LoadLibrary to finish)
+            Console.WriteLine($"[Injector] Waiting for remote thread to complete...");
             const uint INFINITE = 0xFFFFFFFF;
             var waitResult = WaitForSingleObject(hThread, INFINITE);
             CloseHandle(hThread);
 
             if (waitResult != 0) // 0 = WAIT_OBJECT_0
             {
-                return PatchResult.Fail("Remote thread did not complete successfully");
+                var msg = $"Remote thread did not complete successfully (wait result: {waitResult})";
+                Console.WriteLine($"[Injector] ERROR: {msg}");
+                return PatchResult.Fail(msg);
             }
 
+            Console.WriteLine($"[Injector] SUCCESS: DLL injected successfully!");
             return PatchResult.Ok($"Successfully injected {Path.GetFileName(dllPath)}");
         }
         catch (Exception ex)
         {
-            return PatchResult.Fail($"DLL injection failed: {ex.Message}");
+            var msg = $"DLL injection failed: {ex.Message}";
+            Console.WriteLine($"[Injector] EXCEPTION: {msg}");
+            return PatchResult.Fail(msg);
         }
     }
 }

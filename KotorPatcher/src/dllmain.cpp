@@ -9,14 +9,19 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+        OutputDebugStringA("[KotorPatcher] DLL_PROCESS_ATTACH - DLL loaded!\n");
         DisableThreadLibraryCalls(hModule);
 
+        OutputDebugStringA("[KotorPatcher] Calling InitializePatcher()...\n");
         if (!KotorPatcher::InitializePatcher()) {
-            OutputDebugStringA("[KotorPatcher] Failed to initialize\n");
+            OutputDebugStringA("[KotorPatcher] ERROR: Failed to initialize\n");
+        } else {
+            OutputDebugStringA("[KotorPatcher] SUCCESS: Patcher initialized\n");
         }
         break;
 
     case DLL_PROCESS_DETACH:
+        OutputDebugStringA("[KotorPatcher] DLL_PROCESS_DETACH - Cleaning up\n");
         KotorPatcher::CleanupPatcher();
         break;
 

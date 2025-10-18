@@ -1,0 +1,3 @@
+LIBRARY EnableScriptAurPostString
+EXPORTS
+    EnableAurPostString_Hook

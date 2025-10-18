@@ -21,7 +21,13 @@
       "Bash(\"/mnt/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/dumpbin.exe\" /HEADERS \"C:\\Users\\laned\\Documents\\KotOR Installs\\CHEAT\\KotorPatcher.dll\")",
       "Bash(\"/mnt/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/dumpbin.exe\" /IMPORTS \"C:\\Users\\laned\\Documents\\KotOR Installs\\CHEAT\\swkotor.exe\")",
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build \"/mnt/c/Users/laned/source/Repos/KotOR Patch Manager/KPatchCore/KPatchCore.csproj\")",
-      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" publish -c Release -o publish)"
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" publish -c Release -o publish)",
+      "Read(//mnt/c/Users/laned/source/Repos/KotOR/**)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build KPatchConsole/KPatchConsole.sln --configuration Debug)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build KPatchConsole.sln --configuration Debug)",
+      "Bash(cat:*)",
+      "Bash(\"/mnt/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/dumpbin.exe\" /HEADERS \"/mnt/c/Users/laned/Documents/KotOR Installs/CHEAT/KotorPatcher.dll\")",
+      "Bash(./build.bat)"
     ],
     "deny": [],
     "ask": []

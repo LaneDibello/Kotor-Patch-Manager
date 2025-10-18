@@ -7,7 +7,7 @@ REM Adjust this path if your VS installation is different
 call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat"
 
 REM Compile the patch DLL
-cl /LD /O2 /MD /W3 aurpoststring_patch.cpp /link /OUT:windows_x86.dll
+cl /LD /O2 /MD /W3 aurpoststring_patch.cpp /link /DEF:exports.def /OUT:windows_x86.dll
 
 if %ERRORLEVEL% == 0 (
     echo.

@@ -347,13 +347,43 @@ public class PatchApplicator
                 messages.Add($"  ⚠️ Make sure KotorPatcher.dll is in game directory");
             }
 
-            // Copy KPatchLauncher.exe to game directory if requested
+            // Copy KPatchLauncher.exe and its dependencies to game directory if requested
             if (options.CopyLauncher && !string.IsNullOrEmpty(options.LauncherExePath))
             {
-                var launcherDestPath = Path.Combine(gameDir, "KPatchLauncher.exe");
-                File.Copy(options.LauncherExePath, launcherDestPath, overwrite: true);
-                messages.Add($"  Copied KPatchLauncher.exe to game directory");
-                messages.Add($"  ✓ Run KPatchLauncher.exe to start the game with patches");
+                var launcherSourceDir = Path.GetDirectoryName(options.LauncherExePath);
+                if (launcherSourceDir == null || !Directory.Exists(launcherSourceDir))
+                {
+                    messages.Add($"  ⚠️ Warning: Launcher directory not found, skipping launcher copy");
+                    messages.Add($"  ⚠️ You will need to use an external DLL injector");
+                }
+                else
+                {
+                    // Copy all necessary launcher files (KPatchLauncher.exe needs its dependencies)
+                    var launcherFiles = new[]
+                    {
+                        "KPatchLauncher.exe",
+                        "KPatchLauncher.dll",
+                        "KPatchLauncher.runtimeconfig.json",
+                        "KPatchLauncher.deps.json",
+                        "KPatchCore.dll",
+                        "Tomlyn.dll"
+                    };
+
+                    var copiedCount = 0;
+                    foreach (var fileName in launcherFiles)
+                    {
+                        var sourcePath = Path.Combine(launcherSourceDir, fileName);
+                        if (File.Exists(sourcePath))
+                        {
+                            var destPath = Path.Combine(gameDir, fileName);
+                            File.Copy(sourcePath, destPath, overwrite: true);
+                            copiedCount++;
+                        }
+                    }
+
+                    messages.Add($"  Copied {copiedCount} launcher files to game directory");
+                    messages.Add($"  ✓ Run KPatchLauncher.exe to start the game with patches");
+                }
             }
             else if (options.CopyLauncher)
             {

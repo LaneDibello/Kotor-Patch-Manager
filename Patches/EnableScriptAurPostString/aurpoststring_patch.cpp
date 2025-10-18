@@ -13,7 +13,8 @@ const DWORD AUR_POST_STRING_ADDR = 0x0044d490;
 
 // This function will be called by the wrapper system
 // It receives the parameters extracted from the game state
-extern "C" __declspec(dllexport) void EnableAurPostString_Hook()
+// NOTE: Exported via exports.def file to avoid hot-patch stub
+extern "C" void __cdecl EnableAurPostString_Hook()
 {
     // At this point in the hook (0x005cb41c):
     // EAX = char* string

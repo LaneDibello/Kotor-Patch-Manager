@@ -390,12 +390,33 @@ internal class Program
             Console.WriteLine($"Patches: {patchDir}");
             Console.WriteLine($"IDs:     {string.Join(", ", patchIds)}\n");
 
+            // Find launcher and patcher DLL paths
+            var consoleDir = AppContext.BaseDirectory;
+            var launcherPath = Path.Combine(consoleDir, "KPatchLauncher.exe");
+            var patcherDllPath = Path.Combine(consoleDir, "KotorPatcher.dll");
+
+            // Check if launcher exists (warn if missing, but don't fail)
+            if (!File.Exists(launcherPath))
+            {
+                Console.WriteLine($"⚠️  Warning: KPatchLauncher.exe not found at {launcherPath}");
+                Console.WriteLine($"⚠️  Launcher will not be copied. You'll need to use an external DLL injector.\n");
+            }
+
+            // Check if patcher DLL exists
+            if (!File.Exists(patcherDllPath))
+            {
+                Console.WriteLine($"⚠️  Warning: KotorPatcher.dll not found at {patcherDllPath}");
+                Console.WriteLine($"⚠️  Patcher DLL will not be copied.\n");
+            }
+
             // Perform installation
             var result = orchestrator.InstallPatches(
                 gameExePath: gameExePath,
                 patchIds: patchIds,
                 createBackup: true,
-                copyLauncher: true
+                copyLauncher: true,
+                patcherDllPath: File.Exists(patcherDllPath) ? patcherDllPath : null,
+                launcherExePath: File.Exists(launcherPath) ? launcherPath : null
             );
 
             // Display progress messages

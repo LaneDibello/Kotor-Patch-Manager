@@ -107,7 +107,7 @@ Should show:
 
 Patched:        NO
 Backup:         NO
-Loader Injected: NO
+Launcher:        NO
 Config File:     NO
 ```
 
@@ -139,8 +139,8 @@ Step 5/7: Extracting patch DLLs...
   Extracted: enable-script-aurpoststring -> patches/enable-script-aurpoststring.dll
 Step 6/7: Generating patch_config.toml...
   Generated config with 1 patches, 1 hooks
-Step 7/7: Injecting loader DLL (experimental)...
-  ⚠️ Loader injection is experimental...
+Step 7/7: Copying KPatchLauncher.exe...
+  Copied launcher to game directory
 
 === Installation Complete ===
 Game Version: KOTOR Unknown (Other, Windows, x86)
@@ -167,7 +167,7 @@ Patched:        YES
 Backup:         YES
 Backup Path:    swkotor.exe.backup.20241017_...
 Backup Date:    2024-10-17 ...
-Loader Injected: YES/NO (depending on if experimental injection worked)
+Launcher:        YES (KPatchLauncher.exe present)
 Config File:     YES
 
 Installed Patches (1):
@@ -179,20 +179,30 @@ Patch DLLs (1):
 
 ## Step 8: Test In-Game
 
-**CRITICAL: The kotor_patcher.dll runtime loader needs to be present!**
+**To launch the game with patches:**
 
-Before launching the game, you need:
-1. `kotor_patcher.dll` in the game directory (the C++ runtime from the KotorPatcher project)
-2. This DLL loads at game startup and applies the hooks
+Instead of launching `swkotor.exe` directly, use the launcher:
+```cmd
+cd "C:\Users\laned\Documents\KotOR Installs"
+KPatchLauncher.exe swkotor.exe
+```
+
+The launcher will:
+1. Start the game in suspended mode
+2. Inject `KotorPatcher.dll` into the process
+3. Resume the game with patches active
 
 **To test:**
-1. Launch KOTOR 1
+1. Launch the game using KPatchLauncher.exe
 2. Load a save game or start a new game
 3. Look for debug text appearing on screen - many scripts call `AurPostString`:
    - Character dialogue
    - Quest updates
    - Area transitions
    - Combat events
+
+**Debug Output:**
+Use [DebugView](https://learn.microsoft.com/en-us/sysinternals/downloads/debugview) to see KotorPatcher.dll loading and hook installation messages.
 
 ## Step 9: Uninstalling (if needed)
 
@@ -218,8 +228,9 @@ This will:
 - Verify the game executable hash matches (run --status first)
 
 ### No Debug Text Appears In-Game
-- Make sure `kotor_patcher.dll` exists in the game directory
-- Check that the DLL is actually loading (loader injection may have failed)
+- Make sure you're launching via `KPatchLauncher.exe`, not `swkotor.exe` directly
+- Check that `KotorPatcher.dll` exists in the game directory
+- Use DebugView to verify KotorPatcher.dll is loading
 - Check Windows Event Viewer for DLL load errors
 
 ### Game Crashes

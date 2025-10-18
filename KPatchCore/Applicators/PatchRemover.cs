@@ -154,6 +154,51 @@ public static class PatchRemover
                 messages.Add($"  Removed KPatchLauncher.exe");
             }
 
+            // Remove KPatchCore.dll
+            var patchCoreDllPath = Path.Combine(gameDir, "KPatchCore.dll");
+            if (File.Exists(patchCoreDllPath))
+            {
+                File.Delete(patchCoreDllPath);
+                removedFiles.Add("KPatchCore.dll");
+                messages.Add($"  Removed KPatchCore.dll");
+            }
+
+            // Remove Tomlyn.dll
+            var tomlynDllPath = Path.Combine(gameDir, "Tomlyn.dll");
+            if (File.Exists(tomlynDllPath))
+            {
+                File.Delete(tomlynDllPath);
+                removedFiles.Add("Tomlyn.dll");
+                messages.Add($"  Removed Tomlyn.dll");
+            }
+
+            // Remove KPatchLauncher.runtimeconfig.json
+            var launcherConfigPath = Path.Combine(gameDir, "KPatchLauncher.runtimeconfig.json");
+            if (File.Exists(launcherConfigPath))
+            {
+                File.Delete(launcherConfigPath);
+                removedFiles.Add("KPatchLauncher.runtimeconfig.json");
+                messages.Add($"  Removed KPatchLauncher.runtimeconfig.json");
+            }
+
+            // Remove KPatchLauncher.dll
+            var launcherDLLPath = Path.Combine(gameDir, "KPatchLauncher.dll");
+            if (File.Exists(launcherDLLPath))
+            {
+                File.Delete(launcherDLLPath);
+                removedFiles.Add("KPatchLauncher.dll");
+                messages.Add($"  Removed KPatchLauncher.dll");
+            }
+
+            // Remove KPatchLauncher.deps.json
+            var launcherDepsPath = Path.Combine(gameDir, "KPatchLauncher.deps.json");
+            if (File.Exists(launcherDepsPath))
+            {
+                File.Delete(launcherDepsPath);
+                removedFiles.Add("KPatchLauncher.deps.json");
+                messages.Add($"  Removed KPatchLauncher.deps.json");
+            }
+
             // Step 4: Verify clean state
             messages.Add("Step 4/4: Verifying clean state...");
             var isClean = !File.Exists(configPath) && !Directory.Exists(patchesDir);

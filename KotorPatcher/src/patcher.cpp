@@ -40,9 +40,17 @@ namespace KotorPatcher {
 
         // Load configuration
         std::string configPath = dllDir + "\\patch_config.toml";
+        char configMsg[512];
+        sprintf_s(configMsg, "[KotorPatcher] Loading config from: %s\n", configPath.c_str());
+        OutputDebugStringA(configMsg);
+
         if (!Config::ParseConfig(configPath, g_patches)) {
+            OutputDebugStringA("[KotorPatcher] ERROR: Failed to parse config\n");
             return false;
         }
+
+        sprintf_s(configMsg, "[KotorPatcher] Loaded %zu patches from config\n", g_patches.size());
+        OutputDebugStringA(configMsg);
 
         // Apply patches
         if (!ApplyPatches()) {
@@ -91,6 +99,24 @@ namespace KotorPatcher {
         if (!funcAddr) {
             OutputDebugStringA(("[KotorPatcher] Function not found: " + patch.functionName + "\n").c_str());
             return false;
+        }
+
+        char addrMsg[256];
+        sprintf_s(addrMsg, "[KotorPatcher] GetProcAddress returned: 0x%08X\n", (uintptr_t)funcAddr);
+        OutputDebugStringA(addrMsg);
+
+        // Check for hot-patch stub (0xCC int3 instruction at start)
+        // If present, skip it to get to the actual function
+        unsigned char* pFunc = static_cast<unsigned char*>(funcAddr);
+        sprintf_s(addrMsg, "[KotorPatcher] First byte at function: 0x%02X\n", *pFunc);
+        OutputDebugStringA(addrMsg);
+
+        if (*pFunc == 0xCC) {
+            funcAddr = pFunc + 1;
+            sprintf_s(addrMsg, "[KotorPatcher] HOT-PATCH STUB DETECTED! Adjusted to: 0x%08X\n", (uintptr_t)funcAddr);
+            OutputDebugStringA(addrMsg);
+        } else {
+            OutputDebugStringA("[KotorPatcher] No hot-patch stub detected\n");
         }
 
         // Verify original bytes
