@@ -30,5 +30,8 @@ namespace KotorPatcher {
 
         // Restore original memory protection
         bool ProtectMemory(DWORD address, size_t size, DWORD oldProtect);
+
+        // Write No-Ops
+        bool WriteNoOps(DWORD startAddress, size_t length);
     }
 }

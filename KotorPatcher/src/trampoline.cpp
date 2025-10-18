@@ -47,6 +47,52 @@ namespace KotorPatcher {
             return memcmp(actual, expected, length) == 0;
         }
 
+        bool WriteNoOps(DWORD startAddress, size_t length) {
+            // Sanity checks
+            if (length == 0) {
+                OutputDebugStringA("[Trampoline] WriteNoOps: length is 0, nothing to write\n");
+                return false;
+            }
+            // Prevent 32-bit wrap/overflow for the DWORD + length calculation
+            DWORD endAddr64 = static_cast<DWORD>(startAddress) + static_cast<DWORD>(length);
+            if (endAddr64 > 0xFFFFFFFFULL) {
+                OutputDebugStringA("[Trampoline] WriteNoOps: requested range overflows 32-bit address space\n");
+                return false;
+            }
+
+            LPVOID targetPtr = reinterpret_cast<LPVOID>(static_cast<uintptr_t>(startAddress));
+            SIZE_T byteCount = static_cast<SIZE_T>(length);
+
+            // Change protection to RWX so we can write instructions
+            DWORD oldProtect = 0;
+            if (!VirtualProtect(targetPtr, byteCount, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+                OutputDebugStringA("[Trampoline] WriteNoOps: VirtualProtect failed to unprotect memory\n");
+                return false;
+            }
+
+            // Write NOP (0x90) bytes
+            // Use volatile pointer to avoid compiler optimizations that might skip the write
+            volatile BYTE* p = reinterpret_cast<volatile BYTE*>(targetPtr);
+            for (SIZE_T i = 0; i < byteCount; ++i) {
+                p[i] = 0x90;
+            }
+
+            // Ensure CPU sees the updated instructions
+            if (!FlushInstructionCache(GetCurrentProcess(), targetPtr, byteCount)) {
+                OutputDebugStringA("[Trampoline] WriteNoOps: FlushInstructionCache failed\n");
+                // Not a fatal error here; proceed to attempt to restore protection
+            }
+
+            // Restore original memory protection
+            DWORD tmp;
+            if (!VirtualProtect(targetPtr, byteCount, oldProtect, &tmp)) {
+                OutputDebugStringA("[Trampoline] WriteNoOps: Warning: Failed to restore memory protection\n");
+                // Not treated as fatal (the NOPs are already written)
+            }
+
+            return true;
+        }
+
         bool WriteJump(DWORD address, void* target) {
             // We're writing a 5-byte relative JMP instruction:
             // E9 [4-byte relative offset]

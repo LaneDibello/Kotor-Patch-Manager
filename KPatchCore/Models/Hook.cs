@@ -42,6 +42,11 @@ public sealed class Hook
     public required byte[] OriginalBytes { get; init; }
 
     /// <summary>
+    /// Bytes overritten after the hook address
+    /// </summary>
+    public required byte[] StolenBytes { get; init; }
+
+    /// <summary>
     /// Hook type (Inline, Replace, or Wrap)
     /// Default: Inline (safest, easiest)
     /// </summary>

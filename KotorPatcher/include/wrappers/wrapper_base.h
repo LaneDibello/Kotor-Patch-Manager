@@ -1,7 +1,8 @@
 #pragma once
-#include "wrapper_context.h"
+#include <windows.h>
 #include <vector>
 #include <string>
+#include "wrapper_context.h"
 
 // Abstract interface for platform-specific wrapper generators
 // Allows supporting multiple platforms/architectures
@@ -16,6 +17,11 @@ namespace KotorPatcher {
 
             // Hook address in game code
             DWORD hookAddress;
+
+            // Original bytes that were overwritten by the hook (for INLINE type)
+            // These will be executed in the wrapper before returning to original code
+            // Must be >= 5 bytes and align with instruction boundaries
+            std::vector<BYTE> stolenBytes;
 
             // Hook type determines wrapper behavior
             enum class HookType {

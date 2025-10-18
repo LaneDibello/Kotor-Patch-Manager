@@ -175,6 +175,25 @@ namespace KotorPatcher {
                         continue;
                     }
 
+                    // Get stolen bytes (optional for INLINE hooks, defaults to original_bytes)
+                    // These are the actual bytes to execute in the wrapper
+                    auto stolenBytesArray = hookTable->at_path("stolen_bytes").as_array();
+                    if (stolenBytesArray) {
+                        if (!ParseByteArray(stolenBytesArray, patch.stolenBytes)) {
+                            OutputDebugStringA("[Config] Failed to parse stolen_bytes\n");
+                            continue;
+                        }
+
+                        if (patch.stolenBytes.size() < 5) {
+                            OutputDebugStringA("[Config] stolen_bytes must be at least 5 bytes\n");
+                            continue;
+                        }
+                    } else {
+                        // Default: use original_bytes as stolen bytes
+                        OutputDebugStringA("[Config] Using original_bytes for stolen bytes!\n");
+                        patch.stolenBytes = patch.originalBytes;
+                    }
+
                     // === Parse Hook Type (Optional, defaults to INLINE) ===
                     auto typeStr = hookTable->at_path("type").value<std::string>();
                     if (typeStr) {

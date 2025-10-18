@@ -70,6 +70,11 @@ public static class HooksParser
                     return PatchResult<List<Hook>>.Fail($"Hook [{i}] missing required field: original_bytes");
                 }
 
+                if (!TryGetByteArray(hookTable, "stolen_bytes", out var stolenBytes))
+                {
+                    return PatchResult<List<Hook>>.Fail($"Hook [{i}] missing required field: original_bytes");
+                }
+
                 // Parse optional fields
                 var type = ParseHookType(hookTable);
                 var preserveRegisters = TryGetBool(hookTable, "preserve_registers") ?? true;
@@ -81,6 +86,7 @@ public static class HooksParser
                     Address = address,
                     Function = function,
                     OriginalBytes = originalBytes,
+                    StolenBytes = stolenBytes,
                     Type = type,
                     PreserveRegisters = preserveRegisters,
                     PreserveFlags = preserveFlags,

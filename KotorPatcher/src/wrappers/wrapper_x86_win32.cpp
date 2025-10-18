@@ -203,9 +203,23 @@ namespace KotorPatcher {
 
             // ===== RETURN TO ORIGINAL CODE =====
 
-            // For now, just return to caller
-            // TODO: When detours are implemented, jump to continuation point
-            EmitByte(code, 0xC3);  // RET
+            // Execute the stolen bytes (original instructions we overwrote)
+            // These were specified in the patch config to align with instruction boundaries
+            if (config.stolenBytes.empty()) {
+                OutputDebugStringA("[Wrapper] ERROR: No stolen bytes provided for INLINE hook\n");
+                return nullptr;
+            }
+
+            // Emit the stolen bytes to execute the original instructions
+            EmitBytes(code, config.stolenBytes.data(), config.stolenBytes.size());
+
+            // Jump back to hookAddress + stolen_bytes_size to continue normal execution
+            void* returnAddress = reinterpret_cast<void*>(
+                config.hookAddress + static_cast<DWORD>(config.stolenBytes.size())
+            );
+            EmitByte(code, 0xE9);  // JMP rel32
+            DWORD returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
+            EmitDword(code, returnOffset);
 
             // Flush instruction cache
             FlushInstructionCache(GetCurrentProcess(), wrapperMem, code - wrapperMem);

@@ -133,6 +133,11 @@ namespace KotorPatcher {
             Wrappers::WrapperConfig wrapperConfig;
             wrapperConfig.patchFunction = funcAddr;
             wrapperConfig.hookAddress = patch.hookAddress;
+            wrapperConfig.stolenBytes = patch.stolenBytes;  // Pass stolen bytes for INLINE wrapper
+
+            char debugMsg[256];
+            sprintf_s(debugMsg, "[KotorPatcher] Got % d stolen bytes\n", wrapperConfig.stolenBytes.size());
+            OutputDebugStringA(debugMsg);
 
             // Map our HookType to WrapperConfig::HookType
             switch (patch.type) {
@@ -166,6 +171,13 @@ namespace KotorPatcher {
             OutputDebugStringA("[KotorPatcher] Failed to write trampoline\n");
             return false;
         }
+
+        // Clear out the remaining stolen bytes
+        if (!Trampoline::WriteNoOps(patch.hookAddress + 5, patch.stolenBytes.size() - 5)) {
+            OutputDebugStringA("[KotorPatcher] Failed to write No-Ops after trampoline\n");
+            return false;
+        }
+
 
         const char* typeNames[] = { "INLINE", "REPLACE", "WRAP" };
         char successMsg[256];

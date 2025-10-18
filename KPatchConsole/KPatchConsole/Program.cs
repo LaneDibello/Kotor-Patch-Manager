@@ -516,6 +516,7 @@ internal class Program
                 Address = 0x401234,
                 Function = "TestFunction",
                 OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 }, // 6 bytes - enough for JMP
+                StolenBytes = new byte[] { },
                 Type = HookType.Inline
             };
 
@@ -545,6 +546,7 @@ internal class Program
                 Address = 0,
                 Function = "TestFunction",
                 OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC },
+                StolenBytes = new byte[] { },
                 Type = HookType.Inline
             };
 
@@ -574,6 +576,7 @@ internal class Program
                 Address = 0x401234,
                 Function = "",
                 OriginalBytes = new byte[] { 0x55 },
+                StolenBytes = Array.Empty<byte>(),
                 Type = HookType.Inline
             };
 
@@ -603,6 +606,7 @@ internal class Program
                 Address = 0x401234,
                 Function = "TestFunction",
                 OriginalBytes = Array.Empty<byte>(),
+                StolenBytes = Array.Empty<byte>(),
                 Type = HookType.Inline
             };
 
@@ -670,7 +674,8 @@ internal class Program
             {
                 Address = 0x401234,
                 Function = "TestFunction",
-                OriginalBytes = new byte[] { 0x55 }
+                OriginalBytes = new byte[] { 0x55 },
+                StolenBytes = Array.Empty<byte>(),
             };
 
             config.AddPatch("test-patch", "patches/test.dll", new[] { hook });
@@ -1505,6 +1510,7 @@ internal class Program
                 Address = 0x401234,
                 Function = "TestFunction",
                 OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
+                StolenBytes = Array.Empty<byte>(),
                 Type = HookType.Inline,
                 ExcludeFromRestore = new List<string> { "eax" }
             };
@@ -1575,7 +1581,8 @@ internal class Program
             {
                 Address = 0x401000,
                 Function = "Test",
-                OriginalBytes = new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90 }
+                OriginalBytes = new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90 },
+                StolenBytes = Array.Empty<byte>(),
             };
             config.AddPatch("validate-test", "test.dll", new[] { hook });
 
@@ -1722,6 +1729,7 @@ internal class Program
                 Address = 0x401234,
                 Function = "TestFunction",
                 OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
+                StolenBytes = Array.Empty<byte>(),
                 Type = HookType.Inline
             };
 
@@ -1752,13 +1760,15 @@ internal class Program
             {
                 Address = 0x401234,
                 Function = "Hook1",
-                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 }
+                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
+                StolenBytes = Array.Empty<byte>(),
             };
             var hook2 = new Hook
             {
                 Address = 0x401234, // Same address
                 Function = "Hook2",
-                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 }
+                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
+                StolenBytes = Array.Empty<byte>(),
             };
 
             var result = HookValidator.ValidateHooks(new[] { hook1, hook2 });
@@ -1792,7 +1802,8 @@ internal class Program
                     {
                         Address = 0x401234,
                         Function = "Patch1Hook",
-                        OriginalBytes = new byte[] { 0x55 }
+                        OriginalBytes = new byte[] { 0x55 },
+                        StolenBytes = Array.Empty<byte>()
                     }
                 },
                 ["patch2"] = new List<Hook>
@@ -1801,7 +1812,8 @@ internal class Program
                     {
                         Address = 0x401234, // Same address as patch1
                         Function = "Patch2Hook",
-                        OriginalBytes = new byte[] { 0x55 }
+                        OriginalBytes = new byte[] { 0x55 },
+                        StolenBytes = Array.Empty<byte>()
                     }
                 }
             };

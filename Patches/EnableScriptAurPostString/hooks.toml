@@ -6,12 +6,16 @@ address = 0x005cb41c
 # The function exported from our patch DLL
 function = "EnableAurPostString_Hook"
 
-# Original bytes at 0x005cb41c:
-# 8d 4c 24 0c    LEA ECX, [ESP+0xc]
-# c7 44 24 1c    MOV dword ptr [ESP+0x1c], 0xffffffff
-# We need at least 5 bytes for a JMP instruction
-# Original instruction is 4 bytes, so we'll include part of the next one
+# Original bytes at 0x005cb41c (used for verification only):
+# We verify the first 5 bytes to ensure we're patching the right location
 original_bytes = [0x8d, 0x4c, 0x24, 0x0c, 0xc7]
+
+# Stolen bytes: The complete instructions we need to execute in the wrapper
+# These must align with instruction boundaries and be >= 5 bytes
+# 8d 4c 24 0c                LEA ECX, [ESP+0xc]              (4 bytes)
+# c7 44 24 1c ff ff ff ff    MOV dword ptr [ESP+0x1c], -1   (8 bytes)
+# Total: 12 bytes
+stolen_bytes = [0x8d, 0x4c, 0x24, 0x0c, 0xc7, 0x44, 0x24, 0x1c, 0xff, 0xff, 0xff, 0xff]
 
 # Hook type: inline
 # This means we'll replace the original code with a JMP to our wrapper

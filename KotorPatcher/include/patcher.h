@@ -25,6 +25,8 @@ namespace KotorPatcher {
         std::string functionName;      // Exported function name in DLL
         DWORD hookAddress;             // Address in game code to hook
         std::vector<BYTE> originalBytes;  // Expected bytes for verification
+        std::vector<BYTE> stolenBytes;    // Original bytes to execute in wrapper (for INLINE)
+                                           // Must be >= 5 bytes and align with instruction boundaries
 
         // Hook behavior configuration
         HookType type = HookType::INLINE;  // Default to safest option
