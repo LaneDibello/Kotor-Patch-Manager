@@ -111,15 +111,15 @@ namespace KotorPatcher {
 
             // Restore ESP to original value before wrapper
             // ADD ESP, totalPushed
-            if (totalPushed <= 127) {
-                EmitByte(code, 0x83);  // ADD ESP, imm8
-                EmitByte(code, 0xC4);
-                EmitByte(code, static_cast<BYTE>(totalPushed));
-            } else {
-                EmitByte(code, 0x81);  // ADD ESP, imm32
-                EmitByte(code, 0xC4);
-                EmitDword(code, totalPushed);
-            }
+            //if (totalPushed <= 127) {
+            //    EmitByte(code, 0x83);  // ADD ESP, imm8
+            //    EmitByte(code, 0xC4);
+            //    EmitByte(code, static_cast<BYTE>(totalPushed));
+            //} else {
+            //    EmitByte(code, 0x81);  // ADD ESP, imm32
+            //    EmitByte(code, 0xC4);
+            //    EmitDword(code, totalPushed);
+            //}
 
             // ===== EXTRACT AND PUSH PARAMETERS =====
             // If the hook has parameters defined, extract them and push onto stack
@@ -313,45 +313,45 @@ namespace KotorPatcher {
 
             // Check if source is a register
             if (source == "eax") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+48]
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+32]
                 EmitByte(code, 0x4B);
-                EmitByte(code, 48);
+                EmitByte(code, 32);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             else if (source == "ebx") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+36]
-                EmitByte(code, 0x4B);
-                EmitByte(code, 36);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else if (source == "ecx") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+44]
-                EmitByte(code, 0x4B);
-                EmitByte(code, 44);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else if (source == "edx") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+40]
-                EmitByte(code, 0x4B);
-                EmitByte(code, 40);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else if (source == "esi") {
-                EmitByte(code, 0x8B);  // MOV ECX, [EBX+24]
-                EmitByte(code, 0x4B);
-                EmitByte(code, 24);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else if (source == "edi") {
                 EmitByte(code, 0x8B);  // MOV ECX, [EBX+20]
                 EmitByte(code, 0x4B);
                 EmitByte(code, 20);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
-            else if (source == "ebp") {
+            else if (source == "ecx") {
                 EmitByte(code, 0x8B);  // MOV ECX, [EBX+28]
                 EmitByte(code, 0x4B);
                 EmitByte(code, 28);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "edx") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+24]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 24);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "esi") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+8]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 8);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "edi") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+4]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 4);
+                EmitByte(code, 0x51);  // PUSH ECX
+            }
+            else if (source == "ebp") {
+                EmitByte(code, 0x8B);  // MOV ECX, [EBX+12]
+                EmitByte(code, 0x4B);
+                EmitByte(code, 12);
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             // Check if source is a stack offset like "esp+0", "esp+4", etc.
@@ -359,7 +359,7 @@ namespace KotorPatcher {
                 // Parse the offset
                 int offset = 0;
                 try {
-                    offset = std::stoi(source.substr(4));
+                    offset = std::stoi(source.substr(4)) + 36;
                 } catch (...) {
                     OutputDebugStringA(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
                     return;
