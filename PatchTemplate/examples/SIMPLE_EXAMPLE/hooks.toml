@@ -1,0 +1,47 @@
+# Example SIMPLE Hook Configuration
+# This demonstrates direct byte replacement without a DLL
+
+[[hooks]]
+# Memory address to patch
+address = 0x00401234
+
+# Hook type (simple = direct byte replacement)
+type = "simple"
+
+# Original bytes at this address (for verification)
+# Example: Changing a constant value
+# PUSH 100 (0x6A 0x64) -> PUSH 200 (0x6A 0xC8)
+original_bytes = [0x6A, 0x64]
+
+# New bytes to write
+# Must be same length as original_bytes
+replacement_bytes = [0x6A, 0xC8]
+
+# Note: SIMPLE hooks don't have these fields:
+# - function (no DLL required)
+# - parameters (no function to call)
+# - preserve_registers/preserve_flags (direct replacement)
+
+
+# Example 2: NOPing out instructions
+[[hooks]]
+address = 0x00402000
+type = "simple"
+
+# Original: CALL instruction (5 bytes)
+original_bytes = [0xE8, 0x10, 0x20, 0x00, 0x00]
+
+# Replace with NOPs
+replacement_bytes = [0x90, 0x90, 0x90, 0x90, 0x90]
+
+
+# Example 3: Changing a jump condition
+[[hooks]]
+address = 0x00403000
+type = "simple"
+
+# Original: JE (jump if equal)
+original_bytes = [0x74, 0x10]
+
+# Replace with JNE (jump if not equal)
+replacement_bytes = [0x75, 0x10]

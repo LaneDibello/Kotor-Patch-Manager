@@ -1,0 +1,44 @@
+# KotOR Patch Manifest Template
+# Fill in all required fields before packaging
+
+[patch]
+# Unique identifier: lowercase, hyphens only (e.g., "my-awesome-patch")
+id = "my-patch-id"
+
+# Display name shown to users
+name = "My Patch Name"
+
+# Semantic versioning: MAJOR.MINOR.PATCH
+version = "1.0.0"
+
+# Creator name or team
+author = "Your Name"
+
+# Brief description of what this patch does
+description = "Description of what this patch does and why it's useful"
+
+[game]
+# Game title (don't change for KOTOR 1)
+title = "Star Wars: Knights of the Old Republic"
+
+# Executable name (don't change for KOTOR 1)
+executable = "swkotor.exe"
+
+# Supported game versions
+# Get the SHA256 hash by running: kpatchconsole --status <game_exe>
+[[game.versions]]
+name = "4CD"  # or "GOG", "Steam", etc.
+sha256 = "your-game-exe-sha256-hash-here"
+
+# Optional: Add more game versions
+# [[game.versions]]
+# name = "Steam"
+# sha256 = "another-hash-here"
+
+# Optional: Dependencies (patches required before this one)
+[dependencies]
+# requires = ["base-patch", "framework"]
+
+# Optional: Conflicts (patches incompatible with this one)
+[conflicts]
+# conflicts_with = ["incompatible-mod"]

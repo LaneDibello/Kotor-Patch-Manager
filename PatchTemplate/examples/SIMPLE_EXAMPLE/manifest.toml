@@ -1,0 +1,23 @@
+# Example SIMPLE Patch Manifest
+# This patch demonstrates a byte-level modification without DLL
+
+[patch]
+id = "example-simple-patch"
+name = "Example SIMPLE Patch"
+version = "1.0.0"
+author = "Your Name"
+description = "An example patch that changes bytes directly without requiring a DLL"
+
+[game]
+title = "Star Wars: Knights of the Old Republic"
+executable = "swkotor.exe"
+
+# Replace this hash with your game version's hash
+# Use: kpatchconsole --status <game_exe> to get the hash
+[[game.versions]]
+name = "4CD"
+sha256 = "dbd602d92bfbf2bb8467861b4c3f8d260ce0280e831c923e60c77ba1a5d02e2a"
+
+# Optional: Dependencies and conflicts
+[dependencies]
+[conflicts]
