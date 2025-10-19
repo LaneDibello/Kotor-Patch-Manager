@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:KPatchLauncher.ViewModels"
+        xmlns:converters="using:KPatchLauncher.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
@@ -11,6 +12,10 @@
         MinWidth="700" MinHeight="500"
         Background="#000016"
         Foreground="#00AFFF">
+
+    <Window.Resources>
+        <converters:PatchStateColorConverter x:Key="PatchStateColorConverter"/>
+    </Window.Resources>
 
     <Design.DataContext>
         <vm:MainViewModel/>
@@ -59,15 +64,29 @@
         <Style Selector="ListBoxItem">
             <Setter Property="Padding" Value="5,2"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#00AFFF"/>
         </Style>
         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#FFFF00"/>
+            <Setter Property="Background" Value="#002244"/>
         </Style>
         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#FFFF00"/>
+            <Setter Property="Background" Value="#001122"/>
+        </Style>
+        <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#003355"/>
+        </Style>
+
+        <!-- Color coding for patch states -->
+        <Style Selector="TextBlock.installed">
+            <Setter Property="Foreground" Value="#00FF00"/>
+        </Style>
+        <Style Selector="TextBlock.orphaned">
+            <Setter Property="Foreground" Value="#FF0000"/>
+        </Style>
+        <Style Selector="TextBlock.incompatible">
+            <Setter Property="Foreground" Value="#FF8800"/>
+        </Style>
+        <Style Selector="TextBlock.pending">
+            <Setter Property="Foreground" Value="#00AFFF"/>
         </Style>
 
         <Style Selector="Border">
@@ -94,11 +113,15 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
             <TextBlock Text="Patches:" VerticalAlignment="Center" Width="60"/>
             <TextBox Text="{Binding PatchesPath}"
-                     Width="600"
+                     Width="550"
                      Watermark="Directory containing .kpatch files"
                      Margin="10,0"/>
             <Button Content="Browse..."
                     Command="{Binding BrowsePatchesCommand}"
+                    Width="100"
+                    Margin="0,0,5,0"/>
+            <Button Content="Refresh"
+                    Command="{Binding RefreshCommand}"
                     Width="100"/>
         </StackPanel>
 
@@ -116,7 +139,8 @@
                              SelectedItem="{Binding SelectedAvailablePatch}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding DisplayText}"/>
+                                <TextBlock Text="{Binding DisplayText}"
+                                           Foreground="{Binding Converter={StaticResource PatchStateColorConverter}}"/>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
@@ -164,7 +188,8 @@
                              SelectedItem="{Binding SelectedActivePatch}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding DisplayText}"/>
+                                <TextBlock Text="{Binding DisplayText}"
+                                           Foreground="{Binding Converter={StaticResource PatchStateColorConverter}}"/>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
@@ -174,12 +199,19 @@
 
         <!-- Status Bar -->
         <Border Grid.Row="3"
-                BorderBrush="Gray"
+                BorderBrush="#00AFFF"
                 BorderThickness="0,1,0,0"
                 Padding="5"
                 Margin="0,10,0,5">
-            <TextBlock Text="{Binding StatusMessage}"
-                       FontStyle="Italic"/>
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding StatusMessage}"
+                           FontStyle="Italic"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding KotorVersion, StringFormat='Target: {0}'}"
+                           FontStyle="Italic"
+                           HorizontalAlignment="Right"/>
+            </Grid>
         </Border>
 
         <!-- Action Buttons -->

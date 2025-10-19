@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace KPatchLauncher.ViewModels;
 
 public class PatchItemViewModel : ViewModelBase
@@ -7,6 +9,9 @@ public class PatchItemViewModel : ViewModelBase
     private string _version = string.Empty;
     private string _author = string.Empty;
     private string _description = string.Empty;
+    private bool _isOrphaned = false;
+    private bool _isInstalled = false;
+    private bool _isIncompatible = false;
 
     public string Id
     {
@@ -50,5 +55,28 @@ public class PatchItemViewModel : ViewModelBase
         set => SetProperty(ref _description, value);
     }
 
+    public bool IsOrphaned
+    {
+        get => _isOrphaned;
+        set => SetProperty(ref _isOrphaned, value);
+    }
+
+    public bool IsInstalled
+    {
+        get => _isInstalled;
+        set => SetProperty(ref _isInstalled, value);
+    }
+
+    public bool IsIncompatible
+    {
+        get => _isIncompatible;
+        set => SetProperty(ref _isIncompatible, value);
+    }
+
     public string DisplayText => $"{Name} v{Version}";
+
+    public void UpdateInstalledState(HashSet<string> installedIds)
+    {
+        IsInstalled = installedIds.Contains(Id);
+    }
 }
