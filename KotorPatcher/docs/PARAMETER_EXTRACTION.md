@@ -80,15 +80,17 @@ extern "C" void __cdecl EnableAurPostString_Hook(char* string, int x, int y, flo
 The INLINE wrapper generator:
 
 1. Saves all registers (PUSHAD/PUSHFD)
-2. **Restores ESP to original value** (so we can read from original stack)
-3. **Reads each parameter from specified source** (register or stack offset)
+2. **Saves ESP to EBX** (points to saved state - NOT modified!)
+3. **Reads each parameter from specified source** (register or stack offset, using adjusted offsets)
 4. **Pushes parameters in __cdecl order** (right-to-left)
 5. Calls the patch function with proper parameters
-6. Cleans up parameters
-7. Restores wrapper ESP
+6. Cleans up parameters (caller cleanup for __cdecl)
+7. Restores ESP from EBX
 8. Restores registers (POPFD/POPAD)
 9. Executes stolen bytes
 10. Jumps back to original code
+
+**Critical Implementation Detail**: ESP is NOT restored before extracting parameters. Instead, ESP remains pointing at the saved state, and parameters are read using adjusted offsets (`savedStateSize + 4 + userOffset`). This prevents PUSH instructions from clobbering saved registers.
 
 ### Parameter Source Syntax
 
@@ -145,37 +147,46 @@ For the AurPostString hook with 4 parameters, the wrapper generates:
 
 ```asm
 ; Save state
-PUSHAD                    ; Save all registers
-PUSHFD                    ; Save flags
+PUSHAD                    ; Save all registers (32 bytes)
+PUSHFD                    ; Save flags (4 bytes)
 
-; Restore ESP to read parameters
-MOV EBX, ESP              ; Save wrapper ESP
-ADD ESP, 36               ; Restore original ESP (32 + 4)
+; Setup for parameter extraction
+MOV EBX, ESP              ; Save ESP (points to saved state)
+                          ; ESP is NOT modified - stays at saved state!
 
 ; Extract parameters in reverse order (for __cdecl push)
-MOV ECX, [ESP+8]          ; Read param4 (life) from [ESP+8]
-PUSH ECX                  ; Push param4
+; Stack parameters use adjusted offsets: savedStateSize + 4 + userOffset
 
-MOV ECX, [ESP+4]          ; Read param3 (y) from [ESP+4]
-PUSH ECX                  ; Push param3
+; Parameter 4: life from esp+8
+; Actual offset: 36 (savedStateSize) + 4 (return addr) + 8 = 48
+MOV ECX, [ESP+48]
+PUSH ECX
 
-MOV ECX, [ESP]            ; Read param2 (x) from [ESP]
-PUSH ECX                  ; Push param2
+; Parameter 3: y from esp+4
+; Actual offset: 36 + 4 + 4 = 44
+MOV ECX, [ESP+44]
+PUSH ECX
 
-; EAX was saved by PUSHAD, retrieve it
-MOV ECX, [EBX+28]         ; Read saved EAX from PUSHAD state
-PUSH ECX                  ; Push param1 (string)
+; Parameter 2: x from esp+0
+; Actual offset: 36 + 4 + 0 = 40
+MOV ECX, [ESP+40]
+PUSH ECX
+
+; Parameter 1: string from EAX
+; Read from PUSHAD saved state at [EBX+32]
+MOV ECX, [EBX+32]         ; OFFSET_EAX = 32
+PUSH ECX
 
 ; Call patch function
-CALL patch_function       ; __cdecl: callee cleans stack... wait, no!
+CALL patch_function       ; __cdecl: caller cleans stack
 
-; Clean up parameters (caller cleans for __cdecl)
+; Clean up parameters (caller cleanup for __cdecl)
 ADD ESP, 16               ; 4 params * 4 bytes
 
 ; Restore wrapper state
-MOV ESP, EBX              ; Restore wrapper ESP
+MOV ESP, EBX              ; Restore ESP to saved state
 POPFD                     ; Restore flags
-POPAD                     ; Restore registers
+POPAD                     ; Restore all registers
 
 ; Execute stolen bytes and return
 LEA ECX, [ESP+0xc]

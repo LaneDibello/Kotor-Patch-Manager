@@ -87,28 +87,34 @@ When the hook at 0x005cb41c is triggered:
 
 ```asm
 ; 1. Save CPU state
-PUSHAD                          ; Save all registers (EAX now at [ESP+28])
-PUSHFD                          ; Save flags
+PUSHAD                          ; Save all registers (32 bytes)
+PUSHFD                          ; Save flags (4 bytes)
 
 ; 2. Setup for parameter extraction
-MOV EBX, ESP                    ; Save wrapper ESP
-ADD ESP, 36                     ; Restore ESP to original value
+MOV EBX, ESP                    ; Save ESP (points to saved state)
+                                ; ESP is NOT modified - stays at saved state!
 
-; 3. Extract and push parameters (reverse order)
-; Parameter 4: life from [ESP+8]
-MOV ECX, [ESP+8]
+; 3. Extract and push parameters (reverse order for __cdecl)
+; Stack parameters use adjusted offsets: savedStateSize + 4 + userOffset
+
+; Parameter 4: life from esp+8
+; Actual offset: 36 (savedStateSize) + 4 (return addr) + 8 = 48
+MOV ECX, [ESP+48]
 PUSH ECX
 
-; Parameter 3: y from [ESP+4]
-MOV ECX, [ESP+4]
+; Parameter 3: y from esp+4
+; Actual offset: 36 + 4 + 4 = 44
+MOV ECX, [ESP+44]
 PUSH ECX
 
-; Parameter 2: x from [ESP]
-MOV ECX, [ESP]
+; Parameter 2: x from esp+0
+; Actual offset: 36 + 4 + 0 = 40
+MOV ECX, [ESP+40]
 PUSH ECX
 
-; Parameter 1: string from EAX (saved at [EBX+28])
-MOV ECX, [EBX+28]
+; Parameter 1: string from EAX
+; Read from PUSHAD saved state at [EBX+32]
+MOV ECX, [EBX+32]               ; OFFSET_EAX = 32
 PUSH ECX
 
 ; 4. Call patch function
@@ -118,7 +124,7 @@ CALL EnableAurPostString_Hook   ; Parameters on stack in correct order!
 ADD ESP, 16                     ; 4 params * 4 bytes
 
 ; 6. Restore wrapper state
-MOV ESP, EBX                    ; Restore wrapper ESP
+MOV ESP, EBX                    ; Restore ESP to saved state
 POPFD                           ; Restore flags
 POPAD                           ; Restore all registers
 
@@ -129,6 +135,21 @@ MOV DWORD PTR [ESP+0x1c], -1
 ; 8. Jump back to continue
 JMP 0x005cb428
 ```
+
+### Critical Implementation Detail
+
+The wrapper does NOT modify ESP before extracting parameters. This is critical because:
+
+1. After PUSHAD/PUSHFD, ESP points to the saved state
+2. If we restored ESP with `ADD ESP, 36`, then executed PUSH instructions, they would write BELOW ESP
+3. This would overwrite the saved registers (EDI, ESI, EBP, etc.) at [ESP-4], [ESP-8], etc.
+4. When POPAD tried to restore registers, it would get garbage values
+
+Instead:
+- ESP stays at the saved state
+- Stack parameters are read with adjusted offsets: `savedStateSize + 4 + userOffset`
+- PUSH instructions write below the saved state without clobbering it
+- Saved registers remain intact for POPAD to restore
 
 ## Supported Parameter Sources
 

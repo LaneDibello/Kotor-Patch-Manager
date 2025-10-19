@@ -21,7 +21,9 @@ cd /mnt/c/Users/laned/source/Repos/KotOR\ Patch\ Manager/KPatchCore
 
 - **KPatchCore**: C# library for patch management (installation time)
 - **KPatchConsole**: C# console application for CLI
+- **KPatchLauncher**: C# launcher for DLL injection (RECOMMENDED approach)
 - **KotorPatcher**: C++ runtime DLL (loaded by game at runtime)
+- **Patches/**: Example patches (EnableScriptAurPostString)
 
 ### Current Implementation Status
 
@@ -30,14 +32,20 @@ cd /mnt/c/Users/laned/source/Repos/KotOR\ Patch\ Manager/KPatchCore
 - ✅ Phase 2: Parsers (ManifestParser, HooksParser, ExecutableParser)
 - ✅ Phase 3: Simple Operations (BackupManager, ConfigGenerator, GameDetector)
 - ✅ Phase 4: Validators (PatchValidator, HookValidator, DependencyValidator, GameVersionValidator)
-- ✅ Phase 5: PE Manipulation (LoaderInjector - experimental, see PE_INJECTION_NOTES.md)
-- ⏳ Phase 6: Orchestration (PatchApplicator, PatchRemover, PatchRepository, PatchOrchestrator)
-- ⏳ Phase 7: Console Application (KPatchConsole commands)
+- ✅ Phase 5: PE Manipulation (LoaderInjector - experimental, not recommended)
+- ✅ Phase 6: Orchestration (PatchApplicator, PatchRemover, PatchRepository, PatchOrchestrator)
+- ✅ Phase 7: Console Application (KPatchConsole with install/uninstall/list/status)
+
+**C# Launcher (KPatchLauncher)**:
+- ✅ DLL injection via CreateProcess with CREATE_SUSPENDED
+- ✅ Thread hijacking for KotorPatcher.dll injection
+- ✅ Proper cleanup and error handling
 
 **C++ Components (KotorPatcher)**:
-- ✅ Complete: Wrapper system with x86 runtime code generation
-- ✅ Complete: Hook types (INLINE, REPLACE, WRAP)
-- ✅ Complete: Configuration parsing (TOML)
+- ✅ Wrapper system with x86 runtime code generation
+- ✅ Hook types (INLINE with parameter extraction, REPLACE, WRAP)
+- ✅ Configuration parsing (TOML with Tomlyn)
+- ✅ Parameter extraction for INLINE hooks
 - See: `KotorPatcher/docs/IMPLEMENTATION_COMPLETE.md`
 
 ### Testing
@@ -49,5 +57,15 @@ cd /mnt/c/Users/laned/source/Repos/KotOR\ Patch\ Manager/KPatchCore
 ### Key Decisions
 
 - Using PatchResult pattern instead of exceptions for expected failures
-- LoaderInjector PE modification is experimental; launcher-based injection recommended for production
+- Launcher-based injection (KPatchLauncher.exe) is RECOMMENDED; PE modification experimental
 - No auto-detection of game installations in MVP (using explicit paths)
+- Parameter extraction system allows clean C functions instead of inline assembly
+- SafeDeleteFile helper for maintainable file cleanup
+- Backup files cleaned up automatically after restore
+
+### Recent Improvements
+
+- ✅ Backup cleanup after restore (no orphaned backup files)
+- ✅ Refactored RemoveAllPatches with SafeDeleteFile helper
+- ✅ Parameter extraction system fully documented and working
+- ✅ Updated documentation to reflect current architecture

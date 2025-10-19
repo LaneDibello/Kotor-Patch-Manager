@@ -9,6 +9,24 @@ namespace KPatchCore.Applicators;
 public static class PatchRemover
 {
     /// <summary>
+    /// Safely deletes a file if it exists and adds a message
+    /// </summary>
+    /// <param name="gameDir">Game directory</param>
+    /// <param name="fileName">File name to delete</param>
+    /// <param name="removedFiles">List to add removed file names to</param>
+    /// <param name="messages">List to add messages to</param>
+    private static void SafeDeleteFile(string gameDir, string fileName, List<string> removedFiles, List<string> messages)
+    {
+        var filePath = Path.Combine(gameDir, fileName);
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+            removedFiles.Add(fileName);
+            messages.Add($"  Removed {fileName}");
+        }
+    }
+
+    /// <summary>
     /// Removal result with detailed information
     /// </summary>
     public sealed class RemovalResult
@@ -103,6 +121,18 @@ public static class PatchRemover
                 }
 
                 messages.Add("  Backup restored successfully");
+
+                // Clean up backup files after successful restore
+                messages.Add("  Cleaning up backup files...");
+                var deleteResult = BackupManager.DeleteBackup(backup);
+                if (deleteResult.Success)
+                {
+                    messages.Add($"  {deleteResult.Message}");
+                }
+                else
+                {
+                    messages.Add($"  ⚠️ Warning: Failed to delete backup files: {deleteResult.Error}");
+                }
             }
 
             // Step 3: Remove patch files
@@ -127,80 +157,28 @@ public static class PatchRemover
                 }
             }
 
-            // Remove patch_config.toml
-            var configPath = Path.Combine(gameDir, "patch_config.toml");
-            if (File.Exists(configPath))
+            // List of files to remove from game directory
+            var filesToRemove = new[]
             {
-                File.Delete(configPath);
-                removedFiles.Add("patch_config.toml");
-                messages.Add($"  Removed patch_config.toml");
-            }
+                "patch_config.toml",
+                "KotorPatcher.dll",
+                "KPatchLauncher.exe",
+                "KPatchLauncher.dll",
+                "KPatchLauncher.runtimeconfig.json",
+                "KPatchLauncher.deps.json",
+                "KPatchCore.dll",
+                "Tomlyn.dll"
+            };
 
-            // Remove KotorPatcher.dll (optional - might be used by other tools)
-            var patcherDllPath = Path.Combine(gameDir, "KotorPatcher.dll");
-            if (File.Exists(patcherDllPath))
+            // Remove each file using safe delete helper
+            foreach (var fileName in filesToRemove)
             {
-                File.Delete(patcherDllPath);
-                removedFiles.Add("KotorPatcher.dll");
-                messages.Add($"  Removed KotorPatcher.dll");
-            }
-
-            // Remove KPatchLauncher.exe
-            var launcherPath = Path.Combine(gameDir, "KPatchLauncher.exe");
-            if (File.Exists(launcherPath))
-            {
-                File.Delete(launcherPath);
-                removedFiles.Add("KPatchLauncher.exe");
-                messages.Add($"  Removed KPatchLauncher.exe");
-            }
-
-            // Remove KPatchCore.dll
-            var patchCoreDllPath = Path.Combine(gameDir, "KPatchCore.dll");
-            if (File.Exists(patchCoreDllPath))
-            {
-                File.Delete(patchCoreDllPath);
-                removedFiles.Add("KPatchCore.dll");
-                messages.Add($"  Removed KPatchCore.dll");
-            }
-
-            // Remove Tomlyn.dll
-            var tomlynDllPath = Path.Combine(gameDir, "Tomlyn.dll");
-            if (File.Exists(tomlynDllPath))
-            {
-                File.Delete(tomlynDllPath);
-                removedFiles.Add("Tomlyn.dll");
-                messages.Add($"  Removed Tomlyn.dll");
-            }
-
-            // Remove KPatchLauncher.runtimeconfig.json
-            var launcherConfigPath = Path.Combine(gameDir, "KPatchLauncher.runtimeconfig.json");
-            if (File.Exists(launcherConfigPath))
-            {
-                File.Delete(launcherConfigPath);
-                removedFiles.Add("KPatchLauncher.runtimeconfig.json");
-                messages.Add($"  Removed KPatchLauncher.runtimeconfig.json");
-            }
-
-            // Remove KPatchLauncher.dll
-            var launcherDLLPath = Path.Combine(gameDir, "KPatchLauncher.dll");
-            if (File.Exists(launcherDLLPath))
-            {
-                File.Delete(launcherDLLPath);
-                removedFiles.Add("KPatchLauncher.dll");
-                messages.Add($"  Removed KPatchLauncher.dll");
-            }
-
-            // Remove KPatchLauncher.deps.json
-            var launcherDepsPath = Path.Combine(gameDir, "KPatchLauncher.deps.json");
-            if (File.Exists(launcherDepsPath))
-            {
-                File.Delete(launcherDepsPath);
-                removedFiles.Add("KPatchLauncher.deps.json");
-                messages.Add($"  Removed KPatchLauncher.deps.json");
+                SafeDeleteFile(gameDir, fileName, removedFiles, messages);
             }
 
             // Step 4: Verify clean state
             messages.Add("Step 4/4: Verifying clean state...");
+            var configPath = Path.Combine(gameDir, "patch_config.toml");
             var isClean = !File.Exists(configPath) && !Directory.Exists(patchesDir);
 
             if (isClean)

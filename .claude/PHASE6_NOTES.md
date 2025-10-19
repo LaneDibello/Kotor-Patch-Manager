@@ -29,10 +29,10 @@ Phase 6 (Orchestration) is now complete! This phase ties together all previous p
 1. Validate inputs (game exe exists, etc.)
 2. Detect game version
 3. Load and validate patches (dependencies, conflicts, version compatibility, hook conflicts)
-4. Create backup (optional)
+4. Create backup
 5. Extract patch DLLs to `patches/` subdirectory
 6. Generate `patch_config.toml`
-7. Inject loader DLL (optional, experimental)
+7. Deploy KPatchLauncher.exe (launcher-based injection - RECOMMENDED)
 
 **Error Handling**:
 - Fails fast on errors
@@ -47,10 +47,19 @@ Phase 6 (Orchestration) is now complete! This phase ties together all previous p
 **Purpose**: Handles patch removal and restoration
 
 **Key Features**:
-- Restores from backup (if available)
-- Removes all patch files (patches/, patch_config.toml, kotor_patcher.dll)
+- Restores from backup
+- Cleans up backup files after successful restore
+- Removes all patch files using safe delete helper
 - Verifies clean state after removal
 - Query methods for installation status
+
+**Files Removed**:
+- patches/ directory and all DLLs
+- patch_config.toml
+- KotorPatcher.dll
+- KPatchLauncher.exe and related files (.dll, .runtimeconfig.json, .deps.json)
+- KPatchCore.dll
+- Tomlyn.dll
 
 **Public API**:
 - `RemoveAllPatches(gameExePath)` - Remove all patches
@@ -111,7 +120,8 @@ User
     → PatchRemover.RemoveAllPatches()
       → BackupManager.FindLatestBackup()
       → BackupManager.RestoreBackup()
-      → Delete patches/, patch_config.toml, kotor_patcher.dll
+      → BackupManager.DeleteBackup() [cleanup after restore]
+      → SafeDeleteFile() for all patch-related files
     → Returns RemovalResult
 ```
 
@@ -123,7 +133,7 @@ User
 
 3. **MVP Simplifications**:
    - No selective patch removal (always removes all and restores backup)
-   - Loader injection is optional (can fail without failing installation)
+   - Launcher-based injection (PE modification experimental, not recommended)
    - No runtime patch management (install/uninstall only)
 
 4. **Separation of Concerns**:
@@ -182,16 +192,17 @@ Phase 6 successfully integrates:
 ## Known Limitations
 
 1. **No Selective Removal**: MVP only supports "remove all patches" operation
-2. **Experimental Loader Injection**: PE modification may not work with all executables
+2. **PE Injection Experimental**: PE modification not recommended; use launcher-based injection
 3. **No Patch Signing**: Trust is implicit (no signature verification)
 4. **Single Architecture**: Only windows_x86 binaries supported
 5. **No Version Migration**: Can't upgrade patches in-place (must remove and reinstall)
 
-## Next Steps
+## Completed Enhancements
 
-- Phase 7: Console Application with commands for install/uninstall/list/status
-- Create test .kpatch files for testing
-- Consider implementing launcher-based DLL injection as alternative to PE modification
+- ✅ Phase 7: Console Application (KPatchConsole) with install/uninstall/list/status commands
+- ✅ Launcher-based DLL injection (KPatchLauncher.exe) - RECOMMENDED approach
+- ✅ Parameter extraction system for INLINE hooks
+- ✅ Working example patch (EnableScriptAurPostString)
 
 ## File Locations
 

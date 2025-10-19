@@ -13,12 +13,9 @@ namespace KotorPatcher {
 
     namespace Wrappers {
 
-        // Configuration for a wrapper stub
         struct WrapperConfig {
-            // Target patch function to call
-            void* patchFunction;
 
-            // Hook address in game code
+            void* patchFunction;
             DWORD hookAddress;
 
             // Original bytes that were overwritten by the hook (for INLINE type)
