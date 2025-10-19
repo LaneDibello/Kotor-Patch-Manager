@@ -27,7 +27,13 @@
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build KPatchConsole.sln --configuration Debug)",
       "Bash(cat:*)",
       "Bash(\"/mnt/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/dumpbin.exe\" /HEADERS \"/mnt/c/Users/laned/Documents/KotOR Installs/CHEAT/KotorPatcher.dll\")",
-      "Bash(./build.bat)"
+      "Bash(./build.bat)",
+      "Bash(git mv \"KPatchConsole/KPatchConsole\" \"src/KPatchConsole\")",
+      "Bash(git mv KPatchCore src/KPatchCore)",
+      "Bash(git mv KPatchLauncher src/KPatchLauncher)",
+      "Bash(git mv KotorPatcher src/KotorPatcher)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build KotorPatchManager.sln --configuration Debug)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build src/KPatchLauncher/KPatchLauncher.csproj --configuration Debug)"
     ],
     "deny": [],
     "ask": []

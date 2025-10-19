@@ -1,0 +1,141 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:KPatchLauncher.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="KPatchLauncher.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="KotOR Patch Manager"
+        Width="900" Height="650"
+        MinWidth="700" MinHeight="500">
+
+    <Design.DataContext>
+        <vm:MainViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="10">
+
+        <!-- Game Path -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Game:" VerticalAlignment="Center" Width="60"/>
+            <TextBox Text="{Binding GamePath}"
+                     Width="600"
+                     Watermark="Path to swkotor.exe"
+                     Margin="10,0"/>
+            <Button Content="Browse..."
+                    Command="{Binding BrowseGameCommand}"
+                    Width="100"/>
+        </StackPanel>
+
+        <!-- Patches Directory -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Patches:" VerticalAlignment="Center" Width="60"/>
+            <TextBox Text="{Binding PatchesPath}"
+                     Width="600"
+                     Watermark="Directory containing .kpatch files"
+                     Margin="10,0"/>
+            <Button Content="Browse..."
+                    Command="{Binding BrowsePatchesCommand}"
+                    Width="100"/>
+        </StackPanel>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,*" Margin="0,10">
+
+            <!-- Available Patches -->
+            <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="5">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="Available Patches"
+                               FontWeight="Bold"
+                               Margin="0,0,0,5"/>
+                    <ListBox ItemsSource="{Binding AvailablePatches}"
+                             SelectedItem="{Binding SelectedAvailablePatch}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayText}"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- Transfer Buttons -->
+            <StackPanel Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Margin="10"
+                        Spacing="10">
+                <Button Content="Add &gt;&gt;"
+                        Command="{Binding AddPatchCommand}"
+                        Width="100"
+                        HorizontalContentAlignment="Center"/>
+                <Button Content="&lt;&lt; Remove"
+                        Command="{Binding RemovePatchCommand}"
+                        Width="100"
+                        HorizontalContentAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Active Patches -->
+            <Border Grid.Column="2" BorderBrush="Gray" BorderThickness="1" Padding="5">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="Active Patches (in order)"
+                               FontWeight="Bold"
+                               Margin="0,0,0,5"/>
+                    <StackPanel DockPanel.Dock="Right"
+                                VerticalAlignment="Center"
+                                Margin="5,0,0,0"
+                                Spacing="5">
+                        <Button Content="↑"
+                                Command="{Binding MoveUpCommand}"
+                                Width="30"
+                                HorizontalContentAlignment="Center"
+                                ToolTip.Tip="Move Up"/>
+                        <Button Content="↓"
+                                Command="{Binding MoveDownCommand}"
+                                Width="30"
+                                HorizontalContentAlignment="Center"
+                                ToolTip.Tip="Move Down"/>
+                    </StackPanel>
+                    <ListBox ItemsSource="{Binding ActivePatches}"
+                             SelectedItem="{Binding SelectedActivePatch}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding DisplayText}"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="3"
+                BorderBrush="Gray"
+                BorderThickness="0,1,0,0"
+                Padding="5"
+                Margin="0,10,0,5">
+            <TextBlock Text="{Binding StatusMessage}"
+                       FontStyle="Italic"/>
+        </Border>
+
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="10">
+            <Button Content="Apply Patches"
+                    Command="{Binding ApplyPatchesCommand}"
+                    Width="120"
+                    Height="35"/>
+            <Button Content="Launch Game"
+                    Command="{Binding LaunchGameCommand}"
+                    Width="120"
+                    Height="35"
+                    Classes="accent"/>
+        </StackPanel>
+    </Grid>
+
+</Window>

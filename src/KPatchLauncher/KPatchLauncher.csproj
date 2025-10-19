@@ -8,22 +8,42 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Force x86 (32-bit) to match KOTOR architecture -->
     <PlatformTarget>x86</PlatformTarget>
+    <OutputPath>..\..\bin\Launcher\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.0.10" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.0.10" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.10" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.10" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.0.10" Condition="'$(Configuration)' == 'Debug'" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\KPatchCore\KPatchCore.csproj" />
   </ItemGroup>
 
-  <!-- Copy launcher files to KPatchConsole output directory after build -->
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <!-- Copy launcher files to Console output directory after build -->
   <Target Name="CopyToConsoleOutput" AfterTargets="Build">
     <PropertyGroup>
-      <ConsoleOutputDir>$(SolutionDir)KPatchConsole\bin\$(Configuration)\net8.0\</ConsoleOutputDir>
+      <ConsoleOutputDir>$(MSBuildProjectDirectory)\..\..\bin\Console\$(Configuration)\</ConsoleOutputDir>
     </PropertyGroup>
     <ItemGroup>
       <LauncherFiles Include="$(OutDir)KPatchLauncher.exe" />
       <LauncherFiles Include="$(OutDir)KPatchLauncher.dll" />
       <LauncherFiles Include="$(OutDir)KPatchLauncher.runtimeconfig.json" />
       <LauncherFiles Include="$(OutDir)KPatchLauncher.deps.json" />
+      <LauncherFiles Include="$(OutDir)KPatchCore.dll" />
+      <LauncherFiles Include="$(OutDir)Tomlyn.dll" />
     </ItemGroup>
     <Message Text="Copying launcher files to: $(ConsoleOutputDir)" Importance="high" />
     <Copy SourceFiles="@(LauncherFiles)" DestinationFolder="$(ConsoleOutputDir)" SkipUnchangedFiles="true" />

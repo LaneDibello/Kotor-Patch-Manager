@@ -1,16 +1,63 @@
 using System.Diagnostics;
+using Avalonia;
 
 namespace KPatchLauncher;
 
 /// <summary>
-/// KPatch Launcher - Starts KOTOR with patch DLL injection
+/// KPatch Launcher - Dual-mode: CLI for game launching, GUI for patch management
 /// </summary>
 class Program
 {
     private const string PatcherDllName = "KotorPatcher.dll";
     private const string PatchConfigName = "patch_config.toml";
 
+    [STAThread]
     static int Main(string[] args)
+    {
+        // Determine mode: GUI if no arguments, CLI if arguments provided
+        if (args.Length == 0)
+        {
+            // GUI mode - launch Avalonia application
+            return RunGui();
+        }
+        else
+        {
+            // CLI mode - launch game with patches
+            return RunCli(args);
+        }
+    }
+
+    /// <summary>
+    /// Run GUI mode (patch management interface)
+    /// </summary>
+    private static int RunGui()
+    {
+        try
+        {
+            var builder = BuildAvaloniaApp();
+            return builder.StartWithClassicDesktopLifetime(Array.Empty<string>());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"GUI ERROR: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// Avalonia configuration
+    /// </summary>
+    public static AppBuilder BuildAvaloniaApp()
+        => AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .WithInterFont()
+            .LogToTrace();
+
+    /// <summary>
+    /// Run CLI mode (game launcher)
+    /// </summary>
+    private static int RunCli(string[] args)
     {
         Console.WriteLine("KPatch Launcher v1.0");
         Console.WriteLine("====================");
