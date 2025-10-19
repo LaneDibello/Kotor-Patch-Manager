@@ -70,18 +70,13 @@ public static class HooksParser
                     return PatchResult<List<Hook>>.Fail($"Hook [{i}] missing required field: original_bytes");
                 }
 
-                if (!TryGetByteArray(hookTable, "stolen_bytes", out var stolenBytes))
-                {
-                    return PatchResult<List<Hook>>.Fail($"Hook [{i}] missing required field: original_bytes");
-                }
-
                 // Parse optional fields
                 var type = ParseHookType(hookTable);
                 var preserveRegisters = TryGetBool(hookTable, "preserve_registers") ?? true;
                 var preserveFlags = TryGetBool(hookTable, "preserve_flags") ?? true;
                 var excludeFromRestore = TryGetStringArray(hookTable, "exclude_from_restore") ?? new List<string>();
 
-                // Parse parameters (optional, for INLINE hooks)
+                // Parse parameters (optional, for Detour hooks)
                 var parametersResult = ParseParameters(hookTable, i);
                 if (!parametersResult.Success)
                 {
@@ -94,7 +89,6 @@ public static class HooksParser
                     Address = address,
                     Function = function,
                     OriginalBytes = originalBytes,
-                    StolenBytes = stolenBytes,
                     Type = type,
                     PreserveRegisters = preserveRegisters,
                     PreserveFlags = preserveFlags,
@@ -211,14 +205,12 @@ public static class HooksParser
     private static HookType ParseHookType(TomlTable table)
     {
         if (!TryGetString(table, "type", out var typeStr))
-            return HookType.Inline; // Default
+            return HookType.Detour; // Default
 
         return typeStr.ToLowerInvariant() switch
         {
-            "inline" => HookType.Inline,
-            "replace" => HookType.Replace,
-            "wrap" => HookType.Wrap,
-            _ => HookType.Inline
+            "detour" => HookType.Detour,
+            _ => HookType.Detour // Invalid types default to Detour
         };
     }
 

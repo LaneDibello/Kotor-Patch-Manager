@@ -6,30 +6,29 @@ address = 0x005cb41c
 # The function exported from our patch DLL
 function = "EnableAurPostString_Hook"
 
-# Original bytes at 0x005cb41c (used for verification only):
-# We verify the first 5 bytes to ensure we're patching the right location
-original_bytes = [0x8d, 0x4c, 0x24, 0x0c, 0xc7]
-
-# Stolen bytes: The complete instructions we need to execute in the wrapper
-# These must align with instruction boundaries and be >= 5 bytes
+# Original bytes at 0x005cb41c: The complete instructions we will overwrite with JMP
+# These bytes are used for:
+# 1. Verification (to ensure we're patching the correct location/game version)
+# 2. Execution in the wrapper (the original instructions will be executed after our patch function)
+# Must align with instruction boundaries and be >= 5 bytes (for JMP instruction)
 # 8d 4c 24 0c                LEA ECX, [ESP+0xc]              (4 bytes)
 # c7 44 24 1c ff ff ff ff    MOV dword ptr [ESP+0x1c], -1   (8 bytes)
 # Total: 12 bytes
-stolen_bytes = [0x8d, 0x4c, 0x24, 0x0c, 0xc7, 0x44, 0x24, 0x1c, 0xff, 0xff, 0xff, 0xff]
+original_bytes = [0x8d, 0x4c, 0x24, 0x0c, 0xc7, 0x44, 0x24, 0x1c, 0xff, 0xff, 0xff, 0xff]
 
-# Hook type: inline
+# Hook type: detour
 # This means we'll replace the original code with a JMP to our wrapper
 # The wrapper system will:
-# 1. Save all registers
-# 2. Call our function
-# 3. Restore all registers
-# 4. Execute the original instructions we overwrote
-# 5. Jump back to continue execution
-type = "inline"
+# 1. Save all registers/flags
+# 2. Extract parameters from registers/stack
+# 3. Call our patch function with parameters
+# 4. Restore all registers/flags
+# 5. Execute the original instructions we overwrote
+# 6. Jump back to continue execution
+type = "detour"
 
-# We need to preserve EAX since it contains the string pointer
-# But actually, the wrapper system preserves all registers by default for inline hooks
-# We don't need to exclude anything from restoration since we're just calling a function
+# We preserve all registers by default for detour hooks
+# No need to exclude anything from restoration
 exclude_from_restore = []
 
 

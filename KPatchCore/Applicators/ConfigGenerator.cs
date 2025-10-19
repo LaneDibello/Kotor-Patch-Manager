@@ -63,18 +63,11 @@ public static class ConfigGenerator
                         originalBytesArray.Add((long)b);
                     }
 
-                    var stolenBytesArray = new TomlArray();
-                    foreach (var b in hook.StolenBytes)
-                    {
-                        stolenBytesArray.Add((long)b);
-                    }
-
                     var hookTable = new TomlTable
                     {
                         ["address"] = (long)hook.Address,
                         ["function"] = hook.Function,
                         ["original_bytes"] = originalBytesArray,
-                        ["stolen_bytes"] = stolenBytesArray,
                         ["type"] = hook.Type.ToString().ToLowerInvariant()
                     };
 

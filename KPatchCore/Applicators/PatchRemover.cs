@@ -127,7 +127,7 @@ public static class PatchRemover
                 var deleteResult = BackupManager.DeleteBackup(backup);
                 if (deleteResult.Success)
                 {
-                    messages.Add($"  {deleteResult.Message}");
+                    messages.AddRange(deleteResult.Messages.Select(m => $"  {m}"));
                 }
                 else
                 {

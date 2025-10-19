@@ -515,9 +515,8 @@ internal class Program
             {
                 Address = 0x401234,
                 Function = "TestFunction",
-                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 }, // 6 bytes - enough for JMP
-                StolenBytes = new byte[] { },
-                Type = HookType.Inline
+                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
+                Type = HookType.Detour
             };
 
             if (validHook.IsValid(out var error))
@@ -546,8 +545,7 @@ internal class Program
                 Address = 0,
                 Function = "TestFunction",
                 OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC },
-                StolenBytes = new byte[] { },
-                Type = HookType.Inline
+                Type = HookType.Detour
             };
 
             if (!invalidHook.IsValid(out var error) && error?.Contains("Address") == true)
@@ -576,8 +574,7 @@ internal class Program
                 Address = 0x401234,
                 Function = "",
                 OriginalBytes = new byte[] { 0x55 },
-                StolenBytes = Array.Empty<byte>(),
-                Type = HookType.Inline
+                Type = HookType.Detour
             };
 
             if (!invalidHook.IsValid(out var error) && error?.Contains("Function") == true)
@@ -606,8 +603,7 @@ internal class Program
                 Address = 0x401234,
                 Function = "TestFunction",
                 OriginalBytes = Array.Empty<byte>(),
-                StolenBytes = Array.Empty<byte>(),
-                Type = HookType.Inline
+                Type = HookType.Detour
             };
 
             if (!invalidHook.IsValid(out var error) && error?.Contains("OriginalBytes") == true)
@@ -674,8 +670,7 @@ internal class Program
             {
                 Address = 0x401234,
                 Function = "TestFunction",
-                OriginalBytes = new byte[] { 0x55 },
-                StolenBytes = Array.Empty<byte>(),
+                OriginalBytes = new byte[] { 0x55 }
             };
 
             config.AddPatch("test-patch", "patches/test.dll", new[] { hook });
@@ -1202,10 +1197,8 @@ internal class Program
                 if (hooks.Count == 3 &&
                     hooks[0].Address == 0x401234 &&
                     hooks[0].Function == "FixedResolutionHandler" &&
-                    hooks[0].Type == HookType.Inline &&
-                    hooks[0].ExcludeFromRestore.Count == 1 &&
-                    hooks[1].Type == HookType.Wrap &&
-                    hooks[2].Type == HookType.Replace)
+                    hooks[0].Type == HookType.Detour &&
+                    hooks[0].ExcludeFromRestore.Count == 1)
                 {
                     Console.WriteLine("✓ PASSED");
                     passed++;
@@ -1510,8 +1503,7 @@ internal class Program
                 Address = 0x401234,
                 Function = "TestFunction",
                 OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
-                StolenBytes = Array.Empty<byte>(),
-                Type = HookType.Inline,
+                Type = HookType.Detour,
                 ExcludeFromRestore = new List<string> { "eax" }
             };
 
@@ -1581,8 +1573,7 @@ internal class Program
             {
                 Address = 0x401000,
                 Function = "Test",
-                OriginalBytes = new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90 },
-                StolenBytes = Array.Empty<byte>(),
+                OriginalBytes = new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90 }
             };
             config.AddPatch("validate-test", "test.dll", new[] { hook });
 
@@ -1729,8 +1720,7 @@ internal class Program
                 Address = 0x401234,
                 Function = "TestFunction",
                 OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
-                StolenBytes = Array.Empty<byte>(),
-                Type = HookType.Inline
+                Type = HookType.Detour
             };
 
             var result = HookValidator.ValidateHook(hook);
@@ -1760,15 +1750,13 @@ internal class Program
             {
                 Address = 0x401234,
                 Function = "Hook1",
-                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
-                StolenBytes = Array.Empty<byte>(),
+                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 }
             };
             var hook2 = new Hook
             {
                 Address = 0x401234, // Same address
                 Function = "Hook2",
-                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 },
-                StolenBytes = Array.Empty<byte>(),
+                OriginalBytes = new byte[] { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20 }
             };
 
             var result = HookValidator.ValidateHooks(new[] { hook1, hook2 });
@@ -1802,8 +1790,7 @@ internal class Program
                     {
                         Address = 0x401234,
                         Function = "Patch1Hook",
-                        OriginalBytes = new byte[] { 0x55 },
-                        StolenBytes = Array.Empty<byte>()
+                        OriginalBytes = new byte[] { 0x55 }
                     }
                 },
                 ["patch2"] = new List<Hook>
@@ -1812,8 +1799,7 @@ internal class Program
                     {
                         Address = 0x401234, // Same address as patch1
                         Function = "Patch2Hook",
-                        OriginalBytes = new byte[] { 0x55 },
-                        StolenBytes = Array.Empty<byte>()
+                        OriginalBytes = new byte[] { 0x55 }
                     }
                 }
             };

@@ -18,18 +18,16 @@ namespace KotorPatcher {
             void* patchFunction;
             DWORD hookAddress;
 
-            // Original bytes that were overwritten by the hook (for INLINE type)
+            // Original bytes that were overwritten by the hook (for DETOUR type)
             // These will be executed in the wrapper before returning to original code
             // Must be >= 5 bytes and align with instruction boundaries
-            std::vector<BYTE> stolenBytes;
+            std::vector<BYTE> originalBytes;
 
             // Hook type determines wrapper behavior
             enum class HookType {
-                INLINE,     // Save state, call patch, restore state, continue original
-                REPLACE,    // Jump to patch, patch handles everything (no wrapper)
-                WRAP        // Call patch, then execute original function (future: detours)
+                DETOUR      // Save state, call patch, restore state, execute stolen bytes, continue original
             };
-            HookType type = HookType::INLINE;
+            HookType type = HookType::DETOUR;
 
             // State preservation options
             bool preserveRegisters = true;
@@ -39,10 +37,10 @@ namespace KotorPatcher {
             // Allows patch to modify specific registers
             std::vector<std::string> excludeFromRestore;
 
-            // Parameters to extract and pass to hook function (for INLINE hooks)
+            // Parameters to extract and pass to hook function (for DETOUR hooks)
             std::vector<ParameterInfo> parameters;
 
-            // Original function pointer (for WRAP type with detours)
+            // Original function pointer (future use)
             void* originalFunction = nullptr;
 
             // Helper: Check if a register should be restored

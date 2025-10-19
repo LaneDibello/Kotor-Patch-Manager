@@ -125,47 +125,32 @@ namespace KotorPatcher {
             return false;
         }
 
-        // Generate wrapper (or use direct JMP for REPLACE type)
-        void* targetAddress = funcAddr;  // Default to direct function address
+        // Generate wrapper for DETOUR type
+        Wrappers::WrapperConfig wrapperConfig;
+        wrapperConfig.patchFunction = funcAddr;
+        wrapperConfig.hookAddress = patch.hookAddress;
+        wrapperConfig.originalBytes = patch.originalBytes;
+        wrapperConfig.parameters = patch.parameters;
 
-        // For INLINE and WRAP types, generate a wrapper stub
-        if (patch.type == HookType::INLINE || patch.type == HookType::WRAP) {
-            Wrappers::WrapperConfig wrapperConfig;
-            wrapperConfig.patchFunction = funcAddr;
-            wrapperConfig.hookAddress = patch.hookAddress;
-            wrapperConfig.stolenBytes = patch.stolenBytes;
-            wrapperConfig.parameters = patch.parameters;
+        char debugMsg[256];
+        sprintf_s(debugMsg, "[KotorPatcher] Got %d original bytes\n", wrapperConfig.originalBytes.size());
+        OutputDebugStringA(debugMsg);
 
-            char debugMsg[256];
-            sprintf_s(debugMsg, "[KotorPatcher] Got % d stolen bytes\n", wrapperConfig.stolenBytes.size());
-            OutputDebugStringA(debugMsg);
+        // Map our HookType to WrapperConfig::HookType
+        wrapperConfig.type = Wrappers::WrapperConfig::HookType::DETOUR;
 
-            // Map our HookType to WrapperConfig::HookType
-            switch (patch.type) {
-            case HookType::INLINE:
-                wrapperConfig.type = Wrappers::WrapperConfig::HookType::INLINE;
-                break;
-            case HookType::WRAP:
-                wrapperConfig.type = Wrappers::WrapperConfig::HookType::WRAP;
-                break;
-            case HookType::REPLACE:
-                wrapperConfig.type = Wrappers::WrapperConfig::HookType::REPLACE;
-                break;
-            }
+        wrapperConfig.preserveRegisters = patch.preserveRegisters;
+        wrapperConfig.preserveFlags = patch.preserveFlags;
+        wrapperConfig.excludeFromRestore = patch.excludeFromRestore;
+        wrapperConfig.originalFunction = patch.originalFunction;
 
-            wrapperConfig.preserveRegisters = patch.preserveRegisters;
-            wrapperConfig.preserveFlags = patch.preserveFlags;
-            wrapperConfig.excludeFromRestore = patch.excludeFromRestore;
-            wrapperConfig.originalFunction = patch.originalFunction;
-
-            void* wrapper = g_wrapperGenerator->GenerateWrapper(wrapperConfig);
-            if (!wrapper) {
-                OutputDebugStringA("[KotorPatcher] Failed to generate wrapper\n");
-                return false;
-            }
-
-            targetAddress = wrapper;  // Jump to wrapper instead of patch function
+        void* wrapper = g_wrapperGenerator->GenerateWrapper(wrapperConfig);
+        if (!wrapper) {
+            OutputDebugStringA("[KotorPatcher] Failed to generate wrapper\n");
+            return false;
         }
+
+        void* targetAddress = wrapper;
 
         // Write trampoline to target (either wrapper or direct function)
         if (!Trampoline::WriteJump(patch.hookAddress, targetAddress)) {
@@ -173,17 +158,15 @@ namespace KotorPatcher {
             return false;
         }
 
-        // Clear out the remaining stolen bytes
-        if (!Trampoline::WriteNoOps(patch.hookAddress + 5, patch.stolenBytes.size() - 5)) {
+        // Clear out the remaining bytes with NOPs
+        if (!Trampoline::WriteNoOps(patch.hookAddress + 5, patch.originalBytes.size() - 5)) {
             OutputDebugStringA("[KotorPatcher] Failed to write No-Ops after trampoline\n");
             return false;
         }
 
 
-        const char* typeNames[] = { "INLINE", "REPLACE", "WRAP" };
         char successMsg[256];
-        sprintf_s(successMsg, "[KotorPatcher] Applied %s hook at 0x%08X -> %s\n",
-            typeNames[static_cast<int>(patch.type)],
+        sprintf_s(successMsg, "[KotorPatcher] Applied DETOUR hook at 0x%08X -> %s\n",
             patch.hookAddress,
             patch.functionName.c_str());
         OutputDebugStringA(successMsg);

@@ -56,20 +56,10 @@ namespace KotorPatcher {
         }
 
         void* WrapperGenerator_x86_Win32::GenerateWrapper(const WrapperConfig& config) {
-            switch (config.type) {
-            case WrapperConfig::HookType::INLINE:
-                return GenerateInlineWrapper(config);
-            case WrapperConfig::HookType::REPLACE:
-                return GenerateReplaceWrapper(config);
-            case WrapperConfig::HookType::WRAP:
-                return GenerateWrapWrapper(config);
-            default:
-                OutputDebugStringA("[Wrapper] Unknown hook type\n");
-                return nullptr;
-            }
+            return GenerateDetourWrapper(config);
         }
 
-        void* WrapperGenerator_x86_Win32::GenerateInlineWrapper(const WrapperConfig& config) {
+        void* WrapperGenerator_x86_Win32::GenerateDetourWrapper(const WrapperConfig& config) {
             // Estimate wrapper size
             // Base: ~100 bytes, +10 per excluded register
             size_t estimatedSize = 128 + (config.excludeFromRestore.size() * 10);
@@ -205,19 +195,19 @@ namespace KotorPatcher {
 
             // ===== RETURN TO ORIGINAL CODE =====
 
-            // Execute the stolen bytes (original instructions we overwrote)
+            // Execute the original bytes (instructions we overwrote with JMP)
             // These were specified in the patch config to align with instruction boundaries
-            if (config.stolenBytes.empty()) {
-                OutputDebugStringA("[Wrapper] ERROR: No stolen bytes provided for INLINE hook\n");
+            if (config.originalBytes.empty()) {
+                OutputDebugStringA("[Wrapper] ERROR: No original bytes provided for DETOUR hook\n");
                 return nullptr;
             }
 
-            // Emit the stolen bytes to execute the original instructions
-            EmitBytes(code, config.stolenBytes.data(), config.stolenBytes.size());
+            // Emit the original bytes to execute the overwritten instructions
+            EmitBytes(code, config.originalBytes.data(), config.originalBytes.size());
 
-            // Jump back to hookAddress + stolen_bytes_size to continue normal execution
+            // Jump back to hookAddress + original_bytes_size to continue normal execution
             void* returnAddress = reinterpret_cast<void*>(
-                config.hookAddress + static_cast<DWORD>(config.stolenBytes.size())
+                config.hookAddress + static_cast<DWORD>(config.originalBytes.size())
             );
             EmitByte(code, 0xE9);  // JMP rel32
             DWORD returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
@@ -227,80 +217,9 @@ namespace KotorPatcher {
             FlushInstructionCache(GetCurrentProcess(), wrapperMem, code - wrapperMem);
 
             char debugMsg[256];
-            sprintf_s(debugMsg, "[Wrapper] Generated INLINE wrapper at 0x%08X (%d bytes)\n",
+            sprintf_s(debugMsg, "[Wrapper] Generated DETOUR wrapper at 0x%08X (%d bytes)\n",
                 reinterpret_cast<DWORD>(wrapperMem), static_cast<int>(code - wrapperMem));
             OutputDebugStringA(debugMsg);
-
-            return wrapperMem;
-        }
-
-        void* WrapperGenerator_x86_Win32::GenerateReplaceWrapper(const WrapperConfig& config) {
-            // REPLACE type doesn't need a wrapper - just JMP directly to patch
-            // This is the old behavior for compatibility
-
-            // However, we still allocate a tiny stub for consistency
-            // Just in case we want to add logging or other features later
-
-            BYTE* wrapperMem = static_cast<BYTE*>(AllocateExecutableMemory(16));
-            if (!wrapperMem) return nullptr;
-
-            BYTE* code = wrapperMem;
-
-            // JMP to patch function
-            EmitByte(code, 0xE9);  // JMP rel32
-            // Note: code now points one byte AFTER the 0xE9 opcode
-            DWORD jmpOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
-            EmitDword(code, jmpOffset);
-
-            FlushInstructionCache(GetCurrentProcess(), wrapperMem, code - wrapperMem);
-
-            char debugMsg[128];
-            sprintf_s(debugMsg, "[Wrapper] Generated REPLACE wrapper (direct JMP) at 0x%08X\n",
-                reinterpret_cast<DWORD>(wrapperMem));
-            OutputDebugStringA(debugMsg);
-
-            return wrapperMem;
-        }
-
-        void* WrapperGenerator_x86_Win32::GenerateWrapWrapper(const WrapperConfig& config) {
-            // WRAP type: Call patch, then call original function
-            // This will be fully implemented with detour trampolines in Phase 2
-
-            // For now, generate a simple version that calls patch then returns
-            BYTE* wrapperMem = static_cast<BYTE*>(AllocateExecutableMemory(64));
-            if (!wrapperMem) return nullptr;
-
-            BYTE* code = wrapperMem;
-
-            // Save registers if requested
-            if (config.preserveRegisters) {
-                EmitByte(code, 0x60);  // PUSHAD
-            }
-            if (config.preserveFlags) {
-                EmitByte(code, 0x9C);  // PUSHFD
-            }
-
-            // CALL patch function
-            EmitByte(code, 0xE8);  // CALL rel32
-            // Note: code now points one byte AFTER the 0xE8 opcode
-            DWORD callOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
-            EmitDword(code, callOffset);
-
-            // Restore state
-            if (config.preserveFlags) {
-                EmitByte(code, 0x9D);  // POPFD
-            }
-            if (config.preserveRegisters) {
-                EmitByte(code, 0x61);  // POPAD
-            }
-
-            // TODO: Call original function when detours implemented
-            // For now, just return
-            EmitByte(code, 0xC3);  // RET
-
-            FlushInstructionCache(GetCurrentProcess(), wrapperMem, code - wrapperMem);
-
-            OutputDebugStringA("[Wrapper] Generated WRAP wrapper (partial implementation)\n");
 
             return wrapperMem;
         }

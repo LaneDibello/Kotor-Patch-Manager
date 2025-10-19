@@ -10,9 +10,7 @@ namespace KotorPatcher {
 
     // Hook type determines how the patch is applied
     enum class HookType {
-        INLINE,     // Default: Save state, call patch with context, restore state (safest)
-        REPLACE,    // Legacy: Direct JMP to patch, patch handles everything (no wrapper)
-        WRAP        // Future: Call patch, then execute original code (requires detours)
+        DETOUR      // Trampoline with JMP, wrapper with automatic state management (default)
     };
 
     // Convert string to HookType
@@ -40,14 +38,13 @@ namespace KotorPatcher {
         std::string dllPath;           // Path to patch DLL
         std::string functionName;      // Exported function name in DLL
         DWORD hookAddress;             // Address in game code to hook
-        std::vector<BYTE> originalBytes;  // Expected bytes for verification
-        std::vector<BYTE> stolenBytes;    // Original bytes to execute in wrapper (for INLINE)
-                                           // Must be >= 5 bytes and align with instruction boundaries
+        std::vector<BYTE> originalBytes;  // Original bytes (for verification and execution in wrapper)
+                                           // Must be >= 5 bytes for DETOUR hooks and align with instruction boundaries
 
         // Hook behavior configuration
-        HookType type = HookType::INLINE;  // Default to safest option
+        HookType type = HookType::DETOUR;  // Default hook type
 
-        // State preservation options (for INLINE and WRAP types)
+        // State preservation options (for DETOUR hooks)
         bool preserveRegisters = true;     // Auto-save/restore all registers
         bool preserveFlags = true;         // Auto-save/restore EFLAGS
 
@@ -55,7 +52,7 @@ namespace KotorPatcher {
         // Allows patches to modify specific registers (e.g., "eax", "edx")
         std::vector<std::string> excludeFromRestore;
 
-        // Parameters to extract and pass to hook function (for INLINE hooks)
+        // Parameters to extract and pass to hook function (for DETOUR hooks)
         std::vector<ParameterInfo> parameters;
 
         // Original function pointer (future: for detour trampolines)

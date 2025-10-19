@@ -6,19 +6,9 @@ namespace KPatchCore.Models;
 public enum HookType
 {
     /// <summary>
-    /// INLINE: Wrapper with automatic state management (default, recommended)
+    /// DETOUR: Trampoline with JMP, wrapper with automatic state management (default, recommended)
     /// </summary>
-    Inline,
-
-    /// <summary>
-    /// REPLACE: Direct JMP, patch handles everything (advanced users)
-    /// </summary>
-    Replace,
-
-    /// <summary>
-    /// WRAP: Call patch then original function (requires detours - Phase 2)
-    /// </summary>
-    Wrap
+    Detour
 }
 
 /// <summary>
@@ -37,29 +27,26 @@ public sealed class Hook
     public required string Function { get; init; }
 
     /// <summary>
-    /// Expected original bytes at hook address (for verification)
+    /// Original bytes at hook address (for verification and execution)
+    /// These bytes are overwritten with JMP + NOPs and executed in the wrapper
+    /// Must be >= 5 bytes for Detour hooks (JMP instruction)
     /// </summary>
     public required byte[] OriginalBytes { get; init; }
 
     /// <summary>
-    /// Bytes overritten after the hook address
+    /// Hook type (currently only Detour is supported)
+    /// Default: Detour
     /// </summary>
-    public required byte[] StolenBytes { get; init; }
+    public HookType Type { get; init; } = HookType.Detour;
 
     /// <summary>
-    /// Hook type (Inline, Replace, or Wrap)
-    /// Default: Inline (safest, easiest)
-    /// </summary>
-    public HookType Type { get; init; } = HookType.Inline;
-
-    /// <summary>
-    /// Preserve all registers (for Inline/Wrap types)
+    /// Preserve all registers (for Detour hooks)
     /// Default: true
     /// </summary>
     public bool PreserveRegisters { get; init; } = true;
 
     /// <summary>
-    /// Preserve EFLAGS register (for Inline/Wrap types)
+    /// Preserve EFLAGS register (for Detour hooks)
     /// Default: true
     /// </summary>
     public bool PreserveFlags { get; init; } = true;
@@ -71,7 +58,7 @@ public sealed class Hook
     public List<string> ExcludeFromRestore { get; init; } = new();
 
     /// <summary>
-    /// Parameters to extract and pass to the hook function (for Inline hooks)
+    /// Parameters to extract and pass to the hook function (for Detour hooks)
     /// If empty, hook function takes no parameters
     /// </summary>
     public List<Parameter> Parameters { get; init; } = new();
@@ -99,9 +86,9 @@ public sealed class Hook
             return false;
         }
 
-        if (OriginalBytes.Length < 5 && Type != HookType.Replace)
+        if (OriginalBytes.Length < 5 && Type == HookType.Detour)
         {
-            error = "OriginalBytes should be at least 5 bytes for proper verification";
+            error = "OriginalBytes must be at least 5 bytes for Detour hooks (JMP instruction)";
             return false;
         }
 

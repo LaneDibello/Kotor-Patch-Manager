@@ -175,46 +175,24 @@ namespace KotorPatcher {
                         continue;
                     }
 
-                    // Get stolen bytes (optional for INLINE hooks, defaults to original_bytes)
-                    // These are the actual bytes to execute in the wrapper
-                    auto stolenBytesArray = hookTable->at_path("stolen_bytes").as_array();
-                    if (stolenBytesArray) {
-                        if (!ParseByteArray(stolenBytesArray, patch.stolenBytes)) {
-                            OutputDebugStringA("[Config] Failed to parse stolen_bytes\n");
-                            continue;
-                        }
+                    // original_bytes are used for both verification and execution in wrapper
+                    // No separate stolen_bytes field needed
 
-                        if (patch.stolenBytes.size() < 5) {
-                            OutputDebugStringA("[Config] stolen_bytes must be at least 5 bytes\n");
-                            continue;
-                        }
-                    } else {
-                        // Default: use original_bytes as stolen bytes
-                        OutputDebugStringA("[Config] Using original_bytes for stolen bytes!\n");
-                        patch.stolenBytes = patch.originalBytes;
-                    }
-
-                    // === Parse Hook Type (Optional, defaults to INLINE) ===
+                    // === Parse Hook Type (Optional, defaults to DETOUR) ===
                     auto typeStr = hookTable->at_path("type").value<std::string>();
                     if (typeStr) {
                         std::string type = *typeStr;
-                        if (_stricmp(type.c_str(), "inline") == 0) {
-                            patch.type = HookType::INLINE;
-                        }
-                        else if (_stricmp(type.c_str(), "replace") == 0) {
-                            patch.type = HookType::REPLACE;
-                        }
-                        else if (_stricmp(type.c_str(), "wrap") == 0) {
-                            patch.type = HookType::WRAP;
+                        if (_stricmp(type.c_str(), "detour") == 0) {
+                            patch.type = HookType::DETOUR;
                         }
                         else {
-                            OutputDebugStringA(("[Config] Unknown hook type '" + type + "', defaulting to INLINE\n").c_str());
-                            patch.type = HookType::INLINE;
+                            OutputDebugStringA(("[Config] Unknown hook type '" + type + "', defaulting to DETOUR\n").c_str());
+                            patch.type = HookType::DETOUR;
                         }
                     }
                     else {
-                        // Default to INLINE (safest option)
-                        patch.type = HookType::INLINE;
+                        // Default to DETOUR
+                        patch.type = HookType::DETOUR;
                     }
 
                     // === Parse State Preservation Options (Optional) ===
@@ -239,7 +217,7 @@ namespace KotorPatcher {
                         }
                     }
 
-                    // Parse parameters (optional, for INLINE hooks)
+                    // Parse parameters (optional, for DETOUR hooks)
                     auto parametersArray = hookTable->at_path("parameters").as_array();
                     if (parametersArray) {
                         for (const auto& paramElem : *parametersArray) {
