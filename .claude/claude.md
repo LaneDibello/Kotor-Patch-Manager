@@ -69,3 +69,22 @@ cd /mnt/c/Users/laned/source/Repos/KotOR\ Patch\ Manager/KPatchCore
 - ✅ Refactored RemoveAllPatches with SafeDeleteFile helper
 - ✅ Parameter extraction system fully documented and working
 - ✅ Updated documentation to reflect current architecture
+- ✅ Hook type refactoring: INLINE → DETOUR, removed REPLACE/WRAP
+- ✅ Unified original_bytes and stolen_bytes
+- ✅ Implemented SIMPLE patch type (no DLL required, direct byte replacement)
+
+### Hook Types
+
+**DETOUR** (default):
+- Trampoline with JMP to wrapper
+- Requires DLL with exported function
+- Supports parameter extraction
+- Minimum 5 bytes (JMP instruction)
+- Full state preservation
+
+**SIMPLE** (new):
+- Direct byte replacement in memory
+- No DLL required
+- Any length (must match original_bytes)
+- Perfect for constants, NOPs, simple instruction changes
+- See `Patches/SemiTransparentLetterbox` for example

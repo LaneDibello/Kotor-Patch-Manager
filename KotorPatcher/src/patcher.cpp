@@ -76,6 +76,9 @@ namespace KotorPatcher {
         g_initialized = false;
     }
 
+    // Forward declaration
+    static bool ApplySimpleHook(const PatchInfo& patch);
+
     bool ApplyPatches() {
         for (const auto& patch : g_patches) {
             if (!ApplyPatch(patch)) {
@@ -86,6 +89,12 @@ namespace KotorPatcher {
     }
 
     bool ApplyPatch(const PatchInfo& patch) {
+        // Handle SIMPLE hooks (no DLL loading)
+        if (patch.type == HookType::SIMPLE) {
+            return ApplySimpleHook(patch);
+        }
+
+        // DETOUR hook - load DLL and create wrapper
         // Load patch DLL
         HMODULE hPatch = LoadLibraryA(patch.dllPath.c_str());
         if (!hPatch) {
@@ -169,6 +178,40 @@ namespace KotorPatcher {
         sprintf_s(successMsg, "[KotorPatcher] Applied DETOUR hook at 0x%08X -> %s\n",
             patch.hookAddress,
             patch.functionName.c_str());
+        OutputDebugStringA(successMsg);
+
+        return true;
+    }
+
+    // Apply a SIMPLE hook (direct byte replacement)
+    static bool ApplySimpleHook(const PatchInfo& patch) {
+        // Verify original bytes
+        if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
+            OutputDebugStringA("[KotorPatcher] Original bytes mismatch for SIMPLE hook - wrong game version?\n");
+            return false;
+        }
+
+        // Make memory writable
+        DWORD oldProtect;
+        if (!VirtualProtect(reinterpret_cast<void*>(patch.hookAddress), patch.replacementBytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect)) {
+            OutputDebugStringA("[KotorPatcher] Failed to make memory writable for SIMPLE hook\n");
+            return false;
+        }
+
+        // Write replacement bytes
+        memcpy(reinterpret_cast<void*>(patch.hookAddress), patch.replacementBytes.data(), patch.replacementBytes.size());
+
+        // Restore original protection
+        DWORD dummy;
+        VirtualProtect(reinterpret_cast<void*>(patch.hookAddress), patch.replacementBytes.size(), oldProtect, &dummy);
+
+        // Flush instruction cache
+        FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(patch.hookAddress), patch.replacementBytes.size());
+
+        char successMsg[256];
+        sprintf_s(successMsg, "[KotorPatcher] Applied SIMPLE hook at 0x%08X (%d bytes replaced)\n",
+            patch.hookAddress,
+            static_cast<int>(patch.replacementBytes.size()));
         OutputDebugStringA(successMsg);
 
         return true;

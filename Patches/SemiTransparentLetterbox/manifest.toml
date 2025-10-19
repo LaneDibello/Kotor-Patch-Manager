@@ -1,0 +1,16 @@
+# Semi-Transparent Letterbox Patch
+# Makes the dialogue letterbox semi-transparent instead of fully opaque
+
+[patch]
+id = "semi-transparent-letterbox"
+name = "Semi-Transparent Letterbox"
+version = "1.0.0"
+author = "KotOR Patch Manager"
+description = "Changes the dialogue letterbox alpha from 1.0 (opaque) to 0.5 (semi-transparent)"
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"

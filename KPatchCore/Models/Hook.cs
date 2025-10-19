@@ -6,9 +6,14 @@ namespace KPatchCore.Models;
 public enum HookType
 {
     /// <summary>
-    /// DETOUR: Trampoline with JMP, wrapper with automatic state management (default, recommended)
+    /// DETOUR: Trampoline with JMP, wrapper with automatic state management (default for DLL hooks)
     /// </summary>
-    Detour
+    Detour,
+
+    /// <summary>
+    /// SIMPLE: Direct byte replacement in memory (no DLL required)
+    /// </summary>
+    Simple
 }
 
 /// <summary>
@@ -24,17 +29,24 @@ public sealed class Hook
     /// <summary>
     /// Exported function name in patch DLL
     /// </summary>
-    public required string Function { get; init; }
+    public string? Function { get; init; }
 
     /// <summary>
     /// Original bytes at hook address (for verification and execution)
-    /// These bytes are overwritten with JMP + NOPs and executed in the wrapper
-    /// Must be >= 5 bytes for Detour hooks (JMP instruction)
+    /// For Detour: Overwritten with JMP + NOPs and executed in the wrapper (must be >= 5 bytes)
+    /// For Simple: Used for verification before replacement (any length)
     /// </summary>
     public required byte[] OriginalBytes { get; init; }
 
     /// <summary>
-    /// Hook type (currently only Detour is supported)
+    /// Replacement bytes for Simple hook type
+    /// Must be same length as OriginalBytes for Simple hooks
+    /// Not used for Detour hooks
+    /// </summary>
+    public byte[]? ReplacementBytes { get; init; }
+
+    /// <summary>
+    /// Hook type (Detour or Simple)
     /// Default: Detour
     /// </summary>
     public HookType Type { get; init; } = HookType.Detour;
@@ -74,30 +86,60 @@ public sealed class Hook
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(Function))
-        {
-            error = "Function name cannot be empty";
-            return false;
-        }
-
         if (OriginalBytes == null || OriginalBytes.Length == 0)
         {
             error = "OriginalBytes must contain at least one byte";
             return false;
         }
 
-        if (OriginalBytes.Length < 5 && Type == HookType.Detour)
+        // Type-specific validation
+        if (Type == HookType.Detour)
         {
-            error = "OriginalBytes must be at least 5 bytes for Detour hooks (JMP instruction)";
-            return false;
-        }
-
-        // Validate parameters
-        for (int i = 0; i < Parameters.Count; i++)
-        {
-            if (!Parameters[i].IsValid(out var paramError))
+            if (string.IsNullOrWhiteSpace(Function))
             {
-                error = $"Parameter {i}: {paramError}";
+                error = "Function name cannot be empty";
+                return false;
+            }
+
+            if (OriginalBytes.Length < 5)
+            {
+                error = "OriginalBytes must be at least 5 bytes for Detour hooks (JMP instruction)";
+                return false;
+            }
+
+            // Validate parameters for Detour hooks
+            for (int i = 0; i < Parameters.Count; i++)
+            {
+                if (!Parameters[i].IsValid(out var paramError))
+                {
+                    error = $"Parameter {i}: {paramError}";
+                    return false;
+                }
+            }
+        }
+        else if (Type == HookType.Simple)
+        {
+            if (ReplacementBytes == null || ReplacementBytes.Length == 0)
+            {
+                error = "ReplacementBytes required for Simple hooks";
+                return false;
+            }
+
+            if (ReplacementBytes.Length != OriginalBytes.Length)
+            {
+                error = $"ReplacementBytes length ({ReplacementBytes.Length}) must match OriginalBytes length ({OriginalBytes.Length})";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Function))
+            {
+                error = "Simple hooks should not have a function name";
+                return false;
+            }
+
+            if (Parameters.Count > 0)
+            {
+                error = "Simple hooks cannot have parameters";
                 return false;
             }
         }

@@ -60,9 +60,17 @@ public static class HooksParser
                     return PatchResult<List<Hook>>.Fail($"Hook [{i}] missing required field: address");
                 }
 
-                if (!TryGetString(hookTable, "function", out var function))
+                var type = ParseHookType(hookTable);
+
+                // Parse function (required for DETOUR, not for SIMPLE)
+                string? function = null;
+                if (type == HookType.Detour)
                 {
-                    return PatchResult<List<Hook>>.Fail($"Hook [{i}] missing required field: function");
+                    if (!TryGetString(hookTable, "function", out var funcName))
+                    {
+                        return PatchResult<List<Hook>>.Fail($"Hook [{i}] missing required field: function (required for DETOUR hooks)");
+                    }
+                    function = funcName;
                 }
 
                 if (!TryGetByteArray(hookTable, "original_bytes", out var originalBytes))
@@ -71,7 +79,14 @@ public static class HooksParser
                 }
 
                 // Parse optional fields
-                var type = ParseHookType(hookTable);
+
+                // Parse replacement_bytes (required for Simple hooks)
+                byte[]? replacementBytes = null;
+                if (TryGetByteArray(hookTable, "replacement_bytes", out var repBytes))
+                {
+                    replacementBytes = repBytes;
+                }
+
                 var preserveRegisters = TryGetBool(hookTable, "preserve_registers") ?? true;
                 var preserveFlags = TryGetBool(hookTable, "preserve_flags") ?? true;
                 var excludeFromRestore = TryGetStringArray(hookTable, "exclude_from_restore") ?? new List<string>();
@@ -89,6 +104,7 @@ public static class HooksParser
                     Address = address,
                     Function = function,
                     OriginalBytes = originalBytes,
+                    ReplacementBytes = replacementBytes,
                     Type = type,
                     PreserveRegisters = preserveRegisters,
                     PreserveFlags = preserveFlags,
@@ -99,7 +115,8 @@ public static class HooksParser
                 // Validate the hook
                 if (!hook.IsValid(out var error))
                 {
-                    return PatchResult<List<Hook>>.Fail($"Hook [{i}] ({function}) validation failed: {error}");
+                    var hookIdentifier = function ?? $"at 0x{address:X8}";
+                    return PatchResult<List<Hook>>.Fail($"Hook [{i}] ({hookIdentifier}) validation failed: {error}");
                 }
 
                 hooks.Add(hook);
@@ -210,6 +227,7 @@ public static class HooksParser
         return typeStr.ToLowerInvariant() switch
         {
             "detour" => HookType.Detour,
+            "simple" => HookType.Simple,
             _ => HookType.Detour // Invalid types default to Detour
         };
     }

@@ -105,12 +105,9 @@ namespace KotorPatcher {
                 // Get patch ID (optional, for debugging)
                 std::string patchId = patchTable->at_path("id").value_or<std::string>("");
 
-                // Get DLL path (required)
+                // Get DLL path (optional - only required if patch has DETOUR hooks)
                 auto dllPath = patchTable->at_path("dll").value<std::string>();
-                if (!dllPath) {
-                    OutputDebugStringA(("[Config] Patch '" + patchId + "' missing 'dll' field\n").c_str());
-                    continue;
-                }
+                std::string dllPathStr = dllPath ? *dllPath : "";
 
                 // Get hooks array (required)
                 auto hooksArray = patchTable->at_path("hooks").as_array();
@@ -128,7 +125,7 @@ namespace KotorPatcher {
                     }
 
                     PatchInfo patch;
-                    patch.dllPath = *dllPath;
+                    patch.dllPath = dllPathStr;
 
                     // Get hook address (required)
                     auto addressStr = hookTable->at_path("address").value<std::string>();
@@ -150,13 +147,42 @@ namespace KotorPatcher {
                         continue;
                     }
 
-                    // Get function name (required)
-                    auto functionName = hookTable->at_path("function").value<std::string>();
-                    if (!functionName) {
-                        OutputDebugStringA("[Config] Hook missing 'function' field\n");
-                        continue;
+                    // === Parse Hook Type FIRST (Optional, defaults to DETOUR) ===
+                    auto typeStr = hookTable->at_path("type").value<std::string>();
+                    if (typeStr) {
+                        std::string type = *typeStr;
+                        if (_stricmp(type.c_str(), "detour") == 0) {
+                            patch.type = HookType::DETOUR;
+                        }
+                        else if (_stricmp(type.c_str(), "simple") == 0) {
+                            patch.type = HookType::SIMPLE;
+                        }
+                        else {
+                            OutputDebugStringA(("[Config] Unknown hook type '" + type + "', defaulting to DETOUR\n").c_str());
+                            patch.type = HookType::DETOUR;
+                        }
                     }
-                    patch.functionName = *functionName;
+                    else {
+                        // Default to DETOUR
+                        patch.type = HookType::DETOUR;
+                    }
+
+                    // Validate and parse fields for DETOUR hooks
+                    if (patch.type == HookType::DETOUR) {
+                        // Check that DLL path was provided
+                        if (patch.dllPath.empty()) {
+                            OutputDebugStringA("[Config] DETOUR hook requires 'dll' field in patch\n");
+                            continue;
+                        }
+
+                        // Get function name (required for DETOUR)
+                        auto functionName = hookTable->at_path("function").value<std::string>();
+                        if (!functionName) {
+                            OutputDebugStringA("[Config] DETOUR hook missing required field 'function'\n");
+                            continue;
+                        }
+                        patch.functionName = *functionName;
+                    }
 
                     // Get original bytes (required for verification)
                     auto originalBytesArray = hookTable->at_path("original_bytes").as_array();
@@ -178,21 +204,23 @@ namespace KotorPatcher {
                     // original_bytes are used for both verification and execution in wrapper
                     // No separate stolen_bytes field needed
 
-                    // === Parse Hook Type (Optional, defaults to DETOUR) ===
-                    auto typeStr = hookTable->at_path("type").value<std::string>();
-                    if (typeStr) {
-                        std::string type = *typeStr;
-                        if (_stricmp(type.c_str(), "detour") == 0) {
-                            patch.type = HookType::DETOUR;
+                    // === Parse Replacement Bytes (Required for SIMPLE hooks) ===
+                    if (patch.type == HookType::SIMPLE) {
+                        auto replacementBytesArray = hookTable->at_path("replacement_bytes").as_array();
+                        if (!replacementBytesArray) {
+                            OutputDebugStringA("[Config] SIMPLE hook missing required field: replacement_bytes\n");
+                            continue;
                         }
-                        else {
-                            OutputDebugStringA(("[Config] Unknown hook type '" + type + "', defaulting to DETOUR\n").c_str());
-                            patch.type = HookType::DETOUR;
+
+                        if (!ParseByteArray(replacementBytesArray, patch.replacementBytes)) {
+                            OutputDebugStringA("[Config] Failed to parse replacement_bytes\n");
+                            continue;
                         }
-                    }
-                    else {
-                        // Default to DETOUR
-                        patch.type = HookType::DETOUR;
+
+                        if (patch.replacementBytes.size() != patch.originalBytes.size()) {
+                            OutputDebugStringA("[Config] replacement_bytes length must match original_bytes length\n");
+                            continue;
+                        }
                     }
 
                     // === Parse State Preservation Options (Optional) ===
@@ -248,10 +276,17 @@ namespace KotorPatcher {
                     // Successfully parsed hook - add to list
                     outPatches.push_back(patch);
 
+                    // Debug message
                     char debugMsg[256];
-                    sprintf_s(debugMsg, "[Config] Loaded hook: %s -> %s @ 0x%08X (%zu bytes)\n",
-                        patchId.c_str(), patch.functionName.c_str(),
-                        patch.hookAddress, patch.originalBytes.size());
+                    if (patch.type == HookType::SIMPLE) {
+                        sprintf_s(debugMsg, "[Config] Loaded SIMPLE hook: %s @ 0x%08X (%zu bytes)\n",
+                            patchId.c_str(), patch.hookAddress, patch.originalBytes.size());
+                    }
+                    else {
+                        sprintf_s(debugMsg, "[Config] Loaded DETOUR hook: %s -> %s @ 0x%08X (%zu bytes)\n",
+                            patchId.c_str(), patch.functionName.c_str(),
+                            patch.hookAddress, patch.originalBytes.size());
+                    }
                     OutputDebugStringA(debugMsg);
                 }
             }

@@ -10,7 +10,8 @@ namespace KotorPatcher {
 
     // Hook type determines how the patch is applied
     enum class HookType {
-        DETOUR      // Trampoline with JMP, wrapper with automatic state management (default)
+        DETOUR,     // Trampoline with JMP, wrapper with automatic state management (default for DLL hooks)
+        SIMPLE      // Direct byte replacement in memory (no DLL required)
     };
 
     // Convert string to HookType
@@ -35,11 +36,14 @@ namespace KotorPatcher {
     // Configuration for a single hook point
     struct PatchInfo {
         // Basic patch information
-        std::string dllPath;           // Path to patch DLL
-        std::string functionName;      // Exported function name in DLL
+        std::string dllPath;           // Path to patch DLL (not used for SIMPLE)
+        std::string functionName;      // Exported function name in DLL (not used for SIMPLE)
         DWORD hookAddress;             // Address in game code to hook
-        std::vector<BYTE> originalBytes;  // Original bytes (for verification and execution in wrapper)
-                                           // Must be >= 5 bytes for DETOUR hooks and align with instruction boundaries
+        std::vector<BYTE> originalBytes;  // Original bytes (for verification and execution)
+                                           // DETOUR: Must be >= 5 bytes, executed in wrapper
+                                           // SIMPLE: Any length, verified before replacement
+        std::vector<BYTE> replacementBytes;  // Replacement bytes (SIMPLE hooks only)
+                                               // Must be same length as originalBytes
 
         // Hook behavior configuration
         HookType type = HookType::DETOUR;  // Default hook type

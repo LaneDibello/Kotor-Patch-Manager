@@ -65,6 +65,7 @@ public class PatchRepository
 
         foreach (var kpatchPath in kpatchFiles)
         {
+            Console.WriteLine($"DEBUG: Loading {kpatchPath}");
             var loadResult = LoadPatch(kpatchPath);
             if (loadResult.Success && loadResult.Data != null)
             {
@@ -147,20 +148,26 @@ public class PatchRepository
                 hooks = parseResult.Data;
             }
 
-            // Verify binary exists (try both forward and backslash)
-            var binaryPath = "binaries/windows_x86.dll";
-            var binaryEntry = archive.GetEntry(binaryPath);
+            // Check if this patch has any DETOUR hooks (which require a DLL)
+            var hasDetourHooks = hooks.Any(h => h.Type == HookType.Detour);
 
-            // Try backslash path if forward slash didn't work (Windows ZIP compatibility)
-            if (binaryEntry == null)
+            // Verify binary exists only if DETOUR hooks are present
+            if (hasDetourHooks)
             {
-                binaryPath = "binaries\\windows_x86.dll";
-                binaryEntry = archive.GetEntry(binaryPath);
-            }
+                var binaryPath = "binaries/windows_x86.dll";
+                var binaryEntry = archive.GetEntry(binaryPath);
 
-            if (binaryEntry == null)
-            {
-                return PatchResult<PatchEntry>.Fail($"Missing binaries/windows_x86.dll in patch archive");
+                // Try backslash path if forward slash didn't work (Windows ZIP compatibility)
+                if (binaryEntry == null)
+                {
+                    binaryPath = "binaries\\windows_x86.dll";
+                    binaryEntry = archive.GetEntry(binaryPath);
+                }
+
+                if (binaryEntry == null)
+                {
+                    return PatchResult<PatchEntry>.Fail($"Missing binaries/windows_x86.dll in patch archive (required for DETOUR hooks)");
+                }
             }
 
             var entry = new PatchEntry

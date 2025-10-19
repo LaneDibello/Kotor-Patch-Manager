@@ -268,35 +268,47 @@ public class PatchApplicator
                 messages.Add("Step 4/7: Skipping backup (disabled)");
             }
 
-            // Step 5: Extract patch DLLs
+            // Step 5: Extract patch DLLs (only for patches with DETOUR hooks)
             messages.Add("Step 5/7: Extracting patch DLLs...");
             var patchesDir = Path.Combine(gameDir, "patches");
-            Directory.CreateDirectory(patchesDir);
 
             var extractedDlls = new Dictionary<string, string>();
             foreach (var patchId in installOrder)
             {
-                var extractResult = _repository.ExtractPatchDll(patchId, patchesDir);
-                if (!extractResult.Success || extractResult.Data == null)
+                var entry = patchEntries[patchId];
+                var hasDetourHooks = entry.Hooks.Any(h => h.Type == HookType.Detour);
+
+                if (hasDetourHooks)
                 {
-                    // Cleanup and restore backup on failure
-                    if (backup != null)
+                    // Only create patches directory if we actually need it
+                    Directory.CreateDirectory(patchesDir);
+
+                    var extractResult = _repository.ExtractPatchDll(patchId, patchesDir);
+                    if (!extractResult.Success || extractResult.Data == null)
                     {
-                        BackupManager.RestoreBackup(backup);
+                        // Cleanup and restore backup on failure
+                        if (backup != null)
+                        {
+                            BackupManager.RestoreBackup(backup);
+                        }
+
+                        return new InstallResult
+                        {
+                            Success = false,
+                            Error = $"Failed to extract {patchId}: {extractResult.Error}",
+                            DetectedVersion = gameVersion,
+                            Backup = backup,
+                            Messages = messages
+                        };
                     }
 
-                    return new InstallResult
-                    {
-                        Success = false,
-                        Error = $"Failed to extract {patchId}: {extractResult.Error}",
-                        DetectedVersion = gameVersion,
-                        Backup = backup,
-                        Messages = messages
-                    };
+                    extractedDlls[patchId] = extractResult.Data;
+                    messages.Add($"  Extracted: {patchId}.dll");
                 }
-
-                extractedDlls[patchId] = extractResult.Data;
-                messages.Add($"  Extracted: {patchId}.dll");
+                else
+                {
+                    messages.Add($"  Skipped: {patchId} (SIMPLE patch, no DLL required)");
+                }
             }
 
             // Step 6: Generate patch_config.toml
@@ -305,7 +317,12 @@ public class PatchApplicator
             foreach (var patchId in installOrder)
             {
                 var entry = patchEntries[patchId];
-                var dllPath = Path.GetRelativePath(gameDir, extractedDlls[patchId]);
+
+                // Get DLL path if this patch has DETOUR hooks, otherwise use empty string
+                var dllPath = extractedDlls.ContainsKey(patchId)
+                    ? Path.GetRelativePath(gameDir, extractedDlls[patchId])
+                    : string.Empty;
+
                 config.AddPatch(patchId, dllPath, entry.Hooks);
             }
 

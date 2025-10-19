@@ -66,12 +66,28 @@ public static class ConfigGenerator
                     var hookTable = new TomlTable
                     {
                         ["address"] = (long)hook.Address,
-                        ["function"] = hook.Function,
                         ["original_bytes"] = originalBytesArray,
                         ["type"] = hook.Type.ToString().ToLowerInvariant()
                     };
 
-                    // optional wrapper system fields
+                    // Add function field for Detour hooks (not needed for Simple)
+                    if (hook.Function != null)
+                    {
+                        hookTable["function"] = hook.Function;
+                    }
+
+                    // Add replacement_bytes for Simple hooks
+                    if (hook.Type == HookType.Simple && hook.ReplacementBytes != null)
+                    {
+                        var replacementBytesArray = new TomlArray();
+                        foreach (var b in hook.ReplacementBytes)
+                        {
+                            replacementBytesArray.Add((long)b);
+                        }
+                        hookTable["replacement_bytes"] = replacementBytesArray;
+                    }
+
+                    // optional wrapper system fields (for Detour hooks)
                     if (!hook.PreserveRegisters)
                     {
                         hookTable["preserve_registers"] = false;
