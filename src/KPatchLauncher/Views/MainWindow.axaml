@@ -8,11 +8,73 @@
         x:DataType="vm:MainViewModel"
         Title="KotOR Patch Manager"
         Width="900" Height="650"
-        MinWidth="700" MinHeight="500">
+        MinWidth="700" MinHeight="500"
+        Background="#000016"
+        Foreground="#00AFFF">
 
     <Design.DataContext>
         <vm:MainViewModel/>
     </Design.DataContext>
+
+    <Window.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#000016"/>
+            <Setter Property="Foreground" Value="#00AFFF"/>
+            <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="#00AFFF"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="#FFFF00"/>
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="BorderBrush" Value="#FFFF00"/>
+        </Style>
+
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#000016"/>
+            <Setter Property="Foreground" Value="#00AFFF"/>
+            <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="10,5"/>
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="BorderBrush" Value="#FFFF00"/>
+            <Setter Property="Foreground" Value="#FFFF00"/>
+        </Style>
+        <Style Selector="Button:pressed">
+            <Setter Property="BorderBrush" Value="#FFFF00"/>
+            <Setter Property="Foreground" Value="#FFFF00"/>
+        </Style>
+
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="#000016"/>
+            <Setter Property="Foreground" Value="#00AFFF"/>
+            <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#00AFFF"/>
+        </Style>
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FFFF00"/>
+        </Style>
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FFFF00"/>
+        </Style>
+
+        <Style Selector="Border">
+            <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="Background" Value="#000016"/>
+        </Style>
+    </Window.Styles>
 
     <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="10">
 
@@ -125,15 +187,18 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="10">
-            <Button Content="Apply Patches"
+            <Button Content="Uninstall All"
+                    Command="{Binding UninstallAllCommand}"
+                    Width="120"
+                    Height="35"/>
+            <Button Content="Apply"
                     Command="{Binding ApplyPatchesCommand}"
                     Width="120"
                     Height="35"/>
-            <Button Content="Launch Game"
+            <Button Content="Launch"
                     Command="{Binding LaunchGameCommand}"
                     Width="120"
-                    Height="35"
-                    Classes="accent"/>
+                    Height="35"/>
         </StackPanel>
     </Grid>
 

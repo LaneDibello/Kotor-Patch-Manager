@@ -46,6 +46,7 @@ public class MainViewModel : ViewModelBase
         MoveUpCommand = new SimpleCommand(() => MoveUp());
         MoveDownCommand = new SimpleCommand(() => MoveDown());
         ApplyPatchesCommand = new SimpleCommand(async () => await ApplyPatches());
+        UninstallAllCommand = new SimpleCommand(async () => await UninstallAll());
         LaunchGameCommand = new SimpleCommand(async () => await LaunchGame());
 
         // Load patches if path is set
@@ -73,6 +74,12 @@ public class MainViewModel : ViewModelBase
             {
                 _settings.GamePath = value;
                 _settings.Save();
+
+                // Check patch status when game path is set
+                if (!string.IsNullOrWhiteSpace(value) && File.Exists(value))
+                {
+                    _ = CheckPatchStatusAsync(value);
+                }
             }
         }
     }
@@ -121,6 +128,7 @@ public class MainViewModel : ViewModelBase
     public ICommand MoveUpCommand { get; }
     public ICommand MoveDownCommand { get; }
     public ICommand ApplyPatchesCommand { get; }
+    public ICommand UninstallAllCommand { get; }
     public ICommand LaunchGameCommand { get; }
 
     private async Task BrowseGame()
@@ -269,12 +277,6 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        if (ActivePatches.Count == 0)
-        {
-            StatusMessage = "Error: No patches selected";
-            return;
-        }
-
         if (_repository == null)
         {
             StatusMessage = "Error: No patches loaded";
@@ -283,7 +285,33 @@ public class MainViewModel : ViewModelBase
 
         try
         {
+            // If no patches are selected, uninstall all
+            if (ActivePatches.Count == 0)
+            {
+                StatusMessage = "Uninstalling all patches...";
+
+                var uninstallResult = await Task.Run(() =>
+                    PatchRemover.RemoveAllPatches(GamePath));
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (uninstallResult.Success)
+                    {
+                        StatusMessage = "All patches uninstalled successfully";
+                    }
+                    else
+                    {
+                        StatusMessage = $"Error: {uninstallResult.Error}";
+                    }
+                });
+                return;
+            }
+
+            // Otherwise, uninstall existing patches and install selected ones
             StatusMessage = "Applying patches...";
+
+            // First, uninstall any existing patches
+            await Task.Run(() => PatchRemover.RemoveAllPatches(GamePath));
 
             // Get launcher exe path (current application)
             var launcherPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
@@ -325,6 +353,39 @@ public class MainViewModel : ViewModelBase
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 StatusMessage = $"Error applying patches: {ex.Message}";
+            });
+        }
+    }
+
+    private async Task UninstallAll()
+    {
+        if (string.IsNullOrWhiteSpace(GamePath) || !File.Exists(GamePath))
+        {
+            StatusMessage = "Error: Invalid game executable path";
+            return;
+        }
+
+        try
+        {
+            // Move all active patches back to available
+            var patchesToMove = ActivePatches.ToList();
+            foreach (var patch in patchesToMove)
+            {
+                ActivePatches.Remove(patch);
+                AvailablePatches.Add(patch);
+            }
+
+            HasActivePatches = false;
+            SaveActivePatches();
+
+            // Now apply (which will uninstall since Active is empty)
+            await ApplyPatches();
+        }
+        catch (Exception ex)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                StatusMessage = $"Error: {ex.Message}";
             });
         }
     }
@@ -488,12 +549,76 @@ public class MainViewModel : ViewModelBase
                 HasActivePatches = ActivePatches.Count > 0;
                 StatusMessage = $"Loaded {patchViewModels.Count} patches from {Path.GetFileName(directory)}";
             });
+
+            // Check patch status if we have a game path set
+            if (!string.IsNullOrWhiteSpace(GamePath) && File.Exists(GamePath))
+            {
+                await CheckPatchStatusAsync(GamePath);
+            }
         }
         catch (Exception ex)
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 StatusMessage = $"Error loading patches: {ex.Message}";
+            });
+        }
+    }
+
+    private async Task CheckPatchStatusAsync(string gameExePath)
+    {
+        if (_repository == null)
+            return;
+
+        try
+        {
+            // Get installation info on background thread
+            var installInfo = await Task.Run(() =>
+                PatchRemover.GetInstallationInfo(gameExePath));
+
+            if (!installInfo.Success || installInfo.Data == null)
+                return;
+
+            var info = installInfo.Data;
+
+            // Update UI on UI thread
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (info.InstalledPatches.Count == 0)
+                {
+                    StatusMessage = "No patches currently installed";
+                    return;
+                }
+
+                // Move installed patches to Active list in the correct order
+                var installedIds = info.InstalledPatches.ToHashSet();
+                var patchesToMove = AvailablePatches.Where(p => installedIds.Contains(p.Id)).ToList();
+
+                // Clear active list first
+                ActivePatches.Clear();
+
+                // Add patches in the order they're installed
+                foreach (var patchId in info.InstalledPatches)
+                {
+                    var patch = patchesToMove.FirstOrDefault(p => p.Id == patchId);
+                    if (patch != null)
+                    {
+                        AvailablePatches.Remove(patch);
+                        ActivePatches.Add(patch);
+                    }
+                }
+
+                HasActivePatches = ActivePatches.Count > 0;
+                SaveActivePatches();
+                StatusMessage = $"Found {info.InstalledPatches.Count} installed patches";
+            });
+        }
+        catch (Exception ex)
+        {
+            // Silent failure - not critical
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                StatusMessage = $"Could not check patch status: {ex.Message}";
             });
         }
     }
