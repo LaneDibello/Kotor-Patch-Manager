@@ -28,6 +28,7 @@ public class MainViewModel : ViewModelBase
     private PatchItemViewModel? _selectedActivePatch;
     private PatchRepository? _repository;
     private readonly AppSettings _settings;
+    private bool _hasActivePatches;
 
     public MainViewModel()
     {
@@ -39,33 +40,31 @@ public class MainViewModel : ViewModelBase
         _gamePath = _settings.GamePath;
         _patchesPath = _settings.PatchesPath;
 
+        // Create commands without canExecute observables to avoid threading issues
         BrowseGameCommand = ReactiveCommand.CreateFromTask(BrowseGame);
         BrowsePatchesCommand = ReactiveCommand.CreateFromTask(BrowsePatches);
-        AddPatchCommand = ReactiveCommand.Create(AddPatch,
-            this.WhenAnyValue(x => x.SelectedAvailablePatch).Select(p => p != null));
-        RemovePatchCommand = ReactiveCommand.Create(RemovePatch,
-            this.WhenAnyValue(x => x.SelectedActivePatch).Select(p => p != null));
-        MoveUpCommand = ReactiveCommand.Create(MoveUp,
-            this.WhenAnyValue(x => x.SelectedActivePatch).Select(p => p != null));
-        MoveDownCommand = ReactiveCommand.Create(MoveDown,
-            this.WhenAnyValue(x => x.SelectedActivePatch).Select(p => p != null));
-        ApplyPatchesCommand = ReactiveCommand.CreateFromTask(ApplyPatches,
-            this.WhenAnyValue(
-                x => x.GamePath,
-                x => x.ActivePatches.Count,
-                (path, count) => !string.IsNullOrWhiteSpace(path) && count > 0));
-        LaunchGameCommand = ReactiveCommand.CreateFromTask(LaunchGame,
-            this.WhenAnyValue(x => x.GamePath, path => !string.IsNullOrWhiteSpace(path)));
+        AddPatchCommand = ReactiveCommand.Create(AddPatch);
+        RemovePatchCommand = ReactiveCommand.Create(RemovePatch);
+        MoveUpCommand = ReactiveCommand.Create(MoveUp);
+        MoveDownCommand = ReactiveCommand.Create(MoveDown);
+        ApplyPatchesCommand = ReactiveCommand.CreateFromTask(ApplyPatches);
+        LaunchGameCommand = ReactiveCommand.CreateFromTask(LaunchGame);
 
         // Load patches if path is set
         if (!string.IsNullOrWhiteSpace(_patchesPath))
         {
-            Task.Run(() => LoadPatchesFromDirectory(_patchesPath));
+            _ = LoadPatchesFromDirectoryAsync(_patchesPath);
         }
     }
 
     public ObservableCollection<PatchItemViewModel> AvailablePatches { get; }
     public ObservableCollection<PatchItemViewModel> ActivePatches { get; }
+
+    public bool HasActivePatches
+    {
+        get => _hasActivePatches;
+        private set => this.RaiseAndSetIfChanged(ref _hasActivePatches, value);
+    }
 
     public string GamePath
     {
@@ -90,7 +89,7 @@ public class MainViewModel : ViewModelBase
             // Load patches from new directory
             if (!string.IsNullOrWhiteSpace(value))
             {
-                Task.Run(() => LoadPatchesFromDirectory(value));
+                _ = LoadPatchesFromDirectoryAsync(value);
             }
         }
     }
@@ -206,6 +205,7 @@ public class MainViewModel : ViewModelBase
         {
             ActivePatches.Add(SelectedAvailablePatch);
             AvailablePatches.Remove(SelectedAvailablePatch);
+            HasActivePatches = ActivePatches.Count > 0;
             StatusMessage = $"Added patch: {SelectedAvailablePatch.Name}";
             SaveActivePatches();
         }
@@ -217,6 +217,7 @@ public class MainViewModel : ViewModelBase
         {
             AvailablePatches.Add(SelectedActivePatch);
             ActivePatches.Remove(SelectedActivePatch);
+            HasActivePatches = ActivePatches.Count > 0;
             StatusMessage = $"Removed patch: {SelectedActivePatch.Name}";
             SaveActivePatches();
         }
@@ -385,84 +386,85 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void LoadPatchesFromDirectory(string directory)
+    private async Task LoadPatchesFromDirectoryAsync(string directory)
     {
         try
         {
             // Clear existing patches on UI thread
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            AvailablePatches.Clear();
+            ActivePatches.Clear();
+            StatusMessage = "Loading patches...";
+
+            // Do heavy work on background thread
+            var (repository, scanResult, allPatches) = await Task.Run(() =>
             {
-                AvailablePatches.Clear();
-                ActivePatches.Clear();
-                StatusMessage = "Loading patches...";
+                var repo = new PatchRepository(directory);
+                var result = repo.ScanPatches();
+                var patches = result.Success ? repo.GetAllPatches() : null;
+                return (repo, result, patches);
             });
 
-            _repository = new PatchRepository(directory);
-            var scanResult = _repository.ScanPatches();
-
+            // Back on UI thread for result handling
             if (!scanResult.Success)
             {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                {
-                    StatusMessage = $"Error loading patches: {scanResult.Error}";
-                });
+                StatusMessage = $"Error loading patches: {scanResult.Error}";
                 return;
             }
 
-            var allPatches = _repository.GetAllPatches();
+            _repository = repository;
 
-            // Update UI on UI thread
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            if (allPatches == null)
             {
-                var patchViewModels = allPatches.Values.Select(entry => new PatchItemViewModel
-                {
-                    Id = entry.Manifest.Id,
-                    Name = entry.Manifest.Name,
-                    Version = entry.Manifest.Version,
-                    Author = entry.Manifest.Author,
-                    Description = entry.Manifest.Description
-                }).ToList();
+                StatusMessage = "Error: No patches found";
+                return;
+            }
 
-                // Restore active patches from settings
-                var activePatchIds = _settings.ActivePatchIds.ToHashSet();
-                var orderedActivePatches = new List<PatchItemViewModel>();
+            var patchViewModels = allPatches.Values.Select(entry => new PatchItemViewModel
+            {
+                Id = entry.Manifest.Id,
+                Name = entry.Manifest.Name,
+                Version = entry.Manifest.Version,
+                Author = entry.Manifest.Author,
+                Description = entry.Manifest.Description
+            }).ToList();
 
-                // Add patches in the order they were saved
-                foreach (var patchId in _settings.ActivePatchIds)
+            // Restore active patches from settings
+            var activePatchIds = _settings.ActivePatchIds.ToHashSet();
+            var orderedActivePatches = new List<PatchItemViewModel>();
+
+            // Add patches in the order they were saved
+            foreach (var patchId in _settings.ActivePatchIds)
+            {
+                var patch = patchViewModels.FirstOrDefault(p => p.Id == patchId);
+                if (patch != null)
                 {
-                    var patch = patchViewModels.FirstOrDefault(p => p.Id == patchId);
-                    if (patch != null)
-                    {
-                        orderedActivePatches.Add(patch);
-                    }
+                    orderedActivePatches.Add(patch);
                 }
+            }
 
-                // Add remaining patches to available
-                foreach (var patch in patchViewModels)
+            // Add remaining patches to available
+            foreach (var patch in patchViewModels)
+            {
+                if (activePatchIds.Contains(patch.Id))
                 {
-                    if (activePatchIds.Contains(patch.Id))
-                    {
-                        // Already in active list
-                        continue;
-                    }
-                    AvailablePatches.Add(patch);
+                    // Already in active list
+                    continue;
                 }
+                AvailablePatches.Add(patch);
+            }
 
-                // Add active patches in order
-                foreach (var patch in orderedActivePatches)
-                {
-                    ActivePatches.Add(patch);
-                }
+            // Add active patches in order
+            foreach (var patch in orderedActivePatches)
+            {
+                ActivePatches.Add(patch);
+            }
 
-                StatusMessage = $"Loaded {patchViewModels.Count} patches from {Path.GetFileName(directory)}";
-            });
+            HasActivePatches = ActivePatches.Count > 0;
+            StatusMessage = $"Loaded {patchViewModels.Count} patches from {Path.GetFileName(directory)}";
         }
         catch (Exception ex)
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                StatusMessage = $"Error loading patches: {ex.Message}";
-            });
+            StatusMessage = $"Error loading patches: {ex.Message}";
         }
     }
 }
