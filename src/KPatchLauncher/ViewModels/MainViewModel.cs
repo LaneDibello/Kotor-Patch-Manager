@@ -458,9 +458,13 @@ public class MainViewModel : ViewModelBase
             var launcherPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             launcherPath = launcherPath.Replace(".dll", ".exe");
 
-            // Get patcher DLL path (should be in same directory as launcher)
+            // Get patcher DLL path (from ..\Patcher\)
             var launcherDir = Path.GetDirectoryName(launcherPath);
-            var patcherDllPath = Path.Combine(launcherDir ?? "", "KotorPatcher.dll");
+            var patcherDir = Path.GetFullPath(Path.Combine(launcherDir ?? "", @"..\..\Patcher\Debug"));
+            var patcherDllPath = Path.Combine(patcherDir, "KotorPatcher.dll");
+
+            Console.WriteLine(patcherDllPath);
+
 
             var applicator = new PatchApplicator(_repository);
             var options = new PatchApplicator.InstallOptions
@@ -475,6 +479,10 @@ public class MainViewModel : ViewModelBase
 
             // Run on background thread
             var result = await Task.Run(() => applicator.InstallPatches(options));
+            foreach (var item in result.Messages)
+            {
+                Console.WriteLine(item);
+            }
 
             // Update UI on UI thread
             await Dispatcher.UIThread.InvokeAsync(() =>

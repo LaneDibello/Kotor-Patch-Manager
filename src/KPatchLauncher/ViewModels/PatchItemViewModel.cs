@@ -58,22 +58,52 @@ public class PatchItemViewModel : ViewModelBase
     public bool IsOrphaned
     {
         get => _isOrphaned;
-        set => SetProperty(ref _isOrphaned, value);
+        set
+        {
+            if (SetProperty(ref _isOrphaned, value))
+            {
+                OnPropertyChanged(nameof(StateColor));
+            }
+        }
     }
 
     public bool IsInstalled
     {
         get => _isInstalled;
-        set => SetProperty(ref _isInstalled, value);
+        set
+        {
+            if (SetProperty(ref _isInstalled, value))
+            {
+                OnPropertyChanged(nameof(StateColor));
+            }
+        }
     }
 
     public bool IsIncompatible
     {
         get => _isIncompatible;
-        set => SetProperty(ref _isIncompatible, value);
+        set
+        {
+            if (SetProperty(ref _isIncompatible, value))
+            {
+                OnPropertyChanged(nameof(StateColor));
+            }
+        }
     }
 
     public string DisplayText => $"{Name} v{Version}";
+
+    // Computed property for color - easier for binding to track
+    public string StateColor
+    {
+        get
+        {
+            if (IsOrphaned) return "#FF0000";      // Red
+            if (IsInstalled) return "#00FF00";     // Green
+            if (IsIncompatible) return "#FF8800";  // Orange
+            return "#00AFFF";                      // Blue (default)
+        }
+    }
 
     public void UpdateInstalledState(HashSet<string> installedIds)
     {

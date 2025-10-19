@@ -66,13 +66,13 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="#002244"/>
+            <Setter Property="Background" Value="#004488"/>
         </Style>
         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#001122"/>
+            <Setter Property="Background" Value="#002244"/>
         </Style>
         <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#003355"/>
+            <Setter Property="Background" Value="#0066AA"/>
         </Style>
 
         <!-- Color coding for patch states -->
@@ -140,7 +140,7 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding DisplayText}"
-                                           Foreground="{Binding Converter={StaticResource PatchStateColorConverter}}"/>
+                                           Foreground="{Binding StateColor}"/>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
@@ -189,7 +189,7 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding DisplayText}"
-                                           Foreground="{Binding Converter={StaticResource PatchStateColorConverter}}"/>
+                                           Foreground="{Binding StateColor}"/>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
