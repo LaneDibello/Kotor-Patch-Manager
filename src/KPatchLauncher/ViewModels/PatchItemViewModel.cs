@@ -1,5 +1,3 @@
-using ReactiveUI;
-
 namespace KPatchLauncher.ViewModels;
 
 public class PatchItemViewModel : ViewModelBase
@@ -13,31 +11,43 @@ public class PatchItemViewModel : ViewModelBase
     public string Id
     {
         get => _id;
-        set => this.RaiseAndSetIfChanged(ref _id, value);
+        set => SetProperty(ref _id, value);
     }
 
     public string Name
     {
         get => _name;
-        set => this.RaiseAndSetIfChanged(ref _name, value);
+        set
+        {
+            if (SetProperty(ref _name, value))
+            {
+                OnPropertyChanged(nameof(DisplayText));
+            }
+        }
     }
 
     public string Version
     {
         get => _version;
-        set => this.RaiseAndSetIfChanged(ref _version, value);
+        set
+        {
+            if (SetProperty(ref _version, value))
+            {
+                OnPropertyChanged(nameof(DisplayText));
+            }
+        }
     }
 
     public string Author
     {
         get => _author;
-        set => this.RaiseAndSetIfChanged(ref _author, value);
+        set => SetProperty(ref _author, value);
     }
 
     public string Description
     {
         get => _description;
-        set => this.RaiseAndSetIfChanged(ref _description, value);
+        set => SetProperty(ref _description, value);
     }
 
     public string DisplayText => $"{Name} v{Version}";
