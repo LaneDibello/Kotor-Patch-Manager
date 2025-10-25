@@ -21,7 +21,7 @@ typedef CExoString* (__thiscall* DestructCExoString)(CExoString* thisPtr);
 const DWORD CEXOSTRING_CONSTRUCTOR_FROM_CSTR = 0x005e5b70;
 const DWORD CEXOSTRING_DESTRUCTOR = 0x005e5c20;
 
-CExoStringFromCstr constructCExoStringFromCStr = (CExoStringFromCstr)CEXOSTRING_CONSTRUCTOR_FROM_CSTR;
-DestructCExoString destructCExoString = (DestructCExoString)CEXOSTRING_DESTRUCTOR;
+extern CExoStringFromCstr constructCExoStringFromCStr;
+extern DestructCExoString destructCExoString;
 
 #pragma pack(pop)

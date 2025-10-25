@@ -45,6 +45,11 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     OutputDebugStringA(buffer);
 
     commands[TestScriptExtensionIndex] = (DWORD)&ExecuteCommandTestScriptExtension;
+    commands[OpenFileIndex] = (DWORD)&ExecuteCommandOpenFile;
+    commands[CloseFileIndex] = (DWORD)&ExecuteCommandCloseFile;
+    commands[ReadFileIndex] = (DWORD)&ExecuteCommandReadTextFile;
+    commands[WriteFileIndex] = (DWORD)&ExecuteCommandWriteTextFile;
+
 }
 
 // DLL Entry Point

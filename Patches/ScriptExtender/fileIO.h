@@ -12,5 +12,5 @@ void __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount);
 const int ReadFileIndex = 775;
 void __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount);
 
-const int WriteFileIndex = 775;
+const int WriteFileIndex = 776;
 void __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount);

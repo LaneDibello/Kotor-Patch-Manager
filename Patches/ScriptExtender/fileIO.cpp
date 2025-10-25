@@ -12,8 +12,16 @@ void __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 	CExoString filename;
 	stackPopString(*VIRTUAL_MACHINE_PTR, &filename);
 
+	char buffer2[128];
+	sprintf_s(buffer2, sizeof(buffer2), "[PATCH] got filename %s", filename.c_string);
+	OutputDebugStringA(buffer2);
+
 	CExoString mode;
 	stackPopString(*VIRTUAL_MACHINE_PTR, &mode);
+
+	char buffer1[128];
+	sprintf_s(buffer1, sizeof(buffer1), "[PATCH] got mode %s", mode.c_string);
+	OutputDebugStringA(buffer1);
 	
 	FILE* f = fopen(filename.c_string, mode.c_string);
 
@@ -69,15 +77,13 @@ void __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 	stackPopInteger(*VIRTUAL_MACHINE_PTR, &charCount);
 
 	char buffer[4096];
-	int itemsRead = fread_s(buffer, sizeof(buffer), 1, charCount, f);
+	int itemsRead = (int)fread_s((void *)buffer, sizeof(buffer), 1, charCount, f);
 
-	CExoString* output = new CExoString();
-	constructCExoStringFromCStr(output, buffer, itemsRead);
+	CExoString output;
+	output.c_string = buffer;
+	output.length = itemsRead;
 
-	stackPushString(*VIRTUAL_MACHINE_PTR, output);
-
-	destructCExoString(output);
-	delete output;
+	stackPushString(*VIRTUAL_MACHINE_PTR, &output);
 }
 
 void __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
@@ -93,8 +99,9 @@ void __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
 	stackPopInteger(*VIRTUAL_MACHINE_PTR, &file);
 	FILE* f = (FILE*)file;
 
-	CExostring text;
-	stackPopInteger(*VIRTUAL_MACHINE_PTR, &text);
+	CExoString text;
+	stackPopString(*VIRTUAL_MACHINE_PTR, &text);
 
-
+	int charsWritten = (int)fwrite((const void*)text.c_string, 1, text.length, f);
+	stackPushInteger(*VIRTUAL_MACHINE_PTR, charsWritten);
 }

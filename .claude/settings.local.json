@@ -6,7 +6,8 @@
       "Bash(dotnet.exe build:*)",
       "Bash(dotnet.exe run:*)",
       "Bash(/mnt/c/Program Files/dotnet/dotnet.exe build)",
-      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build)"
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build)",
+      "Read(//mnt/c/Users/laned/source/Repos/KotOR/**)"
     ],
     "deny": [],
     "ask": []
