@@ -1,21 +1,16 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:KPatchLauncher.ViewModels"
-        xmlns:converters="using:KPatchLauncher.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="650"
         x:Class="KPatchLauncher.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="KotOR Patch Manager"
         Width="900" Height="650"
-        MinWidth="700" MinHeight="500"
+        MinWidth="800" MinHeight="600"
         Background="#000016"
         Foreground="#00AFFF">
-
-    <Window.Resources>
-        <converters:PatchStateColorConverter x:Key="PatchStateColorConverter"/>
-    </Window.Resources>
 
     <Design.DataContext>
         <vm:MainViewModel/>
@@ -53,6 +48,13 @@
             <Setter Property="BorderBrush" Value="#FFFF00"/>
             <Setter Property="Foreground" Value="#FFFF00"/>
         </Style>
+        <Style Selector="Button:disabled">
+            <Setter Property="Opacity" Value="0.4"/>
+        </Style>
+
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#00AFFF"/>
+        </Style>
 
         <Style Selector="ListBox">
             <Setter Property="Background" Value="#000016"/>
@@ -62,7 +64,7 @@
         </Style>
 
         <Style Selector="ListBoxItem">
-            <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="Padding" Value="5,3"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
@@ -75,22 +77,12 @@
             <Setter Property="Background" Value="#0066AA"/>
         </Style>
 
-        <!-- Color coding for patch states -->
-        <Style Selector="TextBlock.installed">
-            <Setter Property="Foreground" Value="#00FF00"/>
-        </Style>
-        <Style Selector="TextBlock.orphaned">
-            <Setter Property="Foreground" Value="#FF0000"/>
-        </Style>
-        <Style Selector="TextBlock.incompatible">
-            <Setter Property="Foreground" Value="#FF8800"/>
-        </Style>
-        <Style Selector="TextBlock.pending">
-            <Setter Property="Foreground" Value="#00AFFF"/>
-        </Style>
-
         <Style Selector="Border">
             <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="Background" Value="#000016"/>
+        </Style>
+
+        <Style Selector="ScrollViewer">
             <Setter Property="Background" Value="#000016"/>
         </Style>
     </Window.Styles>
@@ -104,8 +96,12 @@
                      Width="600"
                      Watermark="Path to swkotor.exe"
                      Margin="10,0"/>
-            <Button Content="Browse..."
+            <Button Content="Browse"
                     Command="{Binding BrowseGameCommand}"
+                    Width="100"
+                    Margin="5,0"/>
+            <Button Content="Refresh"
+                    Command="{Binding RefreshCommand}"
                     Width="100"/>
         </StackPanel>
 
@@ -113,87 +109,144 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
             <TextBlock Text="Patches:" VerticalAlignment="Center" Width="60"/>
             <TextBox Text="{Binding PatchesPath}"
-                     Width="550"
+                     Width="705"
                      Watermark="Directory containing .kpatch files"
                      Margin="10,0"/>
-            <Button Content="Browse..."
+            <Button Content="Browse"
                     Command="{Binding BrowsePatchesCommand}"
                     Width="100"
-                    Margin="0,0,5,0"/>
-            <Button Content="Refresh"
-                    Command="{Binding RefreshCommand}"
-                    Width="100"/>
+                    Margin="5,0,0,0"/>
         </StackPanel>
 
-        <!-- Main Content -->
-        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,*" Margin="0,10">
+        <!-- Main Content: Patches List + Detail Panel -->
+        <Grid Grid.Row="2" ColumnDefinitions="2*,3*" Margin="0,10">
 
-            <!-- Available Patches -->
-            <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="5">
+            <!-- Patches List (Left) -->
+            <Border Grid.Column="0" BorderThickness="1" Padding="5" Margin="0,0,5,0">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top"
-                               Text="Available Patches"
+                               Text="Patches"
                                FontWeight="Bold"
-                               Margin="0,0,0,5"/>
-                    <ListBox ItemsSource="{Binding AvailablePatches}"
-                             SelectedItem="{Binding SelectedAvailablePatch}">
+                               FontSize="14"
+                               Margin="0,0,0,8"/>
+
+                    <ListBox ItemsSource="{Binding AllPatches}"
+                             SelectedItem="{Binding SelectedPatch}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding DisplayText}"
-                                           Foreground="{Binding StateColor}"/>
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <!-- Checkbox -->
+                                    <CheckBox Grid.Column="0"
+                                              IsChecked="{Binding IsChecked}"
+                                              VerticalAlignment="Center"
+                                              Margin="0,0,8,0"/>
+
+                                    <!-- Patch Name -->
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding DisplayText}"
+                                               VerticalAlignment="Center"
+                                               TextWrapping="NoWrap"
+                                               TextTrimming="CharacterEllipsis"/>
+
+                                    <!-- Up/Down Buttons -->
+                                    <StackPanel Grid.Column="2"
+                                                Orientation="Horizontal"
+                                                Spacing="2"
+                                                Margin="8,0,0,0">
+                                        <Button Content="↑"
+                                                Command="{Binding $parent[Window].DataContext.MoveUpCommand}"
+                                                Width="24"
+                                                Height="24"
+                                                Padding="0"
+                                                FontSize="12"
+                                                ToolTip.Tip="Move Up"/>
+                                        <Button Content="↓"
+                                                Command="{Binding $parent[Window].DataContext.MoveDownCommand}"
+                                                Width="24"
+                                                Height="24"
+                                                Padding="0"
+                                                FontSize="12"
+                                                ToolTip.Tip="Move Down"/>
+                                    </StackPanel>
+                                </Grid>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </DockPanel>
             </Border>
 
-            <!-- Transfer Buttons -->
-            <StackPanel Grid.Column="1"
-                        VerticalAlignment="Center"
-                        Margin="10"
-                        Spacing="10">
-                <Button Content="Add &gt;&gt;"
-                        Command="{Binding AddPatchCommand}"
-                        Width="100"
-                        HorizontalContentAlignment="Center"/>
-                <Button Content="&lt;&lt; Remove"
-                        Command="{Binding RemovePatchCommand}"
-                        Width="100"
-                        HorizontalContentAlignment="Center"/>
-            </StackPanel>
+            <!-- Patch Details Panel (Right) -->
+            <Border Grid.Column="1" BorderThickness="1" Padding="10" Margin="5,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid>
+                        <!-- Patch Details (when selected) -->
+                        <StackPanel Spacing="10" IsVisible="{Binding SelectedPatch, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="Patch Details"
+                                       FontWeight="Bold"
+                                       FontSize="14"
+                                       Margin="0,0,0,5"/>
 
-            <!-- Active Patches -->
-            <Border Grid.Column="2" BorderBrush="Gray" BorderThickness="1" Padding="5">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top"
-                               Text="Active Patches (in order)"
-                               FontWeight="Bold"
-                               Margin="0,0,0,5"/>
-                    <StackPanel DockPanel.Dock="Right"
-                                VerticalAlignment="Center"
-                                Margin="5,0,0,0"
-                                Spacing="5">
-                        <Button Content="↑"
-                                Command="{Binding MoveUpCommand}"
-                                Width="30"
-                                HorizontalContentAlignment="Center"
-                                ToolTip.Tip="Move Up"/>
-                        <Button Content="↓"
-                                Command="{Binding MoveDownCommand}"
-                                Width="30"
-                                HorizontalContentAlignment="Center"
-                                ToolTip.Tip="Move Down"/>
-                    </StackPanel>
-                    <ListBox ItemsSource="{Binding ActivePatches}"
-                             SelectedItem="{Binding SelectedActivePatch}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding DisplayText}"
-                                           Foreground="{Binding StateColor}"/>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </DockPanel>
+                            <!-- Name -->
+                            <StackPanel>
+                                <TextBlock Text="Name:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,3"/>
+                                <TextBlock Text="{Binding SelectedPatch.Name}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <!-- Version -->
+                            <StackPanel>
+                                <TextBlock Text="Version:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,3"/>
+                                <TextBlock Text="{Binding SelectedPatch.Version}"/>
+                            </StackPanel>
+
+                            <!-- Author -->
+                            <StackPanel>
+                                <TextBlock Text="Author:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,3"/>
+                                <TextBlock Text="{Binding SelectedPatch.Author}"/>
+                            </StackPanel>
+
+                            <!-- Description -->
+                            <StackPanel>
+                                <TextBlock Text="Description:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,3"/>
+                                <TextBlock Text="{Binding SelectedPatch.Description}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <!-- Orphaned Warning -->
+                            <Border Background="#330000"
+                                    BorderBrush="#FF0000"
+                                    BorderThickness="1"
+                                    Padding="8"
+                                    IsVisible="{Binding SelectedPatch.IsOrphaned}">
+                                <StackPanel Spacing="5">
+                                    <TextBlock Text="⚠️ Orphaned Patch"
+                                               FontWeight="Bold"
+                                               Foreground="#FF0000"/>
+                                    <TextBlock Text="This patch is installed in the game but not found in your patches directory. Unchecking it will uninstall it, but it will not appear in the list again."
+                                               TextWrapping="Wrap"
+                                               FontSize="12"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- No Selection Message -->
+                        <TextBlock Text="Select a patch to view details"
+                                   FontStyle="Italic"
+                                   Opacity="0.6"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"
+                                   IsVisible="{Binding SelectedPatch, Converter={x:Static ObjectConverters.IsNull}}"/>
+                    </Grid>
+                </ScrollViewer>
             </Border>
         </Grid>
 
@@ -205,11 +258,13 @@
                 Margin="0,10,0,5">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Grid.Column="0"
-                           Text="{Binding StatusMessage}"
-                           FontStyle="Italic"/>
+                           Text="{Binding PendingChangesMessage}"
+                           FontStyle="Italic"
+                           VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1"
                            Text="{Binding KotorVersion, StringFormat='Target: {0}'}"
                            FontStyle="Italic"
+                           VerticalAlignment="Center"
                            HorizontalAlignment="Right"/>
             </Grid>
         </Border>

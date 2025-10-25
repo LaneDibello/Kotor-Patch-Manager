@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace KPatchLauncher.ViewModels;
 
 public class PatchItemViewModel : ViewModelBase
@@ -9,9 +7,9 @@ public class PatchItemViewModel : ViewModelBase
     private string _version = string.Empty;
     private string _author = string.Empty;
     private string _description = string.Empty;
+    private bool _isChecked = false;
     private bool _isOrphaned = false;
-    private bool _isInstalled = false;
-    private bool _isIncompatible = false;
+    private int _displayOrder = 0;
 
     public string Id
     {
@@ -55,58 +53,23 @@ public class PatchItemViewModel : ViewModelBase
         set => SetProperty(ref _description, value);
     }
 
+    public bool IsChecked
+    {
+        get => _isChecked;
+        set => SetProperty(ref _isChecked, value);
+    }
+
     public bool IsOrphaned
     {
         get => _isOrphaned;
-        set
-        {
-            if (SetProperty(ref _isOrphaned, value))
-            {
-                OnPropertyChanged(nameof(StateColor));
-            }
-        }
+        set => SetProperty(ref _isOrphaned, value);
     }
 
-    public bool IsInstalled
+    public int DisplayOrder
     {
-        get => _isInstalled;
-        set
-        {
-            if (SetProperty(ref _isInstalled, value))
-            {
-                OnPropertyChanged(nameof(StateColor));
-            }
-        }
-    }
-
-    public bool IsIncompatible
-    {
-        get => _isIncompatible;
-        set
-        {
-            if (SetProperty(ref _isIncompatible, value))
-            {
-                OnPropertyChanged(nameof(StateColor));
-            }
-        }
+        get => _displayOrder;
+        set => SetProperty(ref _displayOrder, value);
     }
 
     public string DisplayText => $"{Name} v{Version}";
-
-    // Computed property for color - easier for binding to track
-    public string StateColor
-    {
-        get
-        {
-            if (IsOrphaned) return "#FF0000";      // Red
-            if (IsInstalled) return "#00FF00";     // Green
-            if (IsIncompatible) return "#FF8800";  // Orange
-            return "#00AFFF";                      // Blue (default)
-        }
-    }
-
-    public void UpdateInstalledState(HashSet<string> installedIds)
-    {
-        IsInstalled = installedIds.Contains(Id);
-    }
 }

@@ -51,7 +51,7 @@ namespace KotorPatcher {
             // Sanity checks
             if (length == 0) {
                 OutputDebugStringA("[Trampoline] WriteNoOps: length is 0, nothing to write\n");
-                return false;
+                return true;
             }
             // Prevent 32-bit wrap/overflow for the DWORD + length calculation
             DWORD endAddr64 = static_cast<DWORD>(startAddress) + static_cast<DWORD>(length);

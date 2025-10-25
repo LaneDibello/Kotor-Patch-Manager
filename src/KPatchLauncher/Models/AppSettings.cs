@@ -18,9 +18,25 @@ public class AppSettings
     public string PatchesPath { get; set; } = string.Empty;
 
     /// <summary>
-    /// List of active patch IDs in order
+    /// List of checked patch IDs
     /// </summary>
-    public List<string> ActivePatchIds { get; set; } = new();
+    public List<string> CheckedPatchIds { get; set; } = new();
+
+    /// <summary>
+    /// Legacy property for backwards compatibility (TODO: Remove after migration)
+    /// </summary>
+    [Obsolete("Use CheckedPatchIds instead")]
+    public List<string>? ActivePatchIds
+    {
+        get => null;
+        set
+        {
+            if (value != null)
+            {
+                CheckedPatchIds = value;
+            }
+        }
+    }
 
     /// <summary>
     /// Path to settings file
