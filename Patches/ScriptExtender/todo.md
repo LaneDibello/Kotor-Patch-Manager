@@ -1,0 +1,69 @@
+# TODO: Script Extender
+
+## Function Wishlist
+- File I/O
+	- Open
+	- Read
+	- Write
+	- Close
+- Missing Kotor 2 Functions [full list here](https://www.dropbox.com/scl/fi/di36bt4sqd4l32up8iw3n/KOTOR-NSS-Tables.xlsx?rlkey=p7c7vtygpd3sy12idv169oj27&e=1&st=q0z9k5hq&dl=0)
+	- GetFeatAcquired
+	- GetSpellAcquired
+	- GrantFeat
+	- GrantSpell
+	- SpawnMine
+	- GetSpellForcePointCost
+	- IncrementGlobalNumber
+	- DecrementGlobalNumber
+	- SetBonusForcePoints
+	- AddBonusForcePoints
+	- GetBonusForcePoints
+	- IsStealthed
+	- GetRandomDestination
+	- GetSpellBaseForcePointCost
+	- HasLineOfSight
+	- ForceHeartbeat
+	- IsRunning
+	- ModifyReflexSavingThrowBase
+	- ModifyFortitudeSavingThrowBase
+	- ModifyWillSavingThrowBase
+	- GetObjectPersonalSpace
+	- AdjustCreatureAttributes
+	- GetIsPartyLeader
+	- GetPartyLeader
+	- CreatureFlourishWeapon
+	- ChangeObjectAppearance
+	- GetIsXBox
+	- PlayOverlayAnimation
+	- DisableMap
+	- DetonateMine
+	- SetInputClass
+	- SetForceAlwaysUpdate
+	- DisplayMessageBox
+	- RemoveHeartbeat
+	- RemoveEffectByID
+	- RemoveEffectByExactMatch
+	- AdjustCreatureSkills
+	- GetSkillRankBase
+	- SaveNPCByObject
+	- GetIsPlayerMadeCharacter
+- RunExternalAction
+	- Would run an arbitrary CPP function as specified by the string param
+	- This is meant to allow modders to easily add new functions to scripts without having to update this patch
+- String operations
+	- Format (might be difficult because lack of `...` params)
+	- ConcatStrings
+	- TrimWhitespace
+	- FromCharCode
+	- ToCharCode
+- Other Utils
+	- GetOrientationFromLocation
+	- sec (secant)
+	- csc (cosecant)
+	- cot (cotangent)
+	- RadToDeg
+	- DegToRad
+	- Get2DAString
+	- Get2DAInt
+	- Get2DAFloat
+	- GetPLayerLookingAtObject
