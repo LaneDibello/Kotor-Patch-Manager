@@ -3,12 +3,10 @@
 
 const int TestScriptExtensionIndex = 772;
 void __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
-    char buffer[128];
-    sprintf_s(buffer, sizeof(buffer), "[PATCH] Called Test routine %d, with %i parameters", routine, paramCount);
-    OutputDebugStringA(buffer);
+    DebugLog("[PATCH] Called Test routine %d, with %i parameters", routine, paramCount);
 
     if (paramCount != 3) {
-        OutputDebugStringA("[PATCH] Expected 3 params in the function!");
+        DebugLog("[PATCH] Expected 3 params in the function!");
         stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
         return;
     }
@@ -16,23 +14,17 @@ void __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) 
     int testInt;
     stackPopInteger(*VIRTUAL_MACHINE_PTR, &testInt);
 
-    memset(buffer, 0, sizeof(buffer));
-    sprintf_s(buffer, sizeof(buffer), "[PATCH] Test Int %i", testInt);
-    OutputDebugStringA(buffer);
+    DebugLog("[PATCH] Test Int %i", testInt);
 
     float testFloat;
     stackPopFloat(*VIRTUAL_MACHINE_PTR, &testFloat);
 
-    memset(buffer, 0, sizeof(buffer));
-    sprintf_s(buffer, sizeof(buffer), "[PATCH] Test Float %f", testFloat);
-    OutputDebugStringA(buffer);
+    DebugLog("[PATCH] Test Float %f", testFloat);
 
     CExoString testString;
     stackPopString(*VIRTUAL_MACHINE_PTR, &testString);
 
-    memset(buffer, 0, sizeof(buffer));
-    sprintf_s(buffer, sizeof(buffer), "[PATCH] Test string \"%s\"", testString.c_string);
-    OutputDebugStringA(buffer);
+    DebugLog("[PATCH] Test string \"%s\"", testString.c_string);
 
     stackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
 
@@ -40,9 +32,7 @@ void __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) 
 
 extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
 {
-    char buffer[128];
-    sprintf_s(buffer, sizeof(buffer), "[PATCH] Initializing Extension Commands. Commands Array: %p", commands);
-    OutputDebugStringA(buffer);
+    DebugLog("[PATCH] Initializing Extension Commands. Commands Array: %p", commands);
 
     commands[TestScriptExtensionIndex] = (DWORD)&ExecuteCommandTestScriptExtension;
     commands[OpenFileIndex] = (DWORD)&ExecuteCommandOpenFile;

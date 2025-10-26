@@ -2,29 +2,23 @@
 
 void __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
-		char buffer[128];
-		sprintf_s(buffer, sizeof(buffer), "[PATCH] Wrong number of params found in ExecuteCommandOpenFile. Expected 2, got %i", paramCount);
-		OutputDebugStringA(buffer);
+		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandOpenFile. Expected 2, got %i", paramCount);
 		stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
 		return;
 	}
-	
+
 	CExoString filename;
 	stackPopString(*VIRTUAL_MACHINE_PTR, &filename);
 
 	CExoString mode;
 	stackPopString(*VIRTUAL_MACHINE_PTR, &mode);
 
-	char buffer1[128];
-	sprintf_s(buffer1, sizeof(buffer1), "[PATCH] Opening file '%s' with mode '%s'", filename.c_string, mode.c_string);
-	OutputDebugStringA(buffer1);
-	
+	DebugLog("[PATCH] Opening file '%s' with mode '%s'", filename.c_string, mode.c_string);
+
 	FILE* f = fopen(filename.c_string, mode.c_string);
 
 	if (f == NULL) {
-		char buffer[128];
-		sprintf_s(buffer, sizeof(buffer), "[PATCH] Failed to Open File '%s', with mode '%s'", filename.c_string, mode.c_string);
-		OutputDebugStringA(buffer);
+		DebugLog("[PATCH] Failed to Open File '%s', with mode '%s'", filename.c_string, mode.c_string);
 		stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
 		return;
 	}
@@ -34,9 +28,7 @@ void __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 
 void __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
-		char buffer[128];
-		sprintf_s(buffer, sizeof(buffer), "[PATCH] Wrong number of params found in ExecuteCommandCloseFile. Expected 1, got %i", paramCount);
-		OutputDebugStringA(buffer);
+		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandCloseFile. Expected 1, got %i", paramCount);
 		stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
 		return;
 	}
@@ -46,25 +38,19 @@ void __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
 	FILE* f = (FILE*)file;
 
 	if (fclose(f)) {
-		char buffer[128];
-		sprintf_s(buffer, sizeof(buffer), "[PATCH] Failed to Close File Stream at '%p'", f);
-		OutputDebugStringA(buffer);
+		DebugLog("[PATCH] Failed to Close File Stream at '%p'", f);
 		stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
 		return;
 	}
 
-	char buffer1[128];
-	sprintf_s(buffer1, sizeof(buffer1), "[PATCH] Closing file with handle '%p'", f);
-	OutputDebugStringA(buffer1);
+	DebugLog("[PATCH] Closing file with handle '%p'", f);
 
 	stackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
 }
 
 void __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
-		char buffer[128];
-		sprintf_s(buffer, sizeof(buffer), "[PATCH] Wrong number of params found in ExecuteCommandReadTextFile. Expected 2, got %i", paramCount);
-		OutputDebugStringA(buffer);
+		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandReadTextFile. Expected 2, got %i", paramCount);
 		stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
 		return;
 	}
@@ -88,9 +74,7 @@ void __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 
 void __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
-		char buffer[128];
-		sprintf_s(buffer, sizeof(buffer), "[PATCH] Wrong number of params found in ExecuteCommandWriteTextFile. Expected 2, got %i", paramCount);
-		OutputDebugStringA(buffer);
+		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandWriteTextFile. Expected 2, got %i", paramCount);
 		stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
 		return;
 	}

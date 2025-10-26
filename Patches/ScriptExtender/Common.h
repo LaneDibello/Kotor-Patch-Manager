@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <cstdio>
+#include <cstdarg>
 #pragma pack(push, 4)
 
 struct CExoString {
@@ -40,3 +41,13 @@ struct Vector {
 
 
 #pragma pack(pop)
+
+// Debug logging helper - automatically formats and outputs to debugger
+inline void DebugLog(const char* format, ...) {
+	char buffer[512];
+	va_list args;
+	va_start(args, format);
+	vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, format, args);
+	va_end(args);
+	OutputDebugStringA(buffer);
+}
