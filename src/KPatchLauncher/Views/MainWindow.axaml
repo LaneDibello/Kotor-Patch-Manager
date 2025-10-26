@@ -17,19 +17,23 @@
     </Design.DataContext>
 
     <Window.Styles>
-        <Style Selector="TextBox">
+        <Style Selector="!">
             <Setter Property="Background" Value="#000016"/>
             <Setter Property="Foreground" Value="#00AFFF"/>
             <Setter Property="BorderBrush" Value="#00AFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="CaretBrush" Value="#00AFFF"/>
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
+            <Setter Property="Foreground" Value="#FFFF00"/>
+            <Setter Property="CaretBrush" Value="#FFFF00"/>
             <Setter Property="BorderThickness" Value="2"/>
         </Style>
         <Style Selector="TextBox:pointerover">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
+            <Setter Property="Foreground" Value="#FFFF00"/>
+            <Setter Property="CaretBrush" Value="#FFFF00"/>
             <Setter Property="BorderThickness" Value="2"/>
         </Style>
 
@@ -45,13 +49,13 @@
         <Style Selector="Button:pointerover /template/ ContentPresenter">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
             <Setter Property="Foreground" Value="#FFFF00"/>
-            <Setter Property="Background" Value="#002244"/>
+            <Setter Property="Background" Value="#000016"/>
             <Setter Property="BorderThickness" Value="2"/>
         </Style>
         <Style Selector="Button:pressed /template/ ContentPresenter">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
             <Setter Property="Foreground" Value="#FFFF00"/>
-            <Setter Property="Background" Value="#003366"/>
+            <Setter Property="Background" Value="#000016"/>
             <Setter Property="BorderThickness" Value="2"/>
         </Style>
         <Style Selector="Button:disabled">
