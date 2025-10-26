@@ -6,6 +6,30 @@
 struct CExoString {
 	char* c_string;
 	DWORD length;
+
+	CExoString() {
+		typedef CExoString* (__thiscall* constructor)(CExoString* thisPtr);
+		const DWORD ADDRESS = 0x005b3190;
+		constructor constructCExoString = (constructor)ADDRESS;
+
+		constructCExoString(this);
+	}
+
+	CExoString(char* src, int length) {
+		typedef CExoString* (__thiscall* constructor)(CExoString* thisPtr, char* source, int length);
+		const DWORD ADDRESS = 0x005e5b70;
+		constructor constructCExoStringFromCStr = (constructor)ADDRESS;
+
+		constructCExoStringFromCStr(this, src, length);
+	}
+
+	~CExoString() {
+		typedef CExoString* (__thiscall* destructor)(CExoString* thisPtr);
+		const DWORD ADDRESS = 0x005e5c20;
+		destructor destructCExoString = (destructor)ADDRESS;
+
+		destructCExoString(this);
+	}
 };
 
 struct Vector {
@@ -14,14 +38,5 @@ struct Vector {
 	float z;
 };
 
-
-typedef CExoString*(__thiscall* CExoStringFromCstr)(CExoString* thisPtr, char* source, int length);
-typedef CExoString* (__thiscall* DestructCExoString)(CExoString* thisPtr);
-
-const DWORD CEXOSTRING_CONSTRUCTOR_FROM_CSTR = 0x005e5b70;
-const DWORD CEXOSTRING_DESTRUCTOR = 0x005e5c20;
-
-extern CExoStringFromCstr constructCExoStringFromCStr;
-extern DestructCExoString destructCExoString;
 
 #pragma pack(pop)

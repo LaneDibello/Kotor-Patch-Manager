@@ -12,15 +12,11 @@ void __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 	CExoString filename;
 	stackPopString(*VIRTUAL_MACHINE_PTR, &filename);
 
-	char buffer2[128];
-	sprintf_s(buffer2, sizeof(buffer2), "[PATCH] got filename %s", filename.c_string);
-	OutputDebugStringA(buffer2);
-
 	CExoString mode;
 	stackPopString(*VIRTUAL_MACHINE_PTR, &mode);
 
 	char buffer1[128];
-	sprintf_s(buffer1, sizeof(buffer1), "[PATCH] got mode %s", mode.c_string);
+	sprintf_s(buffer1, sizeof(buffer1), "[PATCH] Opening file '%s' with mode '%s'", filename.c_string, mode.c_string);
 	OutputDebugStringA(buffer1);
 	
 	FILE* f = fopen(filename.c_string, mode.c_string);
@@ -56,6 +52,10 @@ void __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
 		stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
 		return;
 	}
+
+	char buffer1[128];
+	sprintf_s(buffer1, sizeof(buffer1), "[PATCH] Closing file with handle '%p'", f);
+	OutputDebugStringA(buffer1);
 
 	stackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
 }
