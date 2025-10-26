@@ -1,13 +1,8 @@
 // EnableScriptAurPostString Patch
 // Re-enables the debug AurPostString function in KOTOR 1
-//
-// This patch intercepts the ExecuteCommandAurPostString function at 0x005cb41c
-// and calls the actual AurPostString display function at 0x0044d490
 
 #include <windows.h>
 
-// Function pointer to the actual AurPostString function
-// Signature: void __cdecl AurPostString(char *string, int y, int x, float life)
 typedef void (__cdecl *AurPostStringFunc)(char*, int, int, float);
 const DWORD AUR_POST_STRING_ADDR = 0x0044d490;
 
