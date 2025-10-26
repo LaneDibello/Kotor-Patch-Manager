@@ -198,9 +198,3 @@ JMP 0x005cb428
 
 If no `[[hooks.parameters]]` are specified, the wrapper works as before - patch function takes no parameters. This maintains compatibility with existing patches that don't use parameter extraction.
 
-## Future Enhancements
-
-- Support for return value modification
-- Support for struct/array parameters
-- Support for 64-bit parameters (long long, double)
-- Automatic parameter detection based on calling convention analysis
