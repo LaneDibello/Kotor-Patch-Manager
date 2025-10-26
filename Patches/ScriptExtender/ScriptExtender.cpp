@@ -39,6 +39,9 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[CloseFileIndex] = (DWORD)&ExecuteCommandCloseFile;
     commands[ReadFileIndex] = (DWORD)&ExecuteCommandReadTextFile;
     commands[WriteFileIndex] = (DWORD)&ExecuteCommandWriteTextFile;
+    commands[PeakCharFileIndex] = (DWORD)&ExecuteCommandPeakCharFile;
+    commands[SeekFileIndex] = (DWORD)&ExecuteCommandSeekFile;
+    commands[TellFileIndex] = (DWORD)&ExecuteCommandTellFile;
 
 }
 

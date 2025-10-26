@@ -6,6 +6,11 @@
 	- ? Read
 	- ? Write
 	- ? Close
+	- Peak
+	- Seek
+	- Tell
+	- ReadBinary
+	- WriteBinary
 - Missing Kotor 2 Functions [full list here](https://www.dropbox.com/scl/fi/di36bt4sqd4l32up8iw3n/KOTOR-NSS-Tables.xlsx?rlkey=p7c7vtygpd3sy12idv169oj27&e=1&st=q0z9k5hq&dl=0)
 	- GetFeatAcquired
 	- GetSpellAcquired

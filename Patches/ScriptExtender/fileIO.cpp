@@ -89,3 +89,79 @@ void __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
 	int charsWritten = (int)fwrite((const void*)text.c_string, 1, text.length, f);
 	stackPushInteger(*VIRTUAL_MACHINE_PTR, charsWritten);
 }
+
+void __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
+	if (paramCount != 1) {
+		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandPeakCharFile. Expected 1, got %i", paramCount);
+		CExoString empty("", 0);
+		stackPushString(*VIRTUAL_MACHINE_PTR, &empty);
+		return;
+	}
+
+	int file;
+	stackPopInteger(*VIRTUAL_MACHINE_PTR, &file);
+	FILE* f = (FILE*)file;
+
+	int c = fgetc(f);
+	if (c == EOF) {
+		DebugLog("[PATCH] PeakCharFile: EOF or error reading from file handle '%p'", f);
+		CExoString empty("", 0);
+		stackPushString(*VIRTUAL_MACHINE_PTR, &empty);
+		return;
+	}
+
+	ungetc(c, f);
+
+	char buffer[2] = { (char)c, '\0' };
+	CExoString result(buffer, 1);
+	stackPushString(*VIRTUAL_MACHINE_PTR, &result);
+}
+
+void __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
+	if (paramCount != 3) {
+		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandSeekFile. Expected 3, got %i", paramCount);
+		stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
+		return;
+	}
+
+	int file;
+	stackPopInteger(*VIRTUAL_MACHINE_PTR, &file);
+	FILE* f = (FILE*)file;
+
+	int offset;
+	stackPopInteger(*VIRTUAL_MACHINE_PTR, &offset);
+
+	int origin;
+	stackPopInteger(*VIRTUAL_MACHINE_PTR, &origin);
+	// Origin values: SEEK_SET = 0, SEEK_CUR = 1, SEEK_END = 2
+
+	int result = fseek(f, offset, origin);
+
+	if (result != 0) {
+		DebugLog("[PATCH] SeekFile: fseek failed on file handle '%p', offset %d, origin %d", f, offset, origin);
+		stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
+		return;
+	}
+
+	stackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
+}
+
+void __stdcall ExecuteCommandTellFile(DWORD routine, int paramCount) {
+	if (paramCount != 1) {
+		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandTellFile. Expected 1, got %i", paramCount);
+		stackPushInteger(*VIRTUAL_MACHINE_PTR, -1);
+		return;
+	}
+
+	int file;
+	stackPopInteger(*VIRTUAL_MACHINE_PTR, &file);
+	FILE* f = (FILE*)file;
+
+	long position = ftell(f);
+
+	if (position == -1L) {
+		DebugLog("[PATCH] TellFile: ftell failed on file handle '%p'", f);
+	}
+
+	stackPushInteger(*VIRTUAL_MACHINE_PTR, (int)position);
+}
