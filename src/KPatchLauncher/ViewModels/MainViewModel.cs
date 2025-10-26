@@ -28,6 +28,8 @@ public class MainViewModel : ViewModelBase
     private PatchRepository? _repository;
     private readonly AppSettings _settings;
     private bool _hasInstalledPatches;
+    private bool _isOperationInProgress;
+    private double _progressValue = 0;
 
     public MainViewModel()
     {
@@ -73,6 +75,18 @@ public class MainViewModel : ViewModelBase
                 ((SimpleCommand)UninstallAllCommand).RaiseCanExecuteChanged();
             }
         }
+    }
+
+    public bool IsOperationInProgress
+    {
+        get => _isOperationInProgress;
+        private set => SetProperty(ref _isOperationInProgress, value);
+    }
+
+    public double ProgressValue
+    {
+        get => _progressValue;
+        private set => SetProperty(ref _progressValue, value);
     }
 
     public string GamePath
@@ -228,7 +242,7 @@ public class MainViewModel : ViewModelBase
     {
         try
         {
-            StatusMessage = "Refreshing...";
+            SetOperationInProgress(true, "Refreshing...");
 
             // Reload patches from directory if path is set
             if (!string.IsNullOrWhiteSpace(PatchesPath))
@@ -236,11 +250,11 @@ public class MainViewModel : ViewModelBase
                 await LoadPatchesFromDirectoryAsync(PatchesPath);
             }
 
-            StatusMessage = "Refresh complete";
+            SetOperationInProgress(false, "Refresh complete");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error refreshing: {ex.Message}";
+            SetOperationInProgress(false, $"Error refreshing: {ex.Message}");
         }
     }
 
@@ -253,20 +267,23 @@ public class MainViewModel : ViewModelBase
         return null;
     }
 
-    public void OnPatchChecked(PatchItemViewModel patch)
+    private void OnPatchCheckedChanged(object? sender, EventArgs e)
     {
-        if (patch.IsChecked)
+        if (sender is PatchItemViewModel patch)
         {
-            // Move to top of list
-            var index = AllPatches.IndexOf(patch);
-            if (index > 0)
+            if (patch.IsChecked)
             {
-                AllPatches.Move(index, 0);
+                // Move to top of list
+                var index = AllPatches.IndexOf(patch);
+                if (index > 0)
+                {
+                    AllPatches.Move(index, 0);
+                }
             }
-        }
 
-        SaveCheckedPatches();
-        UpdatePendingChanges();
+            SaveCheckedPatches();
+            UpdatePendingChanges();
+        }
     }
 
     private void MoveUp()
@@ -309,7 +326,22 @@ public class MainViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(PendingChangesCount));
         OnPropertyChanged(nameof(PendingChangesMessage));
-        StatusMessage = PendingChangesMessage;
+    }
+
+    private void SetOperationInProgress(bool inProgress, string? message = null, bool isAutoRefresh = false)
+    {
+        IsOperationInProgress = inProgress;
+        ProgressValue = inProgress ? 100 : 0;
+
+        if (message != null && !isAutoRefresh)
+        {
+            StatusMessage = message;
+        }
+
+        if (!inProgress)
+        {
+            UpdatePendingChanges();
+        }
     }
 
     private async Task ApplyPatches()
@@ -333,7 +365,7 @@ public class MainViewModel : ViewModelBase
             // If no patches are checked, uninstall all
             if (checkedPatches.Count == 0)
             {
-                StatusMessage = "Uninstalling all patches...";
+                SetOperationInProgress(true, "Uninstalling all patches...");
 
                 var uninstallResult = await Task.Run(() =>
                     PatchRemover.RemoveAllPatches(GamePath));
@@ -342,19 +374,18 @@ public class MainViewModel : ViewModelBase
                 {
                     if (uninstallResult.Success)
                     {
-                        StatusMessage = "All patches uninstalled successfully";
-                        UpdatePendingChanges();
+                        SetOperationInProgress(false, "All patches uninstalled successfully");
                     }
                     else
                     {
-                        StatusMessage = $"Error: {uninstallResult.Error}";
+                        SetOperationInProgress(false, $"Error: {uninstallResult.Error}");
                     }
                 });
                 return;
             }
 
             // Otherwise, uninstall existing patches and install checked ones
-            StatusMessage = "Applying patches...";
+            SetOperationInProgress(true, "Applying patches...");
 
             // First, uninstall any existing patches
             await Task.Run(() => PatchRemover.RemoveAllPatches(GamePath));
@@ -388,12 +419,11 @@ public class MainViewModel : ViewModelBase
             {
                 if (result.Success)
                 {
-                    StatusMessage = $"Patches applied successfully ({result.InstalledPatches.Count} patches)";
-                    UpdatePendingChanges();
+                    SetOperationInProgress(false, $"Patches applied successfully ({result.InstalledPatches.Count} patches)");
                 }
                 else
                 {
-                    StatusMessage = $"Error: {result.Error}";
+                    SetOperationInProgress(false, $"Error: {result.Error}");
                 }
             });
 
@@ -404,7 +434,7 @@ public class MainViewModel : ViewModelBase
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                StatusMessage = $"Error applying patches: {ex.Message}";
+                SetOperationInProgress(false, $"Error applying patches: {ex.Message}");
             });
         }
     }
@@ -419,6 +449,8 @@ public class MainViewModel : ViewModelBase
 
         try
         {
+            SetOperationInProgress(true, "Uninstalling all patches...");
+
             // Uncheck all patches
             foreach (var patch in AllPatches)
             {
@@ -434,7 +466,7 @@ public class MainViewModel : ViewModelBase
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                StatusMessage = $"Error: {ex.Message}";
+                SetOperationInProgress(false, $"Error: {ex.Message}");
             });
         }
     }
@@ -463,7 +495,7 @@ public class MainViewModel : ViewModelBase
             if (!File.Exists(patchConfigPath))
             {
                 // No patches - launch vanilla
-                StatusMessage = "Launching game (no patches detected)...";
+                SetOperationInProgress(true, "Launching game (no patches)...");
 
                 var vanillaProcess = await Task.Run(() => Process.Start(new ProcessStartInfo
                 {
@@ -476,11 +508,11 @@ public class MainViewModel : ViewModelBase
                 {
                     if (vanillaProcess != null)
                     {
-                        StatusMessage = $"Game launched (PID: {vanillaProcess.Id})";
+                        SetOperationInProgress(false, $"Game launched (PID: {vanillaProcess.Id})");
                     }
                     else
                     {
-                        StatusMessage = "Error: Failed to launch game";
+                        SetOperationInProgress(false, "Error: Failed to launch game");
                     }
                 });
                 return;
@@ -493,7 +525,7 @@ public class MainViewModel : ViewModelBase
                 return;
             }
 
-            StatusMessage = "Launching game with patches...";
+            SetOperationInProgress(true, "Launching game with patches...");
 
             var result = await Task.Run(() =>
                 ProcessInjector.LaunchWithInjection(GamePath, patcherDllPath));
@@ -502,11 +534,11 @@ public class MainViewModel : ViewModelBase
             {
                 if (result.Success && result.Data != null)
                 {
-                    StatusMessage = $"Game launched with patches (PID: {result.Data.Id})";
+                    SetOperationInProgress(false, $"Game launched with patches (PID: {result.Data.Id})");
                 }
                 else
                 {
-                    StatusMessage = $"Error: {result.Error}";
+                    SetOperationInProgress(false, $"Error: {result.Error}");
                 }
             });
         }
@@ -514,7 +546,7 @@ public class MainViewModel : ViewModelBase
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                StatusMessage = $"Error launching game: {ex.Message}";
+                SetOperationInProgress(false, $"Error launching game: {ex.Message}");
             });
         }
     }
@@ -525,7 +557,7 @@ public class MainViewModel : ViewModelBase
         {
             // Clear existing patches on UI thread
             AllPatches.Clear();
-            StatusMessage = "Loading patches...";
+            SetOperationInProgress(true, "Loading patches...");
 
             // Do heavy work on background thread
             var (repository, scanResult, allPatches) = await Task.Run(() =>
@@ -542,7 +574,7 @@ public class MainViewModel : ViewModelBase
                 // Back on UI thread for result handling
                 if (!scanResult.Success)
                 {
-                    StatusMessage = $"Error loading patches: {scanResult.Error}";
+                    SetOperationInProgress(false, $"Error loading patches: {scanResult.Error}");
                     return;
                 }
 
@@ -550,7 +582,7 @@ public class MainViewModel : ViewModelBase
 
                 if (allPatches == null)
                 {
-                    StatusMessage = "Error: No patches found";
+                    SetOperationInProgress(false, "Error: No patches found");
                     return;
                 }
 
@@ -569,10 +601,11 @@ public class MainViewModel : ViewModelBase
                 foreach (var patch in patchViewModels)
                 {
                     patch.IsChecked = checkedIds.Contains(patch.Id);
+                    patch.CheckedChanged += OnPatchCheckedChanged;
                     AllPatches.Add(patch);
                 }
 
-                StatusMessage = $"Loaded {patchViewModels.Count} patches from {Path.GetFileName(directory)}";
+                SetOperationInProgress(false, $"Loaded {patchViewModels.Count} patches from {Path.GetFileName(directory)}");
             });
 
             // Check patch status if we have a game path set
@@ -585,18 +618,20 @@ public class MainViewModel : ViewModelBase
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                StatusMessage = $"Error loading patches: {ex.Message}";
+                SetOperationInProgress(false, $"Error loading patches: {ex.Message}");
             });
         }
     }
 
-    private async Task CheckPatchStatusAsync(string gameExePath)
+    private async Task CheckPatchStatusAsync(string gameExePath, bool isAutoRefresh = true)
     {
         if (_repository == null)
             return;
 
         try
         {
+            SetOperationInProgress(true, "Checking patch status...", isAutoRefresh);
+
             // Get installation info and game version on background thread
             var (installInfo, versionInfo) = await Task.Run(() =>
             {
@@ -622,6 +657,7 @@ public class MainViewModel : ViewModelBase
             if (!installInfo.Success || installInfo.Data == null)
             {
                 HasInstalledPatches = false;
+                SetOperationInProgress(false, isAutoRefresh ? null : "No patches detected", isAutoRefresh);
                 return;
             }
 
@@ -634,8 +670,7 @@ public class MainViewModel : ViewModelBase
 
                 if (info.InstalledPatches.Count == 0)
                 {
-                    StatusMessage = "No patches currently installed";
-                    UpdatePendingChanges();
+                    SetOperationInProgress(false, isAutoRefresh ? null : "No patches currently installed", isAutoRefresh);
                     return;
                 }
 
@@ -665,13 +700,13 @@ public class MainViewModel : ViewModelBase
                             IsOrphaned = true,
                             IsChecked = true
                         };
+                        orphanedPatch.CheckedChanged += OnPatchCheckedChanged;
                         AllPatches.Insert(0, orphanedPatch);
                     }
                 }
 
                 SaveCheckedPatches();
-                UpdatePendingChanges();
-                StatusMessage = $"Found {info.InstalledPatches.Count} installed patches";
+                SetOperationInProgress(false, isAutoRefresh ? null : $"Found {info.InstalledPatches.Count} installed patches", isAutoRefresh);
             });
         }
         catch (Exception ex)
@@ -679,7 +714,7 @@ public class MainViewModel : ViewModelBase
             // Silent failure - not critical
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                StatusMessage = $"Could not check patch status: {ex.Message}";
+                SetOperationInProgress(false, isAutoRefresh ? null : $"Could not check patch status: {ex.Message}", isAutoRefresh);
             });
         }
     }

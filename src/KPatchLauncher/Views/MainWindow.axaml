@@ -26,9 +26,11 @@
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
+            <Setter Property="BorderThickness" Value="2"/>
         </Style>
         <Style Selector="TextBox:pointerover">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
+            <Setter Property="BorderThickness" Value="2"/>
         </Style>
 
         <Style Selector="Button">
@@ -40,13 +42,17 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Padding" Value="10,5"/>
         </Style>
-        <Style Selector="Button:pointerover">
+        <Style Selector="Button:pointerover /template/ ContentPresenter">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
             <Setter Property="Foreground" Value="#FFFF00"/>
+            <Setter Property="Background" Value="#002244"/>
+            <Setter Property="BorderThickness" Value="2"/>
         </Style>
-        <Style Selector="Button:pressed">
+        <Style Selector="Button:pressed /template/ ContentPresenter">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
             <Setter Property="Foreground" Value="#FFFF00"/>
+            <Setter Property="Background" Value="#003366"/>
+            <Setter Property="BorderThickness" Value="2"/>
         </Style>
         <Style Selector="Button:disabled">
             <Setter Property="Opacity" Value="0.4"/>
@@ -87,7 +93,7 @@
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="10">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" Margin="10">
 
         <!-- Game Path -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
@@ -256,12 +262,17 @@
                 BorderThickness="0,1,0,0"
                 Padding="5"
                 Margin="0,10,0,5">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="2*,2*,3*">
                 <TextBlock Grid.Column="0"
-                           Text="{Binding PendingChangesMessage}"
+                           Text="{Binding StatusMessage}"
                            FontStyle="Italic"
                            VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1"
+                           Text="{Binding PendingChangesMessage}"
+                           FontStyle="Italic"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="2"
                            Text="{Binding KotorVersion, StringFormat='Target: {0}'}"
                            FontStyle="Italic"
                            VerticalAlignment="Center"
@@ -269,8 +280,20 @@
             </Grid>
         </Border>
 
+        <!-- Progress Bar -->
+        <ProgressBar Grid.Row="4"
+                     IsIndeterminate="{Binding IsOperationInProgress}"
+                     Value="{Binding ProgressValue}"
+                     Maximum="100"
+                     Height="8"
+                     Margin="0,5,0,10"
+                     Foreground="#FFFF00"
+                     Background="#001133"
+                     BorderBrush="#00AFFF"
+                     BorderThickness="1"/>
+
         <!-- Action Buttons -->
-        <StackPanel Grid.Row="4"
+        <StackPanel Grid.Row="5"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="10">

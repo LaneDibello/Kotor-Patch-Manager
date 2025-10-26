@@ -56,8 +56,16 @@ public class PatchItemViewModel : ViewModelBase
     public bool IsChecked
     {
         get => _isChecked;
-        set => SetProperty(ref _isChecked, value);
+        set
+        {
+            if (SetProperty(ref _isChecked, value))
+            {
+                CheckedChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
     }
+
+    public event EventHandler? CheckedChanged;
 
     public bool IsOrphaned
     {
