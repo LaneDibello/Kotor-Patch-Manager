@@ -1660,6 +1660,10 @@ int LIVE_CONTENT_PKG4 = 4;
 int LIVE_CONTENT_PKG5 = 5;
 int LIVE_CONTENT_PKG6 = 6;
 
+// Extension Constants
+int SEEK_SET = 0;
+int SEEK_CUR = 1;
+int SEEK_END = 2;
 
 string sLanguage = "nwscript";
 
@@ -5196,3 +5200,18 @@ string ReadTextFile(int iFileHandle, int iCount);
 // Writes `sText` to the FILE * Handler represented by this integer
 // Returns number of characters written
 int WriteTextFile(int iFileHandle, string sText);
+
+// 777. PeakCharFile
+// Peaks the next character of the file, and returns it as a string
+string PeakCharFile(int iFileHandle);
+
+// 778. SeekFile
+// Seeks the file stream by the offset from the origin
+// Origin values: SEEK_SET = 0, SEEK_CUR = 1, SEEK_END = 2
+// Returns TRUE on success, and FALSE on failure
+int SeekFile(int iFileHandle, int offset, int origin);
+
+// 779. TellFile
+// Gets the current postion of hte file stream
+// returns as an int
+int TellFile(int iFileHandle);
