@@ -17,7 +17,7 @@
     </Design.DataContext>
 
     <Window.Styles>
-        <Style Selector="!">
+        <Style Selector="TextBox">
             <Setter Property="Background" Value="#000016"/>
             <Setter Property="Foreground" Value="#00AFFF"/>
             <Setter Property="BorderBrush" Value="#00AFFF"/>
@@ -82,9 +82,11 @@
         </Style>
         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#002244"/>
+            <Setter Property="Foreground" Value="#FFFF00"/>
         </Style>
         <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#0066AA"/>
+            <Setter Property="Foreground" Value="#FFFF00"/>
         </Style>
 
         <Style Selector="Border">
