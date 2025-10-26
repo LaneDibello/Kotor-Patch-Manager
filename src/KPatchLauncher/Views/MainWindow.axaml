@@ -7,7 +7,7 @@
         x:Class="KPatchLauncher.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="KotOR Patch Manager"
-        Width="900" Height="650"
+        Width="1024" Height="768"
         MinWidth="800" MinHeight="600"
         Background="#000016"
         Foreground="#00AFFF">
@@ -24,17 +24,26 @@
             <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="CaretBrush" Value="#00AFFF"/>
         </Style>
-        <Style Selector="TextBox:focus">
+        <Style Selector="TextBox /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Background" Value="#000016"/>
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
-            <Setter Property="Foreground" Value="#FFFF00"/>
-            <Setter Property="CaretBrush" Value="#FFFF00"/>
             <Setter Property="BorderThickness" Value="2"/>
         </Style>
-        <Style Selector="TextBox:pointerover">
+        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
             <Setter Property="BorderBrush" Value="#FFFF00"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        <Style Selector="TextBox:focus">
             <Setter Property="Foreground" Value="#FFFF00"/>
             <Setter Property="CaretBrush" Value="#FFFF00"/>
-            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Foreground" Value="#FFFF00"/>
+            <Setter Property="CaretBrush" Value="#FFFF00"/>
         </Style>
 
         <Style Selector="Button">
