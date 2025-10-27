@@ -246,4 +246,4 @@ REM Clean up build artifacts (optional)
 echo Cleaning up build artifacts...
 del *.obj *.lib *.exp build.log >nul 2>&1
 
-pause
+if not defined SKIP_PAUSE pause

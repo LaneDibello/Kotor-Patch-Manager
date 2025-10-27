@@ -9,7 +9,9 @@
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build)",
       "Read(//mnt/c/Users/laned/source/Repos/KotOR/**)",
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build \"/mnt/c/Users/laned/source/Repos/KotOR Patch Manager/src/KPatchLauncher/KPatchLauncher.csproj\")",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" publish --help)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build -c Debug)"
     ],
     "deny": [],
     "ask": []

@@ -390,15 +390,10 @@ public class MainViewModel : ViewModelBase
             // First, uninstall any existing patches
             await Task.Run(() => PatchRemover.RemoveAllPatches(GamePath));
 
-            // Get launcher exe path (current application)
-            var launcherPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            launcherPath = launcherPath.Replace(".dll", ".exe");
-
             // Get patcher DLL path (should be in same directory as launcher)
-            var launcherDir = Path.GetDirectoryName(launcherPath);
-            var binDir = Path.GetDirectoryName(Path.GetDirectoryName(launcherDir));
-            var patcherDir = Path.Combine(binDir ?? "", "Patcher\\Debug");
-            var patcherDllPath = Path.Combine(patcherDir ?? "", "KotorPatcher.dll");
+            // AppContext.BaseDirectory works reliably with both regular and single-file builds
+            var appDir = AppContext.BaseDirectory;
+            var patcherDllPath = Path.Combine(appDir, "KotorPatcher.dll");
 
             var applicator = new PatchApplicator(_repository);
             var options = new PatchApplicator.InstallOptions
@@ -406,9 +401,7 @@ public class MainViewModel : ViewModelBase
                 GameExePath = GamePath,
                 PatchIds = checkedPatches.Select(p => p.Id).ToList(),
                 CreateBackup = true,
-                PatcherDllPath = File.Exists(patcherDllPath) ? patcherDllPath : null,
-                LauncherExePath = File.Exists(launcherPath) ? launcherPath : null,
-                CopyLauncher = true
+                PatcherDllPath = File.Exists(patcherDllPath) ? patcherDllPath : null
             };
 
             // Run on background thread

@@ -414,9 +414,7 @@ internal class Program
                 gameExePath: gameExePath,
                 patchIds: patchIds,
                 createBackup: true,
-                copyLauncher: true,
-                patcherDllPath: File.Exists(patcherDllPath) ? patcherDllPath : null,
-                launcherExePath: File.Exists(launcherPath) ? launcherPath : null
+                patcherDllPath: File.Exists(patcherDllPath) ? patcherDllPath : null
             );
 
             // Display progress messages

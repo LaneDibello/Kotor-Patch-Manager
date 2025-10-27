@@ -10,6 +10,29 @@
     <PlatformTarget>x86</PlatformTarget>
     <OutputPath>..\..\bin\Launcher\$(Configuration)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+
+    <!-- Publishing options for release builds -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>true</PublishReadyToRun>
+
+    <!-- Application metadata -->
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <Authors>Lane Duncan</Authors>
+    <Product>KotOR Patch Manager</Product>
+    <Description>Mod and patch management system for KOTOR</Description>
+  </PropertyGroup>
+
+  <!-- Release build: exclude debug symbols -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,8 +55,22 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
+  <!-- Copy KotorPatcher.dll to launcher output directory -->
+  <Target Name="CopyKotorPatcherDll" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <PropertyGroup>
+      <PatcherDllSource>$(MSBuildProjectDirectory)\..\..\bin\Patcher\$(Configuration)\KotorPatcher.dll</PatcherDllSource>
+      <PatcherDllDest>$(OutDir)KotorPatcher.dll</PatcherDllDest>
+    </PropertyGroup>
+    <Message Text="Copying KotorPatcher.dll from Patcher build..." Importance="high" />
+    <Copy SourceFiles="$(PatcherDllSource)"
+          DestinationFiles="$(PatcherDllDest)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(PatcherDllSource)')" />
+    <Warning Text="KotorPatcher.dll not found at: $(PatcherDllSource)" Condition="!Exists('$(PatcherDllSource)')" />
+  </Target>
+
   <!-- Copy launcher files to Console output directory after build -->
-  <Target Name="CopyToConsoleOutput" AfterTargets="Build">
+  <Target Name="CopyToConsoleOutput" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
     <PropertyGroup>
       <ConsoleOutputDir>$(MSBuildProjectDirectory)\..\..\bin\Console\$(Configuration)\</ConsoleOutputDir>
     </PropertyGroup>
@@ -44,6 +81,7 @@
       <LauncherFiles Include="$(OutDir)KPatchLauncher.deps.json" />
       <LauncherFiles Include="$(OutDir)KPatchCore.dll" />
       <LauncherFiles Include="$(OutDir)Tomlyn.dll" />
+      <LauncherFiles Include="$(OutDir)KotorPatcher.dll" />
     </ItemGroup>
     <Message Text="Copying launcher files to: $(ConsoleOutputDir)" Importance="high" />
     <Copy SourceFiles="@(LauncherFiles)" DestinationFolder="$(ConsoleOutputDir)" SkipUnchangedFiles="true" />

@@ -37,16 +37,6 @@ public class PatchApplicator
         /// Path to KotorPatcher.dll (if null, assumes it's in same directory as game exe)
         /// </summary>
         public string? PatcherDllPath { get; init; }
-
-        /// <summary>
-        /// Path to KPatchLauncher.exe to copy to game directory (if null, no launcher copied)
-        /// </summary>
-        public string? LauncherExePath { get; init; }
-
-        /// <summary>
-        /// Whether to copy the launcher to the game directory
-        /// </summary>
-        public bool CopyLauncher { get; init; } = true;
     }
 
     /// <summary>
@@ -348,68 +338,32 @@ public class PatchApplicator
 
             messages.Add($"  Config generated: patch_config.toml");
 
-            // Step 7: Copy patcher DLL and launcher
-            messages.Add("Step 7/7: Installing patcher and launcher...");
+            // Step 7: Copy patcher DLL
+            messages.Add("Step 7/7: Installing patcher DLL...");
 
             // Copy KotorPatcher.dll to game directory if path provided
             if (!string.IsNullOrEmpty(options.PatcherDllPath))
             {
+                if (!File.Exists(options.PatcherDllPath))
+                {
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = $"KotorPatcher.dll not found at: {options.PatcherDllPath}",
+                        DetectedVersion = gameVersion,
+                        Backup = backup,
+                        Messages = messages
+                    };
+                }
+
                 var destPath = Path.Combine(gameDir, "KotorPatcher.dll");
                 File.Copy(options.PatcherDllPath, destPath, overwrite: true);
-                messages.Add($"  Copied KotorPatcher.dll to game directory");
+                messages.Add($"  ✓ Copied KotorPatcher.dll to game directory");
             }
             else
             {
                 messages.Add($"  ⚠️ Warning: KotorPatcher.dll path not provided");
                 messages.Add($"  ⚠️ Make sure KotorPatcher.dll is in game directory");
-            }
-
-            // Copy KPatchLauncher.exe and its dependencies to game directory if requested
-            if (options.CopyLauncher && !string.IsNullOrEmpty(options.LauncherExePath))
-            {
-                var launcherSourceDir = Path.GetDirectoryName(options.LauncherExePath);
-                if (launcherSourceDir == null || !Directory.Exists(launcherSourceDir))
-                {
-                    messages.Add($"  ⚠️ Warning: Launcher directory not found, skipping launcher copy");
-                    messages.Add($"  ⚠️ You will need to use an external DLL injector");
-                }
-                else
-                {
-                    // Copy all necessary launcher files (KPatchLauncher.exe needs its dependencies)
-                    var launcherFiles = new[]
-                    {
-                        "KPatchLauncher.exe",
-                        "KPatchLauncher.dll",
-                        "KPatchLauncher.runtimeconfig.json",
-                        "KPatchLauncher.deps.json",
-                        "KPatchCore.dll",
-                        "Tomlyn.dll"
-                    };
-
-                    var copiedCount = 0;
-                    foreach (var fileName in launcherFiles)
-                    {
-                        var sourcePath = Path.Combine(launcherSourceDir, fileName);
-                        if (File.Exists(sourcePath))
-                        {
-                            var destPath = Path.Combine(gameDir, fileName);
-                            File.Copy(sourcePath, destPath, overwrite: true);
-                            copiedCount++;
-                        }
-                    }
-
-                    messages.Add($"  Copied {copiedCount} launcher files to game directory");
-                    messages.Add($"  ✓ Run KPatchLauncher.exe to start the game with patches");
-                }
-            }
-            else if (options.CopyLauncher)
-            {
-                messages.Add($"  ⚠️ Warning: Launcher path not provided, skipping launcher copy");
-                messages.Add($"  ⚠️ You will need to use an external DLL injector");
-            }
-            else
-            {
-                messages.Add($"  Skipping launcher copy (disabled)");
             }
 
             return new InstallResult
