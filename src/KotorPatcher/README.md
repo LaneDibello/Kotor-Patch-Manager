@@ -39,7 +39,7 @@ This is the C++ runtime component that gets injected into the KOTOR game process
 
 The system supports two types of hooks:
 
-### DETOUR (Default, Recommended)
+### DETOUR
 
 **Full-featured hook with wrapper system:**
 - Automatically saves all CPU state (registers + EFLAGS)
@@ -86,7 +86,7 @@ type = "int"
 - `"eax"`, `"ebx"`, `"ecx"`, `"edx"`, `"esi"`, `"edi"`, `"ebp"` - CPU registers
 - `"esp+N"` - Stack offset (N bytes from ESP)
 
-### SIMPLE (New, Lightweight)
+### SIMPLE
 
 **Direct byte replacement in memory:**
 - No DLL required
