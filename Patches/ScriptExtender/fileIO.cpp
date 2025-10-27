@@ -15,10 +15,11 @@ void __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 
 	DebugLog("[PATCH] Opening file '%s' with mode '%s'", filename.c_string, mode.c_string);
 
-	FILE* f = fopen(filename.c_string, mode.c_string);
+	FILE* f;
+	errno_t err = fopen_s(&f, filename.c_string, mode.c_string);
 
-	if (f == NULL) {
-		DebugLog("[PATCH] Failed to Open File '%s', with mode '%s'", filename.c_string, mode.c_string);
+	if (err) {
+		DebugLog("[PATCH] Failed to Open File '%s', with mode '%s, and error %i'", filename.c_string, mode.c_string, err);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
 		return;
 	}
