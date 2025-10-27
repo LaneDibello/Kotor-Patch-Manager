@@ -14,7 +14,10 @@ void __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 	DWORD creature;
 	virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature);
 
-
+	//todo:
+	// get the creature object
+	// Validate with AsSWSCreature VFC
+	// Call CreatureStats HasFeat (instead of GetFeatRemainingUses)
 }
 
 void __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount)
