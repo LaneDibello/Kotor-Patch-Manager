@@ -1,7 +1,12 @@
 #include "Kotor1Functions.h"
 
+// CClientExoApp
+
+
 // CServerExoApp
 ServerExoApp_GetObjectArray serverExoAppGetObjectArray = (ServerExoApp_GetObjectArray)SERVER_EXO_APP_GET_OBJECT_ARRAY;
+ServerExoApp_GetCreatureByGameObjectID serverExoAppGetCreatureByGameObjectID
+= (ServerExoApp_GetCreatureByGameObjectID)SERVER_EXO_APP_GET_CREATURE_BY_GAME_OBJECT_ID;
 
 // CGameObjectArray
 GameObjectArray_GetGameObject gameObjectArrayGetGameObject = (GameObjectArray_GetGameObject)SERVER_GET_OBJECT_ARRAY;

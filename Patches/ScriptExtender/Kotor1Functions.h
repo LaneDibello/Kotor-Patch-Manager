@@ -1,17 +1,21 @@
 #pragma once
 #include "Common.h"
 
-// CServerExoApp
+// CClientExoApp
 
+
+// CServerExoApp
 typedef void* (__thiscall* ServerExoApp_GetObjectArray)(void* thisPtr);
+typedef void* (__thiscall* ServerExoApp_GetCreatureByGameObjectID)(void* thisPtr, DWORD id);
 
 const DWORD SERVER_EXO_APP_GET_OBJECT_ARRAY = 0x004aed7;
+const DWORD SERVER_EXO_APP_GET_CREATURE_BY_GAME_OBJECT_ID = 0x004ae770;
 
 extern ServerExoApp_GetObjectArray serverExoAppGetObjectArray;
+extern ServerExoApp_GetCreatureByGameObjectID serverExoAppGetCreatureByGameObjectID;
 
 
 // CGameObjectArray
-
 typedef void* (__thiscall* GameObjectArray_GetGameObject)(void* thisPtr);
 
 const DWORD SERVER_GET_OBJECT_ARRAY = 0x004d8230;
@@ -20,7 +24,6 @@ extern GameObjectArray_GetGameObject gameObjectArrayGetGameObject;
 
 
 // CSWCCreatureStats
-
 typedef int(__thiscall* CreatureStats_HasFeat)(void* thisPtr, USHORT feat);
 typedef int(__thiscall* CreatureStats_HasSpell)(void* thisPtr, BYTE spellList, DWORD spell, int checkUsable);
 typedef void(__thiscall* CreatureStats_AddFeat)(void* thisPtr, USHORT feat);
@@ -28,7 +31,7 @@ typedef void(__thiscall* CreatureStats_AddKnownSpell)(void* thisPtr, BYTE classI
 typedef void(__thiscall* CreatureStats_RemoveFeat)(void* thisPtr, USHORT feat);
 typedef void(__thiscall* CreatureStats_SetAttributeBase)(void* thisPtr, BYTE amount);
 typedef void(__thiscall* CreatureStats_SetCONBase)(void* thisPtr, BYTE amount, int setHP);
-typedef void(__thiscall* CreatureStats_GetSkillRank)(void* thisPtr, BYTE skill, void* ignore1, int ignore2); // ignore params are for special cases
+typedef BYTE(__thiscall* CreatureStats_GetSkillRank)(void* thisPtr, BYTE skill, void* ignore1, int ignore2); // ignore params are for special cases
 typedef void(__thiscall* CreatureStats_SetSkillRank)(void* thisPtr, BYTE skill, BYTE value);
 typedef void(__thiscall* CreatureStats_SetMovementRate)(void* thisPtr, int rate);
 

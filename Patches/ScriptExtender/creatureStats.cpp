@@ -4,15 +4,15 @@ void __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 {
 	if (paramCount != 2) {
 		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandGetFeatAcquired. Expected 2, got %i", paramCount);
-		virtualMachineStackPushInt(*VIRTUAL_MACHINE_PTR, 0);
+		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
 		return;
 	}
 
 	int feat;
-	virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, feat);
+	virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &feat);
 
 	DWORD creature;
-	virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, creature);
+	virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature);
 
 
 }
