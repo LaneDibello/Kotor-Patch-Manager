@@ -20,3 +20,6 @@ StackPushVector           stackPushVector = (StackPushVector)VM_STACK_PUSH_VECTO
 StackPushString           stackPushString = (StackPushString)VM_STACK_PUSH_STRING;
 StackPushEngineStructure  stackPushEngineStructure = (StackPushEngineStructure)VM_STACK_PUSH_ENGINE_STRUCTURE;
 StackPushObject           stackPushObject = (StackPushObject)VM_STACK_PUSH_OBJECT;
+
+// Other Functions
+ServerGetObjectArray serverGetObjectArray = (ServerGetObjectArray)SERVER_GET_OBJECT_ARRAY;

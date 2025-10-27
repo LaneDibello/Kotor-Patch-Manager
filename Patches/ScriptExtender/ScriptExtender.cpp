@@ -1,5 +1,6 @@
 #include "VirtualMachine.h"
 #include "fileIO.h"
+#include "creatureStats.h"
 
 const int TestScriptExtensionIndex = 772;
 void __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
@@ -42,6 +43,21 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[PeakCharFileIndex] = (DWORD)&ExecuteCommandPeakCharFile;
     commands[SeekFileIndex] = (DWORD)&ExecuteCommandSeekFile;
     commands[TellFileIndex] = (DWORD)&ExecuteCommandTellFile;
+    commands[GetFeatAcquiredIndex] = (DWORD)&ExecuteCommandGetFeatAcquired;
+    commands[GetSpellAcquiredIndex] = (DWORD)&ExecuteCommandGetSpellAcquired;
+    commands[GrantFeatIndex] = (DWORD)&ExecuteCommandGrantFeat;
+    commands[GrantSpellIndex] = (DWORD)&ExecuteCommandGrantSpell;
+    commands[SpawnMineIndex] = (DWORD)&ExecuteCommandSpawnMine;
+    commands[GetSpellForcePointCostIndex] = (DWORD)&ExecuteCommandGetSpellForcePointCost;
+    commands[SetBonusForcePointsIndex] = (DWORD)&ExecuteCommandSetBonusForcePoints;
+    commands[AddBonusForcePointsIndex] = (DWORD)&ExecuteCommandAddBonusForcePoints;
+    commands[GetBonusForcePointsIndex] = (DWORD)&ExecuteCommandGetBonusForcePoints;
+    commands[ModifyReflexSavingThrowBaseIndex] = (DWORD)&ExecuteCommandModifyReflexSavingThrowBase;
+    commands[ModifyFortitudeSavingThrowBaseIndex] = (DWORD)&ExecuteCommandModifyFortitudeSavingThrowBase;
+    commands[ModifyWillSavingThrowBaseIndex] = (DWORD)&ExecuteCommandModifyWillSavingThrowBase;
+    commands[AdjustCreatureAttributesIndex] = (DWORD)&ExecuteCommandAdjustCreatureAttributes;
+    commands[AdjustCreatureSkillsIndex] = (DWORD)&ExecuteCommandAdjustCreatureSkills;
+    commands[GetSkillRankBaseIndex] = (DWORD)&ExecuteCommandGetSkillRankBase;
 
 }
 

@@ -38,9 +38,16 @@ struct Vector {
 	float y;
 	float z;
 };
-
-
 #pragma pack(pop)
+
+// Other Functions
+typedef void*(__thiscall* ServerGetObjectArray)(void* thisPtr);
+const DWORD SERVER_GET_OBJECT_ARRAY = 0x004aed7;
+extern ServerGetObjectArray serverGetObjectArray;
+
+typedef void* (__thiscall* GOAGetGameObject)(void* thisPtr);
+const DWORD SERVER_GET_OBJECT_ARRAY = 0x004aed7;
+extern ServerGetObjectArray serverGetObjectArray;
 
 // Debug logging helper - automatically formats and outputs to debugger
 inline void DebugLog(const char* format, ...) {
