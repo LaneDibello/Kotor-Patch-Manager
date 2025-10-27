@@ -5,9 +5,16 @@
 #pragma pack(push, 4)
 
 extern void** VIRTUAL_MACHINE_PTR;
-extern void** APP_MANAGER_PTR;
-
 extern DWORD OBJECT_DEFAULT;
+
+typedef struct {
+	void* vtable;
+	void* client;
+	void* server;
+	// Note: there are additional properties being excluded
+} CAppManager;
+
+extern CAppManager** APP_MANAGER_PTR;
 
 struct CExoString {
 	char* c_string;
@@ -58,9 +65,17 @@ enum VirtualMachineEngineStructureTypes : int {
 };
 #pragma pack(pop)
 
+inline void* getServerExoApp() {
+	CAppManager* appManager = *APP_MANAGER_PTR;
+	return appManager->server;
+}
 
-// Debug logging helper - automatically formats and outputs to debugger
-inline void DebugLog(const char* format, ...) {
+inline void* getClientExoApp() {
+	CAppManager* appManager = *APP_MANAGER_PTR;
+	return appManager->client;
+}
+
+inline void debugLog(const char* format, ...) {
 	char buffer[512];
 	va_list args;
 	va_start(args, format);

@@ -5215,3 +5215,9 @@ int SeekFile(int iFileHandle, int offset, int origin);
 // Gets the current postion of hte file stream
 // returns as an int
 int TellFile(int iFileHandle);
+
+// 780. GetFeatAcquired
+// Returns whether or not the target has access to a feat,
+// even if they can't use it right now due to daily limits or
+// other restrictions.
+int GetFeatAcquired(int nFeat, object oCreature=OBJECT_SELF);

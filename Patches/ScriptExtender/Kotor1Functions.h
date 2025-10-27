@@ -8,7 +8,7 @@
 typedef void* (__thiscall* ServerExoApp_GetObjectArray)(void* thisPtr);
 typedef void* (__thiscall* ServerExoApp_GetCreatureByGameObjectID)(void* thisPtr, DWORD id);
 
-const DWORD SERVER_EXO_APP_GET_OBJECT_ARRAY = 0x004aed7;
+const DWORD SERVER_EXO_APP_GET_OBJECT_ARRAY = 0x004aed70;
 const DWORD SERVER_EXO_APP_GET_CREATURE_BY_GAME_OBJECT_ID = 0x004ae770;
 
 extern ServerExoApp_GetObjectArray serverExoAppGetObjectArray;
@@ -16,7 +16,7 @@ extern ServerExoApp_GetCreatureByGameObjectID serverExoAppGetCreatureByGameObjec
 
 
 // CGameObjectArray
-typedef void* (__thiscall* GameObjectArray_GetGameObject)(void* thisPtr);
+typedef int(__thiscall* GameObjectArray_GetGameObject)(void* thisPtr, DWORD id, void ** outObject);
 
 const DWORD SERVER_GET_OBJECT_ARRAY = 0x004d8230;
 

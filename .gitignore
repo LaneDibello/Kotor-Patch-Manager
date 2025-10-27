@@ -37,6 +37,8 @@ bld/
 [Ll]ogs/
 *.dll
 *.pdb
+*.lib
+*.exp
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

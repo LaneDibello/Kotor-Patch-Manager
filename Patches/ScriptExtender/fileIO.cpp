@@ -1,10 +1,10 @@
 #include "fileIO.h"
 
-void __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
+int __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
-		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandOpenFile. Expected 2, got %i", paramCount);
+		debugLog("[PATCH] Wrong number of params found in ExecuteCommandOpenFile. Expected 2, got %i", paramCount);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-		return;
+		return 0;
 	}
 
 	CExoString filename;
@@ -13,25 +13,27 @@ void __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 	CExoString mode;
 	virtualMachineStackPopString(*VIRTUAL_MACHINE_PTR, &mode);
 
-	DebugLog("[PATCH] Opening file '%s' with mode '%s'", filename.c_string, mode.c_string);
+	debugLog("[PATCH] Opening file '%s' with mode '%s'", filename.c_string, mode.c_string);
 
 	FILE* f;
 	errno_t err = fopen_s(&f, filename.c_string, mode.c_string);
 
 	if (err) {
-		DebugLog("[PATCH] Failed to Open File '%s', with mode '%s, and error %i'", filename.c_string, mode.c_string, err);
+		debugLog("[PATCH] Failed to Open File '%s', with mode '%s, and error %i'", filename.c_string, mode.c_string, err);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-		return;
+		return 0;
 	}
 
 	virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, (int)f);
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
+int __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
-		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandCloseFile. Expected 1, got %i", paramCount);
+		debugLog("[PATCH] Wrong number of params found in ExecuteCommandCloseFile. Expected 1, got %i", paramCount);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-		return;
+		return 0;
 	}
 
 	int file;
@@ -39,21 +41,23 @@ void __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
 	FILE* f = (FILE*)file;
 
 	if (fclose(f)) {
-		DebugLog("[PATCH] Failed to Close File Stream at '%p'", f);
+		debugLog("[PATCH] Failed to Close File Stream at '%p'", f);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-		return;
+		return 0;
 	}
 
-	DebugLog("[PATCH] Closing file with handle '%p'", f);
+	debugLog("[PATCH] Closing file with handle '%p'", f);
 
 	virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
+int __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
-		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandReadTextFile. Expected 2, got %i", paramCount);
+		debugLog("[PATCH] Wrong number of params found in ExecuteCommandReadTextFile. Expected 2, got %i", paramCount);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-		return;
+		return 0;
 	}
 
 	int file;
@@ -71,13 +75,15 @@ void __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 	output.length = itemsRead;
 
 	virtualMachineStackPushString(*VIRTUAL_MACHINE_PTR, &output);
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
+int __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
-		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandWriteTextFile. Expected 2, got %i", paramCount);
+		debugLog("[PATCH] Wrong number of params found in ExecuteCommandWriteTextFile. Expected 2, got %i", paramCount);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-		return;
+		return 0;
 	}
 
 	int file;
@@ -89,14 +95,16 @@ void __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
 
 	int charsWritten = (int)fwrite((const void*)text.c_string, 1, text.length, f);
 	virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, charsWritten);
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
+int __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
-		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandPeakCharFile. Expected 1, got %i", paramCount);
+		debugLog("[PATCH] Wrong number of params found in ExecuteCommandPeakCharFile. Expected 1, got %i", paramCount);
 		CExoString empty("", 0);
 		virtualMachineStackPushString(*VIRTUAL_MACHINE_PTR, &empty);
-		return;
+		return 0;
 	}
 
 	int file;
@@ -105,10 +113,10 @@ void __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
 
 	int c = fgetc(f);
 	if (c == EOF) {
-		DebugLog("[PATCH] PeakCharFile: EOF or error reading from file handle '%p'", f);
+		debugLog("[PATCH] PeakCharFile: EOF or error reading from file handle '%p'", f);
 		CExoString empty("", 0);
 		virtualMachineStackPushString(*VIRTUAL_MACHINE_PTR, &empty);
-		return;
+		return 0;
 	}
 
 	ungetc(c, f);
@@ -116,13 +124,15 @@ void __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
 	char buffer[2] = { (char)c, '\0' };
 	CExoString result(buffer, 1);
 	virtualMachineStackPushString(*VIRTUAL_MACHINE_PTR, &result);
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
+int __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
 	if (paramCount != 3) {
-		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandSeekFile. Expected 3, got %i", paramCount);
+		debugLog("[PATCH] Wrong number of params found in ExecuteCommandSeekFile. Expected 3, got %i", paramCount);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-		return;
+		return 0;
 	}
 
 	int file;
@@ -139,19 +149,21 @@ void __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
 	int result = fseek(f, offset, origin);
 
 	if (result != 0) {
-		DebugLog("[PATCH] SeekFile: fseek failed on file handle '%p', offset %d, origin %d", f, offset, origin);
+		debugLog("[PATCH] SeekFile: fseek failed on file handle '%p', offset %d, origin %d", f, offset, origin);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-		return;
+		return 0;
 	}
 
 	virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandTellFile(DWORD routine, int paramCount) {
+int __stdcall ExecuteCommandTellFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
-		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandTellFile. Expected 1, got %i", paramCount);
+		debugLog("[PATCH] Wrong number of params found in ExecuteCommandTellFile. Expected 1, got %i", paramCount);
 		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, -1);
-		return;
+		return 0;
 	}
 
 	int file;
@@ -161,8 +173,10 @@ void __stdcall ExecuteCommandTellFile(DWORD routine, int paramCount) {
 	long position = ftell(f);
 
 	if (position == -1L) {
-		DebugLog("[PATCH] TellFile: ftell failed on file handle '%p'", f);
+		debugLog("[PATCH] TellFile: ftell failed on file handle '%p'", f);
 	}
 
 	virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, (int)position);
+
+	return 0;
 }

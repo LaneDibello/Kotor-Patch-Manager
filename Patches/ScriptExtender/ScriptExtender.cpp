@@ -3,37 +3,38 @@
 #include "creatureStats.h"
 
 const int TestScriptExtensionIndex = 772;
-void __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
-    DebugLog("[PATCH] Called Test routine %d, with %i parameters", routine, paramCount);
+int __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
+    debugLog("[PATCH] Called Test routine %d, with %i parameters", routine, paramCount);
 
     if (paramCount != 3) {
-        DebugLog("[PATCH] Expected 3 params in the function!");
+        debugLog("[PATCH] Expected 3 params in the function!");
         virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-        return;
+        return 0;
     }
 
     int testInt;
     virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &testInt);
 
-    DebugLog("[PATCH] Test Int %i", testInt);
+    debugLog("[PATCH] Test Int %i", testInt);
 
     float testFloat;
     virtualMachineStackPopFloat(*VIRTUAL_MACHINE_PTR, &testFloat);
 
-    DebugLog("[PATCH] Test Float %f", testFloat);
+    debugLog("[PATCH] Test Float %f", testFloat);
 
     CExoString testString;
     virtualMachineStackPopString(*VIRTUAL_MACHINE_PTR, &testString);
 
-    DebugLog("[PATCH] Test string \"%s\"", testString.c_string);
+    debugLog("[PATCH] Test string \"%s\"", testString.c_string);
 
     virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
 
+    return 0;
 }
 
 extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
 {
-    DebugLog("[PATCH] Initializing Extension Commands. Commands Array: %p", commands);
+    debugLog("[PATCH] Initializing Extension Commands. Commands Array: %p", commands);
 
     commands[TestScriptExtensionIndex] = (DWORD)&ExecuteCommandTestScriptExtension;
     commands[OpenFileIndex] = (DWORD)&ExecuteCommandOpenFile;
@@ -57,6 +58,7 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[AdjustCreatureSkillsIndex] = (DWORD)&ExecuteCommandAdjustCreatureSkills;
     commands[GetSkillRankBaseIndex] = (DWORD)&ExecuteCommandGetSkillRankBase;
 
+    debugLog("[PATCH] GetFeatAcquired at %p", &ExecuteCommandGetFeatAcquired);
 }
 
 // DLL Entry Point

@@ -1,81 +1,124 @@
 #include "creatureStats.h"
 
-void __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 {
-	if (paramCount != 2) {
-		DebugLog("[PATCH] Wrong number of params found in ExecuteCommandGetFeatAcquired. Expected 2, got %i", paramCount);
-		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
-		return;
-	}
+	int outcome = 0;
 
 	int feat;
-	virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &feat);
+	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &feat))
+		return -2001;
 
 	DWORD creature;
-	virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature);
+	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature))
+		return -2001;
 
-	//todo:
-	// get the creature object
-	// Validate with AsSWSCreature VFC
-	// Call CreatureStats HasFeat (instead of GetFeatRemainingUses)
+	void* game_object_array = serverExoAppGetObjectArray(getServerExoApp());
+
+	void* creatureObject;
+	gameObjectArrayGetGameObject(game_object_array, creature, &creatureObject);
+
+	// Game object vtable[12] = AsSWSCreature
+	void* serverCreature = callVirtualFunction<void*>(creatureObject, 12);
+	if (!serverCreature)
+	{
+		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, outcome);
+		return 0;
+	}
+
+	void* creatureStats = getServerCreatureStats(serverCreature);
+
+	outcome = creatureStatsHasFeat(creatureStats, feat);
+
+	debugLog("[PATCH] outcome %i", outcome);
+
+	if (!virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, outcome))
+		return -2000;
+
+	debugLog("[PATCH] Success", outcome);
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandGrantFeat(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandGrantFeat(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandGrantSpell(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandGrantSpell(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandSetBonusForcePoints(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandSetBonusForcePoints(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandAddBonusForcePoints(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandAddBonusForcePoints(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandGetBonusForcePoints(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandGetBonusForcePoints(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandModifyReflexSavingThrowBase(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandModifyReflexSavingThrowBase(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandModifyFortitudeSavingThrowBase(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandModifyFortitudeSavingThrowBase(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandModifyWillSavingThrowBase(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandModifyWillSavingThrowBase(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
 
-void __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount)
 {
 
+
+	return 0;
 }
