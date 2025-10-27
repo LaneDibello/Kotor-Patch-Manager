@@ -1,7 +1,5 @@
 #pragma once
-#include <windows.h>
-#include <stdio.h>
-#include "VirtualMachine.h"
+#include "Kotor1Functions.h"
 
 const int OpenFileIndex = 773;
 void __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount);

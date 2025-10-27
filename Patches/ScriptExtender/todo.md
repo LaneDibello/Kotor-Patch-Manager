@@ -18,6 +18,7 @@
 			- CSWCCreatureStats::HasFeat
 		- GetSpellAcquired					784
 			- CServerExoApp::GetCreatureByGameObjectID
+			- CSWSCreatureStats::HasSpell
 		- GrantFeat							786
 			- CSWSCreatureStats::AddFeat
 		- GrantSpell						787

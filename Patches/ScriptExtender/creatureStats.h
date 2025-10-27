@@ -1,7 +1,5 @@
 #pragma once
-#include <windows.h>
-#include <stdio.h>
-#include "VirtualMachine.h"
+#include "Kotor1Functions.h"
 
 const int GetFeatAcquiredIndex = 780;
 void __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount);
@@ -41,5 +39,3 @@ void __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
 
 const int GetSkillRankBaseIndex = 792;
 void __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount);
-
-

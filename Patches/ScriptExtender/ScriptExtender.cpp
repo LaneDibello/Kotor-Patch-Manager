@@ -1,4 +1,4 @@
-#include "VirtualMachine.h"
+#include "Kotor1Functions.h"
 #include "fileIO.h"
 #include "creatureStats.h"
 
@@ -8,26 +8,26 @@ void __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) 
 
     if (paramCount != 3) {
         DebugLog("[PATCH] Expected 3 params in the function!");
-        stackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
+        virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
         return;
     }
 
     int testInt;
-    stackPopInteger(*VIRTUAL_MACHINE_PTR, &testInt);
+    virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &testInt);
 
     DebugLog("[PATCH] Test Int %i", testInt);
 
     float testFloat;
-    stackPopFloat(*VIRTUAL_MACHINE_PTR, &testFloat);
+    virtualMachineStackPopFloat(*VIRTUAL_MACHINE_PTR, &testFloat);
 
     DebugLog("[PATCH] Test Float %f", testFloat);
 
     CExoString testString;
-    stackPopString(*VIRTUAL_MACHINE_PTR, &testString);
+    virtualMachineStackPopString(*VIRTUAL_MACHINE_PTR, &testString);
 
     DebugLog("[PATCH] Test string \"%s\"", testString.c_string);
 
-    stackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
+    virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
 
 }
 
@@ -47,8 +47,6 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[GetSpellAcquiredIndex] = (DWORD)&ExecuteCommandGetSpellAcquired;
     commands[GrantFeatIndex] = (DWORD)&ExecuteCommandGrantFeat;
     commands[GrantSpellIndex] = (DWORD)&ExecuteCommandGrantSpell;
-    commands[SpawnMineIndex] = (DWORD)&ExecuteCommandSpawnMine;
-    commands[GetSpellForcePointCostIndex] = (DWORD)&ExecuteCommandGetSpellForcePointCost;
     commands[SetBonusForcePointsIndex] = (DWORD)&ExecuteCommandSetBonusForcePoints;
     commands[AddBonusForcePointsIndex] = (DWORD)&ExecuteCommandAddBonusForcePoints;
     commands[GetBonusForcePointsIndex] = (DWORD)&ExecuteCommandGetBonusForcePoints;

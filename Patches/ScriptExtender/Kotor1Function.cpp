@@ -1,0 +1,39 @@
+#include "Kotor1Functions.h"
+
+// CServerExoApp
+ServerExoApp_GetObjectArray serverExoAppGetObjectArray = (ServerExoApp_GetObjectArray)SERVER_EXO_APP_GET_OBJECT_ARRAY;
+
+// CGameObjectArray
+GameObjectArray_GetGameObject gameObjectArrayGetGameObject = (GameObjectArray_GetGameObject)SERVER_GET_OBJECT_ARRAY;
+
+// CSWCCreatureStats
+CreatureStats_HasFeat creatureStatsHasFeat = (CreatureStats_HasFeat)CREATURE_STATS_HAS_FEAT;
+CreatureStats_HasSpell creatureStatsHasSpell = (CreatureStats_HasSpell)CREATURE_STATS_HAS_SPELL;
+CreatureStats_AddFeat creatureStatsAddFeat = (CreatureStats_AddFeat)CREATURE_STATS_ADD_FEAT;
+CreatureStats_AddKnownSpell creatureStatsAddKnownSpell = (CreatureStats_AddKnownSpell)CREATURE_STATS_ADD_KNOWN_SPELL;
+CreatureStats_RemoveFeat creatureStatsRemoveFeat = (CreatureStats_RemoveFeat)CREATURE_STATS_REMOVE_FEAT;
+CreatureStats_SetAttributeBase creatureStatsSetSTRBase = (CreatureStats_SetAttributeBase)CREATURE_STATS_SET_STR_BASE;
+CreatureStats_SetAttributeBase creatureStatsSetDEXBase = (CreatureStats_SetAttributeBase)CREATURE_STATS_SET_DEX_BASE;
+CreatureStats_SetCONBase creatureStatsSetCONBase = (CreatureStats_SetCONBase)CREATURE_STATS_SET_CON_BASE;
+CreatureStats_SetAttributeBase creatureStatsSetINTBase = (CreatureStats_SetAttributeBase)CREATURE_STATS_SET_INT_BASE;
+CreatureStats_SetAttributeBase creatureStatsSetWISBase = (CreatureStats_SetAttributeBase)CREATURE_STATS_SET_WIS_BASE;
+CreatureStats_SetAttributeBase creatureStatsSetCHABase = (CreatureStats_SetAttributeBase)CREATURE_STATS_SET_CHA_BASE;
+CreatureStats_GetSkillRank creatureStatsGetSkillRank = (CreatureStats_GetSkillRank)CREATURE_STATS_GET_SKILL_RANK;
+CreatureStats_SetSkillRank creatureStatsSetSkillRank = (CreatureStats_SetSkillRank)CREATURE_STATS_SET_SKILL_RANK;
+CreatureStats_SetMovementRate creatureStatsSetMovementRate = (CreatureStats_SetMovementRate)CREATURE_STATS_SET_MOVEMENT_RATE;
+
+
+// CVirtualMachine
+VirtualMachine_StackPopInteger          virtualMachineStackPopInteger = (VirtualMachine_StackPopInteger)VIRTUAL_MACHINE_STACK_POP_INT;
+VirtualMachine_StackPopFloat            virtualMachineStackPopFloat = (VirtualMachine_StackPopFloat)VIRTUAL_MACHINE_STACK_POP_FLOAT;
+VirtualMachine_StackPopVector           virtualMachineStackPopVector = (VirtualMachine_StackPopVector)VIRTUAL_MACHINE_STACK_POP_VECTOR;
+VirtualMachine_StackPopString           virtualMachineStackPopString = (VirtualMachine_StackPopString)VIRTUAL_MACHINE_STACK_POP_STRING;
+VirtualMachine_StackPopEngineStructure  virtualMachineStackPopEngineStructure = (VirtualMachine_StackPopEngineStructure)VIRTUAL_MACHINE_STACK_POP_ENGINE_STRUCTURE;
+VirtualMachine_StackPopObject           virtualMachineStackPopObject = (VirtualMachine_StackPopObject)VIRTUAL_MACHINE_STACK_POP_OBJECT;
+VirtualMachine_StackPopCommand          virtualMachineStackPopCommand = (VirtualMachine_StackPopCommand)VIRTUAL_MACHINE_STACK_POP_COMMAND;
+VirtualMachine_StackPushInteger          virtualMachineStackPushInteger = (VirtualMachine_StackPushInteger)VIRTUAL_MACHINE_STACK_PUSH_INT;
+VirtualMachine_StackPushFloat            virtualMachineStackPushFloat = (VirtualMachine_StackPushFloat)VIRTUAL_MACHINE_STACK_PUSH_FLOAT;
+VirtualMachine_StackPushVector           virtualMachineStackPushVector = (VirtualMachine_StackPushVector)VIRTUAL_MACHINE_STACK_PUSH_VECTOR;
+VirtualMachine_StackPushString           virtualMachineStackPushString = (VirtualMachine_StackPushString)VIRTUAL_MACHINE_STACK_PUSH_STRING;
+VirtualMachine_StackPushEngineStructure  virtualMachineStackPushEngineStructure = (VirtualMachine_StackPushEngineStructure)VIRTUAL_MACHINE_STACK_PUSH_ENGINE_STRUCTURE;
+VirtualMachine_StackPushObject           virtualMachineStackPushObject = (VirtualMachine_StackPushObject)VIRTUAL_MACHINE_STACK_PUSH_OBJECT;

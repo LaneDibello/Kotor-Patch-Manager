@@ -4,6 +4,10 @@
 #include <cstdarg>
 #pragma pack(push, 4)
 
+extern void** VIRTUAL_MACHINE_PTR;
+
+extern DWORD OBJECT_DEFAULT;
+
 struct CExoString {
 	char* c_string;
 	DWORD length;
@@ -38,16 +42,21 @@ struct Vector {
 	float y;
 	float z;
 };
+
+struct CScriptLocation {
+	Vector postion;
+	Vector orientation;
+};
+
+enum VirtualMachineEngineStructureTypes : int {
+	UNKNOWN = -1,
+	EFFECT = 0,
+	SCRIPT_EVENT = 1,
+	LOCATION = 2,
+	SCRIPT_TALENT = 3,
+};
 #pragma pack(pop)
 
-// Other Functions
-typedef void*(__thiscall* ServerGetObjectArray)(void* thisPtr);
-const DWORD SERVER_GET_OBJECT_ARRAY = 0x004aed7;
-extern ServerGetObjectArray serverGetObjectArray;
-
-typedef void* (__thiscall* GOAGetGameObject)(void* thisPtr);
-const DWORD SERVER_GET_OBJECT_ARRAY = 0x004aed7;
-extern ServerGetObjectArray serverGetObjectArray;
 
 // Debug logging helper - automatically formats and outputs to debugger
 inline void DebugLog(const char* format, ...) {
