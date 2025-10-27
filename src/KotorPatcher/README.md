@@ -333,47 +333,6 @@ The runtime is designed to be **lightweight**:
 - **Memory overhead**: ~100KB for patcher DLL + patch DLLs + wrapper stubs
 - **Runtime overhead**: None after initialization (SIMPLE hooks have zero overhead, DETOUR hooks are direct JMPs)
 
-## Current Limitations
-
-### No Mid-Function Original Function Calls
-
-The current implementation **cannot call the original function** that was replaced:
-
-**What This Means:**
-- DETOUR hooks execute stolen bytes but cannot call the original function as a whole
-- Patches must either:
-  - Hook at function entry and completely replace behavior
-  - Hook mid-function and execute only the stolen bytes (limited use case)
-- Cannot do true "wrap" patterns (call original before/after)
-
-**Compatibility:**
-- Patches targeting different addresses: ✅ **Compatible**
-- Patches targeting overlapping addresses: ❌ **Incompatible** (prevented by verification)
-- Multiple patches to same address: ❌ **Incompatible**
-
-## Troubleshooting
-
-### Patcher Not Loading
-
-1. Check that KPatchLauncher successfully injected the DLL
-2. Use DebugView to see initialization messages
-3. Ensure `KotorPatcher.dll` is in game directory or with launcher
-
-### Patches Not Applied
-
-1. Check `patch_config.toml` exists and is valid TOML
-2. Use DebugView to see error messages
-3. Verify patch DLLs exist at specified paths
-4. Ensure game version matches (original_bytes check)
-
-### Game Crashes
-
-1. Check original_bytes in config match actual game bytes
-2. Verify patch DLLs are not corrupted
-3. Ensure patch functions have correct calling convention (`__stdcall` or `__cdecl`)
-4. Check for memory corruption in patch code
-5. Verify patch DLL is 32-bit (x86) architecture
-
 ## Examples
 
 ### DETOUR Hook Example
