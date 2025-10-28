@@ -9,10 +9,8 @@ const int GetSpellAcquiredIndex = 781;
 int __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount);
 
 const int GrantFeatIndex = 782;
-int __stdcall ExecuteCommandGrantFeat(DWORD routine, int paramCount);
-
 const int GrantSpellIndex = 783;
-int __stdcall ExecuteCommandGrantSpell(DWORD routine, int paramCount);
+int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount);
 
 const int SetBonusForcePointsIndex = 784;
 int __stdcall ExecuteCommandSetBonusForcePoints(DWORD routine, int paramCount);

@@ -29,33 +29,63 @@ int __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 
 	outcome = creatureStatsHasFeat(creatureStats, feat);
 
-	debugLog("[PATCH] outcome %i", outcome);
-
 	if (!virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, outcome))
 		return -2000;
-
-	debugLog("[PATCH] Success", outcome);
 
 	return 0;
 }
 
 int __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount)
 {
+	int outcome = 0;
 
+	int spell;
+	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &spell))
+		return -2001;
+
+	DWORD creature;
+	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature))
+		return -2001;
+
+	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
+
+	if (serverCreature) {
+		void* creatureStats = getServerCreatureStats(serverCreature);
+		outcome = creatureStatsHasSpell(creatureStats, 0, (DWORD)spell, 0);
+	}
+
+	if (!virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, outcome))
+		return -2000;
 
 	return 0;
 }
 
-int __stdcall ExecuteCommandGrantFeat(DWORD routine, int paramCount)
+int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
 {
+	int ability;
+	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &ability))
+		return -2001;
 
+	DWORD creature;
+	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature))
+		return -2001;
 
-	return 0;
-}
+	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
 
-int __stdcall ExecuteCommandGrantSpell(DWORD routine, int paramCount)
-{
+	if (!serverCreature)
+		return 0;
 
+	void* creatureStats = getServerCreatureStats(serverCreature);
+	
+	if (routine == GrantFeatIndex)
+		creatureStatsAddFeat(creatureStats, (USHORT)ability);
+	else if (routine == GrantSpellIndex)
+	{
+		// Give to last class for now
+		// In the future consider alternate options to guarantee Jedi class
+		BYTE classIndex = *((BYTE*)creatureStats + 0x89)
+		creatureStatsAddKnownSpell(creatureStats, classIndex, (DWORD)ability)
+	}
 
 	return 0;
 }

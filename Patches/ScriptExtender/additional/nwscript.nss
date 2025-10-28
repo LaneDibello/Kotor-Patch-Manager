@@ -5221,3 +5221,16 @@ int TellFile(int iFileHandle);
 // even if they can't use it right now due to daily limits or
 // other restrictions.
 int GetFeatAcquired(int nFeat, object oCreature=OBJECT_SELF);
+
+// 781. GetSpellAcquired
+// Returns whether or not the target has access to a spell,
+// even if they can't use it right now due to lack of Force Points.
+int GetSpellAcquired( int nSpell, object oCreature=OBJECT_SELF );
+
+// 782. GrantFeat
+// Grants the target a feat without regard for prerequisites.
+void GrantFeat( int nFeat, object oCreature );
+
+// 783. GrantSpell
+// Grants the target a spell without regard for prerequisites.
+void GrantSpell( int nSpell, object oCreature );

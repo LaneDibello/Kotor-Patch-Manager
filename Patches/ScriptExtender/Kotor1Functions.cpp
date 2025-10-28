@@ -26,6 +26,7 @@ CreatureStats_SetAttributeBase creatureStatsSetCHABase = (CreatureStats_SetAttri
 CreatureStats_GetSkillRank creatureStatsGetSkillRank = (CreatureStats_GetSkillRank)CREATURE_STATS_GET_SKILL_RANK;
 CreatureStats_SetSkillRank creatureStatsSetSkillRank = (CreatureStats_SetSkillRank)CREATURE_STATS_SET_SKILL_RANK;
 CreatureStats_SetMovementRate creatureStatsSetMovementRate = (CreatureStats_SetMovementRate)CREATURE_STATS_SET_MOVEMENT_RATE;
+CreatureStats_GetClass creatureStatsGetClass = (CreatureStats_GetClass)CREATURE_STATS_GET_CLASS;
 
 
 // CVirtualMachine

@@ -37,6 +37,7 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     debugLog("[PATCH] Initializing Extension Commands. Commands Array: %p", commands);
 
     commands[TestScriptExtensionIndex] = (DWORD)&ExecuteCommandTestScriptExtension;
+
     commands[OpenFileIndex] = (DWORD)&ExecuteCommandOpenFile;
     commands[CloseFileIndex] = (DWORD)&ExecuteCommandCloseFile;
     commands[ReadFileIndex] = (DWORD)&ExecuteCommandReadTextFile;
@@ -44,10 +45,11 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[PeakCharFileIndex] = (DWORD)&ExecuteCommandPeakCharFile;
     commands[SeekFileIndex] = (DWORD)&ExecuteCommandSeekFile;
     commands[TellFileIndex] = (DWORD)&ExecuteCommandTellFile;
+
     commands[GetFeatAcquiredIndex] = (DWORD)&ExecuteCommandGetFeatAcquired;
     commands[GetSpellAcquiredIndex] = (DWORD)&ExecuteCommandGetSpellAcquired;
-    commands[GrantFeatIndex] = (DWORD)&ExecuteCommandGrantFeat;
-    commands[GrantSpellIndex] = (DWORD)&ExecuteCommandGrantSpell;
+    commands[GrantFeatIndex] = (DWORD)&ExecuteCommandGrantAbility;
+    commands[GrantSpellIndex] = (DWORD)&ExecuteCommandGrantAbility;
     commands[SetBonusForcePointsIndex] = (DWORD)&ExecuteCommandSetBonusForcePoints;
     commands[AddBonusForcePointsIndex] = (DWORD)&ExecuteCommandAddBonusForcePoints;
     commands[GetBonusForcePointsIndex] = (DWORD)&ExecuteCommandGetBonusForcePoints;

@@ -34,6 +34,8 @@ typedef void(__thiscall* CreatureStats_SetCONBase)(void* thisPtr, BYTE amount, i
 typedef BYTE(__thiscall* CreatureStats_GetSkillRank)(void* thisPtr, BYTE skill, void* ignore1, int ignore2); // ignore params are for special cases
 typedef void(__thiscall* CreatureStats_SetSkillRank)(void* thisPtr, BYTE skill, BYTE value);
 typedef void(__thiscall* CreatureStats_SetMovementRate)(void* thisPtr, int rate);
+typedef BYTE(__thiscall* CreatureStats_GetClass)(void* thisPtr, BYTE classIndex);
+
 
 const DWORD CREATURE_STATS_HAS_FEAT = 0x005a6630;
 const DWORD CREATURE_STATS_HAS_SPELL = 0x005a6e70;
@@ -49,6 +51,7 @@ const DWORD CREATURE_STATS_SET_CHA_BASE = 0x005aa170;
 const DWORD CREATURE_STATS_GET_SKILL_RANK = 0x005aa570;
 const DWORD CREATURE_STATS_SET_SKILL_RANK = 0x005a54c0;
 const DWORD CREATURE_STATS_SET_MOVEMENT_RATE = 0x005a5680;
+const DWORD CREATURE_STATS_GET_CLASS = 0x005a4e90;
 
 extern CreatureStats_HasFeat creatureStatsHasFeat;
 extern CreatureStats_HasSpell creatureStatsHasSpell;
@@ -64,6 +67,7 @@ extern CreatureStats_SetAttributeBase creatureStatsSetCHABase;
 extern CreatureStats_GetSkillRank creatureStatsGetSkillRank;
 extern CreatureStats_SetSkillRank creatureStatsSetSkillRank;
 extern CreatureStats_SetMovementRate creatureStatsSetMovementRate;
+extern CreatureStats_GetClass creatureStatsGetClass;
 
 // CVirtualMachine
 typedef int(__thiscall* VirtualMachine_StackPopInteger)(void* thisPtr, int* output);
