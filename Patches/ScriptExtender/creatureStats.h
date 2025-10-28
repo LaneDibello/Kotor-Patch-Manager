@@ -24,3 +24,12 @@ int __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount);
 inline void* getServerCreatureStats(void* serverCreature) {
 	return *(void**)((char*)serverCreature + 0xa74);
 }
+
+enum Attributes {
+	STR,
+	DEX,
+	CON,
+	INT,
+	WIS,
+	CHA
+};

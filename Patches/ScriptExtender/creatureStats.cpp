@@ -92,7 +92,52 @@ int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
 
 int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCount)
 {
+	DWORD object;
+	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &object))
+		return -2001;
 
+	int attribute;
+	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &attribute))
+		return -2001;
+
+	int amount;
+	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &amount))
+		return -2001;
+
+	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
+
+	if (!serverCreature)
+		return 0;
+
+	void* creatureStats = getServerCreatureStats(serverCreature);
+
+	BYTE baseCurrent = 0;
+	switch ((Attributes)attribute) {
+	case STR:
+		baseCurrent = *((BYTE*)creatureStats + 0xe9);
+		creatureStatsSetSTRBase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		break;
+	case DEX:
+		baseCurrent = *((BYTE*)creatureStats + 0xeb);
+		creatureStatsSetDEXBase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		break;
+	case CON:
+		baseCurrent = *((BYTE*)creatureStats + 0xed);
+		creatureStatsSetCONBase(creatureStats, (BYTE)(amount + (int)baseCurrent), 1);
+		break;
+	case INT:
+		baseCurrent = *((BYTE*)creatureStats + 0xef);
+		creatureStatsSetINTBase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		break;
+	case WIS:
+		baseCurrent = *((BYTE*)creatureStats + 0xf1);
+		creatureStatsSetWISBase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		break;
+	case CHA:
+		baseCurrent = *((BYTE*)creatureStats + 0xf3);
+		creatureStatsSetCHABase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		break;
+	}
 
 	return 0;
 }
