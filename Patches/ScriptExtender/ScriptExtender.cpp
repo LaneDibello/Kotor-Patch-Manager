@@ -50,12 +50,6 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[GetSpellAcquiredIndex] = (DWORD)&ExecuteCommandGetSpellAcquired;
     commands[GrantFeatIndex] = (DWORD)&ExecuteCommandGrantAbility;
     commands[GrantSpellIndex] = (DWORD)&ExecuteCommandGrantAbility;
-    commands[SetBonusForcePointsIndex] = (DWORD)&ExecuteCommandSetBonusForcePoints;
-    commands[AddBonusForcePointsIndex] = (DWORD)&ExecuteCommandAddBonusForcePoints;
-    commands[GetBonusForcePointsIndex] = (DWORD)&ExecuteCommandGetBonusForcePoints;
-    commands[ModifyReflexSavingThrowBaseIndex] = (DWORD)&ExecuteCommandModifyReflexSavingThrowBase;
-    commands[ModifyFortitudeSavingThrowBaseIndex] = (DWORD)&ExecuteCommandModifyFortitudeSavingThrowBase;
-    commands[ModifyWillSavingThrowBaseIndex] = (DWORD)&ExecuteCommandModifyWillSavingThrowBase;
     commands[AdjustCreatureAttributesIndex] = (DWORD)&ExecuteCommandAdjustCreatureAttributes;
     commands[AdjustCreatureSkillsIndex] = (DWORD)&ExecuteCommandAdjustCreatureSkills;
     commands[GetSkillRankBaseIndex] = (DWORD)&ExecuteCommandGetSkillRankBase;

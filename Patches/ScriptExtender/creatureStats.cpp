@@ -90,48 +90,6 @@ int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
 	return 0;
 }
 
-int __stdcall ExecuteCommandSetBonusForcePoints(DWORD routine, int paramCount)
-{
-
-
-	return 0;
-}
-
-int __stdcall ExecuteCommandAddBonusForcePoints(DWORD routine, int paramCount)
-{
-
-
-	return 0;
-}
-
-int __stdcall ExecuteCommandGetBonusForcePoints(DWORD routine, int paramCount)
-{
-
-
-	return 0;
-}
-
-int __stdcall ExecuteCommandModifyReflexSavingThrowBase(DWORD routine, int paramCount)
-{
-
-
-	return 0;
-}
-
-int __stdcall ExecuteCommandModifyFortitudeSavingThrowBase(DWORD routine, int paramCount)
-{
-
-
-	return 0;
-}
-
-int __stdcall ExecuteCommandModifyWillSavingThrowBase(DWORD routine, int paramCount)
-{
-
-
-	return 0;
-}
-
 int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCount)
 {
 

@@ -12,22 +12,22 @@
 - Missing Kotor 2 Functions [full list here](https://www.dropbox.com/scl/fi/di36bt4sqd4l32up8iw3n/KOTOR-NSS-Tables.xlsx?rlkey=p7c7vtygpd3sy12idv169oj27&e=1&st=q0z9k5hq&dl=0)
 	- Creature Stats
 		- ✅ GetFeatAcquired				783
-		- GetSpellAcquired					784
-		- GrantFeat							786
-		- GrantSpell						787
-		- SetBonusForcePoints				801
-			- CClientExoApp::GetInGameGui
-			- CGuiInGame::UpdateStatus 
-			- Additional effort and research will be needed to determine the efficacy of adjusting FP in kotor 1
-		- AddBonusForcePoints				802
-		- GetBonusForcePoints				803
-		- ModifyReflexSavingThrowBase		828
-			- Pretty simple, just need offsets for the saving throws 
-		- ModifyFortitudeSavingThrowBase	829
-		- ModifyWillSavingThrowBase			830
+		- ✅ GetSpellAcquired				784
+		- ✅ GrantFeat						786
+		- ✅ GrantSpell						787
 		- AdjustCreatureAttributes			833
 		- AdjustCreatureSkills				869
 		- GetSkillRankBase					870
+		- ❌ SetBonusForcePoints			801
+			- Kotor 1 does not have the bonus FP feature
+			- Would need to build this from the ground up
+		- ❌ AddBonusForcePoints			802
+		- ❌ GetBonusForcePoints			803
+		- ❌ ModifyReflexSavingThrowBase	828
+			- So kotor 2 has special fields on creatureStats for ST bonuses
+			- These aren't present in kotor 1, so we need to consider a work-around
+		- ❌ ModifyFortitudeSavingThrowBase	829
+		- ❌ ModifyWillSavingThrowBase		830
 	- GetSpellForcePointCost
 	- SpawnMine
 	- GetSpellBaseForcePointCost
