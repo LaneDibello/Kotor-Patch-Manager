@@ -31,7 +31,7 @@ typedef void(__thiscall* CreatureStats_AddKnownSpell)(void* thisPtr, BYTE classI
 typedef void(__thiscall* CreatureStats_RemoveFeat)(void* thisPtr, USHORT feat);
 typedef void(__thiscall* CreatureStats_SetAttributeBase)(void* thisPtr, BYTE amount);
 typedef void(__thiscall* CreatureStats_SetCONBase)(void* thisPtr, BYTE amount, int setHP);
-typedef BYTE(__thiscall* CreatureStats_GetSkillRank)(void* thisPtr, BYTE skill, void* ignore1, int ignore2); // ignore params are for special cases
+typedef BYTE(__thiscall* CreatureStats_GetSkillRank)(void* thisPtr, BYTE skill, void* effectObject, int ignoreBonuses);
 typedef void(__thiscall* CreatureStats_SetSkillRank)(void* thisPtr, BYTE skill, BYTE value);
 typedef void(__thiscall* CreatureStats_SetMovementRate)(void* thisPtr, int rate);
 typedef BYTE(__thiscall* CreatureStats_GetClass)(void* thisPtr, BYTE classIndex);

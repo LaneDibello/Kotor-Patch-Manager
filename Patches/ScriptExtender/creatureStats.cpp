@@ -144,7 +144,27 @@ int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCou
 
 int __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
 {
+	DWORD object;
+	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &object))
+		return -2001;
 
+	int skill;
+	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &skill))
+		return -2001;
+
+	int amount;
+	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &amount))
+		return -2001;
+
+	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
+
+	if (!serverCreature)
+		return 0;
+
+	void* creatureStats = getServerCreatureStats(serverCreature);
+
+	BYTE baseCurrent = creatureStatsGetSkillRank(creatureStats, (BYTE)skill, NULL, 1);
+	creatureStatsSetSkillRank(creatureStats, (BYTE)skill, (BYTE)((int)baseCurrent + amount));
 
 	return 0;
 }
