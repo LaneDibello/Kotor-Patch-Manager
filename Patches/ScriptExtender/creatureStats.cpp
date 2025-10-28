@@ -104,7 +104,7 @@ int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCou
 	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &amount))
 		return -2001;
 
-	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
+	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), object);
 
 	if (!serverCreature)
 		return 0;
@@ -156,7 +156,7 @@ int __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
 	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &amount))
 		return -2001;
 
-	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
+	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), object);
 
 	if (!serverCreature)
 		return 0;
@@ -171,7 +171,27 @@ int __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
 
 int __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount)
 {
+	int skill;
+	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &skill))
+		return -2001;
 
+	DWORD object;
+	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &object))
+		return -2001;
+
+	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), object);
+
+	if (!serverCreature) {
+		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, -1);
+		return 0;
+	}
+
+	void* creatureStats = getServerCreatureStats(serverCreature);
+
+	BYTE skillBase = creatureStatsGetSkillRank(creatureStats, (BYTE)skill, NULL, 1);
+
+	if (!virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, skillBase))
+		return -2000;
 
 	return 0;
 }
