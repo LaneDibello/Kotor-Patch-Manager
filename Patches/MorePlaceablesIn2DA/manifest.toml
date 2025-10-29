@@ -1,7 +1,7 @@
 [patch]
 id = "more-placeables-in-2da"
 name = "Placeables 2DA Row Limit expansion"
-version = "0.1.0"
+version = "0.0.1"
 author = "Lane"
 description = "Increases the max recognized rows in placeables.2da from 256 to 2,147,483,648"
 
