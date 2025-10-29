@@ -29,7 +29,7 @@ enum Attributes {
 	STR,
 	DEX,
 	CON,
-	INT,
+	INTEL, // INT is a reserved term
 	WIS,
 	CHA
 };

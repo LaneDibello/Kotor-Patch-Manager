@@ -23,7 +23,7 @@ const DWORD SERVER_GET_OBJECT_ARRAY = 0x004d8230;
 extern GameObjectArray_GetGameObject gameObjectArrayGetGameObject;
 
 
-// CSWCCreatureStats
+// CSWSCreatureStats
 typedef int(__thiscall* CreatureStats_HasFeat)(void* thisPtr, USHORT feat);
 typedef int(__thiscall* CreatureStats_HasSpell)(void* thisPtr, BYTE spellList, DWORD spell, int checkUsable);
 typedef void(__thiscall* CreatureStats_AddFeat)(void* thisPtr, USHORT feat);

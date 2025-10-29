@@ -83,8 +83,9 @@ int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
 	{
 		// Give to last class for now
 		// In the future consider alternate options to guarantee Jedi class
-		BYTE classIndex = *((BYTE*)creatureStats + 0x89)
-		creatureStatsAddKnownSpell(creatureStats, classIndex, (DWORD)ability)
+		BYTE classIndex = *((BYTE*)creatureStats + 0x89) - 1;
+		debugLog("Class Index was %d", classIndex);
+		creatureStatsAddKnownSpell(creatureStats, classIndex, (DWORD)ability);
 	}
 
 	return 0;
@@ -125,7 +126,7 @@ int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCou
 		baseCurrent = *((BYTE*)creatureStats + 0xed);
 		creatureStatsSetCONBase(creatureStats, (BYTE)(amount + (int)baseCurrent), 1);
 		break;
-	case INT:
+	case INTEL:
 		baseCurrent = *((BYTE*)creatureStats + 0xef);
 		creatureStatsSetINTBase(creatureStats, (BYTE)(amount + (int)baseCurrent));
 		break;

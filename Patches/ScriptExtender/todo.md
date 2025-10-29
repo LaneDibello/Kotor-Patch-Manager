@@ -15,9 +15,9 @@
 		- ✅ GetSpellAcquired				784
 		- ✅ GrantFeat						786
 		- ✅ GrantSpell						787
-		- AdjustCreatureAttributes			833
-		- AdjustCreatureSkills				869
-		- GetSkillRankBase					870
+		- ✅ AdjustCreatureAttributes		833
+		- ✅ AdjustCreatureSkills			869
+		- ✅ GetSkillRankBase				870
 		- ❌ SetBonusForcePoints			801
 			- Kotor 1 does not have the bonus FP feature
 			- Would need to build this from the ground up
