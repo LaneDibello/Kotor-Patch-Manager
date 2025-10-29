@@ -197,3 +197,86 @@ address = 0x00683473
 type = "simple"
 original_bytes    = [0x0f, 0xb6, 0xbe, 0x0c, 0x01, 0x00, 0x00]
 replacement_bytes = [0x8b, 0xbe, 0x0c, 0x01, 0x00, 0x00, 0x90]
+
+# CSWCPlaceable::SetAppearance fix
+# Upstream, AddPlaceableObjectStatic is called by LoadArea, that gets a byte from the message buffer
+# Upstream, HandleServerToPlayerPlaceableUpdate_Add see below:
+[[hooks]]
+address = 0x00682e39
+type = "simple"
+original_bytes    = [0x8a, 0x5c, 0x24, 0x28]
+replacement_bytes = [0x8b, 0x5c, 0x24, 0x28]
+
+[[hooks]]
+address = 0x00682e4a
+type = "simple"
+original_bytes    = [0x88, 0x9e, 0x0c, 0x01, 0x00, 0x00]
+replacement_bytes = [0x89, 0x9e, 0x0c, 0x01, 0x00, 0x00]
+
+[[hooks]]
+address = 0x00682e74
+type = "simple"
+original_bytes    = [0x0f, 0xb6, 0xfb]
+replacement_bytes = [0x89, 0xdf, 0x90]
+
+# CSWCMessage::HandleServerToPlayerPlaceableUpdate_Add fix
+# Pulls a byte off the message handler
+# need to adjust the message payload to push the placeable id as an int
+[[hooks]]
+address = 0x0064d571
+type = "simple"
+original_bytes    = [0x8a, 0xd8]
+replacement_bytes = [0x89, 0xc3]
+
+[[hooks]]
+address = 0x0064d577
+type = "simple"
+original_bytes    = [0x88, 0x5c, 0x24, 0x28]
+replacement_bytes = [0x89, 0x5c, 0x24, 0x28]
+
+# CSWCArea::AddPlaceableObjectLight fix
+# Upstream, LoadArea gets a byte from the message buffer
+[[hooks]]
+address = 0x00606ed8
+type = "simple"
+original_bytes    = [0x0f, 0xb6, 0x7d, 0x0c]
+replacement_bytes = [0x8b, 0x7d, 0x0c, 0x90]
+
+# CSWSPlaceable::LoadBodyBag fix
+[[hooks]]
+address = 0x00586515
+type = "simple"
+original_bytes    = [0x0f, 0xb6, 0x4d, 0x08]
+replacement_bytes = [0x8b, 0x4d, 0x08, 0x90]
+
+[[hooks]]
+address = 0x00586632
+type = "simple"
+original_bytes    = [0x8a, 0x55, 0x08]
+replacement_bytes = [0x8b, 0x55, 0x08]
+
+[[hooks]]
+address = 0x00586632
+type = "simple"
+original_bytes    = [0x88, 0x96, 0x30, 0x02, 0x00, 0x00]
+replacement_bytes = [0x89, 0x96, 0x30, 0x02, 0x00, 0x00]
+
+# There's a byte compare at 0x00586647 we may want to swap out
+
+# CSWSObject::SpawnBodyBag fix
+[[hooks]]
+address = 0x004ce2e9
+type = "simple"
+original_bytes    = [0x88, 0x44, 0x24, 0x18]
+replacement_bytes = [0x89, 0x44, 0x24, 0x18]
+
+[[hooks]]
+address = 0x004ce2ed
+type = "simple"
+original_bytes    = [0x0f, 0xb6, 0x85, 0xda, 0x09, 0x00, 0x00]
+replacement_bytes = [0x8b, 0x85, 0xda, 0x09, 0x00, 0x00, 0x90]
+
+
+# CSWSCreature::GetBodyBagAppearance fix
+
+
