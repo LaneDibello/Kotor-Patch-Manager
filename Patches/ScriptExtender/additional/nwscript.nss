@@ -1660,13 +1660,12 @@ int LIVE_CONTENT_PKG4 = 4;
 int LIVE_CONTENT_PKG5 = 5;
 int LIVE_CONTENT_PKG6 = 6;
 
+string sLanguage = "nwscript";
+
 // Extension Constants
 int SEEK_SET = 0;
 int SEEK_CUR = 1;
 int SEEK_END = 2;
-
-string sLanguage = "nwscript";
-
 
 // 0: Get an integer between 0 and nMaxInteger-1.
 // Return value on error: 0
@@ -5234,3 +5233,46 @@ void GrantFeat( int nFeat, object oCreature );
 // 783. GrantSpell
 // Grants the target a spell without regard for prerequisites.
 void GrantSpell( int nSpell, object oCreature );
+
+// 784. AdjustCreatureAttributes
+// This function adjusts a creatures stats.
+// oObject is the creature that will have it's attribute adjusted
+// The following constants are acceptable for the nAttribute parameter:
+// ABILITY_STRENGTH
+// ABILITY_DEXTERITY
+// ABILITY_CONSTITUTION
+// ABILITY_INTELLIGENCE
+// ABILITY_WISDOM
+// ABILITY_CHARISMA
+// nAmount is the integer vlaue to adjust the stat by (negative values will work).
+void AdjustCreatureAttributes(object oObject, int nAttribute, int nAmount);
+
+// 785. AdjustCreatureSkills
+// This function adjusts a creature's skills.
+// oObject is the creature that will have its skill adjusted
+// The following constants are acceptable for the nSkill parameter:
+// SKILL_COMPUTER_USE
+// SKILL_DEMOLITIONS
+// SKILL_STEALTH
+// SKILL_AWARENESS
+// SKILL_PERSUADE
+// SKILL_REPAIR
+// SKILL_SECURITY
+// SKILL_TREAT_INJURY
+// nAmount is the integer value to adjust the stat by (negative values will work).
+void AdjustCreatureSkills(object oObject, int nSkill, int nAmount);
+
+// 786. GetSkillRankBase
+// This function returns the base Skill Rank for the requested
+// skill. It does not include modifiers from effects/items.
+// The following constants are acceptable for the nSkill parameter:
+// SKILL_COMPUTER_USE
+// SKILL_DEMOLITIONS
+// SKILL_STEALTH
+// SKILL_AWARENESS
+// SKILL_PERSUADE
+// SKILL_REPAIR
+// SKILL_SECURITY
+// SKILL_TREAT_INJURY
+// oObject is the creature that will have its skill base returned.
+int GetSkillRankBase(int nSkill, object oObject=OBJECT_SELF);
