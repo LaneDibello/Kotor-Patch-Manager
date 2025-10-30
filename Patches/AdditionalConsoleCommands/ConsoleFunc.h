@@ -15,6 +15,8 @@ struct ConsoleFunc {
 	ConsoleFunc(char* name, void* function, funcTypes type) {
 		typedef ConsoleFunc* (__thiscall* constructor)(ConsoleFunc* thisPtr, char* name, void* function);
 
+		debugLog("Constructing ConsoleFunc %s (at %p), with function at %p, with type %i at %p", name, name, function, type, this);
+
 		switch (type) {
 		case INT_PARAM:
 		{

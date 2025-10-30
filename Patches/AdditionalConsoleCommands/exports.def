@@ -1,2 +1,3 @@
 LIBRARY AdditionalConsoleCommands 
 EXPORTS 
+    InitializeAdditionalCommands 

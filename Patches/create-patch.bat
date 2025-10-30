@@ -126,7 +126,7 @@ if !BUILD_DLL! EQU 1 (
         REM Extract function names from .cpp files
         for %%F in (*.cpp) do (
             findstr /R /C:"extern.*__cdecl" "%%F" > temp_exports.txt
-            for /f "tokens=4 delims=( " %%G in (temp_exports.txt) do (
+            for /f "tokens=5 delims=( " %%G in (temp_exports.txt) do (
                 echo     %%G >> exports.def
                 echo   Added export: %%G
             )

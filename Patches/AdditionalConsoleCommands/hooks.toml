@@ -1,2 +1,8 @@
-# No hooks
+
+[[hooks]]
+address = 0x006fb4ce
+function = "InitializeAdditionalCommands"
+original_bytes = [0x89, 0x45, 0xe0, 0x3b, 0xc6]
+type = "detour"
+exclude_from_restore = []
 
