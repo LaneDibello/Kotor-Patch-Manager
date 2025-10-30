@@ -233,16 +233,13 @@ if exist "!PATCH_NAME!.kpatch" (
     echo   SUCCESS! Patch created successfully.
     echo ===================================================
     echo.
-    echo To install this patch:
-    echo   kpatchconsole --install ^<game_exe^> ^<patches_dir^> !PATCH_NAME!
-    echo.
 ) else (
     echo   ERROR: Package verification failed
     pause
     exit /b 1
 )
 
-REM Clean up build artifacts (optional)
+REM Clean up build artifacts
 echo Cleaning up build artifacts...
 del *.obj *.lib *.exp build.log >nul 2>&1
 
