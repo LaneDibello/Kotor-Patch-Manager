@@ -105,7 +105,7 @@ namespace KotorPatcher {
 
                 std::string errorMsg = "[KotorPatcher] Failed to load DLL-only patch: " + patch.dllPath +
                     "\nError " + std::to_string(errorCode) + ": " +
-                    (messageBuffer ? messageBuffer : "Unknown error") + "\n";
+                    (messageBuffer ? messageBuffer : "Unknown error");
 
                 OutputDebugStringA(errorMsg.c_str());
 
