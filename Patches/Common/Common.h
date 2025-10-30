@@ -91,3 +91,8 @@ inline void debugLog(const char* format, ...) {
 	va_end(args);
 	OutputDebugStringA(buffer);
 }
+
+template <class retType>
+inline retType getObjectProperty(void* object, int offset) {
+	return *((retType*)((char*)object + offset));
+}
