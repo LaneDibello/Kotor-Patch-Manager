@@ -139,7 +139,14 @@ if !BUILD_DLL! EQU 1 (
     set CPP_FILES=
     for %%F in (*.cpp) do set CPP_FILES=!CPP_FILES! %%F
 
-    cl /LD /O2 /MD /W3 !CPP_FILES! /link /DEF:exports.def /OUT:windows_x86.dll >build.log 2>&1
+    REM Add Common directory files if they exist
+    set COMMON_FILES=
+    if exist "..\Common\*.cpp" (
+        for %%F in (..\Common\*.cpp) do set COMMON_FILES=!COMMON_FILES! "%%F"
+        echo   Including Common library files...
+    )
+
+    cl /LD /O2 /MD /W3 /I"..\Common" !CPP_FILES! !COMMON_FILES! /link /DEF:exports.def /OUT:windows_x86.dll >build.log 2>&1
 
     if !ERRORLEVEL! NEQ 0 (
         echo.

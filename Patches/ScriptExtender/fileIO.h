@@ -1,4 +1,5 @@
 #pragma once
+#include "Common.h"
 #include "Kotor1Functions.h"
 
 const int OpenFileIndex = 773;
