@@ -29,10 +29,16 @@ void __cdecl teleport(char* location) {
 
 }
 
+void __cdecl showwalkmesh() {
+    int* renderAABB = (int*)0x007fbf5c;
+    *renderAABB = (*renderAABB) ^ 1;
+}
+
 extern "C" void __cdecl InitializeAdditionalCommands()
 {
     ConsoleFunc* command_runscript = new ConsoleFunc("runscript", (void*)&runscript, STRING_PARAM);
     ConsoleFunc* command_teleport = new ConsoleFunc("teleport", (void*)&teleport, STRING_PARAM);
+    ConsoleFunc* command_showwalkmesh = new ConsoleFunc("showwalkmesh", (void*)&showwalkmesh, NO_PARAMS);
 }
 
 // DLL Entry Point
