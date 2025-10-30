@@ -19,6 +19,9 @@ mono_crash.*
 # Claude
 .claude/
 
+# patch Results
+*.kpatch
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
