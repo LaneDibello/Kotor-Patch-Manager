@@ -7,12 +7,15 @@
 // CServerExoApp
 typedef void* (__thiscall* ServerExoApp_GetObjectArray)(void* thisPtr);
 typedef void* (__thiscall* ServerExoApp_GetCreatureByGameObjectID)(void* thisPtr, DWORD id);
+typedef DWORD (__thiscall* ServerExoApp_GetPlayerCreatureId)(void* thisPtr);
 
 const DWORD SERVER_EXO_APP_GET_OBJECT_ARRAY = 0x004aed70;
 const DWORD SERVER_EXO_APP_GET_CREATURE_BY_GAME_OBJECT_ID = 0x004ae770;
+const DWORD SERVER_EXO_APP_GET_PLAYER_CREATURE_ID = 0x004aea40;
 
 extern ServerExoApp_GetObjectArray serverExoAppGetObjectArray;
 extern ServerExoApp_GetCreatureByGameObjectID serverExoAppGetCreatureByGameObjectID;
+extern ServerExoApp_GetPlayerCreatureId serverExoAppGetPlayerCreatureId;
 
 
 // CGameObjectArray
@@ -83,6 +86,7 @@ typedef int(__thiscall* VirtualMachine_StackPushVector)(void* thisPtr, Vector in
 typedef int(__thiscall* VirtualMachine_StackPushString)(void* thisPtr, CExoString* input);
 typedef int(__thiscall* VirtualMachine_StackPushEngineStructure)(void* thisPtr, VirtualMachineEngineStructureTypes type, void* input);
 typedef int(__thiscall* VirtualMachine_StackPushObject)(void* thisPtr, DWORD input);
+typedef int(__thiscall* VirtualMachine_RunScript)(void* thisPtr, CExoString* script, DWORD objectSelf, int usually1);
 
 const DWORD VIRTUAL_MACHINE_STACK_POP_INT = 0x005D1000;
 const DWORD VIRTUAL_MACHINE_STACK_POP_FLOAT = 0x005D1020;
@@ -97,6 +101,7 @@ const DWORD VIRTUAL_MACHINE_STACK_PUSH_VECTOR = 0x005D1050;
 const DWORD VIRTUAL_MACHINE_STACK_PUSH_STRING = 0x005D1090;
 const DWORD VIRTUAL_MACHINE_STACK_PUSH_ENGINE_STRUCTURE = 0x005D10B0;
 const DWORD VIRTUAL_MACHINE_STACK_PUSH_OBJECT = 0x005D10D0;
+const DWORD VIRTUAL_MACHINE_RUN_SCRIPT = 0x005d0fc0;
 
 extern VirtualMachine_StackPopInteger virtualMachineStackPopInteger;
 extern VirtualMachine_StackPopFloat virtualMachineStackPopFloat;
@@ -111,3 +116,4 @@ extern VirtualMachine_StackPushVector virtualMachineStackPushVector;
 extern VirtualMachine_StackPushString virtualMachineStackPushString;
 extern VirtualMachine_StackPushEngineStructure  virtualMachineStackPushEngineStructure;
 extern VirtualMachine_StackPushObject virtualMachineStackPushObject;
+extern VirtualMachine_RunScript virtualMachineRunScript;

@@ -9,7 +9,7 @@ enum funcTypes {
 };
 
 struct ConsoleFunc {
-	char[80] name;
+	char name[80];
 	void* funcholder;
 
 	ConsoleFunc(char* name, void* function, funcTypes type) {
@@ -17,21 +17,27 @@ struct ConsoleFunc {
 
 		switch (type) {
 		case INT_PARAM:
+		{
 			const DWORD ADDRESS = 0x0044c620;
 			constructor constructConsoleFunc = (constructor)ADDRESS;
 			constructConsoleFunc(this, name, function);
 			return;
+		}
 		case STRING_PARAM:
+		{
 			const DWORD ADDRESS = 0x0044c5c0;
 			constructor constructConsoleFunc = (constructor)ADDRESS;
 			constructConsoleFunc(this, name, function);
 			return;
+		}
 		default:
 		case NO_PARAMS:
+		{
 			const DWORD ADDRESS = 0x0044c560;
 			constructor constructConsoleFunc = (constructor)ADDRESS;
 			constructConsoleFunc(this, name, function);
 			return;
+		}
 		}
 	}
 

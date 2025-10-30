@@ -1,8 +1,2 @@
-# Series of simple patches to avoid down-casting to a BYTE for placeable row IDs
-
-[[hooks]]
-address = 0x0
-type = "simple"
-original_bytes    = []
-replacement_bytes = []
+# No hooks
 

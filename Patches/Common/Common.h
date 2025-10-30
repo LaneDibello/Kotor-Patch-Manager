@@ -36,6 +36,14 @@ struct CExoString {
 		constructCExoStringFromCStr(this, src, length);
 	}
 
+	CExoString(char* src) {
+		typedef CExoString* (__thiscall* constructor)(CExoString* thisPtr, char* source);
+		const DWORD ADDRESS = 0x005e5a90;
+		constructor constructCExoStringFromCStr = (constructor)ADDRESS;
+
+		constructCExoStringFromCStr(this, src);
+	}
+
 	~CExoString() {
 		typedef CExoString* (__thiscall* destructor)(CExoString* thisPtr);
 		const DWORD ADDRESS = 0x005e5c20;
