@@ -2,12 +2,12 @@
 setlocal enabledelayedexpansion
 
 REM =============================================================================
-REM publish-minimal.bat - Quick Release Publisher (Launcher + Tools Only)
+REM publish.bat - Release Publisher
 REM =============================================================================
 
 echo.
 echo ===================================================
-echo   KotOR Patch Manager - Minimal Release
+echo   KotOR Patch Manager 
 echo ===================================================
 echo.
 
@@ -120,10 +120,7 @@ cd releases
 powershell -command "Compress-Archive -Path '%RELEASE_NAME%' -DestinationPath '%RELEASE_NAME%.zip' -Force"
 cd ..
 
-for %%I in ("releases\%RELEASE_NAME%.zip") do set SIZE=%%~zI
-set /a SIZE_MB=!SIZE! / 1048576
-
 echo.
-echo SUCCESS! Created releases\%RELEASE_NAME%.zip (!SIZE_MB! MB)
+echo SUCCESS! Created releases\%RELEASE_NAME%.zip
 echo.
 pause
