@@ -266,6 +266,12 @@ type = "simple"
 original_bytes    = [0x0f, 0xb6, 0xf3]
 replacement_bytes = [0x89, 0xde, 0x90]
 
+[[hooks]]
+address = 0x0064d6d2
+type = "simple"
+original_bytes    = [0x0f, 0xb6, 0xcb]
+replacement_bytes = [0x89, 0xd9, 0x90]
+
 # CSWCArea::AddPlaceableObjectLight fix
 [[hooks]]
 address = 0x00606ed8
