@@ -11,7 +11,8 @@ namespace KotorPatcher {
     // Hook type determines how the patch is applied
     enum class HookType {
         DETOUR,     // Trampoline with JMP, wrapper with automatic state management (default for DLL hooks)
-        SIMPLE      // Direct byte replacement in memory (no DLL required)
+        SIMPLE,     // Direct byte replacement in memory (no DLL required)
+        DLL_ONLY    // Load DLL but apply no hooks (for DllMain-based patches)
     };
 
     // Convert string to HookType

@@ -89,6 +89,37 @@ namespace KotorPatcher {
     }
 
     bool ApplyPatch(const PatchInfo& patch) {
+        // Handle DLL_ONLY patches (load DLL, no hooks)
+        if (patch.type == HookType::DLL_ONLY) {
+            HMODULE hPatch = LoadLibraryA(patch.dllPath.c_str());
+            if (!hPatch) {
+                DWORD errorCode = GetLastError();
+
+                // Retrieve the system error message for the last-error code
+                LPSTR messageBuffer = nullptr;
+                size_t size = FormatMessageA(
+                    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL, errorCode,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                    (LPSTR)&messageBuffer, 0, NULL);
+
+                std::string errorMsg = "[KotorPatcher] Failed to load DLL-only patch: " + patch.dllPath +
+                    "\nError " + std::to_string(errorCode) + ": " +
+                    (messageBuffer ? messageBuffer : "Unknown error") + "\n";
+
+                OutputDebugStringA(errorMsg.c_str());
+
+                if (messageBuffer) LocalFree(messageBuffer);
+                return false;
+            }
+            g_loadedPatches.push_back(hPatch);
+
+            char successMsg[256];
+            sprintf_s(successMsg, "[KotorPatcher] Loaded DLL-only patch: %s\n", patch.dllPath.c_str());
+            OutputDebugStringA(successMsg);
+            return true;
+        }
+
         // Handle SIMPLE hooks (no DLL loading)
         if (patch.type == HookType::SIMPLE) {
             return ApplySimpleHook(patch);

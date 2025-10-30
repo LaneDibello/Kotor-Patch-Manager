@@ -242,7 +242,8 @@ public class PatchRepository
 
             if (binaryEntry == null)
             {
-                return PatchResult<string>.Fail($"Binary not found in archive: binaries/windows_x86.dll");
+                // Not an error - patch may not have a DLL (SIMPLE patch or will be handled by caller)
+                return PatchResult<string>.Fail($"No DLL found in patch archive");
             }
 
             Directory.CreateDirectory(targetDirectory);

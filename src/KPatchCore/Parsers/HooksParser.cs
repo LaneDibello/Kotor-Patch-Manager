@@ -45,7 +45,7 @@ public static class HooksParser
 
             if (!model.TryGetValue("hooks", out var hooksObj) || hooksObj is not TomlTableArray hooksArray)
             {
-                return PatchResult<List<Hook>>.Fail("Hooks file missing [[hooks]] array");
+                return PatchResult<List<Hook>>.Ok(new List<Hook>(), "No hooks defined (DLL-only patch)");
             }
 
             var hooks = new List<Hook>();

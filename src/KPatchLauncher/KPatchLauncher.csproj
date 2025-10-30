@@ -8,8 +8,10 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Force x86 (32-bit) to match KOTOR architecture -->
     <PlatformTarget>x86</PlatformTarget>
-    <OutputPath>..\..\bin\Launcher\$(Configuration)\</OutputPath>
+    <OutputPath>..\..\bin\$(Configuration)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <UseAppHost>true</UseAppHost>
 
     <!-- Publishing options for release builds -->
     <PublishSingleFile>true</PublishSingleFile>
@@ -54,37 +56,5 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
-
-  <!-- Copy KotorPatcher.dll to launcher output directory -->
-  <Target Name="CopyKotorPatcherDll" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
-    <PropertyGroup>
-      <PatcherDllSource>$(MSBuildProjectDirectory)\..\..\bin\Patcher\$(Configuration)\KotorPatcher.dll</PatcherDllSource>
-      <PatcherDllDest>$(OutDir)KotorPatcher.dll</PatcherDllDest>
-    </PropertyGroup>
-    <Message Text="Copying KotorPatcher.dll from Patcher build..." Importance="high" />
-    <Copy SourceFiles="$(PatcherDllSource)"
-          DestinationFiles="$(PatcherDllDest)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(PatcherDllSource)')" />
-    <Warning Text="KotorPatcher.dll not found at: $(PatcherDllSource)" Condition="!Exists('$(PatcherDllSource)')" />
-  </Target>
-
-  <!-- Copy launcher files to Console output directory after build -->
-  <Target Name="CopyToConsoleOutput" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
-    <PropertyGroup>
-      <ConsoleOutputDir>$(MSBuildProjectDirectory)\..\..\bin\Console\$(Configuration)\</ConsoleOutputDir>
-    </PropertyGroup>
-    <ItemGroup>
-      <LauncherFiles Include="$(OutDir)KPatchLauncher.exe" />
-      <LauncherFiles Include="$(OutDir)KPatchLauncher.dll" />
-      <LauncherFiles Include="$(OutDir)KPatchLauncher.runtimeconfig.json" />
-      <LauncherFiles Include="$(OutDir)KPatchLauncher.deps.json" />
-      <LauncherFiles Include="$(OutDir)KPatchCore.dll" />
-      <LauncherFiles Include="$(OutDir)Tomlyn.dll" />
-      <LauncherFiles Include="$(OutDir)KotorPatcher.dll" />
-    </ItemGroup>
-    <Message Text="Copying launcher files to: $(ConsoleOutputDir)" Importance="high" />
-    <Copy SourceFiles="@(LauncherFiles)" DestinationFolder="$(ConsoleOutputDir)" SkipUnchangedFiles="true" />
-  </Target>
 
 </Project>

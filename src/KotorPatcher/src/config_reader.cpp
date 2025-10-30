@@ -105,15 +105,34 @@ namespace KotorPatcher {
                 // Get patch ID (optional, for debugging)
                 std::string patchId = patchTable->at_path("id").value_or<std::string>("");
 
-                // Get DLL path (optional - only required if patch has DETOUR hooks)
+                // Get DLL path (only required if patch has DETOUR or is DLL-only hooks)
                 auto dllPath = patchTable->at_path("dll").value<std::string>();
                 std::string dllPathStr = dllPath ? *dllPath : "";
 
-                // Get hooks array (required)
+                // Get hooks array (optional for DLL-only patches)
                 auto hooksArray = patchTable->at_path("hooks").as_array();
-                if (!hooksArray) {
-                    OutputDebugStringA(("[Config] Patch '" + patchId + "' missing 'hooks' array\n").c_str());
-                    continue;
+                if (!hooksArray || hooksArray->empty()) {
+                    // DLL-only patch - create a marker entry to trigger DLL loading
+                    if (!dllPathStr.empty()) {
+                        OutputDebugStringA(("[Config] Patch '" + patchId + "' has no hooks (DLL-only patch)\n").c_str());
+
+                        // Create a special "DLL-only" patch entry
+                        PatchInfo dllOnlyPatch;
+                        dllOnlyPatch.dllPath = dllPathStr;
+                        dllOnlyPatch.type = HookType::DLL_ONLY;
+                        dllOnlyPatch.hookAddress = 0; // No hook address needed
+
+                        outPatches.push_back(dllOnlyPatch);
+
+                        char debugMsg[256];
+                        sprintf_s(debugMsg, "[Config] Loaded DLL-only patch: %s -> %s\n",
+                            patchId.c_str(), dllPathStr.c_str());
+                        OutputDebugStringA(debugMsg);
+                    }
+                    else {
+                        OutputDebugStringA(("[Config] Patch '" + patchId + "' has no hooks and no DLL - skipping\n").c_str());
+                    }
+                    continue; // Skip hook iteration
                 }
 
                 // Parse each hook
@@ -292,12 +311,12 @@ namespace KotorPatcher {
             }
 
             if (outPatches.empty()) {
-                OutputDebugStringA("[Config] Warning: No valid patches loaded\n");
+                OutputDebugStringA("[Config] Warning: No patches found in config\n");
                 return false;
             }
 
             char successMsg[128];
-            sprintf_s(successMsg, "[Config] Successfully loaded %zu patch hook(s)\n", outPatches.size());
+            sprintf_s(successMsg, "[Config] Successfully loaded %zu patch entry/entries\n", outPatches.size());
             OutputDebugStringA(successMsg);
 
             return true;

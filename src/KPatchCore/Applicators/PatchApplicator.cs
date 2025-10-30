@@ -258,7 +258,7 @@ public class PatchApplicator
                 messages.Add("Step 4/7: Skipping backup (disabled)");
             }
 
-            // Step 5: Extract patch DLLs (only for patches with DETOUR hooks)
+            // Step 5: Extract patch DLLs (for DETOUR hooks and DLL-only patches)
             messages.Add("Step 5/7: Extracting patch DLLs...");
             var patchesDir = Path.Combine(gameDir, "patches");
 
@@ -267,16 +267,36 @@ public class PatchApplicator
             {
                 var entry = patchEntries[patchId];
                 var hasDetourHooks = entry.Hooks.Any(h => h.Type == HookType.Detour);
+                var hasDllOnlyPatch = entry.Hooks.Count == 0; // DLL-only patch (no hooks)
 
-                if (hasDetourHooks)
+                // Try to extract DLL if it exists (supports DETOUR hooks and DLL-only patches)
+                var extractResult = _repository.ExtractPatchDll(patchId, patchesDir);
+
+                if (extractResult.Success && extractResult.Data != null)
                 {
-                    // Only create patches directory if we actually need it
+                    // DLL exists and was extracted successfully
                     Directory.CreateDirectory(patchesDir);
+                    extractedDlls[patchId] = extractResult.Data;
 
-                    var extractResult = _repository.ExtractPatchDll(patchId, patchesDir);
-                    if (!extractResult.Success || extractResult.Data == null)
+                    if (hasDetourHooks)
                     {
-                        // Cleanup and restore backup on failure
+                        messages.Add($"  Extracted: {patchId}.dll (DETOUR hooks)");
+                    }
+                    else if (hasDllOnlyPatch)
+                    {
+                        messages.Add($"  Extracted: {patchId}.dll (DLL-only patch)");
+                    }
+                    else
+                    {
+                        messages.Add($"  Extracted: {patchId}.dll");
+                    }
+                }
+                else
+                {
+                    // No DLL in archive
+                    if (hasDetourHooks)
+                    {
+                        // DETOUR hooks require a DLL - this is an error
                         if (backup != null)
                         {
                             BackupManager.RestoreBackup(backup);
@@ -285,19 +305,17 @@ public class PatchApplicator
                         return new InstallResult
                         {
                             Success = false,
-                            Error = $"Failed to extract {patchId}: {extractResult.Error}",
+                            Error = $"Failed to extract {patchId}: {extractResult.Error} (DETOUR hooks require DLL)",
                             DetectedVersion = gameVersion,
                             Backup = backup,
                             Messages = messages
                         };
                     }
-
-                    extractedDlls[patchId] = extractResult.Data;
-                    messages.Add($"  Extracted: {patchId}.dll");
-                }
-                else
-                {
-                    messages.Add($"  Skipped: {patchId} (SIMPLE patch, no DLL required)");
+                    else
+                    {
+                        // SIMPLE patch - no DLL required
+                        messages.Add($"  Skipped: {patchId} (SIMPLE patch, no DLL)");
+                    }
                 }
             }
 
