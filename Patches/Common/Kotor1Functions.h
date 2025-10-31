@@ -132,7 +132,7 @@ const DWORD SWSOBJECT_ADD_ACTION_TO_FRONT = 0x004ccb00;
 extern SWSObject_AddActionToFront sWSObjectAddActionToFront;
 
 // CSWSCreature
-typedef DWORD(__thiscall* SWSCreature_GetClientCreature)(void* thisPtr);
+typedef void*(__thiscall* SWSCreature_GetClientCreature)(void* thisPtr);
 
 const DWORD SWSCREATURE_GET_CLIENT_CREATURE = 0x004efb20;
 

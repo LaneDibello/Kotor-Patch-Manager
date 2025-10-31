@@ -5276,3 +5276,7 @@ void AdjustCreatureSkills(object oObject, int nSkill, int nAmount);
 // SKILL_TREAT_INJURY
 // oObject is the creature that will have its skill base returned.
 int GetSkillRankBase(int nSkill, object oObject=OBJECT_SELF);
+
+// 787. IsRunning
+// gets the walk state of the creature: 0 walk or standing, 1 is running
+int IsRunning( object oCreature );
