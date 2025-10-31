@@ -48,3 +48,6 @@ VirtualMachine_RunScript virtualMachineRunScript = (VirtualMachine_RunScript)VIR
 
 // CSWSObject
 SWSObject_AddActionToFront sWSObjectAddActionToFront = (SWSObject_AddActionToFront)SWSOBJECT_ADD_ACTION_TO_FRONT;
+
+// CSWSCreature
+SWSCreature_GetClientCreature sWSCreatureGetClientCreature = (SWSCreature_GetClientCreature)SWSCREATURE_GET_CLIENT_CREATURE;

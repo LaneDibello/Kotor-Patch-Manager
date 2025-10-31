@@ -2,6 +2,7 @@
 #include "Kotor1Functions.h"
 #include "fileIO.h"
 #include "creatureStats.h"
+#include "clientCreatures.h"
 
 const int TestScriptExtensionIndex = 772;
 int __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
@@ -54,6 +55,8 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[AdjustCreatureAttributesIndex] = (DWORD)&ExecuteCommandAdjustCreatureAttributes;
     commands[AdjustCreatureSkillsIndex] = (DWORD)&ExecuteCommandAdjustCreatureSkills;
     commands[GetSkillRankBaseIndex] = (DWORD)&ExecuteCommandGetSkillRankBase;
+
+    commands[IsRunningIndex] = (DWORD)&ExecuteCommandIsRunning;
 
     debugLog("[PATCH] GetFeatAcquired at %p", &ExecuteCommandGetFeatAcquired);
 }
