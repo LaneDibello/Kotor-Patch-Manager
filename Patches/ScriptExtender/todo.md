@@ -74,4 +74,4 @@
 	- Get2DAString
 	- Get2DAInt
 	- Get2DAFloat
-	- GetPLayerLookingAtObject
+	- GetPlayerLookingAtObject

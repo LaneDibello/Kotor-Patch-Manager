@@ -13,7 +13,7 @@ int __stdcall ExecuteCommandIsRunning(DWORD routine, int paramCount)
 	if (serverCreature) {
 		void* clientCreature = sWSCreatureGetClientCreature(serverCreature);
 		if (clientCreature) {
-			outcome = getObjectProperty<int>(clientCreature, 0x3e0);
+			outcome = (int)getObjectProperty<BYTE>(clientCreature, 0x3e0);
 		}
 	}
 
@@ -35,7 +35,7 @@ int __stdcall ExecuteCommandIsStealthed(DWORD routine, int paramCount) {
 	if (serverCreature) {
 		void* clientCreature = sWSCreatureGetClientCreature(serverCreature);
 		if (clientCreature) {
-			outcome = getObjectProperty<int>(clientCreature, 0x194);
+			outcome = (int)getObjectProperty<BYTE>(clientCreature, 0x194);
 		}
 	}
 

@@ -29,16 +29,48 @@ void __cdecl teleport(char* location) {
 
 }
 
-void __cdecl showwalkmesh() {
+void __cdecl walkmeshrender() {
     int* renderAABB = (int*)0x007fbf5c;
     *renderAABB = (*renderAABB) ^ 1;
 }
 
+void __cdecl guirender() {
+    int* renderGUI = (int*)0x007bb4d0;
+    *renderGUI = (*renderGUI) ^ 1;
+}
+
+void __cdecl wireframerender() {
+    int* renderWireframe = (int*)0x007bb4f0;
+    *renderWireframe = (*renderWireframe) ^ 1;
+}
+
+void __cdecl triggersrender() {
+    int* renderQATriggers = (int*)0x0083285c;
+    *renderQATriggers = (*renderQATriggers) ^ 1;
+    int* renderTriggers = (int*)0x007b92e4;
+    *renderTriggers = (*renderTriggers) ^ 1;
+}
+
+void __cdecl personalspacerender() {
+    int* renderPersonalSpace = (int*)0x007b9314;
+    *renderPersonalSpace = (*renderPersonalSpace) ^ 1;
+}
+
+void __cdecl boundingboxesrender() {
+    int* renderGobBBs = (int*)0x0082805c;
+    *renderGobBBs = (*renderGobBBs) ^ 1;
+}
+
 extern "C" void __cdecl InitializeAdditionalCommands()
 {
-    ConsoleFunc* command_runscript = new ConsoleFunc("runscript", (void*)&runscript, STRING_PARAM);
-    ConsoleFunc* command_teleport = new ConsoleFunc("teleport", (void*)&teleport, STRING_PARAM);
-    ConsoleFunc* command_showwalkmesh = new ConsoleFunc("showwalkmesh", (void*)&showwalkmesh, NO_PARAMS);
+    new ConsoleFunc("runscript", (void*)&runscript, STRING_PARAM);
+    new ConsoleFunc("teleport", (void*)&teleport, STRING_PARAM);
+    new ConsoleFunc("walkmeshrender", (void*)&walkmeshrender, NO_PARAMS);
+    new ConsoleFunc("guirender", (void*)&guirender, NO_PARAMS);
+    new ConsoleFunc("wireframerender", (void*)&wireframerender, NO_PARAMS);
+    new ConsoleFunc("triggersrender", (void*)&triggersrender, NO_PARAMS);
+    new ConsoleFunc("personalspacerender", (void*)&personalspacerender, NO_PARAMS);
+    new ConsoleFunc("boundingboxesrender", (void*)&boundingboxesrender, NO_PARAMS);
 }
 
 // DLL Entry Point
