@@ -57,6 +57,7 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[GetSkillRankBaseIndex] = (DWORD)&ExecuteCommandGetSkillRankBase;
 
     commands[IsRunningIndex] = (DWORD)&ExecuteCommandIsRunning;
+    commands[IsStealthedIndex] = (DWORD)&ExecuteCommandIsStealthed;
 
     debugLog("[PATCH] GetFeatAcquired at %p", &ExecuteCommandGetFeatAcquired);
 }

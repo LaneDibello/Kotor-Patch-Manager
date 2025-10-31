@@ -33,11 +33,11 @@
 	- GetSpellBaseForcePointCost
 	- IncrementGlobalNumber
 	- DecrementGlobalNumber
-	- IsStealthed
+	- ✅ IsStealthed
 	- GetRandomDestination
 	- HasLineOfSight
 	- ForceHeartbeat
-	- IsRunning
+	- ✅ IsRunning
 	- GetObjectPersonalSpace
 	- GetIsPartyLeader
 	- GetPartyLeader
@@ -59,7 +59,7 @@
 	- Would run an arbitrary CPP function as specified by the string param
 	- This is meant to allow modders to easily add new functions to scripts without having to update this patch
 - String operations
-	- Format (might be difficult because lack of `...` params)
+	- ❌ Format (might be difficult because lack of `...` params)
 	- ConcatStrings
 	- TrimWhitespace
 	- FromCharCode

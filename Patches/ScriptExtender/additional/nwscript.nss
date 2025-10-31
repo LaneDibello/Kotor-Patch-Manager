@@ -5280,3 +5280,8 @@ int GetSkillRankBase(int nSkill, object oObject=OBJECT_SELF);
 // 787. IsRunning
 // gets the walk state of the creature: 0 walk or standing, 1 is running
 int IsRunning( object oCreature );
+
+// 788. IsStealthed
+// gets the stealth state of the creature: 0 not stealthed, 1 is stealthed
+// returns 0 for non-creatures
+int IsStealthed( object oCreature );
