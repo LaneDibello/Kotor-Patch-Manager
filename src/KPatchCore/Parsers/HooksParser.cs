@@ -62,7 +62,7 @@ public static class HooksParser
 
                 var type = ParseHookType(hookTable);
 
-                // Parse function (required for DETOUR, not for SIMPLE)
+                // Parse function (required for DETOUR, not for SIMPLE or REPLACE)
                 string? function = null;
                 if (type == HookType.Detour)
                 {
@@ -80,7 +80,7 @@ public static class HooksParser
 
                 // Parse optional fields
 
-                // Parse replacement_bytes (required for Simple hooks)
+                // Parse replacement_bytes (required for Simple and Replace hooks)
                 byte[]? replacementBytes = null;
                 if (TryGetByteArray(hookTable, "replacement_bytes", out var repBytes))
                 {
@@ -228,6 +228,7 @@ public static class HooksParser
         {
             "detour" => HookType.Detour,
             "simple" => HookType.Simple,
+            "replace" => HookType.Replace,
             _ => HookType.Detour // Invalid types default to Detour
         };
     }

@@ -13,7 +13,12 @@ public enum HookType
     /// <summary>
     /// SIMPLE: Direct byte replacement in memory (no DLL required)
     /// </summary>
-    Simple
+    Simple,
+
+    /// <summary>
+    /// REPLACE: JMP to allocated code block with raw assembly, then JMP back (no wrapper, no DLL)
+    /// </summary>
+    Replace
 }
 
 /// <summary>
@@ -35,18 +40,20 @@ public sealed class Hook
     /// Original bytes at hook address (for verification and execution)
     /// For Detour: Overwritten with JMP + NOPs and executed in the wrapper (must be >= 5 bytes)
     /// For Simple: Used for verification before replacement (any length)
+    /// For Replace: Overwritten with JMP + NOPs, used for verification (must be >= 5 bytes)
     /// </summary>
     public required byte[] OriginalBytes { get; init; }
 
     /// <summary>
-    /// Replacement bytes for Simple hook type
-    /// Must be same length as OriginalBytes for Simple hooks
+    /// Replacement bytes
+    /// For Simple: Must be same length as OriginalBytes
+    /// For Replace: Can be any length, executed then JMP back
     /// Not used for Detour hooks
     /// </summary>
     public byte[]? ReplacementBytes { get; init; }
 
     /// <summary>
-    /// Hook type (Detour or Simple)
+    /// Hook type (Detour, Simple, or Replace)
     /// Default: Detour
     /// </summary>
     public HookType Type { get; init; } = HookType.Detour;
@@ -140,6 +147,32 @@ public sealed class Hook
             if (Parameters.Count > 0)
             {
                 error = "Simple hooks cannot have parameters";
+                return false;
+            }
+        }
+        else if (Type == HookType.Replace)
+        {
+            if (ReplacementBytes == null || ReplacementBytes.Length == 0)
+            {
+                error = "ReplacementBytes required for Replace hooks";
+                return false;
+            }
+
+            if (OriginalBytes.Length < 5)
+            {
+                error = "OriginalBytes must be at least 5 bytes for Replace hooks (JMP instruction)";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Function))
+            {
+                error = "Replace hooks should not have a function name";
+                return false;
+            }
+
+            if (Parameters.Count > 0)
+            {
+                error = "Replace hooks cannot have parameters";
                 return false;
             }
         }

@@ -70,14 +70,14 @@ public static class ConfigGenerator
                         ["type"] = hook.Type.ToString().ToLowerInvariant()
                     };
 
-                    // Add function field for Detour hooks (not needed for Simple)
+                    // Add function field for Detour hooks (not needed for Simple or Replace)
                     if (hook.Function != null)
                     {
                         hookTable["function"] = hook.Function;
                     }
 
-                    // Add replacement_bytes for Simple hooks
-                    if (hook.Type == HookType.Simple && hook.ReplacementBytes != null)
+                    // Add replacement_bytes for Simple and Replace hooks
+                    if ((hook.Type == HookType.Simple || hook.Type == HookType.Replace) && hook.ReplacementBytes != null)
                     {
                         var replacementBytesArray = new TomlArray();
                         foreach (var b in hook.ReplacementBytes)

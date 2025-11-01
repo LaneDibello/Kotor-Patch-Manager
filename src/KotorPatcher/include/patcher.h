@@ -12,6 +12,7 @@ namespace KotorPatcher {
     enum class HookType {
         DETOUR,     // Trampoline with JMP, wrapper with automatic state management (default for DLL hooks)
         SIMPLE,     // Direct byte replacement in memory (no DLL required)
+        REPLACE,    // JMP to allocated code block with raw assembly, then JMP back (no wrapper, no DLL)
         DLL_ONLY    // Load DLL but apply no hooks (for DllMain-based patches)
     };
 
@@ -43,8 +44,10 @@ namespace KotorPatcher {
         std::vector<BYTE> originalBytes;  // Original bytes (for verification and execution)
                                            // DETOUR: Must be >= 5 bytes, executed in wrapper
                                            // SIMPLE: Any length, verified before replacement
-        std::vector<BYTE> replacementBytes;  // Replacement bytes (SIMPLE hooks only)
-                                               // Must be same length as originalBytes
+                                           // REPLACE: Must be >= 5 bytes, used for verification only
+        std::vector<BYTE> replacementBytes;  // Replacement bytes
+                                               // SIMPLE: Must be same length as originalBytes
+                                               // REPLACE: Can be any length, executed then JMP back
 
         // Hook behavior configuration
         HookType type = HookType::DETOUR;  // Default hook type

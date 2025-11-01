@@ -176,6 +176,9 @@ namespace KotorPatcher {
                         else if (_stricmp(type.c_str(), "simple") == 0) {
                             patch.type = HookType::SIMPLE;
                         }
+                        else if (_stricmp(type.c_str(), "replace") == 0) {
+                            patch.type = HookType::REPLACE;
+                        }
                         else {
                             OutputDebugStringA(("[Config] Unknown hook type '" + type + "', defaulting to DETOUR\n").c_str());
                             patch.type = HookType::DETOUR;
@@ -223,7 +226,7 @@ namespace KotorPatcher {
                     // original_bytes are used for both verification and execution in wrapper
                     // No separate stolen_bytes field needed
 
-                    // === Parse Replacement Bytes (Required for SIMPLE hooks) ===
+                    // === Parse Replacement Bytes (Required for SIMPLE and REPLACE hooks) ===
                     if (patch.type == HookType::SIMPLE) {
                         auto replacementBytesArray = hookTable->at_path("replacement_bytes").as_array();
                         if (!replacementBytesArray) {
@@ -238,6 +241,30 @@ namespace KotorPatcher {
 
                         if (patch.replacementBytes.size() != patch.originalBytes.size()) {
                             OutputDebugStringA("[Config] replacement_bytes length must match original_bytes length\n");
+                            continue;
+                        }
+                    }
+                    else if (patch.type == HookType::REPLACE) {
+                        auto replacementBytesArray = hookTable->at_path("replacement_bytes").as_array();
+                        if (!replacementBytesArray) {
+                            OutputDebugStringA("[Config] REPLACE hook missing required field: replacement_bytes\n");
+                            continue;
+                        }
+
+                        if (!ParseByteArray(replacementBytesArray, patch.replacementBytes)) {
+                            OutputDebugStringA("[Config] Failed to parse replacement_bytes\n");
+                            continue;
+                        }
+
+                        // REPLACE hooks need at least 5 bytes for JMP instruction at hook address
+                        if (patch.originalBytes.size() < 5) {
+                            OutputDebugStringA("[Config] REPLACE hook original_bytes must be at least 5 bytes (for JMP instruction)\n");
+                            continue;
+                        }
+
+                        // Replacement bytes can be any length
+                        if (patch.replacementBytes.empty()) {
+                            OutputDebugStringA("[Config] REPLACE hook replacement_bytes cannot be empty\n");
                             continue;
                         }
                     }

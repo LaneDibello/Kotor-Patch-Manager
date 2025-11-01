@@ -7,6 +7,7 @@
 namespace KotorPatcher {
     static std::vector<HMODULE> g_loadedPatches;
     static std::vector<PatchInfo> g_patches;
+    static std::vector<void*> g_allocatedCodeBuffers;  // Track allocated buffers for REPLACE hooks
     static bool g_initialized = false;
     static Wrappers::WrapperGeneratorBase* g_wrapperGenerator = nullptr;
 
@@ -67,6 +68,14 @@ namespace KotorPatcher {
             g_wrapperGenerator->FreeAllWrappers();
         }
 
+        // Free allocated code buffers from REPLACE hooks
+        for (void* buffer : g_allocatedCodeBuffers) {
+            if (buffer) {
+                VirtualFree(buffer, 0, MEM_RELEASE);
+            }
+        }
+        g_allocatedCodeBuffers.clear();
+
         // Unload patch DLLs
         for (HMODULE h : g_loadedPatches) {
             if (h) FreeLibrary(h);
@@ -76,8 +85,9 @@ namespace KotorPatcher {
         g_initialized = false;
     }
 
-    // Forward declaration
+    // Forward declarations
     static bool ApplySimpleHook(const PatchInfo& patch);
+    static bool ApplyReplaceHook(const PatchInfo& patch);
 
     bool ApplyPatches() {
         for (const auto& patch : g_patches) {
@@ -123,6 +133,11 @@ namespace KotorPatcher {
         // Handle SIMPLE hooks (no DLL loading)
         if (patch.type == HookType::SIMPLE) {
             return ApplySimpleHook(patch);
+        }
+
+        // Handle REPLACE hooks (JMP to code block, no DLL loading)
+        if (patch.type == HookType::REPLACE) {
+            return ApplyReplaceHook(patch);
         }
 
         // DETOUR hook - load DLL and create wrapper
@@ -243,6 +258,66 @@ namespace KotorPatcher {
         sprintf_s(successMsg, "[KotorPatcher] Applied SIMPLE hook at 0x%08X (%d bytes replaced)\n",
             patch.hookAddress,
             static_cast<int>(patch.replacementBytes.size()));
+        OutputDebugStringA(successMsg);
+
+        return true;
+    }
+
+    // Apply a REPLACE hook (JMP to code block, execute raw assembly, JMP back)
+    static bool ApplyReplaceHook(const PatchInfo& patch) {
+        // Verify original bytes
+        if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
+            OutputDebugStringA("[KotorPatcher] Original bytes mismatch for REPLACE hook - wrong game version?\n");
+            return false;
+        }
+
+        // Calculate buffer size: replacement_bytes + 5-byte return JMP
+        size_t bufferSize = patch.replacementBytes.size() + 5;
+
+        // Allocate executable memory for replacement code + return JMP
+        void* codeBuf = VirtualAlloc(nullptr, bufferSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        if (!codeBuf) {
+            OutputDebugStringA("[KotorPatcher] Failed to allocate memory for REPLACE hook\n");
+            return false;
+        }
+
+        // Track allocated buffer for cleanup
+        g_allocatedCodeBuffers.push_back(codeBuf);
+
+        // Write replacement bytes to allocated memory
+        memcpy(codeBuf, patch.replacementBytes.data(), patch.replacementBytes.size());
+
+        // Calculate return address (after original bytes)
+        void* returnAddr = reinterpret_cast<void*>(patch.hookAddress + patch.originalBytes.size());
+
+        // Write JMP back to game code at end of replacement bytes
+        BYTE* returnJmp = static_cast<BYTE*>(codeBuf) + patch.replacementBytes.size();
+        *returnJmp = 0xE9;  // JMP opcode
+        DWORD offset = reinterpret_cast<DWORD>(returnAddr) - (reinterpret_cast<DWORD>(returnJmp) + 5);
+        memcpy(returnJmp + 1, &offset, 4);
+
+        // Flush instruction cache for code buffer
+        FlushInstructionCache(GetCurrentProcess(), codeBuf, bufferSize);
+
+        // Write JMP at hook address to code buffer
+        if (!Trampoline::WriteJump(patch.hookAddress, codeBuf)) {
+            OutputDebugStringA("[KotorPatcher] Failed to write REPLACE hook JMP\n");
+            return false;
+        }
+
+        // Write NOPs for remaining bytes (if original_bytes > 5)
+        if (patch.originalBytes.size() > 5) {
+            if (!Trampoline::WriteNoOps(patch.hookAddress + 5, patch.originalBytes.size() - 5)) {
+                OutputDebugStringA("[KotorPatcher] Failed to write NOPs for REPLACE hook\n");
+                return false;
+            }
+        }
+
+        char successMsg[256];
+        sprintf_s(successMsg, "[KotorPatcher] Applied REPLACE hook at 0x%08X (%d bytes code, %d bytes replaced)\n",
+            patch.hookAddress,
+            static_cast<int>(patch.replacementBytes.size()),
+            static_cast<int>(patch.originalBytes.size()));
         OutputDebugStringA(successMsg);
 
         return true;
