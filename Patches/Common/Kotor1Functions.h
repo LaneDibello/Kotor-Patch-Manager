@@ -137,3 +137,12 @@ typedef void*(__thiscall* SWSCreature_GetClientCreature)(void* thisPtr);
 const DWORD SWSCREATURE_GET_CLIENT_CREATURE = 0x004efb20;
 
 extern SWSCreature_GetClientCreature sWSCreatureGetClientCreature;
+
+// CSWItem
+
+// Function pointer for the call we're detouring
+typedef void* (__thiscall* SWItem_GetBaseItem)(void* thisPtr);
+
+const DWORD SWITEM_GET_BASE_ITEM = 0x005b4790;
+
+extern SWItem_GetBaseItem sWItemGetBaseItem;

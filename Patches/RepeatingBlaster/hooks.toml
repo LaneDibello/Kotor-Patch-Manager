@@ -1,0 +1,16 @@
+[[hooks]]
+address = 0x004d2b0f
+function = "RepeatingBlasterFix"
+# Captures: MOV ECX,ESI (2 bytes) + CALL (5 bytes) + CMP (4 bytes) + JNZ (2 bytes) + MOV EBX,1 (5 bytes) = 18 bytes
+# This allows us to replace the entire if-statement logic
+original_bytes = [ 0x8b, 0xce, 0xe8, 0x7a, 0x1c, 0x0e, 0x00, 0x80, 0x78, 0x08, 0x03, 0x75, 0x05, 0xbb, 0x01, 0x00, 0x00, 0x00 ]
+type = "detour"
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "uint"
+
+[[hooks.parameters]]
+source = "ebx"
+type = "uint"

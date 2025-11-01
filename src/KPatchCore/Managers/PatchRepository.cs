@@ -82,6 +82,7 @@ public class PatchRepository
 
         if (errors.Count > 0)
         {
+            errors.ForEach(e => Console.WriteLine(e));
             result.WithMessage($"Failed to load {errors.Count} patches:");
             foreach (var error in errors)
             {

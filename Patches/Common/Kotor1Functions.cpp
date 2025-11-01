@@ -51,3 +51,6 @@ SWSObject_AddActionToFront sWSObjectAddActionToFront = (SWSObject_AddActionToFro
 
 // CSWSCreature
 SWSCreature_GetClientCreature sWSCreatureGetClientCreature = (SWSCreature_GetClientCreature)SWSCREATURE_GET_CLIENT_CREATURE;
+
+// CSWItem
+SWItem_GetBaseItem sWItemGetBaseItem = (SWItem_GetBaseItem)SWITEM_GET_BASE_ITEM;
