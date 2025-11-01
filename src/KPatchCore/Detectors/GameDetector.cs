@@ -36,26 +36,48 @@ public static class GameDetector
             Hash = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
         },
 
-        // KOTOR 2 - GOG version 1.0.2
+        // KOTOR 2 - GOG version Aspyr
         ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"] = new GameVersion
         {
             Platform = Platform.Windows,
             Distribution = Distribution.GOG,
-            Version = "1.0.2",
+            Version = "2 1.0.2 (Aspyr)",
             Architecture = Architecture.x86,
             FileSize = 0x648f98,
             Hash = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"
         },
 
-        // KOTOR 2 - Steam version 1.0.2
+        // KOTOR 2 - Steam version Aspyr
         ["6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"] = new GameVersion
         {
             Platform = Platform.Windows,
             Distribution = Distribution.Steam,
-            Version = "1.0.2",
+            Version = "2 1.0.2 (Aspyr)",
             Architecture = Architecture.x86,
             FileSize = 0x648800,
             Hash = "6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"
+        },
+
+        // KOTOR 2 - Legacy 1.0
+        ["92D7800687A0119A1A81527DB875673228C891A3EA241EE130F22567BF34A501"] = new GameVersion
+        {
+            Platform = Platform.Windows,
+            Distribution = Distribution.Physical,
+            Version = "2 1.0 (Legacy)",
+            Architecture = Architecture.x86,
+            FileSize = 0x45de00,
+            Hash = "92D7800687A0119A1A81527DB875673228C891A3EA241EE130F22567BF34A501"
+        },
+
+        // KOTOR 2 - Legacy 1.0b
+        ["0912D1942DE4EE849F06588CB738A0E78B6D5FFE92960B9567196D54B7E808D0"] = new GameVersion
+        {
+            Platform = Platform.Windows,
+            Distribution = Distribution.GOG,
+            Version = "2 1.0b (Legacy)",
+            Architecture = Architecture.x86,
+            FileSize = 0x45de00,
+            Hash = "0912D1942DE4EE849F06588CB738A0E78B6D5FFE92960B9567196D54B7E808D0"
         }
     };
 

@@ -142,7 +142,7 @@ public static class ProcessInjector
         string gameExePath,
         string dllPath,
         string? commandLineArgs = null,
-        Distribution distribution = Distribution.GOG)
+        Distribution distribution = Distribution.Other)
     {
         if (!File.Exists(gameExePath))
         {
