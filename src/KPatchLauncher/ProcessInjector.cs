@@ -57,6 +57,14 @@ public static class ProcessInjector
         out UIntPtr lpNumberOfBytesWritten);
 
     [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool ReadProcessMemory(
+        IntPtr hProcess,
+        IntPtr lpBaseAddress,
+        [Out] byte[] lpBuffer,
+        int dwSize,
+        out IntPtr lpNumberOfBytesRead);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr CreateRemoteThread(
         IntPtr hProcess,
         IntPtr lpThreadAttributes,
@@ -128,11 +136,13 @@ public static class ProcessInjector
     /// <param name="gameExePath">Path to the game executable</param>
     /// <param name="dllPath">Path to the DLL to inject</param>
     /// <param name="commandLineArgs">Optional command line arguments for the game</param>
+    /// <param name="distribution">Game distribution (GOG, Steam, etc.) to determine injection method</param>
     /// <returns>Result containing Process object or error</returns>
     public static PatchResult<Process> LaunchWithInjection(
         string gameExePath,
         string dllPath,
-        string? commandLineArgs = null)
+        string? commandLineArgs = null,
+        Distribution distribution = Distribution.GOG)
     {
         if (!File.Exists(gameExePath))
         {
@@ -144,6 +154,27 @@ public static class ProcessInjector
             return PatchResult<Process>.Fail($"DLL not found: {dllPath}");
         }
 
+        // Route to appropriate launcher based on distribution
+        if (distribution == Distribution.Steam)
+        {
+            Console.WriteLine("[KPatchLauncher] Detected Steam distribution, using delayed injection method");
+            return LaunchSteamWithInjection(gameExePath, dllPath, commandLineArgs);
+        }
+        else
+        {
+            return LaunchDirectWithInjection(gameExePath, dllPath, commandLineArgs);
+        }
+    }
+
+    /// <summary>
+    /// Launches a game executable with direct DLL injection (GOG/Physical/Other distributions)
+    /// Uses CREATE_SUSPENDED to inject before the game starts
+    /// </summary>
+    private static PatchResult<Process> LaunchDirectWithInjection(
+        string gameExePath,
+        string dllPath,
+        string? commandLineArgs)
+    {
         try
         {
             // Get absolute paths
@@ -378,6 +409,265 @@ public static class ProcessInjector
             var msg = $"DLL injection failed: {ex.Message}";
             Console.WriteLine($"[Injector] EXCEPTION: {msg}");
             return PatchResult.Fail(msg);
+        }
+    }
+
+    /// <summary>
+    /// Launches a game executable with delayed DLL injection (Steam distribution)
+    /// Launches normally, waits for Steam to decrypt, then injects into the running process
+    /// </summary>
+    private static PatchResult<Process> LaunchSteamWithInjection(
+        string gameExePath,
+        string dllPath,
+        string? commandLineArgs)
+    {
+        try
+        {
+            var absGamePath = Path.GetFullPath(gameExePath);
+            var absDllPath = Path.GetFullPath(dllPath);
+
+            Console.WriteLine($"[KPatchLauncher] Launching Steam game: {Path.GetFileName(absGamePath)}");
+
+            // Step 1: Launch the game normally (let Steam handle DRM decryption)
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = absGamePath,
+                Arguments = commandLineArgs ?? string.Empty,
+                UseShellExecute = true,  // Let Steam intercept
+                WorkingDirectory = Path.GetDirectoryName(absGamePath)
+            };
+
+            Process.Start(startInfo);
+
+            // Step 2: Wait for the game process to appear (with validation to skip bootstrap)
+            Console.WriteLine("[KPatchLauncher] Waiting for game process (detecting and skipping Steam bootstrap)...");
+            var gameProcess = FindGameProcess(absGamePath, TimeSpan.FromSeconds(30));
+
+            if (gameProcess == null)
+            {
+                return PatchResult<Process>.Fail(
+                    "Could not find valid game process after Steam launch. " +
+                    "Ensure Steam is running and the game launches correctly. " +
+                    "Check console output for validation details.");
+            }
+
+            Console.WriteLine($"[KPatchLauncher] Validated game process found (PID: {gameProcess.Id})");
+
+            // Step 3: Wait for game initialization (window creation)
+            Console.WriteLine("[KPatchLauncher] Waiting for game window initialization...");
+            if (!WaitForProcessInitialization(gameProcess, TimeSpan.FromSeconds(30)))
+            {
+                return PatchResult<Process>.Fail(
+                    "Timeout waiting for game initialization. " +
+                    "The game may have failed to start or Steam decryption took too long.");
+            }
+
+            Console.WriteLine("[KPatchLauncher] Game initialized, injecting DLL...");
+
+            // Step 4: Inject DLL into the running process
+            var injectResult = InjectIntoRunningProcess(gameProcess.Id, absDllPath);
+
+            if (!injectResult.Success)
+            {
+                return PatchResult<Process>.Fail(
+                    $"Failed to inject DLL into running Steam process: {injectResult.Error}");
+            }
+
+            Console.WriteLine("[KPatchLauncher] DLL injected successfully into Steam game");
+
+            return PatchResult<Process>.Ok(
+                gameProcess,
+                $"Successfully launched {Path.GetFileName(gameExePath)} with delayed injection (Steam)");
+        }
+        catch (Exception ex)
+        {
+            return PatchResult<Process>.Fail($"Steam launch failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Finds a game process by executable path with validation to avoid Steam bootstrap processes
+    /// Polls for processes matching the executable name and validates each one
+    /// Tracks checked PIDs to avoid re-validating the same process
+    /// </summary>
+    private static Process? FindGameProcess(string exePath, TimeSpan timeout)
+    {
+        var executableName = Path.GetFileNameWithoutExtension(exePath).ToLower();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var checkedPids = new HashSet<int>();  // Track PIDs we've already validated
+
+        Console.WriteLine($"[KPatchLauncher] Searching for process: {executableName}");
+
+        while (stopwatch.Elapsed < timeout)
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName(executableName);
+
+                foreach (var process in processes)
+                {
+                    // Skip processes we've already checked
+                    if (checkedPids.Contains(process.Id))
+                        continue;
+
+                    checkedPids.Add(process.Id);
+                    Console.WriteLine($"[KPatchLauncher] Found process candidate: PID {process.Id}, validating...");
+
+                    // Validate this is a real executable, not a bootstrap
+                    if (IsValidGameProcess(process))
+                    {
+                        // Extra stability check: wait 500ms to ensure it doesn't exit immediately
+                        Thread.Sleep(500);
+
+                        try
+                        {
+                            process.Refresh();
+
+                            if (!process.HasExited)
+                            {
+                                Console.WriteLine($"[KPatchLauncher] Validated and stable process found: PID {process.Id}");
+                                return process;
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[KPatchLauncher] Process {process.Id} exited after validation, continuing search...");
+                            }
+                        }
+                        catch
+                        {
+                            Console.WriteLine($"[KPatchLauncher] Process {process.Id} became inaccessible, continuing search...");
+                        }
+                    }
+                    // IsValidGameProcess already logs why validation failed
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[KPatchLauncher] Error during process search: {ex.Message}");
+            }
+
+            Thread.Sleep(100);  // Poll every 100ms
+        }
+
+        Console.WriteLine($"[KPatchLauncher] Timeout: No valid process found after {timeout.TotalSeconds}s");
+        return null;
+    }
+
+    /// <summary>
+    /// Waits for a process to complete initialization
+    /// Detects initialization by checking for main window handle creation
+    /// </summary>
+    private static bool WaitForProcessInitialization(Process process, TimeSpan timeout)
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        while (stopwatch.Elapsed < timeout)
+        {
+            try
+            {
+                process.Refresh();
+
+                // Check if process has exited (failed to initialize)
+                if (process.HasExited)
+                {
+                    Console.WriteLine("[KPatchLauncher] Process exited before initialization completed");
+                    return false;
+                }
+
+                // Window handle creation indicates the game has initialized
+                if (process.MainWindowHandle != IntPtr.Zero)
+                {
+                    Console.WriteLine("[KPatchLauncher] Main window detected, game initialized");
+                    return true;
+                }
+            }
+            catch
+            {
+                // Process may not be accessible - continue waiting
+            }
+
+            Thread.Sleep(100);  // Poll every 100ms
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Validates a process to ensure it's the real game executable, not a Steam bootstrap
+    /// Uses PE header validation (MZ signature check) to distinguish decrypted game from encrypted stub
+    /// </summary>
+    private static bool IsValidGameProcess(Process process)
+    {
+        try
+        {
+            // Open process with read access to check memory
+            var hProcess = OpenProcess(
+                PROCESS_VM_READ | PROCESS_QUERY_INFORMATION,
+                false,
+                process.Id);
+
+            if (hProcess == IntPtr.Zero)
+            {
+                Console.WriteLine($"[KPatchLauncher] Could not open process {process.Id} for validation");
+                return false;
+            }
+
+            try
+            {
+                // Read DOS header from process base address (0x400000 is typical for Windows executables)
+                byte[] dosHeader = new byte[64];
+                bool readSuccess = ReadProcessMemory(
+                    hProcess,
+                    new IntPtr(0x400000),  // Base address for Windows executables
+                    dosHeader,
+                    dosHeader.Length,
+                    out _);
+
+                if (readSuccess)
+                {
+                    // Check for MZ signature (0x4D 0x5A) - indicates valid PE executable
+                    if (dosHeader[0] == 0x4D && dosHeader[1] == 0x5A)
+                    {
+                        Console.WriteLine($"[KPatchLauncher] Process {process.Id}: Valid PE header detected (MZ signature)");
+                        return true;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[KPatchLauncher] Process {process.Id}: Invalid PE header " +
+                            $"(got 0x{dosHeader[0]:X2} 0x{dosHeader[1]:X2}, expected 0x4D 0x5A) - likely bootstrap");
+                        return false;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"[KPatchLauncher] Process {process.Id}: Could not read memory for validation");
+
+                    // Fallback: Check if process stays alive (bootstrap exits quickly)
+                    Thread.Sleep(200);
+                    process.Refresh();
+                    bool isAlive = !process.HasExited;
+
+                    if (isAlive)
+                    {
+                        Console.WriteLine($"[KPatchLauncher] Process {process.Id}: Fallback stability check passed");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[KPatchLauncher] Process {process.Id}: Exited during validation");
+                    }
+
+                    return isAlive;
+                }
+            }
+            finally
+            {
+                CloseHandle(hProcess);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[KPatchLauncher] Validation error for process {process.Id}: {ex.Message}");
+            return false;  // If we can't validate, assume invalid
         }
     }
 }

@@ -526,7 +526,11 @@ public class MainViewModel : ViewModelBase
             SetOperationInProgress(true, "Launching game with patches...");
 
             var result = await Task.Run(() =>
-                ProcessInjector.LaunchWithInjection(GamePath, patcherDllPath));
+                ProcessInjector.LaunchWithInjection(
+                    GamePath,
+                    patcherDllPath,
+                    null,
+                    _detectedGameVersion?.Distribution ?? Distribution.Other));
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {

@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using Avalonia;
+using KPatchCore.Detectors;
+using KPatchCore.Models;
 
 namespace KPatchLauncher;
 
@@ -121,13 +123,33 @@ class Program
                 Console.WriteLine($"Found {patchDlls.Length} patch DLL(s) in patches/ directory");
             }
 
+            // Detect game version to determine distribution (Steam, GOG, etc.)
+            Console.WriteLine("Detecting game version...");
+            var versionResult = GameDetector.DetectVersion(gameExePath);
+            var distribution = Distribution.Other;  // Default fallback
+
+            if (versionResult.Success && versionResult.Data != null)
+            {
+                distribution = versionResult.Data.Distribution;
+                Console.WriteLine($"Detected: {versionResult.Data.DisplayName}");
+            }
+            else
+            {
+                Console.WriteLine($"WARNING: Could not detect game version: {versionResult.Error}");
+                Console.WriteLine("Defaulting to direct injection method.");
+            }
+
             Console.WriteLine();
             Console.WriteLine($"Launching with patches...");
             Console.WriteLine($"Injecting: {PatcherDllName}");
             Console.WriteLine();
 
-            // Launch with DLL injection
-            var result = ProcessInjector.LaunchWithInjection(gameExePath, patcherDllPath);
+            // Launch with DLL injection (method depends on distribution)
+            var result = ProcessInjector.LaunchWithInjection(
+                gameExePath,
+                patcherDllPath,
+                commandLineArgs: null,
+                distribution: distribution);
 
             if (!result.Success)
             {
