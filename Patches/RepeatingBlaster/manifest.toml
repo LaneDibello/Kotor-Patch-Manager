@@ -1,17 +1,12 @@
 [patch]
 id = "repeating-blaster-fix"
 name = "Repeating Blaster Fix"
-version = "0.0.0"
+version = "0.1.0"
 author = "Lane"
-description = "An attempt at a fix for repeating blasters not having an extra attack"
+description = "Restores the missing Extra Attack that repeating balsters are meant to have"
 
-# No dependencies for this patch
 requires = []
-
-# No known conflicts
 conflicts = []
 
-# Supported game versions
-# SHA256 hash of the GOG KOTOR 1 v1.03 executable (swkotor.exe)
 [patch.supported_versions]
 kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
