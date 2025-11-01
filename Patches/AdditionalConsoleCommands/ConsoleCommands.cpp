@@ -71,6 +71,10 @@ extern "C" void __cdecl InitializeAdditionalCommands()
     new ConsoleFunc("triggersrender", (void*)&triggersrender, NO_PARAMS);
     new ConsoleFunc("personalspacerender", (void*)&personalspacerender, NO_PARAMS);
     new ConsoleFunc("boundingboxesrender", (void*)&boundingboxesrender, NO_PARAMS);
+
+    // Note we never free these values, as they're present up until the game closes anyway, so 
+    // memory is of minimal practical concern. May consider hooking an additional function to free
+    // these in the function
 }
 
 // DLL Entry Point
