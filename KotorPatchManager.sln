@@ -30,6 +30,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AdditionalConsoleCommands",
 		Patches\AdditionalConsoleCommands\exports.def = Patches\AdditionalConsoleCommands\exports.def
 		Patches\AdditionalConsoleCommands\hooks.toml = Patches\AdditionalConsoleCommands\hooks.toml
 		Patches\AdditionalConsoleCommands\manifest.toml = Patches\AdditionalConsoleCommands\manifest.toml
+		Patches\AdditionalConsoleCommands\README.md = Patches\AdditionalConsoleCommands\README.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EnableScriptAurPostString", "EnableScriptAurPostString", "{C051DF2F-D94E-40A5-B004-04308B8991C8}"
@@ -125,9 +126,9 @@ Global
 		{F96014DA-1F4F-4367-810D-860A753FD9F9} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{C051DF2F-D94E-40A5-B004-04308B8991C8} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{44FCCA62-7F28-4C88-B537-D283B74CC91F} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{A27407B3-9017-4ACC-A268-89655215846F} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{7AC5E75B-E77E-4E4C-8DE0-AB4C70CE80C4} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{23452DB2-30D6-463C-BC0D-0074EBB12133} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
-		{A27407B3-9017-4ACC-A268-89655215846F} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EC8C0764-BD06-422A-B325-D20270F5D772}
