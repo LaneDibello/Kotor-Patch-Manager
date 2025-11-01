@@ -3,7 +3,7 @@ id = "repeating-blaster-fix"
 name = "Repeating Blaster Fix"
 version = "0.1.0"
 author = "Lane"
-description = "Restores the missing Extra Attack that repeating balsters are meant to have"
+description = "Restores the missing Extra Attack that repeating blasters are meant to have"
 
 requires = []
 conflicts = []

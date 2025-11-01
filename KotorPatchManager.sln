@@ -45,6 +45,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MorePlaceablesIn2DA", "More
 		Patches\MorePlaceablesIn2DA\manifest.toml = Patches\MorePlaceablesIn2DA\manifest.toml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "RepeatingBlaster", "RepeatingBlaster", "{A27407B3-9017-4ACC-A268-89655215846F}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\RepeatingBlaster\hooks.toml = Patches\RepeatingBlaster\hooks.toml
+		Patches\RepeatingBlaster\manifest.toml = Patches\RepeatingBlaster\manifest.toml
+	EndProjectSection
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ScriptExtender", "ScriptExtender", "{7AC5E75B-E77E-4E4C-8DE0-AB4C70CE80C4}"
 	ProjectSection(SolutionItems) = preProject
 		Patches\ScriptExtender\creatureStats.cpp = Patches\ScriptExtender\creatureStats.cpp
@@ -121,6 +127,7 @@ Global
 		{44FCCA62-7F28-4C88-B537-D283B74CC91F} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{7AC5E75B-E77E-4E4C-8DE0-AB4C70CE80C4} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{23452DB2-30D6-463C-BC0D-0074EBB12133} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{A27407B3-9017-4ACC-A268-89655215846F} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EC8C0764-BD06-422A-B325-D20270F5D772}
