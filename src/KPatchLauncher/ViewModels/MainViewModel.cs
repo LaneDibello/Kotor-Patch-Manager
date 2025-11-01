@@ -14,6 +14,7 @@ using KPatchCore.Managers;
 using KPatchCore.Models;
 using KPatchCore.Applicators;
 using KPatchCore.Detectors;
+using KPatchCore.Validators;
 using KPatchLauncher.Models;
 
 namespace KPatchLauncher.ViewModels;
@@ -24,6 +25,7 @@ public class MainViewModel : ViewModelBase
     private string _patchesPath = string.Empty;
     private string _statusMessage = "Ready";
     private string _kotorVersion = "Unknown";
+    private GameVersion? _detectedGameVersion;
     private PatchItemViewModel? _selectedPatch;
     private PatchRepository? _repository;
     private readonly AppSettings _settings;
@@ -58,6 +60,9 @@ public class MainViewModel : ViewModelBase
     }
 
     public ObservableCollection<PatchItemViewModel> AllPatches { get; }
+
+    public IEnumerable<PatchItemViewModel> VisiblePatches =>
+        AllPatches.Where(p => p.IsCompatible);
 
     public PatchItemViewModel? SelectedPatch
     {
@@ -598,6 +603,9 @@ public class MainViewModel : ViewModelBase
                     AllPatches.Add(patch);
                 }
 
+                // Update compatibility status for loaded patches
+                UpdatePatchCompatibility();
+
                 SetOperationInProgress(false, $"Loaded {patchViewModels.Count} patches from {Path.GetFileName(directory)}");
             });
 
@@ -639,12 +647,17 @@ public class MainViewModel : ViewModelBase
                 if (versionInfo.Success && versionInfo.Data != null)
                 {
                     var v = versionInfo.Data;
+                    _detectedGameVersion = v;
                     KotorVersion = $"{v.DisplayName})";
                 }
                 else
                 {
+                    _detectedGameVersion = null;
                     KotorVersion = "Unknown";
                 }
+
+                // Update patch compatibility after version detection
+                UpdatePatchCompatibility();
             });
 
             if (!installInfo.Success || installInfo.Data == null)
@@ -710,5 +723,57 @@ public class MainViewModel : ViewModelBase
                 SetOperationInProgress(false, isAutoRefresh ? null : $"Could not check patch status: {ex.Message}", isAutoRefresh);
             });
         }
+    }
+
+    private void UpdatePatchCompatibility()
+    {
+        if (_repository == null)
+            return;
+
+        // Get all patch entries from repository
+        var allPatchEntries = _repository.GetAllPatches();
+
+        foreach (var patchViewModel in AllPatches)
+        {
+            // Skip orphaned patches - they can't be checked for compatibility
+            if (patchViewModel.IsOrphaned)
+            {
+                patchViewModel.IsCompatible = false;
+                patchViewModel.CompatibilityStatus = "Patch files not found";
+                continue;
+            }
+
+            // If game version is unknown, show all patches as compatible
+            if (_detectedGameVersion == null || _detectedGameVersion.Version == "Unknown")
+            {
+                patchViewModel.IsCompatible = true;
+                patchViewModel.CompatibilityStatus = "Unknown game version - compatibility not verified";
+                continue;
+            }
+
+            // Find the patch entry in the repository
+            if (allPatchEntries.TryGetValue(patchViewModel.Id, out var patchEntry))
+            {
+                // Use GameVersionValidator to check compatibility
+                var validationResult = GameVersionValidator.ValidateGameVersion(
+                    patchEntry.Manifest,
+                    _detectedGameVersion
+                );
+
+                patchViewModel.IsCompatible = validationResult.Success;
+                patchViewModel.CompatibilityStatus = validationResult.Success
+                    ? $"Compatible with {_detectedGameVersion.DisplayName}"
+                    : $"Incompatible: {validationResult.Error}";
+            }
+            else
+            {
+                // Shouldn't happen, but handle it gracefully
+                patchViewModel.IsCompatible = false;
+                patchViewModel.CompatibilityStatus = "Patch not found in repository";
+            }
+        }
+
+        // Notify UI that VisiblePatches may have changed
+        OnPropertyChanged(nameof(VisiblePatches));
     }
 }

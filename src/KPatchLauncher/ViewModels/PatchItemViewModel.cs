@@ -10,6 +10,8 @@ public class PatchItemViewModel : ViewModelBase
     private bool _isChecked = false;
     private bool _isOrphaned = false;
     private int _displayOrder = 0;
+    private bool _isCompatible = true;
+    private string _compatibilityStatus = string.Empty;
 
     public string Id
     {
@@ -77,6 +79,18 @@ public class PatchItemViewModel : ViewModelBase
     {
         get => _displayOrder;
         set => SetProperty(ref _displayOrder, value);
+    }
+
+    public bool IsCompatible
+    {
+        get => _isCompatible;
+        set => SetProperty(ref _isCompatible, value);
+    }
+
+    public string CompatibilityStatus
+    {
+        get => _compatibilityStatus;
+        set => SetProperty(ref _compatibilityStatus, value);
     }
 
     public string DisplayText => $"{Name} v{Version}";

@@ -151,12 +151,13 @@
                                FontSize="14"
                                Margin="0,0,0,8"/>
 
-                    <ListBox ItemsSource="{Binding AllPatches}"
+                    <ListBox ItemsSource="{Binding VisiblePatches}"
                              SelectedItem="{Binding SelectedPatch}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                <Grid ColumnDefinitions="Auto,*,Auto"
+                                      ToolTip.Tip="{Binding CompatibilityStatus}">
                                     <!-- Checkbox -->
                                     <CheckBox Grid.Column="0"
                                               IsChecked="{Binding IsChecked}"
@@ -239,6 +240,15 @@
                                            FontWeight="SemiBold"
                                            Margin="0,0,0,3"/>
                                 <TextBlock Text="{Binding SelectedPatch.Description}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <!-- Compatibility Status -->
+                            <StackPanel>
+                                <TextBlock Text="Compatibility:"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,3"/>
+                                <TextBlock Text="{Binding SelectedPatch.CompatibilityStatus}"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 

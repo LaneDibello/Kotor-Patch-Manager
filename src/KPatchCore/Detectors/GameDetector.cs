@@ -14,40 +14,49 @@ public static class GameDetector
     /// </summary>
     private static readonly Dictionary<string, GameVersion> KnownVersions = new()
     {
-        // KOTOR 1 - GOG version 1.03
-        ["PLACEHOLDER_HASH_GOG_103"] = new GameVersion
+        // KOTOR 1 - GOG version 1.0.3
+        ["9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"] = new GameVersion
         {
             Platform = Platform.Windows,
             Distribution = Distribution.GOG,
-            Version = "1.03",
+            Version = "1.0.3",
             Architecture = Architecture.x86,
-            FileSize = 0, // Will be updated when actual hash is added
-            Hash = "PLACEHOLDER_HASH_GOG_103"
+            FileSize = 0x3db00,
+            Hash = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
         },
 
-        // KOTOR 1 - Steam version 1.03
-        ["PLACEHOLDER_HASH_STEAM_103"] = new GameVersion
+        // KOTOR 1 - Steam version 1.0.3
+        ["34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"] = new GameVersion
         {
             Platform = Platform.Windows,
             Distribution = Distribution.Steam,
-            Version = "1.03",
+            Version = "1.0.3",
             Architecture = Architecture.x86,
-            FileSize = 0,
-            Hash = "PLACEHOLDER_HASH_STEAM_103"
+            FileSize = 0x431000,
+            Hash = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
         },
 
-        // KOTOR 2 - GOG version 1.0b
-        ["PLACEHOLDER_HASH_KOTOR2_GOG"] = new GameVersion
+        // KOTOR 2 - GOG version 1.0.2
+        ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"] = new GameVersion
         {
             Platform = Platform.Windows,
             Distribution = Distribution.GOG,
-            Version = "1.0b",
+            Version = "1.0.2",
             Architecture = Architecture.x86,
-            FileSize = 0,
-            Hash = "PLACEHOLDER_HASH_KOTOR2_GOG"
-        }
+            FileSize = 0x648f98,
+            Hash = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"
+        },
 
-        // Additional versions will be added as we test with real executables
+        // KOTOR 2 - Steam version 1.0.2
+        ["6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"] = new GameVersion
+        {
+            Platform = Platform.Windows,
+            Distribution = Distribution.Steam,
+            Version = "1.0.2",
+            Architecture = Architecture.x86,
+            FileSize = 0x648800,
+            Hash = "6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"
+        }
     };
 
     /// <summary>
