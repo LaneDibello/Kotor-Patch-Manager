@@ -54,3 +54,6 @@ SWSCreature_GetClientCreature sWSCreatureGetClientCreature = (SWSCreature_GetCli
 
 // CSWItem
 SWItem_GetBaseItem sWItemGetBaseItem = (SWItem_GetBaseItem)SWITEM_GET_BASE_ITEM;
+
+// CSWInventory
+SWInventory_GetItemInSlot sWInventoryGetItemInSlot = (SWInventory_GetItemInSlot)SWINVENOTRY_GET_ITEM_IN_SLOT;

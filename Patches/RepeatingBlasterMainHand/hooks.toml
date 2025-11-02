@@ -1,0 +1,10 @@
+[[hooks]]
+address = 0x004d2a66
+original_bytes = [ 0x8b, 0x86, 0x90, 0x09, 0x00, 0x00 ]
+function = "AddBonusMainHandAttack"
+type = "detour"
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"

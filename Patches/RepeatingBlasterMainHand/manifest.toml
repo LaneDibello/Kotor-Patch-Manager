@@ -1,9 +1,9 @@
 [patch]
-id = "repeating-blaster-fix"
-name = "Repeating Blaster Fix (off-hand)"
+id = "repeating-blaster-fix-mh"
+name = "Repeating Blaster Fix (main-hand)"
 version = "0.2.0"
 author = "Lane"
-description = "Gives an Off-Hand attack to the repeating blasters."
+description = "Gives an additional Main-Hand attack to the repeating blasters."
 
 requires = []
 conflicts = []

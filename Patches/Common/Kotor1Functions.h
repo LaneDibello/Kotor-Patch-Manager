@@ -139,10 +139,15 @@ const DWORD SWSCREATURE_GET_CLIENT_CREATURE = 0x004efb20;
 extern SWSCreature_GetClientCreature sWSCreatureGetClientCreature;
 
 // CSWItem
-
-// Function pointer for the call we're detouring
 typedef void* (__thiscall* SWItem_GetBaseItem)(void* thisPtr);
 
 const DWORD SWITEM_GET_BASE_ITEM = 0x005b4790;
 
 extern SWItem_GetBaseItem sWItemGetBaseItem;
+
+// CSWInventory
+typedef void* (__thiscall* SWInventory_GetItemInSlot)(void* thisPtr, int slot);
+
+const DWORD SWINVENOTRY_GET_ITEM_IN_SLOT = 0x005a4c20;
+
+extern SWInventory_GetItemInSlot sWInventoryGetItemInSlot;

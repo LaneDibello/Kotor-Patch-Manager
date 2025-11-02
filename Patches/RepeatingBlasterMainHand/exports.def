@@ -1,0 +1,3 @@
+LIBRARY RepeatingBlasterMainHand 
+EXPORTS 
+    AddBonusMainHandAttack 

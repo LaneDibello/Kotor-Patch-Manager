@@ -96,3 +96,8 @@ template <class retType>
 inline retType getObjectProperty(void* object, int offset) {
 	return *((retType*)((char*)object + offset));
 }
+
+template <class propType>
+inline void setObjectProperty(void* object, int offset, propType value) {
+	*((propType*)((char*)object + offset)) = value;
+}
