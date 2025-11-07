@@ -139,14 +139,18 @@ if !BUILD_DLL! EQU 1 (
     set CPP_FILES=
     for %%F in (*.cpp) do set CPP_FILES=!CPP_FILES! %%F
 
-    REM Add Common directory files if they exist
+    REM Add Common directory files if they exist (including subdirectories)
     set COMMON_FILES=
     if exist "..\Common\*.cpp" (
         for %%F in (..\Common\*.cpp) do set COMMON_FILES=!COMMON_FILES! "%%F"
         echo   Including Common library files...
     )
+    if exist "..\Common\GameAPI\*.cpp" (
+        for %%F in (..\Common\GameAPI\*.cpp) do set COMMON_FILES=!COMMON_FILES! "%%F"
+        echo   Including GameAPI library files...
+    )
 
-    cl /LD /O2 /MD /W3 /I"..\Common" !CPP_FILES! !COMMON_FILES! /link /DEF:exports.def /OUT:windows_x86.dll >build.log 2>&1
+    cl /LD /O2 /MD /W3 /std:c++17 /I"..\Common" !CPP_FILES! !COMMON_FILES! /link /DEF:exports.def /OUT:windows_x86.dll >build.log 2>&1
 
     if !ERRORLEVEL! NEQ 0 (
         echo.
@@ -188,8 +192,18 @@ REM Copy required files
 echo   Copying files...
 copy "manifest.toml" "temp_package\" >nul
 echo   [OK] manifest.toml
-copy "hooks.toml" "temp_package\" >nul
-echo   [OK] hooks.toml
+
+REM Copy ALL hooks files (*hooks.toml pattern)
+set HOOKS_COUNT=0
+for %%F in (*hooks.toml) do (
+    copy "%%F" "temp_package\" >nul
+    echo   [OK] %%F
+    set /a HOOKS_COUNT+=1
+)
+
+if !HOOKS_COUNT! EQU 0 (
+    echo   WARNING: No hooks files found ^(*hooks.toml^)
+)
 
 REM Copy DLL if it exists
 if !BUILD_DLL! EQU 1 (
