@@ -321,17 +321,42 @@ public class PatchApplicator
 
             // Step 6: Generate patch_config.toml
             messages.Add("Step 6/7: Generating patch_config.toml...");
-            var config = new PatchConfig();
+            var config = new PatchConfig
+            {
+                TargetVersionSha = gameVersion.Hash  // NEW: Set target version SHA
+            };
+
             foreach (var patchId in installOrder)
             {
-                var entry = patchEntries[patchId];
+                // Load version-specific hooks for this patch
+                var hooksResult = _repository.LoadHooksForVersion(patchId, gameVersion.Hash);
+                if (!hooksResult.Success || hooksResult.Data == null)
+                {
+                    // Cleanup on failure
+                    if (backup != null)
+                    {
+                        BackupManager.RestoreBackup(backup);
+                    }
+
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = $"Failed to load hooks for {patchId}: {hooksResult.Error}",
+                        DetectedVersion = gameVersion,
+                        Backup = backup,
+                        Messages = messages
+                    };
+                }
+
+                var hooks = hooksResult.Data;
+                messages.Add($"  {patchId}: {hooksResult.Data}");
 
                 // Get DLL path if this patch has DETOUR hooks, otherwise use empty string
                 var dllPath = extractedDlls.ContainsKey(patchId)
                     ? Path.GetRelativePath(gameDir, extractedDlls[patchId])
                     : string.Empty;
 
-                config.AddPatch(patchId, dllPath, entry.Hooks);
+                config.AddPatch(patchId, dllPath, hooks);
             }
 
             var configPath = Path.Combine(gameDir, "patch_config.toml");

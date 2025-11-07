@@ -7,6 +7,12 @@ namespace KPatchCore.Models;
 public sealed class PatchConfig
 {
     /// <summary>
+    /// SHA-256 hash of the target game version
+    /// Used by C++ runtime to load the correct address database
+    /// </summary>
+    public string? TargetVersionSha { get; init; }
+
+    /// <summary>
     /// List of enabled patches with their hooks
     /// </summary>
     public List<EnabledPatch> Patches { get; init; } = new();

@@ -39,6 +39,12 @@ public static class ConfigGenerator
     {
         var model = new TomlTable();
 
+        // Add target version SHA if specified
+        if (!string.IsNullOrEmpty(config.TargetVersionSha))
+        {
+            model["target_version_sha"] = config.TargetVersionSha;
+        }
+
         // Create array of patches
         var patchesArray = new TomlTableArray();
 

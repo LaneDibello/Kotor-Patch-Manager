@@ -5,10 +5,62 @@ using Tomlyn.Model;
 namespace KPatchCore.Parsers;
 
 /// <summary>
+/// Metadata from hooks.toml [metadata] section
+/// </summary>
+public sealed class HooksMetadata
+{
+    /// <summary>
+    /// List of target version SHA-256 hashes this hooks file applies to
+    /// Empty list means it applies to ALL supported versions
+    /// </summary>
+    public List<string> TargetVersions { get; init; } = new();
+}
+
+/// <summary>
 /// Parses hooks.toml files from .kpatch archives
 /// </summary>
 public static class HooksParser
 {
+    /// <summary>
+    /// Parses only the [metadata] section from a hooks.toml file
+    /// Used for version matching before full parsing
+    /// </summary>
+    /// <param name="hooksPath">Path to hooks.toml file</param>
+    /// <returns>Metadata containing target_versions, or empty list if no metadata section</returns>
+    public static HooksMetadata ParseMetadata(string hooksPath)
+    {
+        if (!File.Exists(hooksPath))
+        {
+            return new HooksMetadata(); // Return empty metadata
+        }
+
+        try
+        {
+            var tomlContent = File.ReadAllText(hooksPath);
+            var model = Toml.ToModel(tomlContent);
+
+            // Check for [metadata] section
+            if (!model.TryGetValue("metadata", out var metadataObj) || metadataObj is not TomlTable metadataTable)
+            {
+                // No metadata section = applies to all versions
+                return new HooksMetadata();
+            }
+
+            // Parse target_versions array
+            var targetVersions = TryGetStringArray(metadataTable, "target_versions") ?? new List<string>();
+
+            return new HooksMetadata
+            {
+                TargetVersions = targetVersions
+            };
+        }
+        catch
+        {
+            // On error, return empty metadata (applies to all versions)
+            return new HooksMetadata();
+        }
+    }
+
     /// <summary>
     /// Parses a hooks.toml file and returns a list of Hooks
     /// </summary>

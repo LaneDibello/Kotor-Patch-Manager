@@ -129,15 +129,31 @@ public class PatchRepository
                 manifest = parseResult.Data;
             }
 
-            // Load hooks.toml
-            var hooksEntry = archive.GetEntry("hooks.toml");
-            if (hooksEntry == null)
+            // Load hooks - for repository scan, we just look for any hooks files
+            // The actual version-specific loading happens in LoadHooksForVersion()
+            // Match both "hooks.toml" and "*.hooks.toml" patterns
+            var hooksEntries = archive.Entries
+                .Where(e => e.FullName.EndsWith("hooks.toml", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (hooksEntries.Count == 0)
             {
-                return PatchResult<PatchEntry>.Fail("Missing hooks.toml in patch archive");
+                // No hooks files - could be DLL-only patch
+                var patchEntry = new PatchEntry
+                {
+                    Manifest = manifest,
+                    KPatchPath = kpatchPath,
+                    Hooks = new List<Hook>(), // Empty hooks list
+                    IsLoaded = false
+                };
+
+                return PatchResult<PatchEntry>.Ok(patchEntry, $"Loaded patch: {manifest.Id} (no hooks)");
             }
 
+            // For initial repository scan, load first hooks file to get basic info
+            // The actual version-specific selection happens during installation
             List<Hook> hooks;
-            using (var stream = hooksEntry.Open())
+            using (var stream = hooksEntries[0].Open())
             using (var reader = new StreamReader(stream))
             {
                 var hooksContent = reader.ReadToEnd();
@@ -285,4 +301,101 @@ public class PatchRepository
     /// <param name="patchId">Patch ID</param>
     /// <returns>True if patch exists, false otherwise</returns>
     public bool HasPatch(string patchId) => _patches.ContainsKey(patchId);
+
+    /// <summary>
+    /// Loads hooks for a specific game version by finding and merging ALL matching hooks files
+    /// </summary>
+    /// <param name="patchId">Patch ID</param>
+    /// <param name="targetVersionSha">SHA-256 hash of target game version</param>
+    /// <returns>Result containing list of hooks or error</returns>
+    public PatchResult<List<Hook>> LoadHooksForVersion(string patchId, string targetVersionSha)
+    {
+        var patchResult = GetPatch(patchId);
+        if (!patchResult.Success || patchResult.Data == null)
+        {
+            return PatchResult<List<Hook>>.Fail(patchResult.Error ?? "Patch not found");
+        }
+
+        var patch = patchResult.Data;
+
+        try
+        {
+            using var archive = ZipFile.OpenRead(patch.KPatchPath);
+
+            // Find ALL hooks files in the archive (both "hooks.toml" and "*.hooks.toml")
+            var hooksEntries = archive.Entries
+                .Where(e => e.FullName.EndsWith("hooks.toml", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (hooksEntries.Count == 0)
+            {
+                // No hooks files - DLL-only patch
+                return PatchResult<List<Hook>>.Ok(new List<Hook>(), "No hooks files (DLL-only patch)");
+            }
+
+            // Extract hooks files to temp directory for parsing
+            var tempDir = Path.Combine(Path.GetTempPath(), $"kpatch_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(tempDir);
+
+            var allHooks = new List<Hook>();
+            var matchedFiles = new List<string>();
+
+            try
+            {
+                foreach (var entry in hooksEntries)
+                {
+                    // Extract to temp
+                    var tempPath = Path.Combine(tempDir, Path.GetFileName(entry.FullName));
+                    using (var sourceStream = entry.Open())
+                    using (var targetStream = File.Create(tempPath))
+                    {
+                        sourceStream.CopyTo(targetStream);
+                    }
+
+                    // Parse metadata to check if this file applies to our version
+                    var metadata = HooksParser.ParseMetadata(tempPath);
+
+                    // Include if: no target_versions specified OR our SHA is in the list
+                    if (metadata.TargetVersions.Count == 0 ||
+                        metadata.TargetVersions.Contains(targetVersionSha))
+                    {
+                        // This file applies to our version - parse and merge hooks
+                        var parseResult = HooksParser.ParseFile(tempPath);
+                        if (parseResult.Success && parseResult.Data != null)
+                        {
+                            allHooks.AddRange(parseResult.Data);
+                            matchedFiles.Add(Path.GetFileName(entry.FullName));
+                        }
+                    }
+                }
+
+                if (allHooks.Count == 0 && matchedFiles.Count == 0)
+                {
+                    return PatchResult<List<Hook>>.Fail(
+                        $"No hooks files found for version {targetVersionSha.Substring(0, 16)}...");
+                }
+
+                var message = $"Loaded {allHooks.Count} hook(s) from {matchedFiles.Count} file(s): " +
+                             string.Join(", ", matchedFiles);
+
+                return PatchResult<List<Hook>>.Ok(allHooks, message);
+            }
+            finally
+            {
+                // Cleanup temp directory
+                try
+                {
+                    Directory.Delete(tempDir, true);
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            return PatchResult<List<Hook>>.Fail($"Failed to load hooks for version: {ex.Message}");
+        }
+    }
 }
