@@ -8,8 +8,13 @@ versions_sha = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435
 # Global Memory Pointers
 # ============================================================================
 [global_pointers]
-VIRTUAL_MACHINE_PTR = "0x007a3a00"
+EXO_RESOURCE_MANAGER_PTR = "0x007a39e8"
+GUI_MANAGER_PTR = "0x007a39f4"
+AURORA_PTR = "0x007a39f8"
 APP_MANAGER_PTR = "0x007a39fc"
+VIRTUAL_MACHINE_PTR = "0x007a3a00"
+TLK_TABLE_PTR = "0x007a3a08"
+RULES_PTR = "0x007a3a28"
 
 # ============================================================================
 # Game Function Addresses (organized by class)
