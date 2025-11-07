@@ -381,8 +381,80 @@ public class PatchApplicator
 
             messages.Add($"  Config generated: patch_config.toml");
 
+            // Step 6.5: Copy address database to game directory
+            messages.Add("Step 6.5/8: Copying address database...");
+
+            // Find AddressDatabases directory in same directory as executing assembly
+            // (copied there by build system via .csproj)
+            var assemblyDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? string.Empty;
+            var addressDbSourceDirNormalized = Path.Combine(assemblyDir, "AddressDatabases");
+
+            if (!Directory.Exists(addressDbSourceDirNormalized))
+            {
+                if (backup != null)
+                {
+                    BackupManager.RestoreBackup(backup);
+                }
+
+                return new InstallResult
+                {
+                    Success = false,
+                    Error = $"Address database directory not found: {addressDbSourceDirNormalized}",
+                    DetectedVersion = gameVersion,
+                    Backup = backup,
+                    Messages = messages
+                };
+            }
+
+            // Find matching address database by SHA
+            var addressDbFiles = Directory.GetFiles(addressDbSourceDirNormalized, "*.toml");
+            string? matchingAddressDb = null;
+
+            foreach (var dbFile in addressDbFiles)
+            {
+                // Parse TOML to check versions_sha field
+                var content = File.ReadAllText(dbFile);
+                var lines = content.Split('\n');
+                foreach (var line in lines)
+                {
+                    if (line.Trim().StartsWith("versions_sha"))
+                    {
+                        var sha = line.Split('=')[1].Trim().Trim('"');
+                        if (sha == gameVersion.Hash)
+                        {
+                            matchingAddressDb = dbFile;
+                            break;
+                        }
+                    }
+                }
+
+                if (matchingAddressDb != null) break;
+            }
+
+            if (matchingAddressDb == null)
+            {
+                if (backup != null)
+                {
+                    BackupManager.RestoreBackup(backup);
+                }
+
+                return new InstallResult
+                {
+                    Success = false,
+                    Error = $"No address database found for game version SHA: {gameVersion.Hash.Substring(0, 16)}...",
+                    DetectedVersion = gameVersion,
+                    Backup = backup,
+                    Messages = messages
+                };
+            }
+
+            // Copy to game directory as addresses.toml (generic name)
+            var addressDbDest = Path.Combine(gameDir, "addresses.toml");
+            File.Copy(matchingAddressDb, addressDbDest, overwrite: true);
+            messages.Add($"  Copied: {Path.GetFileName(matchingAddressDb)} -> addresses.toml");
+
             // Step 7: Copy patcher DLL
-            messages.Add("Step 7/7: Installing patcher DLL...");
+            messages.Add("Step 7/8: Installing patcher DLL...");
 
             // Copy KotorPatcher.dll to game directory if path provided
             if (!string.IsNullOrEmpty(options.PatcherDllPath))

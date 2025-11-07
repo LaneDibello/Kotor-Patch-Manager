@@ -131,7 +131,7 @@ public class PatchRepository
 
             // Load hooks - for repository scan, we just look for any hooks files
             // The actual version-specific loading happens in LoadHooksForVersion()
-            // Match both "hooks.toml" and "*.hooks.toml" patterns
+            // Match pattern: *hooks.toml (e.g., "hooks.toml", "gog.hooks.toml", "steam.hooks.toml")
             var hooksEntries = archive.Entries
                 .Where(e => e.FullName.EndsWith("hooks.toml", StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -322,7 +322,7 @@ public class PatchRepository
         {
             using var archive = ZipFile.OpenRead(patch.KPatchPath);
 
-            // Find ALL hooks files in the archive (both "hooks.toml" and "*.hooks.toml")
+            // Find ALL hooks files in the archive (pattern: *hooks.toml)
             var hooksEntries = archive.Entries
                 .Where(e => e.FullName.EndsWith("hooks.toml", StringComparison.OrdinalIgnoreCase))
                 .ToList();
