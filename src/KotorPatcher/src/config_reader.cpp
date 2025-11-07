@@ -62,8 +62,9 @@ namespace KotorPatcher {
             return true;
         }
 
-        bool ParseConfig(const std::string& configPath, std::vector<PatchInfo>& outPatches) {
+        bool ParseConfig(const std::string& configPath, std::vector<PatchInfo>& outPatches, std::string& outVersionSha) {
             outPatches.clear();
+            outVersionSha.clear();
 
             // Read the config file
             std::ifstream configFile(configPath);
@@ -86,6 +87,15 @@ namespace KotorPatcher {
             }
 
             toml::table tbl = std::move(result).table();
+
+            // Extract target_version_sha (top-level property, not in a section)
+            auto versionSha = tbl["target_version_sha"].value<std::string>();
+            if (versionSha) {
+                outVersionSha = *versionSha;
+                OutputDebugStringA(("[Config] Target version SHA: " + outVersionSha.substr(0, 16) + "...\n").c_str());
+            } else {
+                OutputDebugStringA("[Config] WARNING: No target_version_sha found in config\n");
+            }
 
             // Get the patches array
             auto patchesArray = tbl["patches"].as_array();

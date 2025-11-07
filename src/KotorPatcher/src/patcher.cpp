@@ -45,13 +45,26 @@ namespace KotorPatcher {
         sprintf_s(configMsg, "[KotorPatcher] Loading config from: %s\n", configPath.c_str());
         OutputDebugStringA(configMsg);
 
-        if (!Config::ParseConfig(configPath, g_patches)) {
+        std::string versionSha;
+        if (!Config::ParseConfig(configPath, g_patches, versionSha)) {
             OutputDebugStringA("[KotorPatcher] ERROR: Failed to parse config\n");
             return false;
         }
 
         sprintf_s(configMsg, "[KotorPatcher] Loaded %zu patches from config\n", g_patches.size());
         OutputDebugStringA(configMsg);
+
+        // Set environment variable for patch DLLs to read
+        if (!versionSha.empty()) {
+            if (SetEnvironmentVariableA("KOTOR_VERSION_SHA", versionSha.c_str())) {
+                sprintf_s(configMsg, "[KotorPatcher] Set KOTOR_VERSION_SHA = %s...\n", versionSha.substr(0, 16).c_str());
+                OutputDebugStringA(configMsg);
+            } else {
+                OutputDebugStringA("[KotorPatcher] WARNING: Failed to set KOTOR_VERSION_SHA environment variable\n");
+            }
+        } else {
+            OutputDebugStringA("[KotorPatcher] WARNING: No version SHA found in config\n");
+        }
 
         // Apply patches
         if (!ApplyPatches()) {
