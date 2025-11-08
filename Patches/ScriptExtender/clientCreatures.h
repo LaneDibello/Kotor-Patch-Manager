@@ -1,7 +1,10 @@
 #pragma once
 #include "Common.h"
-#include "Kotor1Functions.h"
 #include "VirtualFunctionCall.h"
+#include "GameAPI/CVirtualMachine.h"
+#include "GameAPI/CServerExoApp.h"
+#include "GameAPI/CSWSCreature.h"
+#include "GameAPI/CSWCCreature.h"
 
 
 const int IsRunningIndex = 787;

@@ -2,45 +2,84 @@
 
 int __stdcall ExecuteCommandIsRunning(DWORD routine, int paramCount)
 {
+	debugLog("[PATCH] Running IsRunning");
+
 	int outcome = 0;
 
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return -2001;
+
 	DWORD creature;
-	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature))
+	if (!vm->StackPopObject(&creature)) {
+		delete vm;
 		return -2001;
-
-	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
-
-	if (serverCreature) {
-		void* clientCreature = sWSCreatureGetClientCreature(serverCreature);
-		if (clientCreature) {
-			outcome = (int)getObjectProperty<BYTE>(clientCreature, 0x3e0);
-		}
 	}
 
-	if (!virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, outcome))
-		return -2000;
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (!server) {
+		delete vm;
+		return -2001;
+	}
 
+	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
+	if (serverCreature) {
+		CSWCCreature* clientCreature = serverCreature->GetClientCreature();
+		if (clientCreature) {
+			outcome = (int)clientCreature->GetRunning();
+			delete clientCreature;
+		}
+		delete serverCreature;
+	}
+
+	if (!vm->StackPushInteger(outcome)) {
+		delete server;
+		delete vm;
+		return -2000;
+	}
+
+	delete server;
+	delete vm;
 	return 0;
 }
 
-int __stdcall ExecuteCommandIsStealthed(DWORD routine, int paramCount) {
+int __stdcall ExecuteCommandIsStealthed(DWORD routine, int paramCount)
+{
+	debugLog("[PATCH] Running IsStealthed");
+
 	int outcome = 0;
 
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return -2001;
+
 	DWORD creature;
-	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature))
+	if (!vm->StackPopObject(&creature)) {
+		delete vm;
 		return -2001;
-
-	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
-
-	if (serverCreature) {
-		void* clientCreature = sWSCreatureGetClientCreature(serverCreature);
-		if (clientCreature) {
-			outcome = (int)getObjectProperty<BYTE>(clientCreature, 0x194);
-		}
 	}
 
-	if (!virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, outcome))
-		return -2000;
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (!server) {
+		delete vm;
+		return -2001;
+	}
 
+	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
+	if (serverCreature) {
+		CSWCCreature* clientCreature = serverCreature->GetClientCreature();
+		if (clientCreature) {
+			outcome = (int)clientCreature->GetStealth();
+			delete clientCreature;
+		}
+		delete serverCreature;
+	}
+
+	if (!vm->StackPushInteger(outcome)) {
+		delete server;
+		delete vm;
+		return -2000;
+	}
+
+	delete server;
+	delete vm;
 	return 0;
 }

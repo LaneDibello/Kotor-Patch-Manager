@@ -2,197 +2,379 @@
 
 int __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 {
+	debugLog("[PATCH] Running GetFeatAcquired");
+
 	int outcome = 0;
 
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return -2001;
+
 	int feat;
-	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &feat))
+	if (!vm->StackPopInteger(&feat)) {
+		delete vm;
 		return -2001;
+	}
 
 	DWORD creature;
-	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature))
+	if (!vm->StackPopObject(&creature)) {
+		delete vm;
 		return -2001;
+	}
 
-	void* game_object_array = serverExoAppGetObjectArray(getServerExoApp());
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (!server) {
+		delete vm;
+		return -2001;
+	}
 
-	void* creatureObject;
-	gameObjectArrayGetGameObject(game_object_array, creature, &creatureObject);
+	void* objectArrayPtr = server->GetObjectArray();
+	if (!objectArrayPtr) {
+		delete server;
+		delete vm;
+		return -2001;
+	}
+
+	CGameObjectArray objectArray(objectArrayPtr);
+	void* creatureObject = objectArray.GetGameObject(creature);
 
 	// Game object vtable[12] = AsSWSCreature
 	void* serverCreature = callVirtualFunction<void*>(creatureObject, 12);
 	if (!serverCreature)
 	{
-		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, outcome);
+		vm->StackPushInteger(outcome);
+		delete server;
+		delete vm;
 		return 0;
 	}
 
-	void* creatureStats = getServerCreatureStats(serverCreature);
+	CSWSCreature serverCreatureWrapper(serverCreature);
+	CSWSCreatureStats* stats = serverCreatureWrapper.GetCreatureStats();
+	if (!stats) {
+		vm->StackPushInteger(outcome);
+		delete server;
+		delete vm;
+		return 0;
+	}
 
-	outcome = creatureStatsHasFeat(creatureStats, feat);
+	outcome = stats->HasFeat((WORD)feat);
 
-	if (!virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, outcome))
+	if (!vm->StackPushInteger(outcome)) {
+		delete stats;
+		delete server;
+		delete vm;
 		return -2000;
+	}
 
+	delete stats;
+	delete server;
+	delete vm;
 	return 0;
 }
 
 int __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount)
 {
+	debugLog("[PATCH] Running GetSpellAcquired");
+
 	int outcome = 0;
 
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return -2001;
+
 	int spell;
-	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &spell))
+	if (!vm->StackPopInteger(&spell)) {
+		delete vm;
 		return -2001;
-
-	DWORD creature;
-	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature))
-		return -2001;
-
-	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
-
-	if (serverCreature) {
-		void* creatureStats = getServerCreatureStats(serverCreature);
-		outcome = creatureStatsHasSpell(creatureStats, 0, (DWORD)spell, 0);
 	}
 
-	if (!virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, outcome))
-		return -2000;
+	DWORD creature;
+	if (!vm->StackPopObject(&creature)) {
+		delete vm;
+		return -2001;
+	}
 
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (!server) {
+		delete vm;
+		return -2001;
+	}
+
+	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
+
+
+	if (serverCreature) {
+		CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
+
+		if (stats) {
+			outcome = stats->HasSpell(0, (DWORD)spell, 0);
+			delete stats;
+		}
+		delete serverCreature;
+	}
+
+	if (!vm->StackPushInteger(outcome)) {
+		delete server;
+		delete vm;
+		return -2000;
+	}
+
+	delete server;
+	delete vm;
 	return 0;
 }
 
 int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
 {
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return -2001;
+
 	int ability;
-	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &ability))
+	if (!vm->StackPopInteger(&ability)) {
+		delete vm;
 		return -2001;
+	}
 
 	DWORD creature;
-	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &creature))
+	if (!vm->StackPopObject(&creature)) {
+		delete vm;
 		return -2001;
+	}
 
-	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), creature);
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (!server) {
+		delete vm;
+		return -2001;
+	}
 
-	if (!serverCreature)
+	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
+
+	if (!serverCreature) {
+		delete server;
+		delete vm;
 		return 0;
+	}
 
-	void* creatureStats = getServerCreatureStats(serverCreature);
-	
-	if (routine == GrantFeatIndex)
-		creatureStatsAddFeat(creatureStats, (USHORT)ability);
+	CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
+	if (!stats) {
+		delete serverCreature;
+		delete server;
+		delete vm;
+		return 0;
+	}
+
+	if (routine == GrantFeatIndex) {
+		stats->AddFeat((WORD)ability);
+	}
 	else if (routine == GrantSpellIndex)
 	{
 		// Give to last class for now
 		// In the future consider alternate options to guarantee Jedi class
-		BYTE classIndex = *((BYTE*)creatureStats + 0x89) - 1;
-		debugLog("Class Index was %d", classIndex);
-		creatureStatsAddKnownSpell(creatureStats, classIndex, (DWORD)ability);
+		BYTE classCount = stats->GetClassCount();
+		if (classCount > 0) {
+			BYTE classIndex = classCount - 1;
+			stats->AddKnownSpell(classIndex, (DWORD)ability);
+		}
 	}
 
+	delete stats;
+	delete serverCreature;
+	delete server;
+	delete vm;
 	return 0;
 }
 
 int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCount)
 {
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return -2001;
+
 	DWORD object;
-	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &object))
+	if (!vm->StackPopObject(&object)) {
+		delete vm;
 		return -2001;
+	}
 
 	int attribute;
-	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &attribute))
+	if (!vm->StackPopInteger(&attribute)) {
+		delete vm;
 		return -2001;
+	}
 
 	int amount;
-	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &amount))
+	if (!vm->StackPopInteger(&amount)) {
+		delete vm;
 		return -2001;
+	}
 
-	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), object);
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (!server) {
+		delete vm;
+		return -2001;
+	}
 
-	if (!serverCreature)
+	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(object);
+	if (!serverCreature) {
+		delete server;
+		delete vm;
 		return 0;
+	}
 
-	void* creatureStats = getServerCreatureStats(serverCreature);
+	CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
+	if (!stats) {
+		delete serverCreature;
+		delete server;
+		delete vm;
+		return 0;
+	}
 
 	BYTE baseCurrent = 0;
+	int offset = -1;
+
 	switch ((Attributes)attribute) {
 	case STR:
-		baseCurrent = *((BYTE*)creatureStats + 0xe9);
-		creatureStatsSetSTRBase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		if (offset >= 0) {
+			baseCurrent = stats->GetSTRBase();
+			stats->SetSTRBase((BYTE)(amount + (int)baseCurrent));
+		}
 		break;
 	case DEX:
-		baseCurrent = *((BYTE*)creatureStats + 0xeb);
-		creatureStatsSetDEXBase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		if (offset >= 0) {
+			baseCurrent = stats->GetDEXBase();
+			stats->SetDEXBase((BYTE)(amount + (int)baseCurrent));
+		}
 		break;
 	case CON:
-		baseCurrent = *((BYTE*)creatureStats + 0xed);
-		creatureStatsSetCONBase(creatureStats, (BYTE)(amount + (int)baseCurrent), 1);
+		if (offset >= 0) {
+			baseCurrent = stats->GetCONBase();
+			stats->SetCONBase((BYTE)(amount + (int)baseCurrent), 1);
+		}
 		break;
 	case INTEL:
-		baseCurrent = *((BYTE*)creatureStats + 0xef);
-		creatureStatsSetINTBase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		if (offset >= 0) {
+			baseCurrent = stats->GetINTBase();
+			stats->SetINTBase((BYTE)(amount + (int)baseCurrent));
+		}
 		break;
 	case WIS:
-		baseCurrent = *((BYTE*)creatureStats + 0xf1);
-		creatureStatsSetWISBase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		if (offset >= 0) {
+			baseCurrent = stats->GetWISBase();
+			stats->SetWISBase((BYTE)(amount + (int)baseCurrent));
+		}
 		break;
 	case CHA:
-		baseCurrent = *((BYTE*)creatureStats + 0xf3);
-		creatureStatsSetCHABase(creatureStats, (BYTE)(amount + (int)baseCurrent));
+		if (offset >= 0) {
+			baseCurrent = stats->GetCHABase();
+			stats->SetCHABase((BYTE)(amount + (int)baseCurrent));
+		}
 		break;
 	}
 
+	delete stats;
+	delete serverCreature;
+	delete server;
+	delete vm;
 	return 0;
 }
 
 int __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
 {
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return -2001;
+
 	DWORD object;
-	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &object))
+	if (!vm->StackPopObject(&object)) {
+		delete vm;
 		return -2001;
+	}
 
 	int skill;
-	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &skill))
+	if (!vm->StackPopInteger(&skill)) {
+		delete vm;
 		return -2001;
+	}
 
 	int amount;
-	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &amount))
+	if (!vm->StackPopInteger(&amount)) {
+		delete vm;
 		return -2001;
+	}
 
-	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), object);
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (!server) {
+		delete vm;
+		return -2001;
+	}
 
-	if (!serverCreature)
+	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(object);
+	if (!serverCreature) {
+		delete server;
+		delete vm;
 		return 0;
+	}
 
-	void* creatureStats = getServerCreatureStats(serverCreature);
+	CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
+	if (!stats) {
+		delete server;
+		delete vm;
+		return 0;
+	}
 
-	BYTE baseCurrent = creatureStatsGetSkillRank(creatureStats, (BYTE)skill, NULL, 1);
-	creatureStatsSetSkillRank(creatureStats, (BYTE)skill, (BYTE)((int)baseCurrent + amount));
+	BYTE baseCurrent = stats->GetSkillRank((BYTE)skill, NULL, 1);
+	stats->SetSkillRank((BYTE)skill, (BYTE)((int)baseCurrent + amount));
 
+	delete server;
+	delete vm;
 	return 0;
 }
 
 int __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount)
 {
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return -2001;
+
 	int skill;
-	if (!virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &skill))
+	if (!vm->StackPopInteger(&skill)) {
+		delete vm;
 		return -2001;
+	}
 
 	DWORD object;
-	if (!virtualMachineStackPopObject(*VIRTUAL_MACHINE_PTR, &object))
+	if (!vm->StackPopObject(&object)) {
+		delete vm;
 		return -2001;
+	}
 
-	void* serverCreature = serverExoAppGetCreatureByGameObjectID(getServerExoApp(), object);
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (!server) {
+		delete vm;
+		return -2001;
+	}
+
+	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(object);
 
 	if (!serverCreature) {
-		virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, -1);
+		vm->StackPushInteger(-1);
+		delete server;
+		delete vm;
 		return 0;
 	}
 
-	void* creatureStats = getServerCreatureStats(serverCreature);
+	CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
+	if (!stats) {
+		vm->StackPushInteger(-1);
+		delete server;
+		delete vm;
+		return 0;
+	}
 
-	BYTE skillBase = creatureStatsGetSkillRank(creatureStats, (BYTE)skill, NULL, 1);
+	BYTE skillBase = stats->GetSkillRank((BYTE)skill, NULL, 1);
 
-	if (!virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, skillBase))
+	if (!vm->StackPushInteger(skillBase)) {
+		delete server;
+		delete vm;
 		return -2000;
+	}
 
+	delete server;
+	delete vm;
 	return 0;
 }

@@ -167,7 +167,8 @@ public static class PatchRemover
                 "KPatchLauncher.runtimeconfig.json",
                 "KPatchLauncher.deps.json",
                 "KPatchCore.dll",
-                "Tomlyn.dll"
+                "Tomlyn.dll",
+                "addresses.toml"
             };
 
             // Remove each file using safe delete helper

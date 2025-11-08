@@ -1,5 +1,7 @@
 #include "Common.h"
-#include "Kotor1Functions.h"
+#include "GameAPI/GameVersion.h"
+#include "GameAPI/CVirtualMachine.h"
+#include "GameAPI/CExoString.h"
 #include "fileIO.h"
 #include "creatureStats.h"
 #include "clientCreatures.h"
@@ -10,27 +12,47 @@ int __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
 
     if (paramCount != 3) {
         debugLog("[PATCH] Expected 3 params in the function!");
-        virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 0);
+        CVirtualMachine* vm = CVirtualMachine::GetInstance();
+        if (vm) {
+            vm->StackPushInteger(0);
+            delete vm;
+        }
         return 0;
     }
 
+    CVirtualMachine* vm = CVirtualMachine::GetInstance();
+    if (!vm) return -2001;
+
     int testInt;
-    virtualMachineStackPopInteger(*VIRTUAL_MACHINE_PTR, &testInt);
+    if (!vm->StackPopInteger(&testInt)) {
+        delete vm;
+        return -2001;
+    }
 
     debugLog("[PATCH] Test Int %i", testInt);
 
     float testFloat;
-    virtualMachineStackPopFloat(*VIRTUAL_MACHINE_PTR, &testFloat);
+    if (!vm->StackPopFloat(&testFloat)) {
+        delete vm;
+        return -2001;
+    }
 
     debugLog("[PATCH] Test Float %f", testFloat);
 
     CExoString testString;
-    virtualMachineStackPopString(*VIRTUAL_MACHINE_PTR, &testString);
+    if (!vm->StackPopString(&testString)) {
+        delete vm;
+        return -2001;
+    }
 
-    debugLog("[PATCH] Test string \"%s\"", testString.c_string);
+    debugLog("[PATCH] Test string \"%s\"", testString.GetCStr());
 
-    virtualMachineStackPushInteger(*VIRTUAL_MACHINE_PTR, 1);
+    if (!vm->StackPushInteger(1)) {
+        delete vm;
+        return -2000;
+    }
 
+    delete vm;
     return 0;
 }
 
@@ -55,11 +77,12 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[AdjustCreatureAttributesIndex] = (DWORD)&ExecuteCommandAdjustCreatureAttributes;
     commands[AdjustCreatureSkillsIndex] = (DWORD)&ExecuteCommandAdjustCreatureSkills;
     commands[GetSkillRankBaseIndex] = (DWORD)&ExecuteCommandGetSkillRankBase;
+    debugLog("[PATCH] GetSkillRankBase at %p", &ExecuteCommandGetSkillRankBase);
 
     commands[IsRunningIndex] = (DWORD)&ExecuteCommandIsRunning;
     commands[IsStealthedIndex] = (DWORD)&ExecuteCommandIsStealthed;
 
-    debugLog("[PATCH] GetFeatAcquired at %p", &ExecuteCommandGetFeatAcquired);
+    
 }
 
 // DLL Entry Point
@@ -68,9 +91,16 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
+        // Initialize GameVersion system (reads from KOTOR_VERSION_SHA env var and addresses.toml)
+        if (!GameVersion::Initialize()) {
+            debugLog("[ScriptExtender] ERROR: GameVersion::Initialize() failed");
+            return FALSE;
+        }
+        debugLog("[ScriptExtender] GameVersion initialized successfully");
         break;
 
     case DLL_PROCESS_DETACH:
+        GameVersion::Reset();
         break;
     }
     return TRUE;

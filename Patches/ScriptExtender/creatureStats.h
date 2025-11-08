@@ -1,7 +1,12 @@
 #pragma once
 #include "Common.h"
-#include "Kotor1Functions.h"
 #include "VirtualFunctionCall.h"
+#include "GameAPI/GameVersion.h"
+#include "GameAPI/CVirtualMachine.h"
+#include "GameAPI/CServerExoApp.h"
+#include "GameAPI/CGameObjectArray.h"
+#include "GameAPI/CSWSCreature.h"
+#include "GameAPI/CSWSCreatureStats.h"
 
 const int GetFeatAcquiredIndex = 780;
 int __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount);

@@ -1,23 +1,52 @@
 #include "Common.h"
-#include "Kotor1Functions.h"
+#include "Kotor1Functions.h"  // Still needed for sWSObjectAddActionToFront
 #include "ConsoleFunc.h"
+#include "GameAPI/GameVersion.h"
+#include "GameAPI/CVirtualMachine.h"
+#include "GameAPI/CServerExoApp.h"
+#include "GameAPI/CSWSCreature.h"
+#include "GameAPI/CExoString.h"
 
 void __cdecl runscript(char* script) {
     CExoString scriptFile(script);
 
-    DWORD playerId = serverExoAppGetPlayerCreatureId(getServerExoApp());
+    CServerExoApp* server = CServerExoApp::GetInstance();
+    if (!server) return;
 
-    virtualMachineRunScript(*VIRTUAL_MACHINE_PTR, &scriptFile, playerId, 1);
+    DWORD playerId = server->GetPlayerCreatureId();
+
+    CVirtualMachine* vm = CVirtualMachine::GetInstance();
+    if (vm) {
+        vm->RunScript(&scriptFile, playerId, 1);
+        delete vm;
+    }
+
+    delete server;
 }
 
 void __cdecl teleport(char* location) {
     // Location formatted like "x y"
     int takeStraightLine = 1;
-    void* server = getServerExoApp();
-    void* serverPlayer = serverExoAppGetCreatureByGameObjectID(server, serverExoAppGetPlayerCreatureId(server));
-    Vector position = getObjectProperty<Vector>(serverPlayer, 0x90);
-    Vector orientation = getObjectProperty<Vector>(serverPlayer, 0x9c);
-    DWORD areaId = getObjectProperty<DWORD>(serverPlayer, 0x8c);
+
+    CServerExoApp* server = CServerExoApp::GetInstance();
+    if (!server) {
+        debugLog("[teleport] Server is %p", server);
+        return;
+    }
+
+    DWORD playerId = server->GetPlayerCreatureId();
+    CSWSCreature* serverPlayer = server->GetCreatureByGameObjectID(playerId);
+    if (!serverPlayer) {
+        delete server;
+        debugLog("[teleport] serverPlayer is null");
+        return;
+    }
+
+    Vector position = serverPlayer->GetPosition();
+    Vector orientation = serverPlayer->GetOrientationVector();
+    DWORD areaId = serverPlayer->GetAreaId();
+
+    debugLog("[teleport] areaId is %d", areaId);
 
     float x = position.x;
     float y = position.y;
@@ -25,8 +54,12 @@ void __cdecl teleport(char* location) {
 
     int action = 0x41a00000;
 
-    sWSObjectAddActionToFront(serverPlayer, 5, 0xffff, 2, &x, 2, &y, 2, &position.z, 3, &areaId, 1, &takeStraightLine, 2, (void *)&action, 2, &orientation.x, 2, &orientation.y, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL);
+    sWSObjectAddActionToFront(serverPlayer->GetPtr(), 5, 0xffff, 2, &x, 2, &y, 2, &position.z, 3, &areaId, 1, &takeStraightLine, 2, (void *)&action, 2, &orientation.x, 2, &orientation.y, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL);
 
+    debugLog("[teleport] Done");
+
+    delete serverPlayer;
+    delete server;
 }
 
 void __cdecl walkmeshrender() {
@@ -83,9 +116,16 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
+        // Initialize GameVersion system (reads from KOTOR_VERSION_SHA env var and addresses.toml)
+        if (!GameVersion::Initialize()) {
+            OutputDebugStringA("[AdditionalConsoleCommands] ERROR: GameVersion::Initialize() failed\n");
+            return FALSE;
+        }
+        OutputDebugStringA("[AdditionalConsoleCommands] GameVersion initialized successfully\n");
         break;
 
     case DLL_PROCESS_DETACH:
+        GameVersion::Reset();
         break;
     }
     return TRUE;

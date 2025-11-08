@@ -1,6 +1,7 @@
 #pragma once
 #include "Common.h"
-#include "Kotor1Functions.h"
+#include "GameAPI/CVirtualMachine.h"
+#include "GameAPI/CExoString.h"
 
 const int OpenFileIndex = 773;
 int __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount);

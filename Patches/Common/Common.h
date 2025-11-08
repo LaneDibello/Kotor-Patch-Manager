@@ -7,52 +7,6 @@
 extern void** VIRTUAL_MACHINE_PTR;
 extern DWORD OBJECT_DEFAULT;
 
-typedef struct {
-	void* vtable;
-	void* client;
-	void* server;
-	// Note: there are additional properties being excluded
-} CAppManager;
-
-extern CAppManager** APP_MANAGER_PTR;
-
-struct CExoString {
-	char* c_string;
-	DWORD length;
-
-	CExoString() {
-		typedef CExoString* (__thiscall* constructor)(CExoString* thisPtr);
-		const DWORD ADDRESS = 0x005b3190;
-		constructor constructCExoString = (constructor)ADDRESS;
-
-		constructCExoString(this);
-	}
-
-	CExoString(char* src, int length) {
-		typedef CExoString* (__thiscall* constructor)(CExoString* thisPtr, char* source, int length);
-		const DWORD ADDRESS = 0x005e5b70;
-		constructor constructCExoStringFromCStr = (constructor)ADDRESS;
-
-		constructCExoStringFromCStr(this, src, length);
-	}
-
-	CExoString(char* src) {
-		typedef CExoString* (__thiscall* constructor)(CExoString* thisPtr, char* source);
-		const DWORD ADDRESS = 0x005e5a90;
-		constructor constructCExoStringFromCStr = (constructor)ADDRESS;
-
-		constructCExoStringFromCStr(this, src);
-	}
-
-	~CExoString() {
-		typedef CExoString* (__thiscall* destructor)(CExoString* thisPtr);
-		const DWORD ADDRESS = 0x005e5c20;
-		destructor destructCExoString = (destructor)ADDRESS;
-
-		destructCExoString(this);
-	}
-};
-
 struct Vector {
 	float x;
 	float y;
@@ -72,16 +26,6 @@ enum VirtualMachineEngineStructureTypes : int {
 	SCRIPT_TALENT = 3,
 };
 #pragma pack(pop)
-
-inline void* getServerExoApp() {
-	CAppManager* appManager = *APP_MANAGER_PTR;
-	return appManager->server;
-}
-
-inline void* getClientExoApp() {
-	CAppManager* appManager = *APP_MANAGER_PTR;
-	return appManager->client;
-}
 
 inline void debugLog(const char* format, ...) {
 	char buffer[512];
