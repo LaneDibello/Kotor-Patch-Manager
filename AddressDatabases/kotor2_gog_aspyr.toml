@@ -104,6 +104,8 @@ Server = 0x8
 [offsets.CSWSCreature]
 CreatureStats = 0x1198
 Inventory = 0x1150
+
+[offsets.CSWSObject]
 Position = 0x94
 Orientation = 0xa0
 AreaId = 0x90
@@ -129,3 +131,7 @@ WeaponWield = 0x8
 [offsets.CExoString]
 CStr = 0x0
 Length = 0x4
+
+[offsets.CGameObject]
+Id = 0x4
+ObjectType = 0x8

@@ -1,34 +1,23 @@
 #pragma once
 
 #include "../Common.h"
+#include "CSWSObject.h"
 
 class CSWCCreature;
 class CSWSCreatureStats;
 class CSWInventory;
 
-class CSWSCreature {
+class CSWSCreature : public CSWSObject {
 public:
     explicit CSWSCreature(void* creaturePtr);
-    ~CSWSCreature();
+    virtual ~CSWSCreature();
 
     CSWCCreature* GetClientCreature();
 
     CSWSCreatureStats* GetCreatureStats();
     CSWInventory* GetInventory();
-    Vector GetPosition();
-    float GetOrientation();
-    Vector GetOrientationVector();
-    DWORD GetAreaId();
-
-    void SetPosition(const Vector& position);
-    void SetOrientation(float orientation);
-    void SetOrientationVector(const Vector& orientation);
-    void SetAreaId(DWORD areaId);
-
-    void* GetPtr() const { return creaturePtr; }
 
 private:
-    void* creaturePtr;
 
     typedef void* (__thiscall* GetClientCreatureFn)(void* thisPtr);
 
@@ -41,7 +30,4 @@ private:
 
     static int offsetCreatureStats;
     static int offsetInventory;
-    static int offsetPosition;
-    static int offsetOrientation;
-    static int offsetAreaId;
 };

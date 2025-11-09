@@ -5,10 +5,18 @@
 CSWSObject::AddActionToFrontFn CSWSObject::addActionToFront = nullptr;
 bool CSWSObject::functionsInitialized = false;
 
+int CSWSObject::offsetPosition = -1;
+int CSWSObject::offsetOrientation = -1;
+int CSWSObject::offsetAreaId = -1;
+bool CSWSObject::offsetsInitialized = false;
+
 void CSWSObject::InitializeFunctions() {
     if (functionsInitialized) {
         return;
     }
+
+    // Call base class initialization first
+    CGameObject::InitializeFunctions();
 
     if (!GameVersion::IsInitialized()) {
         OutputDebugStringA("[CSWSObject] ERROR: GameVersion not initialized\n");
@@ -28,16 +36,44 @@ void CSWSObject::InitializeFunctions() {
     functionsInitialized = true;
 }
 
+void CSWSObject::InitializeOffsets() {
+    if (offsetsInitialized) {
+        return;
+    }
+
+    // Call base class offset initialization
+    CGameObject::InitializeOffsets();
+
+    if (!GameVersion::IsInitialized()) {
+        OutputDebugStringA("[CSWSObject] ERROR: GameVersion not initialized\n");
+        return;
+    }
+
+    try {
+        offsetPosition = GameVersion::GetOffset("CSWSObject", "Position");
+        offsetOrientation = GameVersion::GetOffset("CSWSObject", "Orientation");
+        offsetAreaId = GameVersion::GetOffset("CSWSObject", "AreaId");
+
+        offsetsInitialized = true;
+    }
+    catch (const GameVersionException& e) {
+        debugLog("[CSWSObject] ERROR: %s\n", e.what());
+    }
+}
+
 CSWSObject::CSWSObject(void* objectPtr)
-    : objectPtr(objectPtr)
+    : CGameObject(objectPtr)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
     }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
 }
 
 CSWSObject::~CSWSObject() {
-    objectPtr = nullptr;
+    // Base class destructor will handle objectPtr cleanup
 }
 
 void CSWSObject::AddActionToFront(
@@ -57,4 +93,52 @@ void CSWSObject::AddActionToFront(
         param_12, param_13, param_14, param_15, param_16, param_17,
         param_18, param_19, param_20, param_21, param_22, param_23,
         param_24, param_25, param_26, param_27, param_28);
+}
+
+Vector CSWSObject::GetPosition() {
+    Vector result = {0.0f, 0.0f, 0.0f};
+
+    if (!objectPtr || offsetPosition < 0) {
+        return result;
+    }
+
+    return getObjectProperty<Vector>(objectPtr, offsetPosition);
+}
+
+Vector CSWSObject::GetOrientation() {
+    Vector result = {0.0f, 0.0f, 0.0f};
+
+    if (!objectPtr || offsetOrientation < 0) {
+        return result;
+    }
+
+    return getObjectProperty<Vector>(objectPtr, offsetOrientation);
+}
+
+DWORD CSWSObject::GetAreaId() {
+    if (!objectPtr || offsetAreaId < 0) {
+        return 0x7F000000;
+    }
+    return getObjectProperty<DWORD>(objectPtr, offsetAreaId);
+}
+
+void CSWSObject::SetPosition(const Vector& position) {
+    if (!objectPtr || offsetPosition < 0) {
+        return;
+    }
+    setObjectProperty<Vector>(objectPtr, offsetPosition, position);
+}
+
+void CSWSObject::SetOrientation(const Vector& orientation) {
+    if (!objectPtr || offsetOrientation < 0) {
+        return;
+    }
+    setObjectProperty<Vector>(objectPtr, offsetOrientation, orientation);
+}
+
+void CSWSObject::SetAreaId(DWORD areaId) {
+    if (!objectPtr || offsetAreaId < 0) {
+        return;
+    }
+    setObjectProperty<DWORD>(objectPtr, offsetAreaId, areaId);
 }

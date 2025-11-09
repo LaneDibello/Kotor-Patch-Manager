@@ -36,7 +36,7 @@ void __cdecl teleport(char* location) {
     }
 
     Vector position = serverPlayer->GetPosition();
-    Vector orientation = serverPlayer->GetOrientationVector();
+    Vector orientation = serverPlayer->GetOrientation();
     DWORD areaId = serverPlayer->GetAreaId();
 
     float x = position.x;
@@ -46,7 +46,7 @@ void __cdecl teleport(char* location) {
     debugLog("[teleport] serverPlayer pointer is %p", serverPlayer->GetPtr());
 
     int action = 0x41a00000;
-    ((CSWSObject*)serverPlayer)->AddActionToFront(5, 0xffff, 2, &x, 2, &y, 2, &position.z, 3, &areaId, 1, &takeStraightLine, 2, (void *)&action, 2, &orientation.x, 2, &orientation.y, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL);
+    serverPlayer->AddActionToFront(5, 0xffff, 2, &x, 2, &y, 2, &position.z, 3, &areaId, 1, &takeStraightLine, 2, (void *)&action, 2, &orientation.x, 2, &orientation.y, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL);
 
     debugLog("[teleport] Done");
 
