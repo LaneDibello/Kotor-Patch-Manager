@@ -50,6 +50,7 @@ void CSWSObject::AddActionToFront(
     if (!objectPtr || !addActionToFront) {
         return;
     }
+    debugLog("[CSWSObject::AddActionToFront] objectPtr is %p");
 
     addActionToFront(objectPtr, param_1, param_2, param_3, param_4, param_5,
         param_6, param_7, param_8, param_9, param_10, param_11,
