@@ -1,0 +1,128 @@
+# KotOR 1 Steam Version 1.0.3 - Function Address Database
+# This file maps game function addresses and memory offsets for this specific version
+
+# Primary version identifier - matches GameVersion.Hash from C#
+versions_sha = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
+
+# ============================================================================
+# Global Memory Pointers
+# ============================================================================
+[global_pointers]
+EXO_RESOURCE_MANAGER_PTR = "0x007a39e8"
+GUI_MANAGER_PTR = "0x007a39f4"
+AURORA_PTR = "0x007a39f8"
+APP_MANAGER_PTR = "0x007a39fc"
+VIRTUAL_MACHINE_PTR = "0x007a3a00"
+TLK_TABLE_PTR = "0x007a3a08"
+RULES_PTR = "0x007a3a28"
+
+# ============================================================================
+# Game Function Addresses (organized by class)
+# ============================================================================
+
+[functions.CServerExoApp]
+GetObjectArray = "0x004aed70"
+GetCreatureByGameObjectID = "0x004ae770"
+GetPlayerCreatureId = "0x004aea40"
+
+[functions.CGameObjectArray]
+GetGameObject = "0x004d8230"
+
+[functions.CSWSCreatureStats]
+HasFeat = "0x005a6630"
+HasSpell = "0x005a6e70"
+AddFeat = "0x005aa810"
+AddKnownSpell = "0x005aa9b0"
+RemoveFeat = "0x005aa940"
+SetSTRBase = "0x005a9fe0"
+SetDEXBase = "0x005aa020"
+SetCONBase = "0x005aa060"
+SetINTBase = "0x005aa0f0"
+SetWISBase = "0x005aa130"
+SetCHABase = "0x005aa170"
+GetSkillRank = "0x005aa570"
+SetSkillRank = "0x005a54c0"
+SetMovementRate = "0x005a5680"
+GetClass = "0x005a4e90"
+
+[functions.CVirtualMachine]
+StackPopInteger = "0x005D1000"
+StackPopFloat = "0x005D1020"
+StackPopVector = "0x005D1040"
+StackPopString = "0x005D1080"
+StackPopEngineStructure = "0x005D10A0"
+StackPopObject = "0x005D10C0"
+StackPopCommand = "0x005D10E0"
+StackPushInteger = "0x005D1010"
+StackPushFloat = "0x005D1030"
+StackPushVector = "0x005D1050"
+StackPushString = "0x005D1090"
+StackPushEngineStructure = "0x005D10B0"
+StackPushObject = "0x005D10D0"
+RunScript = "0x005d0fc0"
+
+[functions.CSWSObject]
+AddActionToFront = "0x004ccb00"
+
+[functions.CSWSCreature]
+GetClientCreature = "0x004efb20"
+
+[functions.CSWItem]
+GetBaseItem = "0x005b4790"
+
+[functions.CSWInventory]
+GetItemInSlot = "0x005a4c20"
+
+[functions.CExoString]
+DefaultConstructor = "0x005b3190"
+CStrLenConstructor = "0x005e5b70"
+CStrConstructor = "0x005e5a90"
+Destructor = "0x005e5c20"
+
+[functions.ConsoleFunc]
+Constructor_1 = "0x0044c620"
+Constructor_2 = "0x0044c5c0"
+Constructor_3 = "0x0044c560"
+Constructor_4 = "0x0044bcf0"
+
+[functions.Other]
+AurPostString = "0x0044d490"
+
+# ============================================================================
+# Memory Offsets (organized by class/struct)
+# ============================================================================
+
+[offsets.CAppManager]
+Client = 0x4
+Server = 0x8
+
+[offsets.CSWSCreature]
+CreatureStats = 0xa74
+Inventory = 0xa2c
+Position = 0x90
+Orientation = 0x9c
+AreaId = 0x8c
+
+[offsets.CSWSCreatureStats]
+ClassCount = 0x89
+STRBase = 0xe9
+DEXBase = 0xeb
+CONBase = 0xed
+INTBase = 0xef
+WISBase = 0xf1
+CHABase = 0xf3
+
+[offsets.CSWCCreature]
+Running = 0x3e0
+Stealth = 0x194
+
+[offsets.CombatRound]
+PlayerCreature = 0x9b4
+OnHandAttacks = 0x990
+
+[offsets.BaseItem]
+WeaponWield = 0x8
+
+[offsets.CExoString]
+CStr = 0x0
+Length = 0x4
