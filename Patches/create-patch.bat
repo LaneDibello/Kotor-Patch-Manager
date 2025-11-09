@@ -44,14 +44,16 @@ if not exist "manifest.toml" (
 )
 echo   [OK] manifest.toml found
 
-if not exist "hooks.toml" (
-    echo ERROR: hooks.toml not found!
-    echo Please create a hooks.toml file in this directory.
-    echo See templates/hooks.template.toml for an example.
+REM Check for any *hooks.toml files
+set HOOKS_FOUND=0
+for %%F in (*hooks.toml) do set HOOKS_FOUND=1
+if !HOOKS_FOUND! EQU 0 (
+    echo ERROR: No hooks files found ^(*hooks.toml^)!
+    echo Please create at least one hooks file in this directory.
     pause
     exit /b 1
 )
-echo   [OK] hooks.toml found
+echo   [OK] hooks file^(s^) found
 
 REM =============================================================================
 REM Step 2: Detect patch type and build DLLs if needed

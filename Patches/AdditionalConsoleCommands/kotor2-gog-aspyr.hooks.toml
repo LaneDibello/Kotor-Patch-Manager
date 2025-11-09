@@ -1,0 +1,10 @@
+[metadata]
+target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"]
+
+[[hooks]]
+address = 0x00925133
+function = "InitializeAdditionalCommands"
+original_bytes = [0x68, 0x00, 0x00, 0x40, 0x00]
+type = "detour"
+exclude_from_restore = []
+

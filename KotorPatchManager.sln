@@ -28,8 +28,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AdditionalConsoleCommands",
 		Patches\AdditionalConsoleCommands\ConsoleCommands.cpp = Patches\AdditionalConsoleCommands\ConsoleCommands.cpp
 		Patches\AdditionalConsoleCommands\ConsoleFunc.h = Patches\AdditionalConsoleCommands\ConsoleFunc.h
 		Patches\AdditionalConsoleCommands\exports.def = Patches\AdditionalConsoleCommands\exports.def
-		Patches\AdditionalConsoleCommands\hooks.toml = Patches\AdditionalConsoleCommands\hooks.toml
 		Patches\AdditionalConsoleCommands\manifest.toml = Patches\AdditionalConsoleCommands\manifest.toml
+		Patches\AdditionalConsoleCommands\kotor1.hooks.toml = Patches\AdditionalConsoleCommands\kotor1.hooks.toml
 		Patches\AdditionalConsoleCommands\README.md = Patches\AdditionalConsoleCommands\README.md
 	EndProjectSection
 EndProject
