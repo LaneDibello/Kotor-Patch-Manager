@@ -19,7 +19,7 @@ RENDER_WIREFRAME = "0x00a3272c"
 RENDER_QA_TRIGGERS = "0x00A190E4"
 RENDER_TRIGGERS = "0x00A149B8"
 RENDER_PERSONAL_SPACE = "0x00A19114"
-RENDER_GOB_BBS = "00a2a3d8"
+RENDER_GOB_BBS = "0x00a2a3d8"
 
 # ============================================================================
 # Game Function Addresses (organized by class)
