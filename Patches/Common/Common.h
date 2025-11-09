@@ -4,7 +4,6 @@
 #include <cstdarg>
 #pragma pack(push, 4)
 
-extern void** VIRTUAL_MACHINE_PTR;
 extern DWORD OBJECT_DEFAULT;
 
 struct Vector {
