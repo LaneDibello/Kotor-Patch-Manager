@@ -123,11 +123,11 @@ CHABase = 0xf3
 Running = 0x3e0
 Stealth = 0x194
 
-[offsets.CombatRound]
+[offsets.CSWSCombatRound]
 PlayerCreature = 0x9b4
 OnHandAttacks = 0x990
 
-[offsets.BaseItem]
+[offsets.CSWBaseItem]
 WeaponWield = 0x8
 
 [offsets.CExoString]

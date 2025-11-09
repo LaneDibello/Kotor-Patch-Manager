@@ -13,6 +13,13 @@ APP_MANAGER_PTR = "0x00a11c04"
 VIRTUAL_MACHINE_PTR = "0x00a11c08"
 TLK_TABLE_PTR = "0x00a11c10"
 RULES_PTR = "0x00a11c30"
+RENDER_AABB = "0x00A29E1C"
+RENDER_GUI = "0x00a34c00"
+RENDER_WIREFRAME = "0x00a3272c"
+RENDER_QA_TRIGGERS = "0x00A190E4"
+RENDER_TRIGGERS = "0x00A149B8"
+RENDER_PERSONAL_SPACE = "0x00A19114"
+RENDER_GOB_BBS = "00a2a3d8"
 
 # ============================================================================
 # Game Function Addresses (organized by class)
@@ -69,22 +76,22 @@ GetClientCreature = "0x006a3970"
 GetBaseItem = "0x004ecc00"
 
 [functions.CSWInventory]
-GetItemInSlot = "0x"
+GetItemInSlot = "0x0067a5b0"
 
 [functions.CExoString]
-DefaultConstructor = "0x"
-CStrLenConstructor = "0x"
-CStrConstructor = "0x"
-Destructor = "0x"
+DefaultConstructor = "0x004eaed0"
+CStrLenConstructor = "0x00605790"
+CStrConstructor = "0x00605680"
+Destructor = "0x00605890"
 
 [functions.ConsoleFunc]
-Constructor_1 = "0x"
-Constructor_2 = "0x"
-Constructor_3 = "0x"
-Constructor_4 = "0x"
+IntConstructor = "0x00867880"
+StringConstructor = "0x008677e0"
+NoParamConstructor = "0x00867740"
+Destructor = "0x00867920"
 
 [functions.Other]
-AurPostString = "0x"
+AurPostString = "0x00866b40"
 
 # ============================================================================
 # Memory Offsets (organized by class/struct)
@@ -96,30 +103,28 @@ Server = 0x8
 
 [offsets.CSWSCreature]
 CreatureStats = 0x1198
-Inventory = 
-Position = 
-Orientation = 
-AreaId = 
+Inventory = 0x1150
+Position = 0x94
+Orientation = 0xa0
+AreaId = 0x90
 
 [offsets.CSWSCreatureStats]
-ClassCount = 
-STRBase = 
-DEXBase = 
-CONBase = 
-INTBase = 
-WISBase = 
-CHABase = 
+ClassCount = 0x8d
+STRBase = 0xed
+DEXBase = 0xef
+CONBase = 0xf1
+INTBase = 0xf3
+WISBase = 0xf5
+CHABase = 0xf7
 
 [offsets.CSWCCreature]
-Running = 
-Stealth = 
+Running = 0x3f8
 
-[offsets.CombatRound]
-PlayerCreature = 
-OnHandAttacks = 
+[offsets.CSWSCombatRound]
+OnHandAttacks = 0xae0
 
-[offsets.BaseItem]
-WeaponWield = 
+[offsets.CSWBaseItem]
+WeaponWield = 0x8
 
 [offsets.CExoString]
 CStr = 0x0
