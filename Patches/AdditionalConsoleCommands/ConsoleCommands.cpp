@@ -1,11 +1,6 @@
 #include "Common.h"
 #include "Kotor1Functions.h"  // Still needed for sWSObjectAddActionToFront
 #include "ConsoleFunc.h"
-#include "GameAPI/GameVersion.h"
-#include "GameAPI/CVirtualMachine.h"
-#include "GameAPI/CServerExoApp.h"
-#include "GameAPI/CSWSCreature.h"
-#include "GameAPI/CExoString.h"
 
 void __cdecl runscript(char* script) {
     CExoString scriptFile(script);
@@ -62,36 +57,59 @@ void __cdecl teleport(char* location) {
     delete server;
 }
 
+static int* GetRenderPointer(const char* pointerName) {
+    void* ptr = GameVersion::GetGlobalPointer(pointerName);
+    if (!ptr) {
+        debugLog("[ConsoleCommands] ERROR: Failed to get pointer for %s", pointerName);
+        return nullptr;
+    }
+    return static_cast<int*>(ptr);
+}
+
 void __cdecl walkmeshrender() {
-    int* renderAABB = (int*)0x007fbf5c;
-    *renderAABB = (*renderAABB) ^ 1;
+    static int* renderAABB = GetRenderPointer("RENDER_AABB");
+    if (renderAABB) {
+        *renderAABB = (*renderAABB) ^ 1;
+    }
 }
 
 void __cdecl guirender() {
-    int* renderGUI = (int*)0x007bb4d0;
-    *renderGUI = (*renderGUI) ^ 1;
+    static int* renderGUI = GetRenderPointer("RENDER_GUI");
+    if (renderGUI) {
+        *renderGUI = (*renderGUI) ^ 1;
+    }
 }
 
 void __cdecl wireframerender() {
-    int* renderWireframe = (int*)0x007bb4f0;
-    *renderWireframe = (*renderWireframe) ^ 1;
+    static int* renderWireframe = GetRenderPointer("RENDER_WIREFRAME");
+    if (renderWireframe) {
+        *renderWireframe = (*renderWireframe) ^ 1;
+    }
 }
 
 void __cdecl triggersrender() {
-    int* renderQATriggers = (int*)0x0083285c;
-    *renderQATriggers = (*renderQATriggers) ^ 1;
-    int* renderTriggers = (int*)0x007b92e4;
-    *renderTriggers = (*renderTriggers) ^ 1;
+    static int* renderQATriggers = GetRenderPointer("RENDER_QA_TRIGGERS");
+    static int* renderTriggers = GetRenderPointer("RENDER_TRIGGERS");
+    if (renderQATriggers) {
+        *renderQATriggers = (*renderQATriggers) ^ 1;
+    }
+    if (renderTriggers) {
+        *renderTriggers = (*renderTriggers) ^ 1;
+    }
 }
 
 void __cdecl personalspacerender() {
-    int* renderPersonalSpace = (int*)0x007b9314;
-    *renderPersonalSpace = (*renderPersonalSpace) ^ 1;
+    static int* renderPersonalSpace = GetRenderPointer("RENDER_PERSONAL_SPACE");
+    if (renderPersonalSpace) {
+        *renderPersonalSpace = (*renderPersonalSpace) ^ 1;
+    }
 }
 
 void __cdecl boundingboxesrender() {
-    int* renderGobBBs = (int*)0x0082805c;
-    *renderGobBBs = (*renderGobBBs) ^ 1;
+    static int* renderGobBBs = GetRenderPointer("RENDER_GOB_BBS");
+    if (renderGobBBs) {
+        *renderGobBBs = (*renderGobBBs) ^ 1;
+    }
 }
 
 extern "C" void __cdecl InitializeAdditionalCommands()
@@ -107,7 +125,7 @@ extern "C" void __cdecl InitializeAdditionalCommands()
 
     // Note we never free these values, as they're present up until the game closes anyway, so 
     // memory is of minimal practical concern. May consider hooking an additional function to free
-    // these in the function
+    // these in the future
 }
 
 // DLL Entry Point

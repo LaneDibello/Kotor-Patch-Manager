@@ -1,5 +1,10 @@
 #pragma once
 #include "Common.h"
+#include "GameAPI/GameVersion.h"
+#include "GameAPI/CVirtualMachine.h"
+#include "GameAPI/CServerExoApp.h"
+#include "GameAPI/CSWSCreature.h"
+#include "GameAPI/CExoString.h"
 #pragma pack(push, 4)
 
 enum funcTypes {
@@ -20,23 +25,23 @@ struct ConsoleFunc {
 		switch (type) {
 		case INT_PARAM:
 		{
-			const DWORD ADDRESS = 0x0044c620;
-			constructor constructConsoleFunc = (constructor)ADDRESS;
+			void* address = GameVersion::GetFunctionAddress("ConsoleFunc", "IntConstructor");
+			constructor constructConsoleFunc = (constructor)address;
 			constructConsoleFunc(this, name, function);
 			return;
 		}
 		case STRING_PARAM:
 		{
-			const DWORD ADDRESS = 0x0044c5c0;
-			constructor constructConsoleFunc = (constructor)ADDRESS;
+			void* address = GameVersion::GetFunctionAddress("ConsoleFunc", "StringConstructor");
+				constructor constructConsoleFunc = (constructor)address;
 			constructConsoleFunc(this, name, function);
 			return;
 		}
 		default:
 		case NO_PARAMS:
 		{
-			const DWORD ADDRESS = 0x0044c560;
-			constructor constructConsoleFunc = (constructor)ADDRESS;
+			void* address = GameVersion::GetFunctionAddress("ConsoleFunc", "NoParamConstructor");
+				constructor constructConsoleFunc = (constructor)address;
 			constructConsoleFunc(this, name, function);
 			return;
 		}
@@ -45,8 +50,8 @@ struct ConsoleFunc {
 
 	~ConsoleFunc() {
 		typedef ConsoleFunc* (__thiscall* destructor)(ConsoleFunc* thisPtr);
-		const DWORD ADDRESS = 0x0044bcf0;
-		destructor destructConsoleFunc = (destructor)ADDRESS;
+		void* address = GameVersion::GetFunctionAddress("ConsoleFunc", "Destructor");
+		destructor destructConsoleFunc = (destructor)address;
 		destructConsoleFunc(this);
 	}
 };
