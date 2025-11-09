@@ -48,8 +48,7 @@ void __cdecl teleport(char* location) {
     sscanf_s(location, "%f %f", &x, &y);
 
     int action = 0x41a00000;
-
-    sWSObjectAddActionToFront(serverPlayer->GetPtr(), 5, 0xffff, 2, &x, 2, &y, 2, &position.z, 3, &areaId, 1, &takeStraightLine, 2, (void *)&action, 2, &orientation.x, 2, &orientation.y, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL);
+    ((CSWSObject*)serverPlayer)->AddActionToFront(5, 0xffff, 2, &x, 2, &y, 2, &position.z, 3, &areaId, 1, &takeStraightLine, 2, (void *)&action, 2, &orientation.x, 2, &orientation.y, 0, NULL, 0, NULL, 0, NULL, 0, NULL, 0, NULL);
 
     debugLog("[teleport] Done");
 

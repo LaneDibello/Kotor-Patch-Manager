@@ -4,6 +4,7 @@
 #include "GameAPI/CVirtualMachine.h"
 #include "GameAPI/CServerExoApp.h"
 #include "GameAPI/CSWSCreature.h"
+#include "GameAPI/CSWSObject.h"
 #include "GameAPI/CExoString.h"
 #pragma pack(push, 4)
 
