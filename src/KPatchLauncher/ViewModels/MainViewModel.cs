@@ -653,11 +653,23 @@ public class MainViewModel : ViewModelBase
                     var v = versionInfo.Data;
                     _detectedGameVersion = v;
                     KotorVersion = $"{v.DisplayName})";
+
+                    // Switch theme based on detected game title
+                    if (Application.Current is App app)
+                    {
+                        app.LoadTheme(v.Title);
+                    }
                 }
                 else
                 {
                     _detectedGameVersion = null;
                     KotorVersion = "Unknown";
+
+                    // Load default theme (KOTOR 1) for unknown games
+                    if (Application.Current is App app)
+                    {
+                        app.LoadTheme(KPatchCore.Models.GameTitle.KOTOR1);
+                    }
                 }
 
                 // Update patch compatibility after version detection

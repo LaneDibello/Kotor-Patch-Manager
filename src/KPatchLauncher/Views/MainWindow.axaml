@@ -9,8 +9,8 @@
         Title="KotOR Patch Manager"
         Width="1024" Height="768"
         MinWidth="800" MinHeight="600"
-        Background="#000016"
-        Foreground="#00AFFF">
+        Background="{DynamicResource BackgroundBrush}"
+        Foreground="{DynamicResource PrimaryBrush}">
 
     <Design.DataContext>
         <vm:MainViewModel/>
@@ -18,53 +18,53 @@
 
     <Window.Styles>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#000016"/>
-            <Setter Property="Foreground" Value="#00AFFF"/>
-            <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="CaretBrush" Value="#00AFFF"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource PrimaryBrush}"/>
         </Style>
         <Style Selector="TextBox /template/ Border#PART_BorderElement">
-            <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="Background" Value="#000016"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
         </Style>
         <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-            <Setter Property="BorderBrush" Value="#FFFF00"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="2"/>
         </Style>
         <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
-            <Setter Property="BorderBrush" Value="#FFFF00"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="2"/>
         </Style>
         <Style Selector="TextBox:focus">
-            <Setter Property="Foreground" Value="#FFFF00"/>
-            <Setter Property="CaretBrush" Value="#FFFF00"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
         <Style Selector="TextBox:pointerover">
-            <Setter Property="Foreground" Value="#FFFF00"/>
-            <Setter Property="CaretBrush" Value="#FFFF00"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <Style Selector="Button">
-            <Setter Property="Background" Value="#000016"/>
-            <Setter Property="Foreground" Value="#00AFFF"/>
-            <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Padding" Value="10,5"/>
         </Style>
         <Style Selector="Button:pointerover /template/ ContentPresenter">
-            <Setter Property="BorderBrush" Value="#FFFF00"/>
-            <Setter Property="Foreground" Value="#FFFF00"/>
-            <Setter Property="Background" Value="#000016"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
             <Setter Property="BorderThickness" Value="2"/>
         </Style>
         <Style Selector="Button:pressed /template/ ContentPresenter">
-            <Setter Property="BorderBrush" Value="#FFFF00"/>
-            <Setter Property="Foreground" Value="#FFFF00"/>
-            <Setter Property="Background" Value="#000016"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
             <Setter Property="BorderThickness" Value="2"/>
         </Style>
         <Style Selector="Button:disabled">
@@ -72,13 +72,13 @@
         </Style>
 
         <Style Selector="CheckBox">
-            <Setter Property="Foreground" Value="#00AFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
         </Style>
 
         <Style Selector="ListBox">
-            <Setter Property="Background" Value="#000016"/>
-            <Setter Property="Foreground" Value="#00AFFF"/>
-            <Setter Property="BorderBrush" Value="#00AFFF"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
 
@@ -87,24 +87,24 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="#004488"/>
+            <Setter Property="Background" Value="{DynamicResource SelectionBackgroundBrush}"/>
         </Style>
         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#002244"/>
-            <Setter Property="Foreground" Value="#FFFF00"/>
+            <Setter Property="Background" Value="{DynamicResource SelectionBackgroundDarkBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
         <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#0066AA"/>
-            <Setter Property="Foreground" Value="#FFFF00"/>
+            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <Style Selector="Border">
-            <Setter Property="BorderBrush" Value="#00AFFF"/>
-            <Setter Property="Background" Value="#000016"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
         </Style>
 
         <Style Selector="ScrollViewer">
-            <Setter Property="Background" Value="#000016"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
         </Style>
     </Window.Styles>
 
@@ -253,15 +253,15 @@
                             </StackPanel>
 
                             <!-- Orphaned Warning -->
-                            <Border Background="#330000"
-                                    BorderBrush="#FF0000"
+                            <Border Background="{DynamicResource ErrorBackgroundBrush}"
+                                    BorderBrush="{DynamicResource ErrorBrush}"
                                     BorderThickness="1"
                                     Padding="8"
                                     IsVisible="{Binding SelectedPatch.IsOrphaned}">
                                 <StackPanel Spacing="5">
                                     <TextBlock Text="⚠️ Orphaned Patch"
                                                FontWeight="Bold"
-                                               Foreground="#FF0000"/>
+                                               Foreground="{DynamicResource ErrorBrush}"/>
                                     <TextBlock Text="This patch is installed in the game but not found in your patches directory. Unchecking it will uninstall it, but it will not appear in the list again."
                                                TextWrapping="Wrap"
                                                FontSize="12"/>
@@ -283,7 +283,7 @@
 
         <!-- Status Bar -->
         <Border Grid.Row="3"
-                BorderBrush="#00AFFF"
+                BorderBrush="{DynamicResource PrimaryBrush}"
                 BorderThickness="0,1,0,0"
                 Padding="5"
                 Margin="0,10,0,5">
@@ -312,9 +312,9 @@
                      Maximum="100"
                      Height="8"
                      Margin="0,5,0,10"
-                     Foreground="#FFFF00"
-                     Background="#001133"
-                     BorderBrush="#00AFFF"
+                     Foreground="{DynamicResource AccentBrush}"
+                     Background="{DynamicResource ProgressBackgroundBrush}"
+                     BorderBrush="{DynamicResource PrimaryBrush}"
                      BorderThickness="1"/>
 
         <!-- Action Buttons -->

@@ -1,0 +1,37 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- KOTOR 1 Color Palette -->
+    <!-- Primary: Cyan/Light Blue (#00AFFF) -->
+    <!-- Background: Very Dark Blue (#000016) -->
+    <!-- Accent: Yellow (#FFFF00) -->
+
+    <!-- Primary Colors -->
+    <Color x:Key="PrimaryColor">#00AFFF</Color>
+    <Color x:Key="BackgroundColor">#000016</Color>
+    <Color x:Key="AccentColor">#FFFF00</Color>
+
+    <!-- Brushes -->
+    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}"/>
+    <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+
+    <!-- Selection and Hover Colors (Blue shades) -->
+    <Color x:Key="SelectionBackgroundColor">#004488</Color>
+    <Color x:Key="SelectionBackgroundDarkColor">#002244</Color>
+    <Color x:Key="HoverBackgroundColor">#0066AA</Color>
+    <Color x:Key="ProgressBackgroundColor">#001133</Color>
+
+    <SolidColorBrush x:Key="SelectionBackgroundBrush" Color="{StaticResource SelectionBackgroundColor}"/>
+    <SolidColorBrush x:Key="SelectionBackgroundDarkBrush" Color="{StaticResource SelectionBackgroundDarkColor}"/>
+    <SolidColorBrush x:Key="HoverBackgroundBrush" Color="{StaticResource HoverBackgroundColor}"/>
+    <SolidColorBrush x:Key="ProgressBackgroundBrush" Color="{StaticResource ProgressBackgroundColor}"/>
+
+    <!-- Error/Warning Colors (Red shades - kept consistent across themes) -->
+    <Color x:Key="ErrorBackgroundColor">#330000</Color>
+    <Color x:Key="ErrorColor">#FF0000</Color>
+
+    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="{StaticResource ErrorBackgroundColor}"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}"/>
+
+</ResourceDictionary>

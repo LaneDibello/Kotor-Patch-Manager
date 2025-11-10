@@ -32,6 +32,16 @@ public enum Architecture
 }
 
 /// <summary>
+/// Game title (KOTOR 1 or KOTOR 2)
+/// </summary>
+public enum GameTitle
+{
+    Unknown,
+    KOTOR1,
+    KOTOR2
+}
+
+/// <summary>
 /// Represents a specific version of KOTOR
 /// </summary>
 public sealed class GameVersion
@@ -55,6 +65,11 @@ public sealed class GameVersion
     /// CPU architecture
     /// </summary>
     public required Architecture Architecture { get; init; }
+
+    /// <summary>
+    /// Game title (KOTOR 1 or KOTOR 2)
+    /// </summary>
+    public required GameTitle Title { get; init; }
 
     /// <summary>
     /// Expected file size in bytes (for verification)

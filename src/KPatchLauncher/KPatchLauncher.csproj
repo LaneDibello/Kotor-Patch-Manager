@@ -55,6 +55,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Themes\**" />
   </ItemGroup>
 
 </Project>

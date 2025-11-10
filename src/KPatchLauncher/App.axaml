@@ -5,4 +5,14 @@
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>
+
+    <!-- Merged Resource Dictionaries for Theme Support -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- KOTOR 1 Theme (Default) -->
+                <ResourceInclude Source="avares://KPatchLauncher/Themes/Kotor1Theme.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>
