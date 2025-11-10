@@ -19,7 +19,7 @@ It is made available via `InitializeAdditionalCommands`, which we patch in short
 Console Functions are always called with the `__cdecl` convention. Take a look at `runscript` for example. It takes a `char*` parameter (the string param variant of `ConsoleFunc`). We then call the internal game function `GetPlayerCreatureId` (in the `CServerExoApp` class), to get the ID of the player. Finally we call the internal game function `RunScript` (in the `CVirtualMachine` class), to run the script supplied as called by the player.
 
 ### More details
-We specially hook at address: `0x006fb4ce`, which is actually in the EXE entry point, shortly after all the other static structures are initialized, but before the main program begins.
+For kotor 1, we specially hook at address: `0x006fb4ce`, which is actually in the EXE entry point, shortly after all the other static structures are initialized, but before the main program begins.
 The bytes (`original_bytes`) we overwrite: `[0x89, 0x45, 0xe0, 0x3b, 0xc6]` represent the x86 instructions:
 ```
 MOV dword ptr [EBP + -0x20]
