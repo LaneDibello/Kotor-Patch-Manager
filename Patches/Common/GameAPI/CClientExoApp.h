@@ -1,6 +1,6 @@
 #pragma once
-
 #include <windows.h>
+#include "GameAPI/CClientOptions.h"
 
 class CAppManager;
 
@@ -9,6 +9,7 @@ public:
     static CClientExoApp* GetInstance();
     ~CClientExoApp();
 
+    CClientOptions* GetClientOptions();
     void* GetPtr() const { return clientPtr; }
 
 private:
@@ -16,6 +17,10 @@ private:
     explicit CClientExoApp(void* clientPtr);
 
     void* clientPtr;
+
+    typedef void* (__thiscall* GetClientOptionsFn)(void* thisPtr);
+
+    static GetClientOptionsFn getClientOptions;
 
     static void InitializeFunctions();
     static bool functionsInitialized;

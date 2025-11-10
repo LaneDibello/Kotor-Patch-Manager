@@ -25,6 +25,12 @@ RENDER_GOB_BBS = "0x00a2a3d8"
 # Game Function Addresses (organized by class)
 # ============================================================================
 
+[functions.CClientExoApp]
+GetClientOptions = "0x0040ccf0"
+
+[functions.CClientOptions]
+SetCameraMode = "0x00462bc0"
+
 [functions.CServerExoApp]
 GetObjectArray = "0x0064baa0"
 GetCreatureByGameObjectID = "0x0064bb20"

@@ -3,6 +3,7 @@
 #include "GameAPI/GameVersion.h"
 #include "GameAPI/CVirtualMachine.h"
 #include "GameAPI/CServerExoApp.h"
+#include "GameAPI/CClientExoApp.h"
 #include "GameAPI/CSWSCreature.h"
 #include "GameAPI/CSWSObject.h"
 #include "GameAPI/CExoString.h"

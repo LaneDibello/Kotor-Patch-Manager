@@ -1,5 +1,4 @@
 #include "Common.h"
-#include "Kotor1Functions.h"  // Still needed for sWSObjectAddActionToFront
 #include "ConsoleFunc.h"
 
 void __cdecl runscript(char* script) {
@@ -109,6 +108,22 @@ void __cdecl boundingboxesrender() {
     }
 }
 
+void __cdecl freecam() {
+    CClientExoApp* client = CClientExoApp::GetInstance();
+    if (!client) {
+        return;
+    }
+    debugLog("[freecam] Got client %p", client->GetPtr());
+
+    CClientOptions* options = client->GetClientOptions();
+    if (!options) {
+        return;
+    }
+    debugLog("[freecam] Got options %p", options->GetPtr());
+
+    options->SetCameraMode(7); // Mode 7 is freecam
+}
+
 extern "C" void __cdecl InitializeAdditionalCommands()
 {
     new ConsoleFunc("runscript", (void*)&runscript, STRING_PARAM);
@@ -119,6 +134,7 @@ extern "C" void __cdecl InitializeAdditionalCommands()
     new ConsoleFunc("triggersrender", (void*)&triggersrender, NO_PARAMS);
     new ConsoleFunc("personalspacerender", (void*)&personalspacerender, NO_PARAMS);
     new ConsoleFunc("boundingboxesrender", (void*)&boundingboxesrender, NO_PARAMS);
+    new ConsoleFunc("freecam", (void*)&freecam, NO_PARAMS);
 
     // Note we never free these values, as they're present up until the game closes anyway, so 
     // memory is of minimal practical concern. May consider hooking an additional function to free
