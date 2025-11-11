@@ -27,6 +27,12 @@ RENDER_GOB_BBS = "0x0082805c"
 # Game Function Addresses (organized by class)
 # ============================================================================
 
+[functions.CResRef]
+DefaultConstructor = "0x00405ed0"
+CExoStringConstructor = "0x00406d60"
+CStrConstructor = "0x00406d80"
+GetLength = "0x00406040"
+
 [functions.CClientExoApp]
 GetClientOptions = "0x005ed700"
 
@@ -102,7 +108,6 @@ Destructor = "0x0044bcf0"
 AurPostString = "0x0044d490"
 
 [functions.CSWGuiObject]
-SetExtent = "0x00409e90"
 Destructor = "0x00409ec0"
 
 # ============================================================================

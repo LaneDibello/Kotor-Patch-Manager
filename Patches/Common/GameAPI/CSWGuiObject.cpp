@@ -41,7 +41,7 @@ void CSWGuiObject::InitializeOffsets() {
     }
 }
 
-CSWGuiObject::CSWGuiObject(void* optionsPtr)
+CSWGuiObject::CSWGuiObject(void* objectPtr)
     : objectPtr(objectPtr)
 {
     if (!functionsInitialized) {

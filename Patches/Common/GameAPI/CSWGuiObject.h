@@ -4,7 +4,7 @@
 
 class CSWGuiObject {
 public:
-    explicit CSWGuiObject(void* optionsPtr);
+    explicit CSWGuiObject(void* objectPtr);
     ~CSWGuiObject();
 
     void* GetPtr() const { return optionsPtr; }
