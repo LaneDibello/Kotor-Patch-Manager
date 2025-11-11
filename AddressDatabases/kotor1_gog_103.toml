@@ -101,6 +101,10 @@ Destructor = "0x0044bcf0"
 [functions.Other]
 AurPostString = "0x0044d490"
 
+[functions.CSWGuiObject]
+SetExtent = "0x00409e90"
+Destructor = "0x00409ec0"
+
 # ============================================================================
 # Memory Offsets (organized by class/struct)
 # ============================================================================
@@ -145,6 +149,9 @@ Length = 0x4
 [offsets.CGameObject]
 Id = 0x4
 ObjectType = 0x8
+
+[offsets.CSWGuiObject]
+Extent = 0x4
 
 # ============================================================================
 # Notes
