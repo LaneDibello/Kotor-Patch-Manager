@@ -22,6 +22,8 @@ RENDER_QA_TRIGGERS = "0x0083285c"
 RENDER_TRIGGERS = "0x007b92e4"
 RENDER_PERSONAL_SPACE = "0x007b9314"
 RENDER_GOB_BBS = "0x0082805c"
+SCREEN_HEIGHT = "0x0078d1d8"
+SCREEN_WIDTH = "0x0078d1d4"
 
 # ============================================================================
 # Game Function Addresses (organized by class)
@@ -106,9 +108,24 @@ Destructor = "0x0044bcf0"
 
 [functions.Other]
 AurPostString = "0x0044d490"
+ReInitAurora = "0x00403800"
 
 [functions.CSWGuiObject]
 Destructor = "0x00409ec0"
+
+[functions.CSWGuiManager]
+SetSize = "0x0040be70"
+PanelExists = "0x0040bd70"
+
+[functions.CGuiInGame]
+ResetInterfaceForSize = "0x0062f5f0"
+
+[functions.CSWGuiMainMenu]
+Constructor = "0x0067ace0"
+
+[functions.CSWGuiLoadScreen]
+Constructor = "0x0067a710"
+
 
 # ============================================================================
 # Memory Offsets (organized by class/struct)
@@ -117,6 +134,18 @@ Destructor = "0x00409ec0"
 [offsets.CAppManager]
 Client = 0x4
 Server = 0x8
+
+[offsets.CClientExoApp]
+Internal = 0x4
+
+[offsets.CServerExoApp]
+Internal = 0x4
+
+[offsets.CClientExoAppInternal]
+GuiInGame = 0x40
+GuiManager = 0x274
+LoadScreen = 0x278
+MainMenu = 0x280
 
 [offsets.CSWSCreature]
 CreatureStats = 0xa74

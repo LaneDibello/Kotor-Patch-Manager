@@ -7,7 +7,7 @@ public:
 
     char* GetCStr();
 
-    void* GetPtr() const { return stringPtr; }
+    void* GetPtr() const { return ptr; }
 
 private:
     void* ptr;

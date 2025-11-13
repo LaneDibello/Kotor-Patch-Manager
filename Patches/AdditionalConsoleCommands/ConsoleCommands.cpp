@@ -1,6 +1,75 @@
 #include "Common.h"
 #include "ConsoleFunc.h"
 
+void __cdecl setresolution(char* res) {
+    DWORD width, height;
+    sscanf_s(res, "%d %d", &width, &height);
+
+    *(DWORD*)GameVersion::GetGlobalPointer("SCREEN_HEIGHT") = height;
+    *(DWORD*)GameVersion::GetGlobalPointer("SCREEN_WIDTH") = width;
+
+    typedef void(__cdecl* ReInitAuroraFn)(DWORD width, DWORD height, BYTE bitsPerPixel, int fullscreen, int checkForMovies);
+    ReInitAuroraFn reInitAurora = reinterpret_cast<ReInitAuroraFn>(
+        GameVersion::GetFunctionAddress("Other", "ReInitAurora"));
+
+    reInitAurora(width, height, 32, 0, 1);
+
+    CClientExoApp* client = CClientExoApp::GetInstance();
+    if (!client) {
+        return;
+    }
+
+    void* clientInternal = getObjectProperty<void*>(client->GetPtr(), 0x4);
+    if (!clientInternal) {
+        return;
+    }
+
+    typedef void(__thiscall* SetSizeFn)(void* thisPtr, DWORD width, DWORD height);
+    SetSizeFn setSize = reinterpret_cast<SetSizeFn>(
+        GameVersion::GetFunctionAddress("CSWGuiManager", "SetSize"));
+
+    void* guiManager = getObjectProperty<void*>(clientInternal, GameVersion::GetOffset("CClientExoAppInternal", "GuiManager"));
+    if (!guiManager) return;
+
+    setSize(guiManager, width, height);
+
+    void* mainMenu = getObjectProperty<void*>(clientInternal, GameVersion::GetOffset("CClientExoAppInternal", "MainMenu"));
+
+    typedef int(__thiscall* PanelExistsFn)(void* thisPtr, void* panel);
+    PanelExistsFn panelExists = reinterpret_cast<PanelExistsFn>(GameVersion::GetFunctionAddress("CSWGuiManager", "PanelExists"));
+
+    if (mainMenu && panelExists(guiManager, mainMenu)) {
+        typedef void(__thiscall* ConstructorFn)(void* thisPtr);
+        ConstructorFn CSWGuiMainMenu = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiMainMenu", "Constructor"));
+
+        CSWGuiMainMenu(mainMenu);
+    }
+
+    void* loadScreen = getObjectProperty<void*>(clientInternal, GameVersion::GetOffset("CClientExoAppInternal", "LoadScreen"));
+
+    if (loadScreen) {
+        callVirtualFunctionVoid<BYTE>(loadScreen, 0x0, 1); //destructor
+        void* newLoadScreen = malloc(0x6b8);
+
+        typedef void(__thiscall* ConstructorFn)(void* thisPtr, void* manager);
+        ConstructorFn CSWGuiLoadScreen = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiLoadScreen", "Constructor"));
+
+        CSWGuiLoadScreen(newLoadScreen, guiManager);
+
+        setObjectProperty<void*>(clientInternal, GameVersion::GetOffset("CClientExoAppInternal", "LoadScreen"), newLoadScreen);
+    }
+
+    void* guiInGame = getObjectProperty<void*>(clientInternal, GameVersion::GetOffset("CClientExoAppInternal", "GuiInGame"));
+
+    if (guiInGame) {
+        typedef void(__thiscall* ResetInterfaceForSize)(void* thisPtr);
+        ResetInterfaceForSize resetInterfaceForSize = reinterpret_cast<ResetInterfaceForSize>(GameVersion::GetFunctionAddress("CGuiInGame", "ResetInterfaceForSize"));
+
+        resetInterfaceForSize(guiInGame);
+    }
+
+}
+
 void __cdecl runscript(char* script) {
     CExoString scriptFile(script);
 
@@ -113,13 +182,11 @@ void __cdecl freecam() {
     if (!client) {
         return;
     }
-    debugLog("[freecam] Got client %p", client->GetPtr());
 
     CClientOptions* options = client->GetClientOptions();
     if (!options) {
         return;
     }
-    debugLog("[freecam] Got options %p", options->GetPtr());
 
     options->SetCameraMode(7); // Mode 7 is freecam
 }
@@ -134,6 +201,7 @@ extern "C" void __cdecl InitializeAdditionalCommands()
     new ConsoleFunc("triggersrender", (void*)&triggersrender, NO_PARAMS);
     new ConsoleFunc("personalspacerender", (void*)&personalspacerender, NO_PARAMS);
     new ConsoleFunc("boundingboxesrender", (void*)&boundingboxesrender, NO_PARAMS);
+    //new ConsoleFunc("setresolution", (void*)&setresolution, STRING_PARAM);
     new ConsoleFunc("freecam", (void*)&freecam, NO_PARAMS);
 
     // Note we never free these values, as they're present up until the game closes anyway, so 

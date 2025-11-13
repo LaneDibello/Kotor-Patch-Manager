@@ -1,5 +1,9 @@
 #include "CSWGuiObject.h"
 
+bool CSWGuiObject::functionsInitialized = false;
+bool CSWGuiObject::offsetsInitialized = false;
+
+
 void CSWGuiObject::InitializeFunctions() {
     if (functionsInitialized) {
         return;

@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <cstdio>
 #include <cstdarg>
+#include "VirtualFunctionCall.h"
 #pragma pack(push, 4)
 
 extern DWORD OBJECT_DEFAULT;

@@ -7,7 +7,7 @@ public:
     explicit CSWGuiObject(void* objectPtr);
     ~CSWGuiObject();
 
-    void* GetPtr() const { return optionsPtr; }
+    void* GetPtr() const { return objectPtr; }
 
 protected:
     void* objectPtr;
@@ -15,5 +15,5 @@ protected:
     static void InitializeFunctions();
     static void InitializeOffsets();
     static bool functionsInitialized;
-    static bool offsestInitialized;
+    static bool offsetsInitialized;
 };
