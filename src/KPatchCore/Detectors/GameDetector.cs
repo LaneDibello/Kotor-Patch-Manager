@@ -26,6 +26,18 @@ public static class GameDetector
             Hash = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
         },
 
+        // KOTOR 1 - HellSpawn CD Crack version 1.0.3
+        ["761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"] = new GameVersion
+        {
+            Platform = Platform.Windows,
+            Distribution = Distribution.GOG,
+            Version = "1.0.3",
+            Architecture = Architecture.x86,
+            Title = GameTitle.KOTOR1,
+            FileSize = 0x3db00,
+            Hash = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+        },
+
         // KOTOR 1 - Steam version 1.0.3
         ["34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"] = new GameVersion
         {
