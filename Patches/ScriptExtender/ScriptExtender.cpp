@@ -5,6 +5,7 @@
 #include "fileIO.h"
 #include "creatureStats.h"
 #include "clientCreatures.h"
+#include "twoDA.h"
 
 const int TestScriptExtensionIndex = 772;
 int __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
@@ -82,7 +83,9 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[IsRunningIndex] = (DWORD)&ExecuteCommandIsRunning;
     commands[IsStealthedIndex] = (DWORD)&ExecuteCommandIsStealthed;
 
-    
+    commands[Get2DAStringIndex] = (DWORD)&ExecuteCommandGet2DAString;
+    commands[Get2DAIntIndex] = (DWORD)&ExecuteCommandGet2DAInt;
+    commands[Get2DAFloatIndex] = (DWORD)&ExecuteCommandGet2DAFloat;
 }
 
 // DLL Entry Point

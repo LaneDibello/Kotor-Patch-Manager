@@ -5285,3 +5285,15 @@ int IsRunning( object oCreature );
 // gets the stealth state of the creature: 0 not stealthed, 1 is stealthed
 // returns 0 for non-creatures
 int IsStealthed( object oCreature );
+
+// 789. Get2DAString
+// Returns a string value from a 2DA file at the specified row and column.
+string Get2DAString(string s2DAName, int nRow, string sColumn);
+
+// 790. Get2DAInt
+// Returns an integer value from a 2DA file at the specified row and column.
+int Get2DAInt(string s2DAName, int nRow, string sColumn);
+
+// 791. Get2DAFloat
+// Returns a float value from a 2DA file at the specified row and column.
+float Get2DAFloat(string s2DAName, int nRow, string sColumn);
