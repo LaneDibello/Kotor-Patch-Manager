@@ -15,3 +15,9 @@ private:
 
 //TODO: Fill this out
 };
+
+#pragma pack(push, 4)
+struct CResRef_struct {
+    char str[16];
+};
+#pragma pack(pop)
