@@ -126,6 +126,14 @@ Constructor = "0x0067ace0"
 [functions.CSWGuiLoadScreen]
 Constructor = "0x0067a710"
 
+[functions.C2DA]
+Constructor = "0x00413cc0"
+Load2DArray = "0x004143b0"
+Unload2DArray = "0x004139e0"
+GetFLOATEntry = "0x00413430"
+GetINTEntry = "0x00413660"
+GetCExoStringEntry = "0x00413270"
+
 
 # ============================================================================
 # Memory Offsets (organized by class/struct)
