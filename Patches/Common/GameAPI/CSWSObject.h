@@ -26,6 +26,10 @@ public:
     void SetOrientation(const Vector& orientation);
     void SetAreaId(DWORD areaId);
 
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
+
 protected:
     typedef void (__thiscall* AddActionToFrontFn)(
         void* thisPtr, DWORD param_1, USHORT param_2, DWORD param_3, void* param_4, DWORD param_5,
@@ -35,10 +39,7 @@ protected:
         void* param_24, DWORD param_25, void* param_26, DWORD param_27, void* param_28);
 
     static AddActionToFrontFn addActionToFront;
-    static void InitializeFunctions();
     static bool functionsInitialized;
-
-    static void InitializeOffsets();
     static bool offsetsInitialized;
 
     static int offsetPosition;

@@ -7,7 +7,7 @@ int CGameObject::offsetId = -1;
 int CGameObject::offsetObjectType = -1;
 
 CGameObject::CGameObject(void* objectPtr)
-    : objectPtr(objectPtr)
+    : GameAPIObject(objectPtr, false)  // false = don't free (wrapping existing game memory)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
@@ -18,7 +18,7 @@ CGameObject::CGameObject(void* objectPtr)
 }
 
 CGameObject::~CGameObject() {
-    objectPtr = nullptr;
+    // Base class destructor handles setting objectPtr to nullptr
 }
 
 void CGameObject::InitializeFunctions() {
@@ -62,6 +62,4 @@ WORD CGameObject::GetObjectType() {
     return getObjectProperty<WORD>(objectPtr, offsetObjectType);
 }
 
-void* CGameObject::GetPtr() const {
-    return objectPtr;
-}
+// GetPtr() is now inherited from GameAPIObject

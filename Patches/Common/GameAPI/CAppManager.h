@@ -1,11 +1,12 @@
 #pragma once
 
 #include <windows.h>
+#include "GameAPIObject.h"
 
 class CServerExoApp;
 class CClientExoApp;
 
-class CAppManager {
+class CAppManager : public GameAPIObject {
 public:
     static CAppManager* GetInstance();
     ~CAppManager();
@@ -13,14 +14,14 @@ public:
     CServerExoApp* GetServer();
     CClientExoApp* GetClient();
 
-    void* GetPtr() const { return appManagerPtr; }
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 private:
     explicit CAppManager(void* appManagerPtr);
 
-    void* appManagerPtr;
-
-    static void InitializeOffsets();
+    static bool functionsInitialized;
     static bool offsetsInitialized;
 
     static int offsetClient;

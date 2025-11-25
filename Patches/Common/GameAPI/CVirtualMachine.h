@@ -3,13 +3,16 @@
 #include "GameVersion.h"
 #include "../Common.h"
 #include "CExoString.h"
+#include "GameAPIObject.h"
 
-class CVirtualMachine {
+class CVirtualMachine : public GameAPIObject {
 public:
     static CVirtualMachine* GetInstance();
     ~CVirtualMachine();
 
-    void* GetPtr() const { return vmPtr; }
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
     bool StackPopInteger(int* output);
     bool StackPopFloat(float* output);
@@ -38,8 +41,6 @@ public:
 
 private:
     explicit CVirtualMachine(void* vmPtr);
-
-    void* vmPtr;
 
     typedef int(__thiscall* StackPopIntFn)(void*, int*);
     typedef int(__thiscall* StackPopFloatFn)(void*, float*);
@@ -72,6 +73,5 @@ private:
     static RunScriptFn runScript;
 
     static bool functionsInitialized;
-
-    static void InitializeFunctions();
+    static bool offsetsInitialized;
 };

@@ -1,17 +1,20 @@
 #pragma once
 #include "../Common.h"
+#include "GameAPIObject.h"
 
-class CResRef {
+class CResRef : public GameAPIObject {
 public:
     explicit CResRef(void* ptr);
 
     char* GetCStr();
 
-    void* GetPtr() const { return ptr; }
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 private:
-    void* ptr;
-    bool shouldFree;
+    static bool functionsInitialized;
+    static bool offsetsInitialized;
 
 //TODO: Fill this out
 };

@@ -1,21 +1,23 @@
 #pragma once
 
 #include <windows.h>
+#include "GameAPIObject.h"
 
-class CSWItem {
+class CSWItem : public GameAPIObject {
 public:
     explicit CSWItem(void* itemPtr);
     ~CSWItem();
 
     WORD GetBaseItem();
-    void* GetPtr() const { return itemPtr; }
+
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 private:
-    void* itemPtr;
-
     typedef WORD (__thiscall* GetBaseItemFn)(void* thisPtr);
 
     static GetBaseItemFn getBaseItem;
-    static void InitializeFunctions();
     static bool functionsInitialized;
+    static bool offsetsInitialized;
 };

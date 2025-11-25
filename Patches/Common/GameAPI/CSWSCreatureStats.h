@@ -1,8 +1,9 @@
 #pragma once
 
 #include <windows.h>
+#include "GameAPIObject.h"
 
-class CSWSCreatureStats {
+class CSWSCreatureStats : public GameAPIObject {
 public:
     explicit CSWSCreatureStats(void* statsPtr);
     ~CSWSCreatureStats();
@@ -36,10 +37,11 @@ public:
     void* GetClass(BYTE classIndex);
     BYTE GetClassCount();
 
-    void* GetPtr() const { return statsPtr; }
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 private:
-    void* statsPtr;
 
     typedef bool (__thiscall* HasFeatFn)(void* thisPtr, WORD feat);
     typedef void (__thiscall* AddFeatFn)(void* thisPtr, WORD feat);
@@ -73,8 +75,6 @@ private:
     static SetMovementRateFn setMovementRate;
     static GetClassFn getClass;
 
-    static void InitializeFunctions();
-    static void InitializeOffsets();
     static bool functionsInitialized;
     static bool offsetsInitialized;
 

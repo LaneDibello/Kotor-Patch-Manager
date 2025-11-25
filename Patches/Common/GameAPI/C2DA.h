@@ -3,8 +3,9 @@
 #include <windows.h>
 #include "GameAPI/CExoString.h"
 #include "GameAPI/CResRef.h"
+#include "GameAPIObject.h"
 
-class C2DA {
+class C2DA : public GameAPIObject {
 public:
     explicit C2DA(void* ptr);
     C2DA(const char* name);
@@ -15,13 +16,13 @@ public:
     bool GetINTEntry(int row, CExoString* column, int* output);
     void Load2DArray();
     void Unload2DArray();
-    void* GetPtr() const { return ptr; }
+
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 private:
     const int objectSize = 0x54;
-
-    void* ptr;
-    bool shouldFree;
 
     typedef bool(__thiscall* GetCExoStringEntryFn)(void* thisPtr, int row, void* column, void* output);
     typedef bool(__thiscall* GetFLOATEntryFn)(void* thisPtr, int row, void* column, float* output);
@@ -37,6 +38,6 @@ private:
     static Unload2DArrayFn unload2DArray;
     static ConstructorFn constructor;
 
-    static void InitializeFunctions();
     static bool functionsInitialized;
+    static bool offsetsInitialized;
 };

@@ -17,15 +17,16 @@ public:
     CSWSCreatureStats* GetCreatureStats();
     CSWInventory* GetInventory();
 
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
+
 private:
 
     typedef void* (__thiscall* GetClientCreatureFn)(void* thisPtr);
 
     static GetClientCreatureFn getClientCreature;
-    static void InitializeFunctions();
     static bool functionsInitialized;
-
-    static void InitializeOffsets();
     static bool offsetsInitialized;
 
     static int offsetCreatureStats;

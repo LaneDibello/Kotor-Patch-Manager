@@ -119,8 +119,8 @@ void CSWSCreatureStats::InitializeOffsets() {
     }
 }
 
-CSWSCreatureStats::CSWSCreatureStats(void* statsPtr)
-    : statsPtr(statsPtr)
+CSWSCreatureStats::CSWSCreatureStats(void* objectPtr)
+    : GameAPIObject(objectPtr, false)  // false = don't free (wrapping existing)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
@@ -131,159 +131,159 @@ CSWSCreatureStats::CSWSCreatureStats(void* statsPtr)
 }
 
 CSWSCreatureStats::~CSWSCreatureStats() {
-    statsPtr = nullptr;
+    // Base class destructor handles objectPtr cleanup
 }
 
 bool CSWSCreatureStats::HasFeat(WORD feat) {
-    if (!statsPtr || !hasFeat) {
+    if (!objectPtr || !hasFeat) {
         return false;
     }
-    return hasFeat(statsPtr, feat);
+    return hasFeat(objectPtr, feat);
 }
 
 void CSWSCreatureStats::AddFeat(WORD feat) {
-    if (!statsPtr || !addFeat) {
+    if (!objectPtr || !addFeat) {
         return;
     }
-    addFeat(statsPtr, feat);
+    addFeat(objectPtr, feat);
 }
 
 void CSWSCreatureStats::RemoveFeat(WORD feat) {
-    if (!statsPtr || !removeFeat) {
+    if (!objectPtr || !removeFeat) {
         return;
     }
-    removeFeat(statsPtr, feat);
+    removeFeat(objectPtr, feat);
 }
 
 bool CSWSCreatureStats::HasSpell(BYTE spellList, DWORD spellId, int checkUsable) {
-    if (!statsPtr || !hasSpell) {
+    if (!objectPtr || !hasSpell) {
         return false;
     }
-    return hasSpell(statsPtr, spellList, spellId, checkUsable);
+    return hasSpell(objectPtr, spellList, spellId, checkUsable);
 }
 
 void CSWSCreatureStats::AddKnownSpell(BYTE classId, DWORD spellId) {
-    if (!statsPtr || !addKnownSpell) {
+    if (!objectPtr || !addKnownSpell) {
         return;
     }
-    addKnownSpell(statsPtr, classId, spellId);
+    addKnownSpell(objectPtr, classId, spellId);
 }
 
 BYTE CSWSCreatureStats::GetSTRBase() {
-    if (!statsPtr || offsetSTRBase < 0) {
+    if (!objectPtr || offsetSTRBase < 0) {
         return 0;
     }
-    return *((BYTE*)statsPtr + offsetSTRBase);
+    return *((BYTE*)objectPtr + offsetSTRBase);
 }
 
 BYTE CSWSCreatureStats::GetDEXBase() {
-    if (!statsPtr || offsetDEXBase < 0) {
+    if (!objectPtr || offsetDEXBase < 0) {
         return 0;
     }
-    return *((BYTE*)statsPtr + offsetDEXBase);
+    return *((BYTE*)objectPtr + offsetDEXBase);
 }
 
 BYTE CSWSCreatureStats::GetCONBase() {
-    if (!statsPtr || offsetCONBase < 0) {
+    if (!objectPtr || offsetCONBase < 0) {
         return 0;
     }
-    return *((BYTE*)statsPtr + offsetCONBase);
+    return *((BYTE*)objectPtr + offsetCONBase);
 }
 
 BYTE CSWSCreatureStats::GetINTBase() {
-    if (!statsPtr || offsetINTBase < 0) {
+    if (!objectPtr || offsetINTBase < 0) {
         return 0;
     }
-    return *((BYTE*)statsPtr + offsetINTBase);
+    return *((BYTE*)objectPtr + offsetINTBase);
 }
 
 BYTE CSWSCreatureStats::GetWISBase() {
-    if (!statsPtr || offsetWISBase < 0) {
+    if (!objectPtr || offsetWISBase < 0) {
         return 0;
     }
-    return *((BYTE*)statsPtr + offsetWISBase);
+    return *((BYTE*)objectPtr + offsetWISBase);
 }
 
 BYTE CSWSCreatureStats::GetCHABase() {
-    if (!statsPtr || offsetCHABase < 0) {
+    if (!objectPtr || offsetCHABase < 0) {
         return 0;
     }
-    return *((BYTE*)statsPtr + offsetCHABase);
+    return *((BYTE*)objectPtr + offsetCHABase);
 }
 
 void CSWSCreatureStats::SetSTRBase(BYTE value) {
-    if (!statsPtr || !setSTRBase) {
+    if (!objectPtr || !setSTRBase) {
         return;
     }
-    setSTRBase(statsPtr, value);
+    setSTRBase(objectPtr, value);
 }
 
 void CSWSCreatureStats::SetDEXBase(BYTE value) {
-    if (!statsPtr || !setDEXBase) {
+    if (!objectPtr || !setDEXBase) {
         return;
     }
-    setDEXBase(statsPtr, value);
+    setDEXBase(objectPtr, value);
 }
 
 void CSWSCreatureStats::SetCONBase(BYTE value, int setHP) {
-    if (!statsPtr || !setCONBase) {
+    if (!objectPtr || !setCONBase) {
         return;
     }
-    setCONBase(statsPtr, value, setHP);
+    setCONBase(objectPtr, value, setHP);
 }
 
 void CSWSCreatureStats::SetINTBase(BYTE value) {
-    if (!statsPtr || !setINTBase) {
+    if (!objectPtr || !setINTBase) {
         return;
     }
-    setINTBase(statsPtr, value);
+    setINTBase(objectPtr, value);
 }
 
 void CSWSCreatureStats::SetWISBase(BYTE value) {
-    if (!statsPtr || !setWISBase) {
+    if (!objectPtr || !setWISBase) {
         return;
     }
-    setWISBase(statsPtr, value);
+    setWISBase(objectPtr, value);
 }
 
 void CSWSCreatureStats::SetCHABase(BYTE value) {
-    if (!statsPtr || !setCHABase) {
+    if (!objectPtr || !setCHABase) {
         return;
     }
-    setCHABase(statsPtr, value);
+    setCHABase(objectPtr, value);
 }
 
 BYTE CSWSCreatureStats::GetSkillRank(BYTE skill, void* effectObject, int ignoreBonuses) {
-    if (!statsPtr || !getSkillRank) {
+    if (!objectPtr || !getSkillRank) {
         return 0;
     }
-    return getSkillRank(statsPtr, skill, effectObject, ignoreBonuses);
+    return getSkillRank(objectPtr, skill, effectObject, ignoreBonuses);
 }
 
 void CSWSCreatureStats::SetSkillRank(BYTE skill, BYTE rank) {
-    if (!statsPtr || !setSkillRank) {
+    if (!objectPtr || !setSkillRank) {
         return;
     }
-    setSkillRank(statsPtr, skill, rank);
+    setSkillRank(objectPtr, skill, rank);
 }
 
 void CSWSCreatureStats::SetMovementRate(int movementRate) {
-    if (!statsPtr || !setMovementRate) {
+    if (!objectPtr || !setMovementRate) {
         return;
     }
-    setMovementRate(statsPtr, movementRate);
+    setMovementRate(objectPtr, movementRate);
 }
 
 void* CSWSCreatureStats::GetClass(BYTE classIndex) {
-    if (!statsPtr || !getClass) {
+    if (!objectPtr || !getClass) {
         return nullptr;
     }
-    return getClass(statsPtr, classIndex);
+    return getClass(objectPtr, classIndex);
 }
 
 BYTE CSWSCreatureStats::GetClassCount() {
-    if (!statsPtr || offsetClassCount < 0) {
+    if (!objectPtr || offsetClassCount < 0) {
         return 0;
     }
-    return *((BYTE*)statsPtr + offsetClassCount);
+    return *((BYTE*)objectPtr + offsetClassCount);
 }

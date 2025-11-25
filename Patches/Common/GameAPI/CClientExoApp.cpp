@@ -4,6 +4,7 @@
 
 CClientExoApp::GetClientOptionsFn CClientExoApp::getClientOptions = nullptr;
 bool CClientExoApp::functionsInitialized = false;
+bool CClientExoApp::offsetsInitialized = false;
 
 extern void** appManagerGlobalPtr;
 
@@ -36,11 +37,12 @@ void CClientExoApp::InitializeFunctions() {
     functionsInitialized = true;
 }
 
-CClientExoApp* CClientExoApp::GetInstance() {
-    if (!functionsInitialized) {
-        InitializeFunctions();
-    }
+void CClientExoApp::InitializeOffsets() {
+    // CClientExoApp has no offsets
+    offsetsInitialized = true;
+}
 
+CClientExoApp* CClientExoApp::GetInstance() {
     if (!appManagerGlobalPtr || !*appManagerGlobalPtr) {
         OutputDebugStringA("[CClientExoApp] ERROR: App manager pointer is null\n");
         return nullptr;
@@ -57,6 +59,7 @@ CClientExoApp* CClientExoApp::GetInstance() {
             return nullptr;
         }
 
+        // Initialization will happen in constructor
         return new CClientExoApp(clientExoApp);
     }
     catch (const GameVersionException& e) {
@@ -66,20 +69,26 @@ CClientExoApp* CClientExoApp::GetInstance() {
 }
 
 CClientExoApp::CClientExoApp(void* clientPtr)
-    : clientPtr(clientPtr)
+    : GameAPIObject(clientPtr, false)  // false = don't free (singleton)
 {
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
 }
 
 CClientExoApp::~CClientExoApp() {
-    clientPtr = nullptr;
+    // Base class destructor handles objectPtr cleanup
 }
 
 CClientOptions* CClientExoApp::GetClientOptions() {
-    if (!clientPtr || !getClientOptions) {
+    if (!objectPtr || !getClientOptions) {
         return nullptr;
     }
 
-    void* clientOptionsPtr = getClientOptions(clientPtr);
+    void* clientOptionsPtr = getClientOptions(objectPtr);
 
     if (clientOptionsPtr)
         return new CClientOptions(clientOptionsPtr);
