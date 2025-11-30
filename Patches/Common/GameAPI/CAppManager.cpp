@@ -37,6 +37,16 @@ void CAppManager::InitializeOffsets() {
 }
 
 CAppManager* CAppManager::GetInstance() {
+    if (!GameVersion::IsInitialized()) {
+        OutputDebugStringA("[CAppManager] ERROR: GameVersion not initialized\n");
+        return nullptr;
+    }
+
+    // Get the global pointer directly if we don't have it yet
+    if (!appManagerGlobalPtr) {
+        appManagerGlobalPtr = static_cast<void**>(GameVersion::GetGlobalPointer("APP_MANAGER_PTR"));
+    }
+
     if (!appManagerGlobalPtr || !*appManagerGlobalPtr) {
         OutputDebugStringA("[CAppManager] ERROR: APP_MANAGER_PTR is null\n");
         return nullptr;

@@ -1,12 +1,11 @@
 #include "CClientExoApp.h"
+#include "CAppManager.h"
 #include "GameVersion.h"
 #include "../Common.h"
 
 CClientExoApp::GetClientOptionsFn CClientExoApp::getClientOptions = nullptr;
 bool CClientExoApp::functionsInitialized = false;
 bool CClientExoApp::offsetsInitialized = false;
-
-extern void** appManagerGlobalPtr;
 
 void CClientExoApp::InitializeFunctions() {
     if (functionsInitialized) {
@@ -15,12 +14,6 @@ void CClientExoApp::InitializeFunctions() {
 
     if (!GameVersion::IsInitialized()) {
         OutputDebugStringA("[CClientExoApp] ERROR: GameVersion not initialized\n");
-        return;
-    }
-
-    appManagerGlobalPtr = static_cast<void**>(GameVersion::GetGlobalPointer("APP_MANAGER_PTR"));
-    if (!appManagerGlobalPtr) {
-        OutputDebugStringA("[CServerExoApp] ERROR: APP_MANAGER_PTR not found\n");
         return;
     }
 
@@ -43,29 +36,16 @@ void CClientExoApp::InitializeOffsets() {
 }
 
 CClientExoApp* CClientExoApp::GetInstance() {
-    if (!appManagerGlobalPtr || !*appManagerGlobalPtr) {
-        OutputDebugStringA("[CClientExoApp] ERROR: App manager pointer is null\n");
+    CAppManager* appManager = CAppManager::GetInstance();
+    if (!appManager) {
+        OutputDebugStringA("[CClientExoApp] ERROR: Failed to get CAppManager instance\n");
         return nullptr;
     }
 
-    void* appManager = *appManagerGlobalPtr;
+    CClientExoApp* client = appManager->GetClient();
+    delete appManager;  // Clean up the temporary CAppManager instance
 
-    try {
-        int clientOffset = GameVersion::GetOffset("CAppManager", "Client");
-        void* clientExoApp = getObjectProperty<void*>(appManager, clientOffset);
-
-        if (!clientExoApp) {
-            OutputDebugStringA("[CClientExoApp] ERROR: CClientExoApp pointer is null\n");
-            return nullptr;
-        }
-
-        // Initialization will happen in constructor
-        return new CClientExoApp(clientExoApp);
-    }
-    catch (const GameVersionException& e) {
-        debugLog("[CClientExoApp] ERROR: %s\n", e.what());
-        return nullptr;
-    }
+    return client;
 }
 
 CClientExoApp::CClientExoApp(void* clientPtr)

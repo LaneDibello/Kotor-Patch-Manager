@@ -1,4 +1,5 @@
 #include "CServerExoApp.h"
+#include "CAppManager.h"
 #include "GameVersion.h"
 #include "../Common.h"
 #include "CSWSCreature.h"
@@ -18,12 +19,6 @@ void CServerExoApp::InitializeFunctions() {
 
     if (!GameVersion::IsInitialized()) {
         OutputDebugStringA("[CServerExoApp] ERROR: GameVersion not initialized\n");
-        return;
-    }
-
-    appManagerGlobalPtr = static_cast<void**>(GameVersion::GetGlobalPointer("APP_MANAGER_PTR"));
-    if (!appManagerGlobalPtr) {
-        OutputDebugStringA("[CServerExoApp] ERROR: APP_MANAGER_PTR not found\n");
         return;
     }
 
@@ -54,29 +49,16 @@ void CServerExoApp::InitializeOffsets() {
 }
 
 CServerExoApp* CServerExoApp::GetInstance() {
-    if (!appManagerGlobalPtr || !*appManagerGlobalPtr) {
-        OutputDebugStringA("[CServerExoApp] ERROR: App manager pointer is null\n");
+    CAppManager* appManager = CAppManager::GetInstance();
+    if (!appManager) {
+        OutputDebugStringA("[CServerExoApp] ERROR: Failed to get CAppManager instance\n");
         return nullptr;
     }
 
-    void* appManager = *appManagerGlobalPtr;
+    CServerExoApp* server = appManager->GetServer();
+    delete appManager;  // Clean up the temporary CAppManager instance
 
-    try {
-        int serverOffset = GameVersion::GetOffset("CAppManager", "Server");
-        void* serverExoApp = getObjectProperty<void*>(appManager, serverOffset);
-
-        if (!serverExoApp) {
-            OutputDebugStringA("[CServerExoApp] ERROR: CServerExoApp pointer is null\n");
-            return nullptr;
-        }
-
-        // Initialization will happen in constructor
-        return new CServerExoApp(serverExoApp);
-    }
-    catch (const GameVersionException& e) {
-        debugLog("[CServerExoApp] ERROR: %s\n", e.what());
-        return nullptr;
-    }
+    return server;
 }
 
 CServerExoApp::CServerExoApp(void* serverPtr)
