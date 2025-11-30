@@ -1,6 +1,7 @@
 #include "CVirtualMachine.h"
 
 bool CVirtualMachine::functionsInitialized = false;
+bool CVirtualMachine::offsetsInitialized = false;
 CVirtualMachine::StackPopIntFn CVirtualMachine::stackPopInt = nullptr;
 CVirtualMachine::StackPopFloatFn CVirtualMachine::stackPopFloat = nullptr;
 CVirtualMachine::StackPopVectorFn CVirtualMachine::stackPopVector = nullptr;
@@ -16,16 +17,19 @@ CVirtualMachine::StackPushEngineStructureFn CVirtualMachine::stackPushEngineStru
 CVirtualMachine::StackPushObjectFn CVirtualMachine::stackPushObject = nullptr;
 CVirtualMachine::RunScriptFn CVirtualMachine::runScript = nullptr;
 
-CVirtualMachine::CVirtualMachine(void* vmPtr)
-    : vmPtr(vmPtr)
+CVirtualMachine::CVirtualMachine(void* objectPtr)
+    : GameAPIObject(objectPtr, false)  // false = don't free (singleton)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
     }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
 }
 
 CVirtualMachine::~CVirtualMachine() {
-    vmPtr = nullptr;
+    // Base class destructor handles objectPtr cleanup
 }
 
 void CVirtualMachine::InitializeFunctions() {
@@ -61,115 +65,117 @@ void CVirtualMachine::InitializeFunctions() {
     functionsInitialized = true;
 }
 
-CVirtualMachine* CVirtualMachine::GetInstance() {
-    if (!functionsInitialized) {
-        InitializeFunctions();
-    }
+void CVirtualMachine::InitializeOffsets() {
+    // CVirtualMachine has no offsets
+    offsetsInitialized = true;
+}
 
-    void** vmPtrAddr = static_cast<void**>(GameVersion::GetGlobalPointer("VIRTUAL_MACHINE_PTR"));
-    if (!vmPtrAddr || !*vmPtrAddr) {
+CVirtualMachine* CVirtualMachine::GetInstance() {
+    void** objectPtrAddr = static_cast<void**>(GameVersion::GetGlobalPointer("VIRTUAL_MACHINE_PTR"));
+    if (!objectPtrAddr || !*objectPtrAddr) {
         OutputDebugStringA("[CVirtualMachine] ERROR: VIRTUAL_MACHINE_PTR is null\n");
         return nullptr;
     }
 
-    return new CVirtualMachine(*vmPtrAddr);
+    // Initialization will happen in constructor
+    return new CVirtualMachine(*objectPtrAddr);
 }
 
 bool CVirtualMachine::StackPopInteger(int* output) {
-    if (!stackPopInt || !vmPtr) {
+    if (!stackPopInt || !objectPtr) {
         return false;
     }
-    return stackPopInt(vmPtr, output) != 0;
+    return stackPopInt(objectPtr, output) != 0;
 }
 
 bool CVirtualMachine::StackPopFloat(float* output) {
-    if (!stackPopFloat || !vmPtr) {
+    if (!stackPopFloat || !objectPtr) {
         return false;
     }
-    return stackPopFloat(vmPtr, output) != 0;
+    return stackPopFloat(objectPtr, output) != 0;
 }
 
 bool CVirtualMachine::StackPopVector(Vector* output) {
-    if (!stackPopVector || !vmPtr) {
+    if (!stackPopVector || !objectPtr) {
         return false;
     }
-    return stackPopVector(vmPtr, output) != 0;
+    return stackPopVector(objectPtr, output) != 0;
 }
 
 bool CVirtualMachine::StackPopString(CExoString* output) {
-    if (!stackPopString || !vmPtr) {
+    if (!stackPopString || !objectPtr) {
         return false;
     }
 
-    return stackPopString(vmPtr, output->GetPtr()) != 0;
+    return stackPopString(objectPtr, output->GetPtr()) != 0;
 }
 
 bool CVirtualMachine::StackPopEngineStructure(VirtualMachineEngineStructureTypes type, void** output) {
-    if (!stackPopEngineStructure || !vmPtr) {
+    if (!stackPopEngineStructure || !objectPtr) {
         return false;
     }
-    return stackPopEngineStructure(vmPtr, type, output) != 0;
+    return stackPopEngineStructure(objectPtr, type, output) != 0;
 }
 
 bool CVirtualMachine::StackPopObject(DWORD* output) {
-    if (!stackPopObject || !vmPtr) {
+    if (!stackPopObject || !objectPtr) {
         return false;
     }
-    return stackPopObject(vmPtr, output) != 0;
+    return stackPopObject(objectPtr, output) != 0;
 }
 
 bool CVirtualMachine::StackPopCommand(void** output) {
-    if (!stackPopCommand || !vmPtr) {
+    if (!stackPopCommand || !objectPtr) {
         return false;
     }
-    return stackPopCommand(vmPtr, output) != 0;
+    return stackPopCommand(objectPtr, output) != 0;
 }
 
 bool CVirtualMachine::StackPushInteger(int value) {
-    if (!stackPushInt || !vmPtr) {
+    if (!stackPushInt || !objectPtr) {
         return false;
     }
-    return stackPushInt(vmPtr, value) != 0;
+    return stackPushInt(objectPtr, value) != 0;
 }
 
 bool CVirtualMachine::StackPushFloat(float value) {
-    if (!stackPushFloat || !vmPtr) {
+    if (!stackPushFloat || !objectPtr) {
         return false;
     }
-    return stackPushFloat(vmPtr, value) != 0;
+    return stackPushFloat(objectPtr, value) != 0;
 }
 
 bool CVirtualMachine::StackPushVector(Vector value) {
-    if (!stackPushVector || !vmPtr) {
+    if (!stackPushVector || !objectPtr) {
         return false;
     }
-    return stackPushVector(vmPtr, value) != 0;
+    return stackPushVector(objectPtr, value) != 0;
 }
 
 bool CVirtualMachine::StackPushString(CExoString* value) {
-    if (!stackPushString || !vmPtr) {
+    if (!stackPushString || !objectPtr) {
         return false;
     }
-    return stackPushString(vmPtr, value->GetPtr()) != 0;
+    return stackPushString(objectPtr, value->GetPtr()) != 0;
 }
 
 bool CVirtualMachine::StackPushEngineStructure(VirtualMachineEngineStructureTypes type, void* value) {
-    if (!stackPushEngineStructure || !vmPtr) {
+    if (!stackPushEngineStructure || !objectPtr) {
         return false;
     }
-    return stackPushEngineStructure(vmPtr, type, value) != 0;
+    return stackPushEngineStructure(objectPtr, type, value) != 0;
 }
 
 bool CVirtualMachine::StackPushObject(DWORD value) {
-    if (!stackPushObject || !vmPtr) {
+    if (!stackPushObject || !objectPtr) {
         return false;
     }
-    return stackPushObject(vmPtr, value) != 0;
+    return stackPushObject(objectPtr, value) != 0;
 }
 
 bool CVirtualMachine::RunScript(CExoString* scriptName, DWORD objectSelf, int usually1) {
-    if (!runScript || !vmPtr) {
+    if (!runScript || !objectPtr) {
         return false;
     }
-    return runScript(vmPtr, scriptName->GetPtr(), objectSelf, usually1) != 0;
+    return runScript(objectPtr, scriptName->GetPtr(), objectSelf, usually1) != 0;
 }

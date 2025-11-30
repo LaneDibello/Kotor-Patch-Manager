@@ -1,11 +1,12 @@
 #pragma once
 
 #include <windows.h>
+#include "GameAPIObject.h"
 
 class CAppManager;
 class CSWSCreature;
 
-class CServerExoApp {
+class CServerExoApp : public GameAPIObject {
 public:
     static CServerExoApp* GetInstance();
     ~CServerExoApp();
@@ -14,13 +15,13 @@ public:
     DWORD GetPlayerCreatureId();
     CSWSCreature* GetCreatureByGameObjectID(DWORD objectId);
 
-    void* GetPtr() const { return serverPtr; }
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 private:
     friend class CAppManager;
     explicit CServerExoApp(void* serverPtr);
-
-    void* serverPtr;
 
     typedef void* (__thiscall* GetObjectArrayFn)(void* thisPtr);
     typedef DWORD(__thiscall* GetPlayerCreatureIdFn)(void* thisPtr);
@@ -30,6 +31,6 @@ private:
     static GetPlayerCreatureIdFn getPlayerCreatureId;
     static GetCreatureByGameObjectIDFn getCreatureByGameObjectID;
 
-    static void InitializeFunctions();
     static bool functionsInitialized;
+    static bool offsetsInitialized;
 };

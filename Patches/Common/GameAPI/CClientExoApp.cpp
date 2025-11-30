@@ -1,11 +1,11 @@
 #include "CClientExoApp.h"
+#include "CAppManager.h"
 #include "GameVersion.h"
 #include "../Common.h"
 
 CClientExoApp::GetClientOptionsFn CClientExoApp::getClientOptions = nullptr;
 bool CClientExoApp::functionsInitialized = false;
-
-extern void** appManagerGlobalPtr;
+bool CClientExoApp::offsetsInitialized = false;
 
 void CClientExoApp::InitializeFunctions() {
     if (functionsInitialized) {
@@ -14,12 +14,6 @@ void CClientExoApp::InitializeFunctions() {
 
     if (!GameVersion::IsInitialized()) {
         OutputDebugStringA("[CClientExoApp] ERROR: GameVersion not initialized\n");
-        return;
-    }
-
-    appManagerGlobalPtr = static_cast<void**>(GameVersion::GetGlobalPointer("APP_MANAGER_PTR"));
-    if (!appManagerGlobalPtr) {
-        OutputDebugStringA("[CServerExoApp] ERROR: APP_MANAGER_PTR not found\n");
         return;
     }
 
@@ -36,50 +30,45 @@ void CClientExoApp::InitializeFunctions() {
     functionsInitialized = true;
 }
 
+void CClientExoApp::InitializeOffsets() {
+    // CClientExoApp has no offsets
+    offsetsInitialized = true;
+}
+
 CClientExoApp* CClientExoApp::GetInstance() {
-    if (!functionsInitialized) {
-        InitializeFunctions();
-    }
-
-    if (!appManagerGlobalPtr || !*appManagerGlobalPtr) {
-        OutputDebugStringA("[CClientExoApp] ERROR: App manager pointer is null\n");
+    CAppManager* appManager = CAppManager::GetInstance();
+    if (!appManager) {
+        OutputDebugStringA("[CClientExoApp] ERROR: Failed to get CAppManager instance\n");
         return nullptr;
     }
 
-    void* appManager = *appManagerGlobalPtr;
+    CClientExoApp* client = appManager->GetClient();
+    delete appManager;  // Clean up the temporary CAppManager instance
 
-    try {
-        int clientOffset = GameVersion::GetOffset("CAppManager", "Client");
-        void* clientExoApp = getObjectProperty<void*>(appManager, clientOffset);
-
-        if (!clientExoApp) {
-            OutputDebugStringA("[CClientExoApp] ERROR: CClientExoApp pointer is null\n");
-            return nullptr;
-        }
-
-        return new CClientExoApp(clientExoApp);
-    }
-    catch (const GameVersionException& e) {
-        debugLog("[CClientExoApp] ERROR: %s\n", e.what());
-        return nullptr;
-    }
+    return client;
 }
 
 CClientExoApp::CClientExoApp(void* clientPtr)
-    : clientPtr(clientPtr)
+    : GameAPIObject(clientPtr, false)  // false = don't free (singleton)
 {
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
 }
 
 CClientExoApp::~CClientExoApp() {
-    clientPtr = nullptr;
+    // Base class destructor handles objectPtr cleanup
 }
 
 CClientOptions* CClientExoApp::GetClientOptions() {
-    if (!clientPtr || !getClientOptions) {
+    if (!objectPtr || !getClientOptions) {
         return nullptr;
     }
 
-    void* clientOptionsPtr = getClientOptions(clientPtr);
+    void* clientOptionsPtr = getClientOptions(objectPtr);
 
     if (clientOptionsPtr)
         return new CClientOptions(clientOptionsPtr);

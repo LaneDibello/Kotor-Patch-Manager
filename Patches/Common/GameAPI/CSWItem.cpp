@@ -4,6 +4,7 @@
 
 CSWItem::GetBaseItemFn CSWItem::getBaseItem = nullptr;
 bool CSWItem::functionsInitialized = false;
+bool CSWItem::offsetsInitialized = false;
 
 void CSWItem::InitializeFunctions() {
     if (functionsInitialized) {
@@ -28,22 +29,30 @@ void CSWItem::InitializeFunctions() {
     functionsInitialized = true;
 }
 
+void CSWItem::InitializeOffsets() {
+    // CSWItem has no offsets
+    offsetsInitialized = true;
+}
+
 CSWItem::CSWItem(void* itemPtr)
-    : itemPtr(itemPtr)
+    : GameAPIObject(itemPtr, false)  // false = don't free (wrapping existing)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
     }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
 }
 
 CSWItem::~CSWItem() {
-    itemPtr = nullptr;
+    // Base class destructor handles objectPtr cleanup
 }
 
 WORD CSWItem::GetBaseItem() {
-    if (!itemPtr || !getBaseItem) {
+    if (!objectPtr || !getBaseItem) {
         return 0;
     }
 
-    return getBaseItem(itemPtr);
+    return getBaseItem(objectPtr);
 }

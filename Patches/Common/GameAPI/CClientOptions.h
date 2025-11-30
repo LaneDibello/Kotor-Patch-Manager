@@ -1,22 +1,24 @@
 #pragma once
 #include "GameVersion.h"
+#include "GameAPIObject.h"
 #include "../Common.h"
 
-class CClientOptions {
+class CClientOptions : public GameAPIObject {
 public:
     explicit CClientOptions(void* optionsPtr);
     ~CClientOptions();
 
     void SetCameraMode(BYTE mode);
-    void* GetPtr() const { return optionsPtr; }
+
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 private:
-    void* optionsPtr;
-
     typedef void (__thiscall* SetCameraModeFn)(void* thisPtr, BYTE mode);
 
     static SetCameraModeFn setCameraMode;
 
-    static void InitializeFunctions();
     static bool functionsInitialized;
+    static bool offsetsInitialized;
 };

@@ -1,7 +1,8 @@
 #pragma once
 #include "../Common.h"
+#include "GameAPIObject.h"
 
-class CExoString {
+class CExoString : public GameAPIObject {
 public:
     explicit CExoString(void* stringPtr);
 
@@ -13,12 +14,11 @@ public:
     DWORD GetLength();
     char* GetCStr();
 
-    void* GetPtr() const { return stringPtr; }
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 private:
-    void* stringPtr;
-    bool shouldFree;
-
     typedef CExoString* (__thiscall* DefaultConstructor)(CExoString* thisPtr);
     typedef CExoString* (__thiscall* CStrLenConstructor)(CExoString* thisPtr, char* source, int length);
     typedef CExoString* (__thiscall* CStrConstructor)(CExoString* thisPtr, char* source);
@@ -29,8 +29,6 @@ private:
     static CStrConstructor cStrConstructor;
     static Destructor destructor;
 
-    static void InitializeOffsets();
-    static void InitializeFunctions();
     static bool functionsInitialized;
     static bool offsetsInitialized;
 

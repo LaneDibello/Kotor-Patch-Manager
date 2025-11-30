@@ -46,7 +46,7 @@ void CSWGuiObject::InitializeOffsets() {
 }
 
 CSWGuiObject::CSWGuiObject(void* objectPtr)
-    : objectPtr(objectPtr)
+    : GameAPIObject(objectPtr, false)  // false = don't free (wrapping existing)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
@@ -59,5 +59,5 @@ CSWGuiObject::CSWGuiObject(void* objectPtr)
 
 CSWGuiObject::~CSWGuiObject()
 {
-    objectPtr = nullptr;
+    // Base class destructor handles objectPtr cleanup
 }

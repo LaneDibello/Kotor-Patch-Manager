@@ -4,6 +4,7 @@
 
 CSWInventory::GetItemInSlotFn CSWInventory::getItemInSlot = nullptr;
 bool CSWInventory::functionsInitialized = false;
+bool CSWInventory::offsetsInitialized = false;
 
 void CSWInventory::InitializeFunctions() {
     if (functionsInitialized) {
@@ -28,22 +29,30 @@ void CSWInventory::InitializeFunctions() {
     functionsInitialized = true;
 }
 
+void CSWInventory::InitializeOffsets() {
+    // CSWInventory has no offsets
+    offsetsInitialized = true;
+}
+
 CSWInventory::CSWInventory(void* inventoryPtr)
-    : inventoryPtr(inventoryPtr)
+    : GameAPIObject(inventoryPtr, false)  // false = don't free (wrapping existing)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
     }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
 }
 
 CSWInventory::~CSWInventory() {
-    inventoryPtr = nullptr;
+    // Base class destructor handles objectPtr cleanup
 }
 
 void* CSWInventory::GetItemInSlot(int slot) {
-    if (!inventoryPtr || !getItemInSlot) {
+    if (!objectPtr || !getItemInSlot) {
         return nullptr;
     }
 
-    return getItemInSlot(inventoryPtr, slot);
+    return getItemInSlot(objectPtr, slot);
 }

@@ -2,6 +2,7 @@
 
 CClientOptions::SetCameraModeFn CClientOptions::setCameraMode = nullptr;
 bool CClientOptions::functionsInitialized = false;
+bool CClientOptions::offsetsInitialized = false;
 
 void CClientOptions::InitializeFunctions() {
     if (functionsInitialized) {
@@ -26,22 +27,30 @@ void CClientOptions::InitializeFunctions() {
     functionsInitialized = true;
 }
 
+void CClientOptions::InitializeOffsets() {
+    // CClientOptions has no offsets
+    offsetsInitialized = true;
+}
+
 CClientOptions::CClientOptions(void* optionsPtr)
-    : optionsPtr(optionsPtr)
+    : GameAPIObject(optionsPtr, false)  // false = don't free (singleton)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
     }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
 }
 
 CClientOptions::~CClientOptions() {
-    optionsPtr = nullptr;
+    // Base class destructor handles objectPtr cleanup
 }
 
 void CClientOptions::SetCameraMode(BYTE mode) {
-    if (!optionsPtr || !setCameraMode) {
+    if (!objectPtr || !setCameraMode) {
         return;
     }
 
-    setCameraMode(optionsPtr, mode);
+    setCameraMode(objectPtr, mode);
 }

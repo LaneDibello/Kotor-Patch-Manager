@@ -1,19 +1,18 @@
 #pragma once
 #include "GameVersion.h"
+#include "GameAPIObject.h"
 #include "../Common.h"
 
-class CSWGuiObject {
+class CSWGuiObject : public GameAPIObject {
 public:
     explicit CSWGuiObject(void* objectPtr);
     ~CSWGuiObject();
 
-    void* GetPtr() const { return objectPtr; }
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 protected:
-    void* objectPtr;
-
-    static void InitializeFunctions();
-    static void InitializeOffsets();
     static bool functionsInitialized;
     static bool offsetsInitialized;
 };

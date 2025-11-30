@@ -11,6 +11,7 @@ C2DA::Unload2DArrayFn C2DA::unload2DArray = nullptr;
 C2DA::ConstructorFn C2DA::constructor = nullptr;
 
 bool C2DA::functionsInitialized = false;
+bool C2DA::offsetsInitialized = false;
 
 void C2DA::InitializeFunctions() {
     if (functionsInitialized) {
@@ -50,24 +51,35 @@ void C2DA::InitializeFunctions() {
     functionsInitialized = true;
 }
 
+void C2DA::InitializeOffsets() {
+    // C2DA has no offsets
+    offsetsInitialized = true;
+}
+
 C2DA::C2DA(void* ptr)
-    : ptr(ptr), shouldFree(false) {
+    : GameAPIObject(ptr, false) {  // false = don't free (wrapping existing)
 
     if (!functionsInitialized) {
         InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
     }
 }
 
 C2DA::C2DA(const char* name)
-    : ptr(nullptr), shouldFree(true) {
+    : GameAPIObject(nullptr, true) {  // true = will free (allocating new)
 
     if (!functionsInitialized) {
         InitializeFunctions();
     }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
 
     // Allocate memory for the C2DA object
-    ptr = malloc(objectSize);
-    if (!ptr) {
+    objectPtr = malloc(objectSize);
+    if (!objectPtr) {
         debugLog("[C2DA] ERROR: Failed to allocate memory for C2DA object\n");
         shouldFree = false;
         return;
@@ -87,11 +99,11 @@ C2DA::C2DA(const char* name)
     // Call the constructor
     // Calling convention: ECX->this, Stack[0x4]->name (16 bytes), Stack[0x14]->usually0
     if (constructor) {
-        constructor(ptr, resRef, 0);
+        constructor(objectPtr, resRef, 0);
     } else {
         debugLog("[C2DA] ERROR: Constructor function not initialized\n");
-        free(ptr);
-        ptr = nullptr;
+        free(objectPtr);
+        objectPtr = nullptr;
         shouldFree = false;
         return;
     }
@@ -101,45 +113,45 @@ C2DA::C2DA(const char* name)
 }
 
 C2DA::~C2DA() {
-    if (shouldFree && ptr) {
+    if (shouldFree && objectPtr) {
         // Unload the 2DA data before freeing
         Unload2DArray();
-        free(ptr);
+        free(objectPtr);
     }
-    ptr = nullptr;
+    // Base class destructor handles setting objectPtr to nullptr
 }
 
 bool C2DA::GetCExoStringEntry(int row, CExoString* column, CExoString* output) {
-    if (!ptr || !getCExoStringEntry) {
+    if (!objectPtr || !getCExoStringEntry) {
         return false;
     }
-    return getCExoStringEntry(ptr, row, column->GetPtr(), output->GetPtr());
+    return getCExoStringEntry(objectPtr, row, column->GetPtr(), output->GetPtr());
 }
 
 bool C2DA::GetFLOATEntry(int row, CExoString* column, float* output) {
-    if (!ptr || !getFLOATEntry) {
+    if (!objectPtr || !getFLOATEntry) {
         return false;
     }
-    return getFLOATEntry(ptr, row, column->GetPtr(), output);
+    return getFLOATEntry(objectPtr, row, column->GetPtr(), output);
 }
 
 bool C2DA::GetINTEntry(int row, CExoString* column, int* output) {
-    if (!ptr || !getINTEntry) {
+    if (!objectPtr || !getINTEntry) {
         return false;
     }
-    return getINTEntry(ptr, row, column->GetPtr(), output);
+    return getINTEntry(objectPtr, row, column->GetPtr(), output);
 }
 
 void C2DA::Load2DArray() {
-    if (!ptr || !load2DArray) {
+    if (!objectPtr || !load2DArray) {
         return;
     }
-    load2DArray(ptr);
+    load2DArray(objectPtr);
 }
 
 void C2DA::Unload2DArray() {
-    if (!ptr || !unload2DArray) {
+    if (!objectPtr || !unload2DArray) {
         return;
     }
-    unload2DArray(ptr);
+    unload2DArray(objectPtr);
 }

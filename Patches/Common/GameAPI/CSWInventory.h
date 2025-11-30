@@ -1,21 +1,23 @@
 #pragma once
 
 #include <windows.h>
+#include "GameAPIObject.h"
 
-class CSWInventory {
+class CSWInventory : public GameAPIObject {
 public:
     explicit CSWInventory(void* inventoryPtr);
     ~CSWInventory();
 
     void* GetItemInSlot(int slot);
-    void* GetPtr() const { return inventoryPtr; }
+
+    // Override virtual methods from GameAPIObject
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 private:
-    void* inventoryPtr;
-
     typedef void* (__thiscall* GetItemInSlotFn)(void* thisPtr, int slot);
 
     static GetItemInSlotFn getItemInSlot;
-    static void InitializeFunctions();
     static bool functionsInitialized;
+    static bool offsetsInitialized;
 };

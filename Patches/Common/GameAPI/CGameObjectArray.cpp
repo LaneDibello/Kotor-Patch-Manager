@@ -4,6 +4,7 @@
 
 CGameObjectArray::GetGameObjectFn CGameObjectArray::getGameObject = nullptr;
 bool CGameObjectArray::functionsInitialized = false;
+bool CGameObjectArray::offsetsInitialized = false;
 
 void CGameObjectArray::InitializeFunctions() {
     OutputDebugStringA("[CGameObjectArray] Doing Function initialization\n");
@@ -30,24 +31,32 @@ void CGameObjectArray::InitializeFunctions() {
     functionsInitialized = true;
 }
 
+void CGameObjectArray::InitializeOffsets() {
+    // CGameObjectArray has no offsets
+    offsetsInitialized = true;
+}
+
 CGameObjectArray::CGameObjectArray(void* arrayPtr)
-    : arrayPtr(arrayPtr)
+    : GameAPIObject(arrayPtr, false)  // false = don't free (wrapping existing)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
     }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
 }
 
 CGameObjectArray::~CGameObjectArray() {
-    arrayPtr = nullptr;
+    // Base class destructor handles objectPtr cleanup
 }
 
 void* CGameObjectArray::GetGameObject(DWORD objectId) {
     OutputDebugStringA("[CGameObjectArray] Getting Game Object\n");
 
-    if (!arrayPtr || !getGameObject) {
+    if (!objectPtr || !getGameObject) {
         char debug[128];
-        sprintf_s(debug, sizeof(debug), "[CGameObjectArray] Failed with array: %p and function: %p", arrayPtr, getGameObject);
+        sprintf_s(debug, sizeof(debug), "[CGameObjectArray] Failed with array: %p and function: %p", objectPtr, getGameObject);
         OutputDebugStringA(debug);
 
         return nullptr;
@@ -56,7 +65,7 @@ void* CGameObjectArray::GetGameObject(DWORD objectId) {
     char debug[128];
     sprintf_s(debug, sizeof(debug), "[CGameObjectArray] Running getGameObject: %p", getGameObject);
     OutputDebugStringA(debug);
-    void* objectPtr;
-    getGameObject(arrayPtr, objectId, &objectPtr);
-    return objectPtr;
+    void* objPtr;
+    getGameObject(objectPtr, objectId, &objPtr);
+    return objPtr;
 }

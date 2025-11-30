@@ -67,8 +67,8 @@ void CExoString::InitializeOffsets() {
 }
 
 CExoString::CExoString(void* stringPtr)
-    : stringPtr(stringPtr) {
-    
+    : GameAPIObject(stringPtr, false) {  // false = don't free (wrapping existing)
+
     if (!functionsInitialized) {
         InitializeFunctions();
     }
@@ -76,11 +76,11 @@ CExoString::CExoString(void* stringPtr)
     if (!offsetsInitialized) {
         InitializeOffsets();
     }
-
-    shouldFree = false;
 }
 
-CExoString::CExoString() {
+CExoString::CExoString()
+    : GameAPIObject(nullptr, true) {  // true = will free (allocating new)
+
     if (!functionsInitialized) {
         InitializeFunctions();
     }
@@ -89,14 +89,14 @@ CExoString::CExoString() {
         InitializeOffsets();
     }
 
-    shouldFree = true;
+    objectPtr = malloc(8);
 
-    stringPtr = malloc(8);
-
-    defaultConstructor(static_cast<CExoString*>(stringPtr));
+    defaultConstructor(static_cast<CExoString*>(objectPtr));
 }
 
-CExoString::CExoString(char* src, int length) {
+CExoString::CExoString(char* src, int length)
+    : GameAPIObject(nullptr, true) {  // true = will free (allocating new)
+
     if (!functionsInitialized) {
         InitializeFunctions();
     }
@@ -105,14 +105,14 @@ CExoString::CExoString(char* src, int length) {
         InitializeOffsets();
     }
 
-    shouldFree = true;
+    objectPtr = malloc(8);
 
-    stringPtr = malloc(8);
-
-    cStrLenConstructor(static_cast<CExoString*>(stringPtr), src, length);
+    cStrLenConstructor(static_cast<CExoString*>(objectPtr), src, length);
 }
 
-CExoString::CExoString(char* src) {
+CExoString::CExoString(char* src)
+    : GameAPIObject(nullptr, true) {  // true = will free (allocating new)
+
     if (!functionsInitialized) {
         InitializeFunctions();
     }
@@ -121,32 +121,29 @@ CExoString::CExoString(char* src) {
         InitializeOffsets();
     }
 
-    shouldFree = true;
+    objectPtr = malloc(8);
 
-    stringPtr = malloc(8);
-
-    cStrConstructor(static_cast<CExoString*>(stringPtr), src);
-
+    cStrConstructor(static_cast<CExoString*>(objectPtr), src);
 }
 
 CExoString::~CExoString() {
-    if (shouldFree) {
-        destructor(static_cast<CExoString*>(stringPtr));
-        free(stringPtr);
+    if (shouldFree && objectPtr) {
+        destructor(static_cast<CExoString*>(objectPtr));
+        free(objectPtr);
     }
-    stringPtr = nullptr;
+    // Base class destructor handles setting objectPtr to nullptr
 }
 
 DWORD CExoString::GetLength() {
-    if (!stringPtr || offsetLength < 0) {
+    if (!objectPtr || offsetLength < 0) {
         return 0;
     }
-    return getObjectProperty<DWORD>(stringPtr, offsetLength);
+    return getObjectProperty<DWORD>(objectPtr, offsetLength);
 }
 
 char* CExoString::GetCStr() {
-    if (!stringPtr || offsetCStr < 0) {
+    if (!objectPtr || offsetCStr < 0) {
         return nullptr;
     }
-    return getObjectProperty<char*>(stringPtr, offsetCStr);
+    return getObjectProperty<char*>(objectPtr, offsetCStr);
 }
