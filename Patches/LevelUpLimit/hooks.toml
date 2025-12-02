@@ -64,6 +64,12 @@ type = "simple"
 original_bytes = [0x8d, 0x6e, 0x38]
 replacement_bytes = [0x8b, 0x6e, 0x38]
 
+[[hooks]]
+address = 0x00552fd6
+type = "simple"
+original_bytes = [0x83, 0xff, 0x14]
+replacement_bytes = [0x83, 0xff, 0x32]
+
 # CSWSCreatureStats::CalculateExpNeededForNextLevel
 [[hooks]]
 address = 0x005a54a0
