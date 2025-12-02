@@ -309,8 +309,6 @@ namespace KotorPatcher {
                         sprintf_s(debugMsg, "[Config] Parsed skip_original_bytes = %s for hook at 0x%08X\n",
                             *skipOrigBytes ? "true" : "false", patch.hookAddress);
                         OutputDebugStringA(debugMsg);
-                    } else {
-                        OutputDebugStringA("[Config] skip_original_bytes not found or not a boolean, defaulting to false\n");
                     }
 
                     // Parse parameters (optional, for DETOUR hooks)
