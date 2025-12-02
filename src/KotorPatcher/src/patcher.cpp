@@ -210,6 +210,7 @@ namespace KotorPatcher {
         wrapperConfig.preserveRegisters = patch.preserveRegisters;
         wrapperConfig.preserveFlags = patch.preserveFlags;
         wrapperConfig.excludeFromRestore = patch.excludeFromRestore;
+        wrapperConfig.skipOriginalBytes = patch.skipOriginalBytes;
         wrapperConfig.originalFunction = patch.originalFunction;
 
         void* wrapper = g_wrapperGenerator->GenerateWrapper(wrapperConfig);

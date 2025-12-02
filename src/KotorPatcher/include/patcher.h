@@ -63,6 +63,10 @@ namespace KotorPatcher {
         // Parameters to extract and pass to hook function (for DETOUR hooks)
         std::vector<ParameterInfo> parameters;
 
+        // Skip executing original bytes after patch function returns (for DETOUR hooks)
+        // Set to true when fully replacing behavior instead of augmenting it
+        bool skipOriginalBytes = false;
+
         // Original function pointer (future: for detour trampolines)
         void* originalFunction = nullptr;
 
