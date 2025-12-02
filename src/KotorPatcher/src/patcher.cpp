@@ -213,6 +213,11 @@ namespace KotorPatcher {
         wrapperConfig.skipOriginalBytes = patch.skipOriginalBytes;
         wrapperConfig.originalFunction = patch.originalFunction;
 
+        char skipMsg[128];
+        sprintf_s(skipMsg, "[KotorPatcher] skipOriginalBytes = %s\n",
+            patch.skipOriginalBytes ? "true" : "false");
+        OutputDebugStringA(skipMsg);
+
         void* wrapper = g_wrapperGenerator->GenerateWrapper(wrapperConfig);
         if (!wrapper) {
             OutputDebugStringA("[KotorPatcher] Failed to generate wrapper\n");

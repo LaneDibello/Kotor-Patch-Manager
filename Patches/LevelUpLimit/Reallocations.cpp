@@ -2,8 +2,11 @@
 
 extern "C" void __cdecl InitRequiredExpPerLevel(void* rules)
 {
-    debugLog("[LevelUpLimit] Running InitRequiredExpPerLevel");
-    setObjectProperty<int*>(rules, 0x38, new int[0x33]); //required_exp_per_level
+    debugLog("[LevelUpLimit] Running InitRequiredExpPerLevel\nRules: %X", rules);
+    int* requiredExpPerLevel = new int[0x33];
+    setObjectProperty<int*>(rules, 0x38, requiredExpPerLevel); //required_exp_per_level
+    debugLog("[LevelUpLimit] Finished InitRequiredExpPerLevel\nrequiredExpPerLevel: %X", requiredExpPerLevel);
+
 }
 
 extern "C" void __cdecl DisposeRequiredExpPerLevel(void* rules)

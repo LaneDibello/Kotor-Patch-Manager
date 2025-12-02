@@ -114,6 +114,12 @@ public static class ConfigGenerator
                         hookTable["exclude_from_restore"] = excludeArray;
                     }
 
+                    // Add skip_original_bytes if true (default is false, so only write if true)
+                    if (hook.SkipOriginalBytes)
+                    {
+                        hookTable["skip_original_bytes"] = true;
+                    }
+
                     // Add parameters if any (for INLINE hooks)
                     if (hook.Parameters.Count > 0)
                     {

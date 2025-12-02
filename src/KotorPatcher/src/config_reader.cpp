@@ -305,6 +305,12 @@ namespace KotorPatcher {
                     auto skipOrigBytes = hookTable->at_path("skip_original_bytes").value<bool>();
                     if (skipOrigBytes) {
                         patch.skipOriginalBytes = *skipOrigBytes;
+                        char debugMsg[256];
+                        sprintf_s(debugMsg, "[Config] Parsed skip_original_bytes = %s for hook at 0x%08X\n",
+                            *skipOrigBytes ? "true" : "false", patch.hookAddress);
+                        OutputDebugStringA(debugMsg);
+                    } else {
+                        OutputDebugStringA("[Config] skip_original_bytes not found or not a boolean, defaulting to false\n");
                     }
 
                     // Parse parameters (optional, for DETOUR hooks)

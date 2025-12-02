@@ -229,6 +229,23 @@ public static class ProcessInjector
                         $"DLL injection failed: {injectResult.Error}");
                 }
 
+                // Debug mode: Wait for debugger attachment before resuming
+                if (true)
+                {
+                    Console.WriteLine("========================================");
+                    Console.WriteLine("DEBUG MODE ENABLED");
+                    Console.WriteLine($"Game process created (PID: {pi.dwProcessId})");
+                    Console.WriteLine("Process is SUSPENDED - DLL has been injected");
+                    Console.WriteLine("");
+                    Console.WriteLine("You can now:");
+                    Console.WriteLine("  1. Attach your debugger (Cheat Engine, x64dbg, etc.)");
+                    Console.WriteLine("  2. Set breakpoints in KotorPatcher.dll or game code");
+                    Console.WriteLine("  3. Press ENTER to resume the game");
+                    Console.WriteLine("========================================");
+                    Console.ReadLine();
+                    Console.WriteLine("[DEBUG] Resuming game process...");
+                }
+
                 // Resume the main thread
                 var resumeResult = ResumeThread(pi.hThread);
                 if (resumeResult == unchecked((uint)-1))
