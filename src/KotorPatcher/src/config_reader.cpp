@@ -301,6 +301,16 @@ namespace KotorPatcher {
                         }
                     }
 
+                    // === Parse Skip Original Bytes (Optional) ===
+                    auto skipOrigBytes = hookTable->at_path("skip_original_bytes").value<bool>();
+                    if (skipOrigBytes) {
+                        patch.skipOriginalBytes = *skipOrigBytes;
+                        char debugMsg[256];
+                        sprintf_s(debugMsg, "[Config] Parsed skip_original_bytes = %s for hook at 0x%08X\n",
+                            *skipOrigBytes ? "true" : "false", patch.hookAddress);
+                        OutputDebugStringA(debugMsg);
+                    }
+
                     // Parse parameters (optional, for DETOUR hooks)
                     auto parametersArray = hookTable->at_path("parameters").as_array();
                     if (parametersArray) {

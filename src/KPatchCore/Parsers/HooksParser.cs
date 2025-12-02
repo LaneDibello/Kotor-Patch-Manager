@@ -142,6 +142,7 @@ public static class HooksParser
                 var preserveRegisters = TryGetBool(hookTable, "preserve_registers") ?? true;
                 var preserveFlags = TryGetBool(hookTable, "preserve_flags") ?? true;
                 var excludeFromRestore = TryGetStringArray(hookTable, "exclude_from_restore") ?? new List<string>();
+                var skipOriginalBytes = TryGetBool(hookTable, "skip_original_bytes") ?? false;
 
                 // Parse parameters (optional, for Detour hooks)
                 var parametersResult = ParseParameters(hookTable, i);
@@ -161,6 +162,7 @@ public static class HooksParser
                     PreserveRegisters = preserveRegisters,
                     PreserveFlags = preserveFlags,
                     ExcludeFromRestore = excludeFromRestore,
+                    SkipOriginalBytes = skipOriginalBytes,
                     Parameters = parameters
                 };
 

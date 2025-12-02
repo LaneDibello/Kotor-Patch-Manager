@@ -195,23 +195,39 @@ namespace KotorPatcher {
 
             // ===== RETURN TO ORIGINAL CODE =====
 
-            // Execute the original bytes (instructions we overwrote with JMP)
-            // These were specified in the patch config to align with instruction boundaries
-            if (config.originalBytes.empty()) {
-                OutputDebugStringA("[Wrapper] ERROR: No original bytes provided for DETOUR hook\n");
-                return nullptr;
+            if (config.skipOriginalBytes) {
+                // Skip executing original bytes - jump directly back to continue execution
+                // This is used when fully replacing behavior rather than augmenting it
+                void* returnAddress = reinterpret_cast<void*>(
+                    config.hookAddress + static_cast<DWORD>(config.originalBytes.size())
+                );
+                EmitByte(code, 0xE9);  // JMP rel32
+                DWORD returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
+                EmitDword(code, returnOffset);
+
+                char debugMsg[256];
+                sprintf_s(debugMsg, "[Wrapper] Skipping original bytes, jumping directly to 0x%08X\n",
+                    reinterpret_cast<DWORD>(returnAddress));
+                OutputDebugStringA(debugMsg);
+            } else {
+                // Execute the original bytes (instructions we overwrote with JMP)
+                // These were specified in the patch config to align with instruction boundaries
+                if (config.originalBytes.empty()) {
+                    OutputDebugStringA("[Wrapper] ERROR: No original bytes provided for DETOUR hook\n");
+                    return nullptr;
+                }
+
+                // Emit the original bytes to execute the overwritten instructions
+                EmitBytes(code, config.originalBytes.data(), config.originalBytes.size());
+
+                // Jump back to hookAddress + original_bytes_size to continue normal execution
+                void* returnAddress = reinterpret_cast<void*>(
+                    config.hookAddress + static_cast<DWORD>(config.originalBytes.size())
+                );
+                EmitByte(code, 0xE9);  // JMP rel32
+                DWORD returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
+                EmitDword(code, returnOffset);
             }
-
-            // Emit the original bytes to execute the overwritten instructions
-            EmitBytes(code, config.originalBytes.data(), config.originalBytes.size());
-
-            // Jump back to hookAddress + original_bytes_size to continue normal execution
-            void* returnAddress = reinterpret_cast<void*>(
-                config.hookAddress + static_cast<DWORD>(config.originalBytes.size())
-            );
-            EmitByte(code, 0xE9);  // JMP rel32
-            DWORD returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
-            EmitDword(code, returnOffset);
 
             // Flush instruction cache
             FlushInstructionCache(GetCurrentProcess(), wrapperMem, code - wrapperMem);

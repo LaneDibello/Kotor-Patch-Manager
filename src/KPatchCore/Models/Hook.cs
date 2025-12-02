@@ -83,6 +83,13 @@ public sealed class Hook
     public List<Parameter> Parameters { get; init; } = new();
 
     /// <summary>
+    /// Skip executing original bytes after patch function returns (for Detour hooks)
+    /// Set to true when fully replacing behavior instead of augmenting it
+    /// Default: false
+    /// </summary>
+    public bool SkipOriginalBytes { get; init; } = false;
+
+    /// <summary>
     /// Validates that the hook configuration is valid
     /// </summary>
     public bool IsValid(out string? error)

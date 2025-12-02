@@ -1,0 +1,8 @@
+LIBRARY LevelUpLimit 
+EXPORTS 
+    InitRequiredExpPerLevel 
+    DisposeRequiredExpPerLevel 
+    InitNumSpellLevels 
+    InitPowerGain 
+    InitOtherClassTables 
+    DisposeClassTables 

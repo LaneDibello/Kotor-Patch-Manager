@@ -210,7 +210,13 @@ namespace KotorPatcher {
         wrapperConfig.preserveRegisters = patch.preserveRegisters;
         wrapperConfig.preserveFlags = patch.preserveFlags;
         wrapperConfig.excludeFromRestore = patch.excludeFromRestore;
+        wrapperConfig.skipOriginalBytes = patch.skipOriginalBytes;
         wrapperConfig.originalFunction = patch.originalFunction;
+
+        char skipMsg[128];
+        sprintf_s(skipMsg, "[KotorPatcher] skipOriginalBytes = %s\n",
+            patch.skipOriginalBytes ? "true" : "false");
+        OutputDebugStringA(skipMsg);
 
         void* wrapper = g_wrapperGenerator->GenerateWrapper(wrapperConfig);
         if (!wrapper) {
