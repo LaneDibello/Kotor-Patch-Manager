@@ -92,7 +92,7 @@ C++ runtime DLL that performs the actual patching:
 
 ## Project Structure
 
-```
+```text
 Kotor-Patch-Manager/
 ├── src/
 │   ├── KPatchCore/          # C# patch management library
@@ -252,7 +252,7 @@ void MyPatchFunction(void* stringParam, int x) {
 
 Patches can have multiple hooks files for different versions:
 
-```
+```text
 MyPatch/
 ├── manifest.toml
 ├── default.hooks.toml          # Applies to all versions
@@ -377,6 +377,7 @@ This method works across different game distributions and doesn't require modify
 ### Hook Application
 
 **SIMPLE hooks** are straightforward memory writes:
+
 1. Verify original bytes match expected values
 2. Change memory protection to `PAGE_EXECUTE_READWRITE`
 3. Write replacement bytes
@@ -384,6 +385,7 @@ This method works across different game distributions and doesn't require modify
 5. Flush instruction cache
 
 **DETOUR hooks** require more complexity:
+
 1. Load patch DLL and get function address
 2. Verify original bytes
 3. Disassemble original instructions to determine boundaries
@@ -405,6 +407,7 @@ The wrapper system supports extracting parameters from:
 - **Stack**: `esp+N` (offset from stack pointer)
 
 Parameter types:
+
 - `int`: 32-bit integer
 - `float`: 32-bit floating point
 - `pointer`: Memory address (void*)
