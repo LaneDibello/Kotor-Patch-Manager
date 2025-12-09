@@ -351,7 +351,7 @@ GetPlayerCreatureId = "0x004aea40"
 StackPopInteger = "0x005d1000"
 StackPushString = "0x005d1190"
 
-[offsets.ServerCreature]
+[offsets.CSWSCreature]
 CreatureStats = 0xa74
 Inventory = 0xa2c
 ```
