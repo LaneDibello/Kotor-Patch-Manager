@@ -277,11 +277,11 @@ Empty `target_versions` means the file applies to all supported versions.
 The `Patches/Common/GameAPI/` directory provides C++ wrapper classes that abstract version-specific addresses:
 
 ```cpp
-#include "../Common/GameAPI/CServerCreature.h"
+#include "../Common/GameAPI/CSWSCreature.h"
 #include "../Common/GameAPI/CCreatureStats.h"
 
 void MyHook(void* creaturePtr) {
-    CServerCreature creature(creaturePtr);
+    CSWSCreature creature(creaturePtr);
     CCreatureStats* stats = creature.GetCreatureStats();
     
     // Type-safe API - no magic offsets
