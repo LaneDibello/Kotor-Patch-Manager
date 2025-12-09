@@ -256,7 +256,7 @@ Patches can have multiple hooks files for different versions:
 MyPatch/
 ├── manifest.toml
 ├── default.hooks.toml          # Applies to all versions
-├── kotor1_gog_103.hooks.toml   # GoG-specific hooks
+├── kotor1_gog_103.hooks.toml   # GOG-specific hooks
 └── MyPatch.dll                 # Same DLL for all versions
 ```
 
