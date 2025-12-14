@@ -27,7 +27,7 @@ This Zip file will contain the following:
 	- "additional files": These are resources associated with certain patches that may be necessary to make use of them (i.e. modified nwscript.nss for the script extender)
 - tools
 	- create-patch.bat: Batch file for building `.kpatch` files. This isn't too useful in its current iteration without the added GameAPI source and examples, but it's included nonetheless.
-- README.txt: A brief contents and quickstart guide
+- README.txt: A brief contents and quick-start guide
 
 To use, just run the launcher. Set the "Game" path to target your game executable (i.e. `swkotor.exe`). Set the "Patches" path to target the directory with your `.kpatch` files (i.e. `<release>/patches`).
 
@@ -112,22 +112,25 @@ To build a patch, use the `create-patch.bat` batch file from within the patch di
 If your patch is meant to be delivered with additional files, these should be put in a directory called `additional` in the patch directory.
 
 ## KotorPatcher (C++ DLL)
+This C++ project builds the actual DLL that get's injected into the game.
+
+The main entry point is in `dllmain.cpp`, which handles initialization and tear-down of the patcher.
+
+The bulk of the business logic lives within `patcher.cpp`, which initializes the version specific wrapper and parses in the patch_config.toml that is generated when patches are applied.
+
+For more details about how this system works see the [KotorPatcher README](src/KotorPatcher/README.md).
+
 
 ## KPatchCore (C# Class Library)
+This C# Class Library includes all the necessary functionality to apply patches to the game.
+This basically boils down to parsing the patch hooks and manifests, checking compatibility, and building a patch_config.toml.
 
-### Applicators
-
-### Detectors
-
-### Managers
-
-### Parsers
-
-### Validators
-
-### Models
+For more detials on this system see the [KPatchCore README](src/KPatchCore/README.md).
 
 ## KPatchLauncher (C# Launcher UI)
+The C# Avalonia project is the basic UI that leverages the patching framework. Allowing for applying patches, and laucnhing patched games.
+
+For more detials on this app see the [KPatchLauncher README](src/KPatchLauncher/README.md).
 
 ## See Also
 You can contact Lane on Discord @lane_d
@@ -136,3 +139,5 @@ My [YouTube Channel](https://www.youtube.com/@lane_m)
 
 ## Acknowledgements
 Special thanks to the KotOR modding community for providing feedback and ideation for various features here.
+
+Thanks to Mark Gillard for the `tomlplusplus` project
