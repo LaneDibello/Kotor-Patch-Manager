@@ -1,352 +1,267 @@
 # KotorPatcher Runtime DLL
 
-This is the C++ runtime component that gets injected into the KOTOR game process and applies patches at runtime.
+KotorPatcher is the runtime DLL that gets injected into the KotOR game process to apply patches dynamically. It reads patch configurations, loads patch DLLs, and modifies game code in-memory using various hooking techniques.
 
-## Overview
+## Architecture Overview
 
-`KotorPatcher.dll` is loaded by KPatchLauncher via DLL injection and:
-1. Reads `patch_config.toml` from the game directory
-2. Applies patches according to their configured hook types
-3. For DETOUR hooks: Loads patch DLLs and writes JMP trampolines to redirect execution
-4. For SIMPLE hooks: Directly replaces bytes in memory (no DLL required)
+The patcher operates in three phases:
 
-## Architecture
+1. **Initialization** (DLL_PROCESS_ATTACH): Parse `patch_config.toml`, load patch DLLs, apply hooks
+2. **Runtime**: Patches execute as the game runs, intercepting and modifying game behavior
+3. **Cleanup** (DLL_PROCESS_DETACH): Unload patch DLLs and free allocated memory
 
-### Injection Method
+## Project Structure
 
-**KPatchLauncher** (recommended approach):
-- Uses `CreateProcess` with `CREATE_SUSPENDED` flag
-- Hijacks main thread to inject `KotorPatcher.dll`
-- Resumes thread after injection
-- No permanent modification to game executable
+### Core Components
 
-### Components
+**dllmain.cpp**: DLL entry point that handles initialization and cleanup lifecycle events.
 
-- **dllmain.cpp**: DLL entry point, calls initialization on `DLL_PROCESS_ATTACH`
-- **config.h/.cpp**: Parses `patch_config.toml` using Tomlyn (C# TOML parser, via C++/CLI)
-- **patcher.h/.cpp**: Core patching logic - applies hooks based on type
-- **wrappers/**: Runtime code generation for DETOUR hooks
-  - **wrapper_base.h**: Abstract interface for platform-specific wrappers
-  - **wrapper_context.h**: Platform-independent context structure
-  - **wrapper_x86_win32.cpp**: Current implementation (Windows 32-bit x86)
+**patcher.h / patcher.cpp**: Core patching engine containing hook application logic, patch DLL loading, and configuration management. Defines the `PatchInfo` structure that represents a single hook configuration.
 
-### Dependencies
+**config_reader.h / config_reader.cpp**: TOML parser that reads `patch_config.toml` and converts it into `PatchInfo` structures. Uses the tomlplusplus library for parsing.
 
-- **Windows API**: `VirtualAlloc`, `VirtualProtect`, `FlushInstructionCache`, `LoadLibrary`, `GetProcAddress`
-- **Tomlyn** (via C++/CLI): TOML parsing library for configuration
+**trampoline.h / trampoline.cpp**: Low-level memory patching utilities for writing JMP/CALL instructions, verifying bytes, managing memory protection, and writing NOP instructions.
+
+### Wrapper System
+
+The wrapper system generates runtime x86 assembly code to intercept game functions, preserve CPU state, extract parameters, and call patch functions.
+
+**wrapper_base.h**: Abstract base class defining the wrapper generator interface. Provides platform-agnostic API for creating hook wrappers.
+
+**wrapper_x86_win32.h / wrapper_x86_win32.cpp**: x86 32-bit Windows implementation of the wrapper generator. Emits machine code at runtime to save/restore registers, extract parameters from CPU state, and manage the transition between game code and patch code.
+
+**wrapper_context.h**: Defines `PatchContext` structure containing saved CPU state (registers, flags, stack pointer). Provides helper methods for accessing parameters and modifying return values.
 
 ## Hook Types
 
-The system supports two types of hooks:
+KotorPatcher supports four distinct hook types:
 
-### DETOUR
+### DETOUR Hooks
 
-**Full-featured hook with wrapper system:**
-- Automatically saves all CPU state (registers + EFLAGS)
-- Generates runtime wrapper that calls your patch function
-- Executes stolen bytes (original instructions that were overwritten)
-- Returns to game code seamlessly
-- Supports parameter extraction from registers/stack
-- Your function receives extracted parameters as normal C function arguments
+Full-featured hooks with automatic state management. Requires a patch DLL with an exported function.
 
-**Patch Function Example:**
-```cpp
-extern "C" __declspec(dllexport)
-void MyPatch_Hook(const char* stringParam, int x, int y, float life) {
-    // Clean C code - no assembly required
-    // Parameters automatically extracted by wrapper system
-    OutputDebugStringA(stringParam);
-}
-```
+- Writes 5-byte JMP instruction at hook address
+- Generates wrapper stub that saves all CPU state (PUSHAD/PUSHFD)
+- Extracts parameters from registers or stack based on configuration
+- Calls patch function with extracted parameters (cdecl convention)
+- Restores CPU state (with optional register exclusions)
+- Re-executes original bytes (stolen bytes) or skips them based on configuration
+- Jumps back to continue game execution
 
-**Configuration (hooks.toml):**
-```toml
-[[hooks]]
-address = 0x005cb41c
-function = "MyPatch_Hook"
-original_bytes = [0x8d, 0x4c, 0x24, 0x0c, 0xc7, 0x44, 0x24, 0x1c, 0xff, 0xff, 0xff, 0xff]
-type = "detour"
-exclude_from_restore = []  # Optional: specify registers not to restore
+**Use when**: Complex logic needed, calling game functions, accessing game state, parameter extraction required.
 
-[[hooks.parameters]]
-source = "eax"
-type = "pointer"
+### SIMPLE Hooks
 
-[[hooks.parameters]]
-source = "esp+0"
-type = "int"
-```
+Direct byte replacement in memory. No DLL loading or wrapper generation.
 
-**Parameter Types:**
-- `"int"` - 32-bit integer (DWORD)
-- `"float"` - 32-bit floating point
-- `"pointer"` - Pointer/address (treated as void*)
+- Verifies original bytes match expected values
+- Overwrites with replacement bytes of equal length
+- No state preservation or function calls
 
-**Parameter Sources:**
-- `"eax"`, `"ebx"`, `"ecx"`, `"edx"`, `"esi"`, `"edi"`, `"ebp"` - CPU registers
-- `"esp+N"` - Stack offset (N bytes from ESP)
+**Use when**: Changing constants, NOPing instructions, simple instruction replacements.
 
-### SIMPLE
+### REPLACE Hooks
 
-**Direct byte replacement in memory:**
-- No DLL required
-- Simply replaces original bytes with replacement bytes
-- Perfect for constant changes, NOPs, or simple instruction swaps
-- Minimal overhead - just a memory write
+Allocates executable memory for custom assembly code that executes in place of original instructions.
 
-**Configuration (hooks.toml):**
-```toml
-[[hooks]]
-address = 0x006a89b2
-type = "simple"
-original_bytes = [0x68, 0x00, 0x00, 0x80, 0x3f]  # PUSH 1.0f
-replacement_bytes = [0x68, 0x00, 0x00, 0x00, 0x3f]  # PUSH 0.5f
-```
+- Verifies original bytes (minimum 5 bytes)
+- Allocates executable memory for replacement code
+- Writes replacement bytes followed by JMP back to game
+- Writes JMP at hook address to allocated memory
+- NOPs remaining bytes
 
-**Use Cases:**
-- Changing constants (float/int values)
-- Replacing instructions with NOPs
-- Simple opcode swaps
-- Any scenario where you just need to change bytes
+**Use when**: Need more complex logic than SIMPLE hooks but don't require DLL infrastructure.
 
-**Example:** See `Patches/SemiTransparentLetterbox` for a real-world SIMPLE hook example.
+### DLL_ONLY
 
-## Configuration Format
+Loads a patch DLL without applying any hooks. Used for patches that hook via their DllMain.
 
-The runtime reads `patch_config.toml` generated by KPatchCore:
+## Key Classes and Structures
 
-```toml
-[[patches]]
-id = "patch-name"
-dll = "patches/patch.dll"  # Only required for DETOUR hooks
+### PatchInfo
 
-  [[patches.hooks]]
-  address = 0x401234
-  type = "detour"  # or "simple"
-  function = "MyPatchFunction"  # DETOUR only
-  original_bytes = [0x55, 0x8B, 0xEC]
+Represents a single hook configuration. Contains:
 
-  # DETOUR-specific fields:
-  [[patches.hooks.parameters]]
-  source = "eax"
-  type = "pointer"
+- **Hook location**: `hookAddress` specifies where to patch
+- **Hook type**: `type` determines patching strategy (DETOUR/SIMPLE/REPLACE/DLL_ONLY)
+- **Patch DLL**: `dllPath` and `functionName` for DETOUR hooks
+- **Byte arrays**: `originalBytes` (for verification and execution), `replacementBytes` (for SIMPLE/REPLACE)
+- **State management**: `preserveRegisters`, `preserveFlags`, `excludeFromRestore`
+- **Parameters**: `parameters` array defining how to extract values from CPU state
+- **Behavior flags**: `skipOriginalBytes` determines whether to re-execute stolen bytes
 
-  # SIMPLE-specific fields:
-  replacement_bytes = [0x90, 0x90, 0x90]  # SIMPLE only
-```
+### ParameterInfo
 
-## How It Works
+Defines how to extract a parameter for a DETOUR hook function:
 
-### Initialization Flow
+- **source**: Register name ("eax", "ebx", etc.) or stack offset ("esp+0", "esp+4")
+- **type**: Data type (INT, UINT, POINTER, FLOAT, BYTE, SHORT)
 
-1. KPatchLauncher injects `KotorPatcher.dll` into suspended game process
-2. Windows calls `DllMain` with `DLL_PROCESS_ATTACH`
-3. Initialization begins:
-   - Locates DLL's own path
-   - Reads `patch_config.toml` from game directory
-   - Parses configuration using Tomlyn
-   - Applies all patches according to their types
+Parameters are extracted from saved CPU state and pushed onto stack in reverse order (cdecl convention) before calling the patch function.
+
+### WrapperConfig
+
+Configuration passed to wrapper generator:
+
+- **patchFunction**: Address of patch function to call
+- **hookAddress**: Game code address being hooked
+- **originalBytes**: Stolen bytes to re-execute after patch
+- **parameters**: Parameter extraction configuration
+- **State preservation options**: Control register/flag saving
+- **skipOriginalBytes**: Skip stolen byte execution
+
+### HookType Enum
+
+Defines the four hook types (DETOUR, SIMPLE, REPLACE, DLL_ONLY).
+
+### ParameterType Enum
+
+Defines supported parameter types (INT, UINT, POINTER, FLOAT, BYTE, SHORT).
+
+## Core Functions
+
+### Initialization
+
+**InitializePatcher()**: Called on DLL_PROCESS_ATTACH. Initializes wrapper generator, loads patch_config.toml, sets KOTOR_VERSION_SHA environment variable, and applies all patches.
+
+**CleanupPatcher()**: Called on DLL_PROCESS_DETACH. Frees wrapper stubs, deallocates REPLACE hook memory, and unloads patch DLLs.
+
+### Patch Application
+
+**ApplyPatches()**: Iterates through loaded patches and applies each one.
+
+**ApplyPatch()**: Applies a single patch based on its type. Routes to type-specific handlers.
+
+**ApplySimpleHook()**: Verifies bytes and performs direct memory replacement.
+
+**ApplyReplaceHook()**: Allocates executable memory, writes replacement code, adds return JMP, and patches hook address.
 
 ### DETOUR Hook Application
 
-For each DETOUR hook:
-1. **Load DLL**: `LoadLibrary(patch.dllPath)`
-2. **Get Function**: `GetProcAddress(handle, patch.functionName)`
-3. **Verify Bytes**: Check that bytes at hook address match `original_bytes`
-4. **Generate Wrapper**: Create runtime wrapper stub with parameter extraction
-5. **Write Trampoline**: Write 5-byte (minimum) JMP to wrapper
-6. **Stolen Bytes**: Wrapper executes original instructions that were overwritten
-7. **Return**: Wrapper jumps back to continue game execution
+For DETOUR hooks, `ApplyPatch()`:
 
-### SIMPLE Hook Application
+1. Loads patch DLL via LoadLibraryA
+2. Gets function address via GetProcAddress
+3. Detects and skips hot-patch stub (0xCC byte) if present
+4. Verifies original bytes
+5. Generates wrapper via wrapper generator
+6. Writes JMP to wrapper at hook address
+7. NOPs remaining bytes
 
-For each SIMPLE hook:
-1. **Verify Bytes**: Check that bytes at hook address match `original_bytes`
-2. **Make Writable**: `VirtualProtect` to `PAGE_EXECUTE_READWRITE`
-3. **Replace Bytes**: `memcpy` replacement bytes over original bytes
-4. **Restore Protection**: `VirtualProtect` back to original protection
-5. **Flush Cache**: `FlushInstructionCache` to ensure CPU sees changes
+### Config Parsing
 
-### Wrapper System (DETOUR Hooks)
+**Config::ParseConfig()**: Parses patch_config.toml and populates vector of PatchInfo structures. Extracts target_version_sha and validates hook configurations.
 
-The wrapper system automatically generates x86 machine code at runtime:
+**ParseHexAddress()**: Converts hex strings ("0x401234") to DWORD addresses.
 
-#### Generated Code Structure
-```asm
-wrapper_stub:
-    pushad              ; Save all 8 general-purpose registers
-    pushfd              ; Save EFLAGS
+**ParseByteArray()**: Converts TOML arrays of integers or hex strings into byte vectors.
 
-    ; Extract parameters and push onto stack
-    ; (based on hooks.parameters configuration)
-    mov eax, [esp+N]    ; Extract parameter from register/stack
-    push eax            ; Push as function argument
+### Trampoline Utilities
 
-    ; Call patch function
-    call patch_function
-    add esp, N          ; Clean up arguments
+**Trampoline::WriteJump()**: Writes 5-byte relative JMP (E9 xx xx xx xx) to specified address.
 
-    ; Execute stolen bytes (original instructions)
-    ; These are the instructions that were overwritten by the JMP
-    <original instructions here>
+**Trampoline::WriteCall()**: Writes 5-byte relative CALL (E8 xx xx xx xx) to specified address.
 
-    ; Restore state (respecting exclude_from_restore)
-    popfd               ; Restore flags
-    popad               ; Restore registers
+**Trampoline::VerifyBytes()**: Compares bytes at address with expected values before patching.
 
-    jmp [return_address]  ; Jump back to game code
-```
+**Trampoline::UnprotectMemory()**: Changes memory protection to PAGE_EXECUTE_READWRITE.
 
-#### Parameter Extraction
+**Trampoline::ProtectMemory()**: Restores original memory protection.
 
-The wrapper automatically extracts parameters before calling your function:
+**Trampoline::WriteNoOps()**: Writes NOP instructions (0x90) to fill unused bytes.
 
-```toml
-[[hooks.parameters]]
-source = "eax"
-type = "pointer"
-```
+### Wrapper Generation
 
-Generates:
-```asm
-mov eax, [saved_eax_location]
-push eax
-```
+**WrapperGenerator_x86_Win32::GenerateWrapper()**: Routes to GenerateDetourWrapper().
 
-#### Stolen Bytes
+**GenerateDetourWrapper()**: Generates x86 machine code for DETOUR wrapper:
 
-Original instructions at the hook point are:
-1. **Disassembled** to determine instruction boundaries
-2. **Copied** into the wrapper's executable memory
-3. **Executed** by the wrapper after your patch function returns
-4. This allows your patch to run without losing the original functionality
+1. Allocates executable memory
+2. Emits PUSHAD (save registers) and PUSHFD (save flags)
+3. Saves ESP to EBX for later restoration
+4. Extracts and pushes parameters in reverse order
+5. Calls patch function with relative CALL
+6. Cleans up parameters (cdecl caller cleanup)
+7. Restores ESP from EBX
+8. Emits POPFD and POPAD (or selective register restoration)
+9. Re-executes original bytes or skips them based on configuration
+10. Jumps back to game code
 
-## Trampoline Mechanism
+**ExtractAndPushParameter()**: Generates x86 code to extract a parameter from saved CPU state or stack and push it for the patch function. Handles register sources (eax, ebx, etc.) and stack offsets (esp+0, esp+4, etc.).
 
-A **trampoline** is a JMP instruction that redirects execution:
+**EmitBytes/EmitByte/EmitDword**: Helper functions to write raw bytes into code buffer.
+
+**CalculateRelativeOffset()**: Calculates 32-bit relative offset for JMP/CALL instructions.
+
+## Wrapper Code Generation Details
+
+The generated DETOUR wrapper follows this structure:
 
 ```
-Original game code at 0x401234:
-  55 8B EC 83 EC 20  (push ebp; mov ebp,esp; sub esp,0x20)
-
-After patching:
-  E9 C7 FD 0F 00 ... (jmp 0x501000 - wrapper in allocated memory)
-
-Offset calculation:
-  offset = target_address - (hook_address + 5)
-  offset = 0x501000 - (0x401234 + 5) = 0x0FFDC7
+1. PUSHAD              ; Save all registers (32 bytes)
+2. PUSHFD              ; Save flags (4 bytes)
+3. MOV EBX, ESP        ; Save stack pointer for restoration
+4. [Extract params]    ; Read from saved state, push in reverse order
+5. CALL patch_func     ; Call the patch function
+6. ADD ESP, N          ; Clean up parameters (cdecl)
+7. MOV ESP, EBX        ; Restore stack pointer
+8. POPFD               ; Restore flags
+9. POPAD or selective  ; Restore registers (respect excludeFromRestore)
+10. [Original bytes]   ; Re-execute stolen instructions (unless skipped)
+11. JMP return_addr    ; Jump back to game code
 ```
 
-**Memory Safety**:
-- `VirtualProtect` to make code writable
-- `memcpy` to write new instruction
-- `VirtualProtect` to restore original protection
-- `FlushInstructionCache` to ensure CPU sees changes
+Register exclusion allows patches to modify specific registers (e.g., changing EAX to modify return value) by selectively skipping restoration for excluded registers.
 
-## Building
+## Debug Logging
 
-### Requirements
+KotorPatcher uses OutputDebugStringA() throughout to log initialization, patch application, and errors. All log messages are prefixed with component names:
 
-- Visual Studio 2022
-- Windows SDK 10.0
-- C++17 compiler
-- C++/CLI support (for Tomlyn integration)
+- `[KotorPatcher]`: Main patcher operations
+- `[Config]`: Configuration parsing
+- `[Trampoline]`: Memory patching operations
+- `[Wrapper]`: Wrapper generation
 
-### Build Steps
+## Viewing Debug Logs
 
-Use Visual Studio or MSBuild:
+Use Sysinternals DebugView to capture debug output:
 
-```bash
-msbuild KotorPatcher.vcxproj /p:Configuration=Release /p:Platform=Win32
-```
+1. Download DebugView from Microsoft Sysinternals
+2. Run as Administrator
+3. Enable "Capture Global Win32" in the Capture menu
+4. Filter for "KotorPatcher" to see only patcher messages
+5. Use Ctrl+X to clear the log buffer
 
-**Important:**
-- **Platform**: Must be Win32 (x86) - KOTOR is a 32-bit game
-- **Configuration**: Debug or Release
+Debug logs show patch loading, hook application, wrapper generation, and any errors encountered during runtime.
 
-### Output
+## Memory Management
 
-- **Debug**: `Debug/KotorPatcher.dll`
-- **Release**: `Release/KotorPatcher.dll`
+**Wrapper stubs**: Allocated via VirtualAlloc with PAGE_EXECUTE_READWRITE, tracked in m_allocatedWrappers, freed on cleanup.
 
-## Testing
+**REPLACE code buffers**: Allocated via VirtualAlloc, tracked in g_allocatedCodeBuffers, freed on cleanup.
 
-### Using DebugView
+**Patch DLLs**: Loaded via LoadLibraryA, tracked in g_loadedPatches, unloaded via FreeLibrary on cleanup.
 
-The patcher uses `OutputDebugStringA` for logging. View with:
-- [DebugView](https://learn.microsoft.com/en-us/sysinternals/downloads/debugview) (SysInternals)
-- Visual Studio debugger (Debug Output window)
+All allocations are cleaned up in CleanupPatcher() to prevent memory leaks.
 
-Example output:
-```
-[KotorPatcher] Initializing...
-[KotorPatcher] Loaded config with 2 patches
-[KotorPatcher] Applying patch: semi-transparent-letterbox
-[KotorPatcher] Applied SIMPLE hook at 0x006a89b2
-[KotorPatcher] Applying patch: enable-aur-post-string
-[KotorPatcher] Applied DETOUR hook at 0x005cb41c
-[KotorPatcher] Initialization complete
-```
+## Environment Variables
 
-### Integration Testing
+KotorPatcher sets the `KOTOR_VERSION_SHA` environment variable based on target_version_sha from patch_config.toml. This allows patch DLLs to query the game version and adjust behavior accordingly.
 
-1. Create a patch using KPatchCore
-2. Use KPatchLauncher to inject and launch game
-3. Monitor DebugView for patcher output
-4. Verify patch behavior in-game
+## Technical Constraints
+
+**Platform**: x86 32-bit Windows only (KotOR is a 32-bit game).
+
+**Calling convention**: Patch functions must use __cdecl convention (caller cleans stack).
+
+**Function exports**: DETOUR patch functions must be exported as `extern "C"` to prevent name mangling.
+
+**Instruction boundaries**: Original bytes must align with x86 instruction boundaries (minimum 5 bytes for DETOUR/REPLACE to fit JMP instruction).
+
+**Memory protection**: All memory patching temporarily changes protection to PAGE_EXECUTE_READWRITE, then restores original protection.
+
+**Hot-patch stubs**: Automatically detects and skips Visual Studio hot-patch stubs (0xCC byte before function entry).
 
 ## Error Handling
 
-### Philosophy
-
-**Runtime errors should not crash the game**. The patcher follows these principles:
-
-1. **Graceful degradation**: If patches fail to load, game runs without them
-2. **Detailed logging**: All errors logged via `OutputDebugString`
-3. **Fail-fast on verification**: If original bytes don't match, abort patching
-4. **No exceptions**: All errors handled with return values
-
-### Common Errors
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "Failed to open config file" | `patch_config.toml` not found | Ensure config exists in game directory |
-| "TOML parse error" | Malformed TOML syntax | Validate config with TOML parser |
-| "Failed to load: [dll]" | Patch DLL not found or wrong architecture | Check DLL path and ensure it's 32-bit |
-| "Function not found" | Exported function doesn't exist | Verify DLL exports with `dumpbin /exports` |
-| "Original bytes mismatch" | Wrong game version or already patched | Check game version, verify not double-patched |
-| "Failed to write hook" | Memory protection error | Check antivirus, run as administrator |
-
-## Security Considerations
-
-1. **Byte verification**: Always verify original bytes before patching to prevent corruption
-2. **Memory protection**: Restore original protection after patching
-3. **Isolated patches**: Each patch DLL runs in isolation
-4. **Path validation**: DLL paths are relative to game directory
-5. **No arbitrary code**: Only loads DLLs specified in trusted config
-
-## Performance
-
-The runtime is designed to be **lightweight**:
-
-- **Initialization**: <10ms typical (depends on number of patches)
-- **Memory overhead**: ~100KB for patcher DLL + patch DLLs + wrapper stubs
-- **Runtime overhead**: None after initialization (SIMPLE hooks have zero overhead, DETOUR hooks are direct JMPs)
-
-## Examples
-
-### DETOUR Hook Example
-
-See `Patches/EnableScriptAurPostString` for a complete DETOUR hook example with parameter extraction.
-
-### SIMPLE Hook Example
-
-See `Patches/SemiTransparentLetterbox` for multiple SIMPLE hooks that change alpha values.
-
-### Script Extender Example
-
-See `Patches/ScriptExtender` for a complex example that adds new script functions to the game.
-
-## License
-
-Part of the KOTOR Patch Manager project. See main repository for license information.
+All patch operations verify original bytes before modification to detect version mismatches. Failures log detailed error messages via OutputDebugStringA and return false to abort initialization. If any patch fails to apply, the entire initialization fails to prevent partial/corrupted game state.

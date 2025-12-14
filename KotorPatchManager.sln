@@ -28,8 +28,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AdditionalConsoleCommands",
 		Patches\AdditionalConsoleCommands\ConsoleCommands.cpp = Patches\AdditionalConsoleCommands\ConsoleCommands.cpp
 		Patches\AdditionalConsoleCommands\ConsoleFunc.h = Patches\AdditionalConsoleCommands\ConsoleFunc.h
 		Patches\AdditionalConsoleCommands\exports.def = Patches\AdditionalConsoleCommands\exports.def
-		Patches\AdditionalConsoleCommands\manifest.toml = Patches\AdditionalConsoleCommands\manifest.toml
 		Patches\AdditionalConsoleCommands\kotor1.hooks.toml = Patches\AdditionalConsoleCommands\kotor1.hooks.toml
+		Patches\AdditionalConsoleCommands\manifest.toml = Patches\AdditionalConsoleCommands\manifest.toml
 		Patches\AdditionalConsoleCommands\README.md = Patches\AdditionalConsoleCommands\README.md
 	EndProjectSection
 EndProject
@@ -87,8 +87,8 @@ Global
 		{3F929284-908B-43CC-A128-642644F6AB61}.Debug|x64.Build.0 = Debug|x64
 		{3F929284-908B-43CC-A128-642644F6AB61}.Debug|x86.ActiveCfg = Debug|Win32
 		{3F929284-908B-43CC-A128-642644F6AB61}.Debug|x86.Build.0 = Debug|Win32
-		{3F929284-908B-43CC-A128-642644F6AB61}.Release|Any CPU.ActiveCfg = Release|x64
-		{3F929284-908B-43CC-A128-642644F6AB61}.Release|Any CPU.Build.0 = Release|x64
+		{3F929284-908B-43CC-A128-642644F6AB61}.Release|Any CPU.ActiveCfg = Release|Win32
+		{3F929284-908B-43CC-A128-642644F6AB61}.Release|Any CPU.Build.0 = Release|Win32
 		{3F929284-908B-43CC-A128-642644F6AB61}.Release|x64.ActiveCfg = Release|x64
 		{3F929284-908B-43CC-A128-642644F6AB61}.Release|x64.Build.0 = Release|x64
 		{3F929284-908B-43CC-A128-642644F6AB61}.Release|x86.ActiveCfg = Release|Win32
