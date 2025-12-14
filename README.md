@@ -55,12 +55,61 @@ Available patches will appear on the left-hand side, with descriptions on the ri
 Patches can be uninstalled by unchecking them and applying, or using the "Uninstall All" button.
 
 ## Patches
+This repository's "Patches" directory contains several example patches, such as the ScriptExtender, AdditonalConsoleCommands, Level-Cap extension, and more. In addition to this, it also contains a directory titled "Common", which has a variety of utilities and classes to aid in creation of patches.
+
+A patch typically contains 3 parts:
+- A `manifest.toml` file which specifies various patch and compatibility info
+- `hooks.toml` file(s) which contain the meat and potatoes of the actual patches
+- Additional C++ code which gets compiled into the patch and injected as specified by the hooks
 
 ### Manifest
+- `id`: A program-friendly identifier with expressed with `[a-zA-Z0-9_-]`
+- `name`: A human-friendly identifier that could appear in UIs and docs
+- `version`: The patch's version following `major.minor.patch` format
+- `author`: The patch's creator
+- `description`: A brief description of the patch and what it does
+- `requires`: List of requried patches (by `id`) for this patch to work
+- `conflicts`: List of patches (by `id`) that conflict with this patch's functionality
+- `supported_versions`: key/value pair of game versions and their SHA-256s
 
 ### Hooks
+There are 3 different types of hooks currently, `simple`, `replace`, and `detour`. Though they all share certain fields.
+
+#### Shared Fields
+- `address`: The hexadecimal (`0x########`) address where teh hook will be applied
+- `type`: The type of hook, either `"simple"`, `"replace"`, or `"detour"`
+
+#### Simple Hooks
+Simple hooks are for when you just want to replace a finite set of bytes with a new set of bytes of the same length.
+
+- `original_bytes`: Any number of bytes starting from `address` that will be over-written
+- `replacement_bytes`: Bytes equal in length to `original_bytes` that will over-write them
+
+#### Replace Hooks
+Replace hooks allow for more advacned instruction replacement. They will allocate executable memory and write out the specified instructions, and then have the code at `address` jump to this to this. Use this if you want to replace instructions with more complex logic that wouldn't fit into the eixtsing logic.
+
+- `original_bytes`: 5 or more bytes starting from `address` that will be repalced with a JUMP instruction and NOPs
+- `replacement_bytes`: Any number of bytes that will be jumped to by the above and executed as x86, after which logic will jump back to `address+original_bytes.length`
+
+#### Detour Hooks
+Detour hooks are our most advacned option. They replace the code at address with a JUMP to a wrapper the stores register values, prepares parameters, and class an external function defined and compiled within your patch. Use this for very complex patches, especially those that need to call existing in-game function, output debug strings, or reference specific addresses.
+
+- `original_bytes`: 5 or more bytes starting from `address` that will be repalced with a JUMP instruction and NOPs
+- `function`: The name of an exported `extern "C"`/`__cdecl` function that will be compiled and run from your additional C++ code.
+- `skip_original_bytes`: If `false`, the `original_bytes` will be re-run after the function finishes execution, making it a true detour. If `true`, then the `original_bytes` will never be run.
+- `exclude_from_restore`: List of registers to keep modified after hook execution completes
+- `parameters`: Parameters to be passed in (cdecl/stack style) to your `function`
+	- `source`: the register from which the parameter will be sourced
+	- `type`: The type of the parameter. Currently we support: `Int`, `Uint`, `Pointer`, `Float`, `Byte`, and `Short`
 
 ### Building Patches
+To build a patch, use the `create-patch.bat` batch file from within the patch directory. Usually this will look like:
+```
+..\create-patch.bat
+```
+
+### Additional Patch Files
+If your patch is meant to be delivered with additional files, these should be put in a directory called `additional` in the patch directory.
 
 ## KotorPatcher (C++ DLL)
 
@@ -83,6 +132,7 @@ Patches can be uninstalled by unchecking them and applying, or using the "Uninst
 ## See Also
 You can contact Lane on Discord @lane_d
 Related [DeadlyStream thread](https://deadlystream.com/topic/11948-kotor-1-gog-reverse-engineering/)
+My [YouTube Channel](https://www.youtube.com/@lane_m)
 
 ## Acknowledgements
 Special thanks to the KotOR modding community for providing feedback and ideation for various features here.
