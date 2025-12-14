@@ -12,7 +12,7 @@ The repository contains:
 - C# source for KPatchLauncher, a basic UI for using this patching framework (will likely be replaced in the future)
 
 ## Install
-*NOTE: The patch manger is still in Beta, there are likely going to be various issues within the current release. Please feel free to create GitHub Issues or contact Lane if anything strange comes up*
+*NOTE: The patch manager is still in Beta, there are likely going to be various issues within the current release. Please feel free to create GitHub Issues or contact Lane if anything strange comes up*
 
 ### Using the Release
 If you're just interested in experimenting with the existing patches, then you can just download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases) as a Zip.
@@ -55,7 +55,7 @@ Available patches will appear on the left-hand side, with descriptions on the ri
 Patches can be uninstalled by unchecking them and applying, or using the "Uninstall All" button.
 
 ## Patches
-This repository's "Patches" directory contains several example patches, such as the ScriptExtender, AdditonalConsoleCommands, Level-Cap extension, and more. In addition to this, it also contains a directory titled "Common", which has a variety of utilities and classes to aid in creation of patches.
+This repository's "Patches" directory contains several example patches, such as the ScriptExtender, AdditionalConsoleCommands, Level-Cap extension, and more. In addition to this, it also contains a directory titled "Common", which has a variety of utilities and classes to aid in creation of patches.
 
 A patch typically contains 3 parts:
 - A `manifest.toml` file which specifies various patch and compatibility info
@@ -76,7 +76,7 @@ A patch typically contains 3 parts:
 There are 3 different types of hooks currently, `simple`, `replace`, and `detour`. Though they all share certain fields.
 
 #### Shared Fields
-- `address`: The hexadecimal (`0x########`) address where teh hook will be applied
+- `address`: The hexadecimal (`0x########`) address where the hook will be applied
 - `type`: The type of hook, either `"simple"`, `"replace"`, or `"detour"`
 
 #### Simple Hooks
@@ -86,15 +86,15 @@ Simple hooks are for when you just want to replace a finite set of bytes with a 
 - `replacement_bytes`: Bytes equal in length to `original_bytes` that will over-write them
 
 #### Replace Hooks
-Replace hooks allow for more advacned instruction replacement. They will allocate executable memory and write out the specified instructions, and then have the code at `address` jump to this to this. Use this if you want to replace instructions with more complex logic that wouldn't fit into the eixtsing logic.
+Replace hooks allow for more advanced instruction replacement. They will allocate executable memory and write out the specified instructions, and then have the code at `address` jump to this to this. Use this if you want to replace instructions with more complex logic that wouldn't fit into the existing logic.
 
-- `original_bytes`: 5 or more bytes starting from `address` that will be repalced with a JUMP instruction and NOPs
+- `original_bytes`: 5 or more bytes starting from `address` that will be replaced with a JUMP instruction and NOPs
 - `replacement_bytes`: Any number of bytes that will be jumped to by the above and executed as x86, after which logic will jump back to `address+original_bytes.length`
 
 #### Detour Hooks
-Detour hooks are our most advacned option. They replace the code at address with a JUMP to a wrapper the stores register values, prepares parameters, and class an external function defined and compiled within your patch. Use this for very complex patches, especially those that need to call existing in-game function, output debug strings, or reference specific addresses.
+Detour hooks are our most advanced option. They replace the code at address with a JUMP to a wrapper the stores register values, prepares parameters, and class an external function defined and compiled within your patch. Use this for very complex patches, especially those that need to call existing in-game function, output debug strings, or reference specific addresses.
 
-- `original_bytes`: 5 or more bytes starting from `address` that will be repalced with a JUMP instruction and NOPs
+- `original_bytes`: 5 or more bytes starting from `address` that will be replaced with a JUMP instruction and NOPs
 - `function`: The name of an exported `extern "C"`/`__cdecl` function that will be compiled and run from your additional C++ code.
 - `skip_original_bytes`: If `false`, the `original_bytes` will be re-run after the function finishes execution, making it a true detour. If `true`, then the `original_bytes` will never be run.
 - `exclude_from_restore`: List of registers to keep modified after hook execution completes
@@ -125,12 +125,12 @@ For more details about how this system works see the [KotorPatcher README](src/K
 This C# Class Library includes all the necessary functionality to apply patches to the game.
 This basically boils down to parsing the patch hooks and manifests, checking compatibility, and building a patch_config.toml.
 
-For more detials on this system see the [KPatchCore README](src/KPatchCore/README.md).
+For more details on this system see the [KPatchCore README](src/KPatchCore/README.md).
 
 ## KPatchLauncher (C# Launcher UI)
-The C# Avalonia project is the basic UI that leverages the patching framework. Allowing for applying patches, and laucnhing patched games.
+The C# Avalonia project is the basic UI that leverages the patching framework. Allowing for applying patches, and launching patched games.
 
-For more detials on this app see the [KPatchLauncher README](src/KPatchLauncher/README.md).
+For more details on this app see the [KPatchLauncher README](src/KPatchLauncher/README.md).
 
 ## See Also
 You can contact Lane on Discord @lane_d
