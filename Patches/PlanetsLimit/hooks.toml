@@ -1,0 +1,5 @@
+[[hooks]]
+address = 0x0
+type = "simple"
+original_bytes = []
+replacement_bytes = []
