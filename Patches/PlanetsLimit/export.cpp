@@ -23,7 +23,7 @@ extern "C" void __cdecl ReadPlanetMask(void* gff, void* strct) {
     //TODO: write this out:
     /*
     * Check if AvailablePlanets/SelectablePlanets exists
-    * If not, use GlxyMapPlntMsk
+    * If not, use GlxyMapPlntMsk and return
     * Otherwise:
     * CResGFF::GetList/GetListCount -> "AvailablePlanets"
     * CResGFF::GetList/GetListCount -> "SelectablePlanets"
