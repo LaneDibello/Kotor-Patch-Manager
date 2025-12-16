@@ -39,6 +39,8 @@ extern "C" void __cdecl InitializePartyTablePlanets(void* partyTable) {
     setObjectProperty<int*>(partyTable, 0xa0, selectablePlanets);
 }
 
+
+
 // DLL Entry Point
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
