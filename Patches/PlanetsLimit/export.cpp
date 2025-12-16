@@ -8,7 +8,7 @@ extern "C" void __cdecl ClearPlanets(void* partyTableThis) {
     memset(selectablePlanets, 0, 4 * 0x7f);
 }
 
-extern "C" void __cdecl WritePlanetMask(void* gff, void* strct) {
+extern "C" void __cdecl WritePlanetMask(void* gff, void* strct, void* partyTable) {
     //TODO write this out:
     /*
     * CResGFF::AddList -> "AvailablePlanets"
@@ -19,7 +19,7 @@ extern "C" void __cdecl WritePlanetMask(void* gff, void* strct) {
     */
 }
 
-extern "C" void __cdecl ReadPlanetMask(void* gff, void* strct) {
+extern "C" void __cdecl ReadPlanetMask(void* gff, void* strct, void* partyTable) {
     //TODO: write this out:
     /*
     * Check if AvailablePlanets/SelectablePlanets exists

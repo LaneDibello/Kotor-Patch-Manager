@@ -141,9 +141,9 @@ skip_original_bytes = true
 exclude_from_restore = []
 [[hooks.parameters]]
 source = "esi"
-type = "pointer" # CSWPartyTable * this
+type = "pointer" # CSWPartyTable *
 
-# SaveTableInfo
+## SaveTableInfo
 [[hooks]]
 address = 0x00564c05
 type = "simple"
@@ -173,7 +173,42 @@ skip_original_bytes = true
 exclude_from_restore = []
 [[hooks.parameters]]
 source = "ecx"
-type = "pointer" # CResGFF * this
+type = "pointer" # CResGFF *
 [[hooks.parameters]]
 source = "eax"
 type = "pointer" # CResStruct * 
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer" # CSWPartyTable * 
+
+## LoadTableInfo
+[[hooks]]
+address = 0x005660a4
+type = "simple"
+original_bytes =	[0x50, 0x68, 0x04, 0x92, 0x74, 0x00, 0x8d, 0x4c, 0x24, 0x20, 0x51]
+replacement_bytes = [0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x8d, 0x44, 0x24, 0x18, 0x90]
+
+[[hooks]]
+address = 0x005660b1
+type = "detour"
+original_bytes =	[		
+						0xe8, 0x6a, 0xbb, 0xea, 0xff
+					]
+function = "ReadPlanetMask"
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # CResGFF *
+[[hooks.parameters]]
+source = "eax"
+type = "pointer" # CResStruct * 
+[[hooks.parameters]]
+source = "ebx"
+type = "pointer" # CSWPartyTable * 
+
+[[hooks]]
+address = 0x00564d8c
+type = "simple"
+original_bytes =	[0x75, 0x39, 0x33, 0xc0, 0x8d, 0x93, 0xa0, 0x00, 0x00, 0x00]
+replacement_bytes = [0xe9, 0x39, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90] # Bypass all planet mask logic
