@@ -168,7 +168,7 @@ type = "detour"
 original_bytes =	[		
 						0xe8, 0xb0, 0xd9, 0xea, 0xff
 					]
-function = ""
+function = "WritePlanetMask"
 skip_original_bytes = true
 exclude_from_restore = []
 [[hooks.parameters]]
