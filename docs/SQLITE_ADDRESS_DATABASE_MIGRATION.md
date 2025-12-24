@@ -1,5 +1,38 @@
 # SQLite Address Database Migration Plan
 
+## Recent Updates (2025-12-24)
+
+### SQLite Address Database Migration - COMPLETED ✅
+
+The project has migrated from TOML-based address databases to SQLite. This does **not** affect the patch options design, but is important context for understanding the current state of the codebase.
+
+**What Changed:**
+- Address databases (`AddressDatabases/`) now use SQLite (`.db` files) instead of TOML (`.toml` files)
+- `GameVersion.cpp` refactored to use SQLite prepared statements instead of hash maps
+- `PatchApplicator.cs` now deploys `addresses.db` and `sqlite3.dll` to game directory
+- Eliminated 478KB toml++ header dependency from patch DLLs
+
+**What Stayed the Same:**
+- Patch configuration (`patch_config.toml`) still uses TOML format
+- Hook definitions (`hooks.toml`) still use TOML format
+- Manifest files (`manifest.toml`) still use TOML format
+- This patch options design is still valid and ready for implementation
+
+**Next Steps for Project:**
+1. **Verification Phase** (User's immediate next steps)
+   - Build C++ projects in Visual Studio (KotorPatcher.dll, patch DLLs)
+   - Test patch installation with SQLite databases
+   - Verify game launches and patches work correctly
+   - Review all code changes from SQLite migration
+
+2. **Ghidra Database Population**
+   - Export function addresses from Ghidra for KOTOR 1 GOG
+   - Import into `kotor1_gog_103.db` using SQL or DB Browser for SQLite
+   - Populate 24,000+ labeled functions to take full advantage of SQLite scalability
+
+---
+
+
 ## Executive Summary
 
 This document outlines the plan to migrate from TOML-based address databases to SQLite for the KotOR Patch Manager's GameVersion address lookup system. This migration addresses scalability and maintainability concerns as the address database grows from ~90 entries to potentially 24,000+ labeled functions.
@@ -1256,15 +1289,24 @@ Migrating from TOML to SQLite addresses the core concerns:
    - Added Microsoft.Data.Sqlite package to KPatchCore
 
 ### 🔄 Remaining Tasks
+
+**📋 See [`docs/NEXT_STEPS.md`](NEXT_STEPS.md) for detailed step-by-step instructions on what to do next.**
+
 1. **Build C++ projects** (requires Visual Studio)
    - Build `KotorPatcher.dll` with SQLite support
    - Rebuild existing patch DLLs with new GameVersion code
 
-2. **Testing**
+2. **Testing & Verification**
    - Test patch installation with SQLite databases
    - Verify game launches with patches
    - Confirm all address lookups work correctly
+   - Review all code changes from migration
 
-3. **Documentation cleanup**
+3. **Ghidra Database Population**
+   - Export function addresses from Ghidra for KOTOR 1 GOG
+   - Import 24,000+ functions into `kotor1_gog_103.db`
+   - Test with expanded database
+
+4. **Documentation cleanup**
    - Update patch development guide
    - Remove references to TOML in developer docs
