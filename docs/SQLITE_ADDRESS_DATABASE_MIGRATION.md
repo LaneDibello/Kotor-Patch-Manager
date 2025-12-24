@@ -12,6 +12,7 @@ This document outlines the plan to migrate from TOML-based address databases to 
 - `AddressDatabases/kotor1_gog_103.toml` (~4.4KB, 168 lines)
 - `AddressDatabases/kotor1_steam_103.toml` (~3.8KB, 147 lines)
 - `AddressDatabases/kotor2_gog_aspyr.toml` (~3.6KB, 143 lines)
+- `AddressDatabases/kotor1_crack_103.toml` 
 
 **Data Volume:**
 - 3 game versions
@@ -778,11 +779,11 @@ done
 .output stdout
 ```
 
-**import_from_ida.sql** - Template for importing IDA function exports:
+**import_from_ghidra.sql** - Template for importing Ghidra function exports:
 ```sql
--- After exporting function list from IDA as CSV: class_name,function_name,address
+-- After exporting function list from Ghidra as CSV: class_name,function_name,address
 .mode csv
-.import ida_functions.csv temp_functions
+.import ghidra_functions.csv temp_functions
 
 INSERT INTO functions (class_name, function_name, address)
 SELECT class_name, function_name, CAST(address AS INTEGER)
@@ -1181,44 +1182,11 @@ ALTER TABLE functions ADD COLUMN game_version_id INTEGER REFERENCES game_version
 
 **Rationale**: Only consider if managing 10+ game versions across multiple titles
 
-### Automated Import from IDA/Ghidra
 
-**IDA Python Script**:
-```python
-import sqlite3
-import idaapi
-import idc
-
-def export_to_sqlite(db_path):
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    for seg_ea in Segments():
-        for func_ea in Functions(seg_ea, idc.get_segm_end(seg_ea)):
-            func_name = idc.get_func_name(func_ea)
-            address = func_ea
-
-            # Parse class name from function name (adjust to your naming convention)
-            if '::' in func_name:
-                class_name, method_name = func_name.split('::', 1)
-            else:
-                class_name = 'Global'
-                method_name = func_name
-
-            cursor.execute(
-                "INSERT OR IGNORE INTO functions (class_name, function_name, address) VALUES (?, ?, ?)",
-                (class_name, method_name, address)
-            )
-
-    conn.commit()
-    conn.close()
-
-export_to_sqlite("kotor1_addresses.db")
-```
 
 ## Open Questions
 
-1. **SQLite Version**: Which version to ship? Latest stable (3.47.x) or LTS?
+1. **SQLite Version**: Which version to ship? Latest stable (3.51.x) or LTS?
    - **Recommendation**: Latest stable, update periodically
 
 2. **32-bit vs 64-bit**: KOTOR is 32-bit, do we need 32-bit SQLite DLL?
@@ -1257,7 +1225,46 @@ Migrating from TOML to SQLite addresses the core concerns:
 
 ---
 
-**Document Version**: 1.0
+**Document Version**: 1.1.0
 **Author**: Generated during Claude Code session
-**Date**: 2025-11-11
-**Status**: Planning - Not Yet Implemented
+**Date**: 2025-12-24
+**Status**: Implementation In Progress - Core Migration Complete
+
+## Implementation Status (as of 2025-12-24)
+
+### ✅ Completed Tasks
+1. **Downloaded and configured SQLite (32-bit)**
+   - sqlite3.dll, sqlite3.lib, sqlite3.h placed in `lib/` directory
+   - Updated .gitignore to allow checking in lib dependencies
+
+2. **Created TOML to SQLite converter tool**
+   - C# tool at `tools/TomlToSqlite/`
+   - Successfully converted all 4 existing TOML databases to SQLite
+
+3. **Updated C++ GameVersion class**
+   - Refactored `Patches/Common/GameAPI/GameVersion.cpp` and `.h`
+   - Now uses SQLite with prepared statements instead of TOML/hash maps
+   - Added `Shutdown()` method for cleanup
+
+4. **Updated C++ build configuration**
+   - Modified `src/KotorPatcher/KotorPatcher.vcxproj` to link sqlite3.lib
+   - Updated `Patches/create-patch.bat` to include SQLite in patch builds
+
+5. **Updated C# PatchApplicator**
+   - Modified to deploy `.db` files instead of `.toml`
+   - Added deployment of `sqlite3.dll` alongside `KotorPatcher.dll`
+   - Added Microsoft.Data.Sqlite package to KPatchCore
+
+### 🔄 Remaining Tasks
+1. **Build C++ projects** (requires Visual Studio)
+   - Build `KotorPatcher.dll` with SQLite support
+   - Rebuild existing patch DLLs with new GameVersion code
+
+2. **Testing**
+   - Test patch installation with SQLite databases
+   - Verify game launches with patches
+   - Confirm all address lookups work correctly
+
+3. **Documentation cleanup**
+   - Update patch development guide
+   - Remove references to TOML in developer docs
