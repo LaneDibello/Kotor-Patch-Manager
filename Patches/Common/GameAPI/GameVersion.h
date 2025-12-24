@@ -1,8 +1,11 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
 #include <stdexcept>
+
+// Forward declare sqlite3 types to avoid including sqlite3.h in header
+struct sqlite3;
+struct sqlite3_stmt;
 
 class GameVersionException : public std::runtime_error {
 public:
@@ -13,6 +16,7 @@ public:
 class GameVersion {
 public:
     static bool Initialize();
+    static void Shutdown();
     static std::string GetVersionSha();
     static bool IsInitialized();
 
@@ -29,10 +33,14 @@ public:
 private:
     static bool initialized;
     static std::string versionSha;
-    static std::unordered_map<std::string, void*> functionAddresses;
-    static std::unordered_map<std::string, void*> globalPointers;
-    static std::unordered_map<std::string, int> offsets;
 
-    static bool LoadAddressDatabase();
-    static std::string MakeKey(const std::string& className, const std::string& memberName);
+    // SQLite database handle and prepared statements
+    static sqlite3* db;
+    static sqlite3_stmt* stmt_function;
+    static sqlite3_stmt* stmt_pointer;
+    static sqlite3_stmt* stmt_offset;
+
+    static bool OpenDatabase();
+    static bool PrepareStatements();
+    static void FinalizeStatements();
 };
