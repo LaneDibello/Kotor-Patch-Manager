@@ -10,7 +10,7 @@ void __cdecl setresolution(char* res) {
 
     typedef void(__cdecl* ReInitAuroraFn)(DWORD width, DWORD height, BYTE bitsPerPixel, int fullscreen, int checkForMovies);
     ReInitAuroraFn reInitAurora = reinterpret_cast<ReInitAuroraFn>(
-        GameVersion::GetFunctionAddress("Other", "ReInitAurora"));
+        GameVersion::GetFunctionAddress("Global", "ReInitAurora"));
 
     reInitAurora(width, height, 32, 0, 1);
 

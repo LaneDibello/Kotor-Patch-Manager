@@ -40,7 +40,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
             }
 
             // Load function address from address database
-            g_aurPostString = (AurPostStringFunc)GameVersion::GetFunctionAddress("Other", "AurPostString");
+            g_aurPostString = (AurPostStringFunc)GameVersion::GetFunctionAddress("Global", "AurPostString");
 
             if (g_aurPostString) {
                 OutputDebugStringA("[EnableAurPostString] Successfully loaded AurPostString function\n");
