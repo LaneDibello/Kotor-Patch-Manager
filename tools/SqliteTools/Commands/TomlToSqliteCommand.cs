@@ -1,17 +1,17 @@
-using System;
-using System.IO;
 using Microsoft.Data.Sqlite;
 using Tomlyn;
 using Tomlyn.Model;
 
-class Program
+namespace SqliteTools.Commands;
+
+public class TomlToSqliteCommand : ICommand
 {
-    static void Main(string[] args)
+    public void Execute(string[] args)
     {
         if (args.Length != 2)
         {
-            Console.WriteLine("Usage: TomlToSqlite <input.toml> <output.db>");
-            return;
+            Console.Error.WriteLine("Usage: SqliteTools toml-to-sqlite <input.toml> <output.db>");
+            Environment.Exit(1);
         }
 
         string tomlPath = args[0];
@@ -19,8 +19,7 @@ class Program
 
         if (!File.Exists(tomlPath))
         {
-            Console.Error.WriteLine($"Error: Input file not found: {tomlPath}");
-            return;
+            throw new FileNotFoundException($"Input file not found: {tomlPath}");
         }
 
         // Delete existing database
@@ -29,37 +28,29 @@ class Program
             File.Delete(dbPath);
         }
 
-        try
-        {
-            // Parse TOML
-            var tomlContent = File.ReadAllText(tomlPath);
-            var tomlTable = Toml.ToModel(tomlContent);
+        // Parse TOML
+        var tomlContent = File.ReadAllText(tomlPath);
+        var tomlTable = Toml.ToModel(tomlContent);
 
-            // Create SQLite database
-            using var connection = new SqliteConnection($"Data Source={dbPath}");
-            connection.Open();
+        // Create SQLite database
+        using var connection = new SqliteConnection($"Data Source={dbPath}");
+        connection.Open();
 
-            // Create schema
-            CreateSchema(connection);
+        // Create schema
+        CreateSchema(connection);
 
-            // Insert game version metadata
-            InsertGameVersion(connection, tomlTable, Path.GetFileNameWithoutExtension(tomlPath));
+        // Insert game version metadata
+        InsertGameVersion(connection, tomlTable, Path.GetFileNameWithoutExtension(tomlPath));
 
-            // Insert data
-            InsertGlobalPointers(connection, tomlTable);
-            InsertFunctions(connection, tomlTable);
-            InsertOffsets(connection, tomlTable);
+        // Insert data
+        InsertGlobalPointers(connection, tomlTable);
+        InsertFunctions(connection, tomlTable);
+        InsertOffsets(connection, tomlTable);
 
-            Console.WriteLine($"Successfully converted {tomlPath} to {dbPath}");
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Error during conversion: {ex.Message}");
-            Console.Error.WriteLine(ex.StackTrace);
-        }
+        Console.WriteLine($"Successfully converted {tomlPath} to {dbPath}");
     }
 
-    static void CreateSchema(SqliteConnection connection)
+    private static void CreateSchema(SqliteConnection connection)
     {
         string schema = @"
             CREATE TABLE schema_version (
@@ -112,7 +103,7 @@ class Program
         cmd.ExecuteNonQuery();
     }
 
-    static void InsertGameVersion(SqliteConnection connection, TomlTable tomlTable, string fileName)
+    private static void InsertGameVersion(SqliteConnection connection, TomlTable tomlTable, string fileName)
     {
         // Get SHA256 from top-level "versions_sha" key
         string sha256 = (string)tomlTable["versions_sha"];
@@ -133,7 +124,7 @@ class Program
         cmd.ExecuteNonQuery();
     }
 
-    static void InsertGlobalPointers(SqliteConnection connection, TomlTable tomlTable)
+    private static void InsertGlobalPointers(SqliteConnection connection, TomlTable tomlTable)
     {
         if (!tomlTable.ContainsKey("global_pointers")) return;
 
@@ -154,7 +145,7 @@ class Program
         }
     }
 
-    static void InsertFunctions(SqliteConnection connection, TomlTable tomlTable)
+    private static void InsertFunctions(SqliteConnection connection, TomlTable tomlTable)
     {
         if (!tomlTable.ContainsKey("functions")) return;
 
@@ -184,7 +175,7 @@ class Program
         }
     }
 
-    static void InsertOffsets(SqliteConnection connection, TomlTable tomlTable)
+    private static void InsertOffsets(SqliteConnection connection, TomlTable tomlTable)
     {
         if (!tomlTable.ContainsKey("offsets")) return;
 
@@ -214,7 +205,7 @@ class Program
         }
     }
 
-    static long ParseAddress(object value)
+    private static long ParseAddress(object value)
     {
         string str = value.ToString() ?? "";
         if (str.StartsWith("0x"))
