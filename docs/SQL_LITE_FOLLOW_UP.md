@@ -1,77 +1,54 @@
-# SQLite Database Evolution - Remaining Work
+# Phase 4: Multi-Version Database Support
 
-## Completed Work ✓
+## Overview
+Enable multiple game versions (with the same Version string) to share a single address database. This eliminates database duplication for KOTOR 1 GOG/Steam/Crack versions which are nearly identical.
 
-**Phase 1: SqliteTools Foundation** ✅ COMPLETE
-- Created `tools/SqliteTools/` multi-command CLI tool
-- Implemented commands: `toml-to-sqlite`, `import-ghidra`, `migrate`, `validate`
-- Added to `KotorPatchManager.sln` under "Tools" folder
-- All C# projects build successfully
+## Completed Prerequisites
+- ✅ Phase 1: SqliteTools Foundation - Multi-command CLI tool
+- ✅ Phase 2: Schema Migration - Automated migration system
+- ✅ Phase 3: Ghidra Import - CSV import with metadata
 
-**Phase 2: Schema Migration** ✅ COMPLETE
-- Created migration `002_add_function_metadata.sql`
-- Added columns: `calling_convention` (TEXT), `param_size_bytes` (INTEGER)
-- Migrated all 4 databases from schema v1 → v2
-- Backward compatible: NULL-able columns work with existing C++ code
-
-**Phase 3: Ghidra CSV Import** ✅ COMPLETE
-- Implemented `ImportGhidraCommand` with upsert logic (ON CONFLICT DO UPDATE)
-- CSV format: `class_name`, `function_name`, `address`, `calling_convention`, `param_size_bytes`, `notes`
-- Tested successfully with sample data
-- Ready for bulk Ghidra exports
-
-**Current Database Status:**
-- All databases at schema v2
-- Ready to receive Ghidra imports with metadata
-- Validated and working
+## Current Scope
+Focus on KOTOR 1 versions that share Version="1.0.3":
+- GOG: `9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435`
+- Crack: `761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886`
+- Steam: `34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88`
 
 ---
 
-## Usage Reference
+## Problem Statement
 
-### Import Ghidra CSV Export
-```bash
-# From Windows Command Prompt or PowerShell:
-cd "C:\Users\laned\source\Repos\KotOR Patch Manager"
-dotnet run --project tools\SqliteTools -- import-ghidra --csv "path\to\functions.csv" --database "AddressDatabases\kotor1_gog_103.db"
-```
+**Current Limitation:**
+- `game_version` table has `CHECK (id = 1)` constraint - only 1 row allowed
+- Databases can only represent ONE game version
+- KOTOR 1 has 3 nearly-identical versions (GOG/Steam/Crack) requiring 3 separate databases
 
-**CSV Format:**
-```csv
-class_name,function_name,address,calling_convention,param_size_bytes,notes
-CSWSCreatureStats,SetCONBase,0x005ed700,__thiscall,4,void SetCONBase(unsigned char value)
-CVirtualMachine,RunScript,0x005a3b80,__thiscall,12,int RunScript(CExoString* script uint32_t objId int unknown)
-Global,TestFunction,0x00401000,__cdecl,8,int TestFunction(int a int b)
-```
+**Current Queries:**
+- **C# PatchApplicator.cs:421**: `SELECT sha256_hash FROM game_version WHERE id = 1`
+- **C++ GameVersion.cpp:70**: `SELECT sha256_hash FROM game_version WHERE id = 1`
 
-**Notes:**
-- Duplicate class_name + function_name combinations will **UPDATE** existing entries (not create duplicates)
-- You can re-import CSV files multiple times safely
-- Optional `--mode replace` will delete all functions before importing
+Both query for `id = 1`, expecting exactly one row per database.
 
-### Validate Database
-```bash
-dotnet run --project tools\SqliteTools -- validate --database "AddressDatabases\kotor1_gog_103.db"
-```
+**Desired Behavior:**
+- Remove singleton constraint
+- Allow multiple SHAs in one database
+- Query: `SELECT sha256_hash FROM game_version WHERE sha256_hash = ?`
+- Database returns match if it supports that specific game version
+
+**Safety Net:**
+Existing `original_bytes` validation in hook application catches any real differences between game versions. If addresses differ, hooks fail safely without being applied.
 
 ---
 
-## Remaining Work
+## Implementation Steps
 
-### Phase 4: Multi-Version Database Support (OPTIONAL - Not Started)
+### Step 1: Create Migration 003
 
-**Status:** Deferred until needed
+**File:** `tools/SqliteTools/Migrations/003_allow_multiple_game_versions.sql`
 
-**Goal:** Allow multiple game versions (GOG/Steam/Crack) to share the same address database.
+**Purpose:** Remove the `CHECK (id = 1)` constraint to allow multiple game_version rows.
 
-**Why:** KOTOR1 Steam = GOG after DRM removal, Crack version is 99.9% identical. Currently maintaining 3 separate databases with identical function addresses.
-
-#### Implementation Steps:
-
-**1. Create Migration 003**
-
-File: `tools/SqliteTools/Migrations/003_allow_multiple_game_versions.sql`
-
+**SQL Migration:**
 ```sql
 -- Migration v2 → v3: Allow multiple game versions per database
 
@@ -98,186 +75,382 @@ ALTER TABLE game_version_new RENAME TO game_version;
 INSERT INTO schema_version (version) VALUES (3);
 ```
 
-**2. Update MigrateSchemaCommand.cs**
+**Why this approach?**
+- SQLite doesn't support `ALTER TABLE ... DROP CONSTRAINT`
+- Must recreate table without the constraint
+- Preserves all existing data via INSERT...SELECT
 
-Add migration 003 to the sequence (around line 226):
+---
 
+### Step 2: Update MigrateSchemaCommand
+
+**File:** `tools/SqliteTools/Commands/MigrateSchemaCommand.cs`
+
+**Location:** Add after migration 002 check (around line 30)
+
+**Change:**
 ```csharp
 // Apply migrations in sequence
 if (currentVersion < 2) {
     ApplyMigration(connection, "002_add_function_metadata.sql");
-    Console.WriteLine("Applied migration 002: Add function metadata");
+    Console.WriteLine("Applied migration 002: Add function metadata columns");
 }
 
+// NEW: Add this block
 if (currentVersion < 3) {
     ApplyMigration(connection, "003_allow_multiple_game_versions.sql");
     Console.WriteLine("Applied migration 003: Allow multiple game versions");
 }
 ```
 
-**3. Update PatchApplicator.cs (line 421)**
+---
 
-Change query from singleton to SHA lookup:
+### Step 3: Update C# PatchApplicator Query
 
-**Current:**
+**File:** `src/KPatchCore/Applicators/PatchApplicator.cs`
+
+**Line:** 421
+
+**Current Code:**
 ```csharp
 command.CommandText = "SELECT sha256_hash FROM game_version WHERE id = 1";
+var sha = command.ExecuteScalar() as string;
+
+if (sha == gameVersion.Hash)
+{
+    matchingAddressDb = dbFile;
+    break;
+}
 ```
 
-**New:**
+**New Code:**
 ```csharp
 command.CommandText = "SELECT sha256_hash FROM game_version WHERE sha256_hash = @targetSha";
 command.Parameters.AddWithValue("@targetSha", gameVersion.Hash);
+
+var result = command.ExecuteScalar();
+
+if (result != null)  // If we get a row, this database supports our game version
+{
+    matchingAddressDb = dbFile;
+    break;
+}
 ```
 
-**4. Update GameVersion.cpp (lines 70-98)**
+**Logic Change:**
+- **Before:** "Get the one SHA from this DB and compare"
+- **After:** "Check if this DB contains a row matching our SHA"
 
-Change query from singleton to SHA lookup:
+---
 
-**Current:**
+### Step 4: Update C++ GameVersion Validation
+
+**File:** `Patches/Common/GameAPI/GameVersion.cpp`
+
+**Lines:** 68-99
+
+**Current Code:**
 ```cpp
+// Verify game version SHA matches
+sqlite3_stmt* stmt = nullptr;
 rc = sqlite3_prepare_v2(db, "SELECT sha256_hash FROM game_version WHERE id = 1", -1, &stmt, nullptr);
-```
-
-**New:**
-```cpp
-std::string sql = "SELECT sha256_hash FROM game_version WHERE sha256_hash = ?";
-rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr);
-if (rc != SQLITE_OK) { /* error handling */ }
-
-sqlite3_bind_text(stmt, 1, versionSha.c_str(), -1, SQLITE_TRANSIENT);
+if (rc != SQLITE_OK) {
+    OutputDebugStringA(("[GameVersion] ERROR: Failed to prepare version query: " + std::string(sqlite3_errmsg(db)) + "\n").c_str());
+    sqlite3_close(db);
+    db = nullptr;
+    return false;
+}
 
 rc = sqlite3_step(stmt);
-if (rc == SQLITE_ROW) {
-    OutputDebugStringA(("[GameVersion] Version SHA validated: " + versionSha.substr(0, 16) + "...\n").c_str());
-} else {
-    OutputDebugStringA("[GameVersion] ERROR: Game version SHA not found in database\n");
+if (rc != SQLITE_ROW) {
+    OutputDebugStringA("[GameVersion] ERROR: No game version found in database\n");
     sqlite3_finalize(stmt);
     sqlite3_close(db);
     db = nullptr;
     return false;
 }
+
+const char* dbHash = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+if (!dbHash || std::string(dbHash) != versionSha) {
+    OutputDebugStringA("[GameVersion] ERROR: Version SHA mismatch!\n");
+    OutputDebugStringA(("  Expected (from env): " + versionSha.substr(0, 16) + "...\n").c_str());
+    if (dbHash) {
+        std::string dbHashStr(dbHash);
+        OutputDebugStringA(("  Found (in DB):       " + dbHashStr.substr(0, 16) + "...\n").c_str());
+    }
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    db = nullptr;
+    return false;
+}
+
+OutputDebugStringA(("[GameVersion] Version SHA validated: " + versionSha.substr(0, 16) + "...\n").c_str());
+sqlite3_finalize(stmt);
 ```
 
-**5. Create Shared Database**
+**New Code:**
+```cpp
+// Verify game version SHA is supported by this database
+sqlite3_stmt* stmt = nullptr;
+std::string sql = "SELECT sha256_hash FROM game_version WHERE sha256_hash = ?";
+rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr);
+if (rc != SQLITE_OK) {
+    OutputDebugStringA(("[GameVersion] ERROR: Failed to prepare version query: " + std::string(sqlite3_errmsg(db)) + "\n").c_str());
+    sqlite3_close(db);
+    db = nullptr;
+    return false;
+}
+
+// Bind the current game's SHA as parameter
+rc = sqlite3_bind_text(stmt, 1, versionSha.c_str(), -1, SQLITE_TRANSIENT);
+if (rc != SQLITE_OK) {
+    OutputDebugStringA(("[GameVersion] ERROR: Failed to bind SHA parameter: " + std::string(sqlite3_errmsg(db)) + "\n").c_str());
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    db = nullptr;
+    return false;
+}
+
+rc = sqlite3_step(stmt);
+if (rc != SQLITE_ROW) {
+    // No matching row = this database doesn't support our game version
+    OutputDebugStringA("[GameVersion] ERROR: Game version SHA not found in database\n");
+    OutputDebugStringA(("  Current game SHA: " + versionSha.substr(0, 16) + "...\n").c_str());
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+    db = nullptr;
+    return false;
+}
+
+// If we got a row, the database supports this game version
+OutputDebugStringA(("[GameVersion] Version SHA validated: " + versionSha.substr(0, 16) + "...\n").c_str());
+sqlite3_finalize(stmt);
+
+**Logic Change:**
+- **Before:** "Get the SHA from id=1 and compare with our game SHA"
+- **After:** "Search for a row matching our game SHA - if found, database supports it"
+
+**Key Improvement:** More robust error messages show which SHA we're looking for
+
+---
+
+### Step 5: Create Shared Database for KOTOR 1
+
+**Commands to run:**
 
 ```bash
-# Run migration 003 on kotor1_gog_103.db
-dotnet run --project tools\SqliteTools -- migrate --database AddressDatabases\kotor1_gog_103.db
+# Navigate to repo root
+cd "/mnt/c/Users/laned/source/Repos/KotOR Patch Manager"
 
-# Add Steam SHA (identical to GOG after DRM)
-# Use DB Browser for SQLite or SQL command to insert:
-INSERT INTO game_version (sha256_hash, game_name, version_string, description)
-VALUES ('34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88',
-        'KOTOR1', 'Steam 1.03', 'Identical to GOG after DRM decryption');
+# Run migration 003 on GOG database (schema v2 → v3)
+"/mnt/c/Program Files/dotnet/dotnet.exe" run --project tools/SqliteTools -- migrate --database AddressDatabases/kotor1_gog_103.db
 
-# Add Crack SHA (99.9% identical)
-INSERT INTO game_version (sha256_hash, game_name, version_string, description)
-VALUES ('761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886',
-        'KOTOR1', 'Crack 1.03', 'CD crack - 99.9% identical to GOG');
+# Validate the migration
+"/mnt/c/Program Files/dotnet/dotnet.exe" run --project tools/SqliteTools -- validate --database AddressDatabases/kotor1_gog_103.db
 
-# Rename database
-# mv AddressDatabases/kotor1_gog_103.db AddressDatabases/kotor1_shared.db
-
-# Delete redundant databases
-# rm AddressDatabases/kotor1_steam_103.db
-# rm AddressDatabases/kotor1_crack_103.db
+# Now the database allows multiple game_version rows
+# Insert Steam and Crack SHAs using DB Browser for SQLite or sqlite3
 ```
 
-**6. Test Installation**
+**Manual SQL to insert additional versions:**
 
-- Test patch installation with Steam KOTOR1 executable
-- Test patch installation with Crack KOTOR1 executable
-- Verify correct database is selected via SHA match
-- Confirm patches apply correctly
+Using DB Browser for SQLite, execute:
+```sql
+INSERT INTO game_version (sha256_hash, game_name, version_string, description)
+VALUES ('34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88',
+        'KOTOR1', 'Steam 1.03', 'Steam version - identical to GOG after DRM removal');
 
-**Safety Net:**
-The existing `original_bytes` validation in patch hooks will catch any differences between game versions. If Steam/GOG/Crack differ at a hook address, the hook will fail safely without being applied.
+INSERT INTO game_version (sha256_hash, game_name, version_string, description)
+VALUES ('761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886',
+        'KOTOR1', 'Crack 1.03', 'HellSpawn CD crack - 99.9% identical to GOG');
+```
 
----
+**Verify the database has 3 versions:**
+```sql
+SELECT * FROM game_version ORDER BY version_string, description;
+```
 
-## Implementation Checklist
+Expected output:
+```
+id | sha256_hash                                                      | game_name | version_string | description
+---|------------------------------------------------------------------|-----------|----------------|-------------------------------------------
+1  | 9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435 | KOTOR1    | GOG 1.03       | Star Wars KOTOR 1 GOG version
+2  | 34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88 | KOTOR1    | Steam 1.03     | Steam version - identical to GOG after DRM
+3  | 761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886 | KOTOR1    | Crack 1.03     | HellSpawn CD crack - 99.9% identical to GOG
+```
 
-### Phase 1: SqliteTools Foundation ✅
-- [x] Restructure `tools/TomlToSqlite/` → `tools/SqliteTools/`
-- [x] Create command framework (Program.cs, ICommand.cs)
-- [x] Refactor TomlToSqliteCommand
-- [x] Add to KotorPatchManager.sln
+**Rename and cleanup:**
+```bash
+# Rename the GOG database to shared
+mv AddressDatabases/kotor1_gog_103.db AddressDatabases/kotor1_shared.db
 
-### Phase 2: Schema Migration ✅
-- [x] Implement MigrateSchemaCommand
-- [x] Create migration 002 (add calling_convention, param_size_bytes)
-- [x] Run migration on all existing databases
-- [x] Test backward compatibility with C++
-
-### Phase 3: Ghidra Import ✅
-- [x] Implement ImportGhidraCommand
-- [x] Create GhidraFunction model
-- [x] Test CSV import with sample data
-
-### Phase 4: Multi-Version Support ❌ (Optional - Deferred)
-- [ ] Create migration 003 (remove id=1 constraint)
-- [ ] Update MigrateSchemaCommand to include migration 003
-- [ ] Update PatchApplicator query logic
-- [ ] Update GameVersion.cpp query logic
-- [ ] Create kotor1_shared.db with multiple SHAs
-- [ ] Test installation with Steam/GOG/Crack versions
-
-### Phase 5: Validation & Documentation
-- [x] Implement ValidateCommand
-- [ ] Test entire workflow end-to-end with real Ghidra data
-- [ ] Update NEXT_STEPS.md with completed work
+# Delete redundant databases
+rm AddressDatabases/kotor1_steam_103.db
+rm AddressDatabases/kotor1_crack_103.db
+```
 
 ---
 
-## Files Modified in This Implementation
+## Testing Strategy
 
-### Created Files
-- `tools/SqliteTools/SqliteTools.csproj`
-- `tools/SqliteTools/Program.cs`
-- `tools/SqliteTools/Commands/ICommand.cs`
-- `tools/SqliteTools/Commands/TomlToSqliteCommand.cs`
-- `tools/SqliteTools/Commands/ImportGhidraCommand.cs`
-- `tools/SqliteTools/Commands/MigrateSchemaCommand.cs`
-- `tools/SqliteTools/Commands/ValidateCommand.cs`
-- `tools/SqliteTools/Models/GhidraFunction.cs`
-- `tools/SqliteTools/Migrations/002_add_function_metadata.sql`
+### Test 1: Build Verification
 
-### Modified Files
-- `KotorPatchManager.sln` - Added SqliteTools project under "Tools" folder
+```bash
+# Build C# projects to verify no compilation errors
+"/mnt/c/Program Files/dotnet/dotnet.exe" build src/KPatchCore/KPatchCore.csproj -c Debug
 
-### To Modify (Phase 4)
-- `tools/SqliteTools/Migrations/003_allow_multiple_game_versions.sql` (create)
-- `tools/SqliteTools/Commands/MigrateSchemaCommand.cs` (add migration 003)
-- `src/KPatchCore/Applicators/PatchApplicator.cs` (line 421)
-- `Patches/Common/GameAPI/GameVersion.cpp` (lines 70-98)
+# Build C++ would require Visual Studio - defer to full solution build
+```
 
-### To Delete (After Phase 4)
-- `tools/TomlToSqlite/` (old converter, replaced by SqliteTools)
+### Test 2: Database Validation
+
+```bash
+# Validate the shared database
+"/mnt/c/Program Files/dotnet/dotnet.exe" run --project tools/SqliteTools -- validate --database AddressDatabases/kotor1_shared.db
+```
+
+Expected output:
+```
+✓ Schema version: 3
+✓ Game version: KOTOR1 GOG 1.03
+  SHA256: 9C10E0450A6EECA4...
+✓ Game version: KOTOR1 Steam 1.03
+  SHA256: 34E6D971C034222A...
+✓ Game version: KOTOR1 Crack 1.03
+  SHA256: 761F9466F456A839...
+✓ Functions table: XX entries
+✓ Global pointers table: X entries
+✓ Offsets table: X entries
+
+Database validation passed.
+```
+
+### Test 3: Patch Installation (GOG version)
+
+**Using KPatchLauncher:**
+1. Open KPatchLauncher
+2. Select KOTOR 1 GOG installation path
+3. Install a test patch
+4. Verify patch installation succeeds
+5. Check that `kotor1_shared.db` was copied to game directory as `addresses.db`
+6. Verify no errors in installation log
+
+### Test 4: Patch Installation (Steam version)
+
+**Using KPatchLauncher:**
+1. Open KPatchLauncher
+2. Select KOTOR 1 Steam installation path
+3. Install the same test patch
+4. Verify patch installation succeeds
+5. Check that `kotor1_shared.db` was copied to game directory as `addresses.db`
+6. Verify no errors in installation log
+
+### Test 5: Patch Installation (Crack version)
+
+**Using KPatchLauncher:**
+1. Open KPatchLauncher
+2. Select KOTOR 1 Crack installation path
+3. Install the same test patch
+4. Verify patch installation succeeds
+5. Check that `kotor1_shared.db` was copied to game directory as `addresses.db`
+6. Verify no errors in installation log
+
+### Test 6: Runtime Validation (Any version)
+
+**Launch game with patches:**
+1. Use KPatchLauncher to launch KOTOR 1
+2. Game should start without errors
+3. Check DebugView output for:
+   ```
+   [GameVersion] Version SHA validated: 9C10E0450A6EECA4...
+   ```
+4. Verify patches are applied correctly
+5. Verify game functionality
+
+---
+
+## Success Criteria
+
+- ✅ Migration 003 creates game_version table without singleton constraint
+- ✅ MigrateSchemaCommand successfully applies migration 003
+- ✅ kotor1_shared.db contains 3 game_version rows (GOG, Steam, Crack)
+- ✅ PatchApplicator.cs compiles without errors
+- ✅ GameVersion.cpp compiles without errors (deferred to full build)
+- ✅ ValidateCommand shows all 3 versions in kotor1_shared.db
+- ✅ Patch installation works for GOG version using kotor1_shared.db
+- ✅ Patch installation works for Steam version using kotor1_shared.db
+- ✅ Patch installation works for Crack version using kotor1_shared.db
+- ✅ Game launches and runs correctly with patches applied
+
+---
+
+## Critical Files Summary
+
+### Files to Create
+- `tools/SqliteTools/Migrations/003_allow_multiple_game_versions.sql`
+
+### Files to Modify
+1. **tools/SqliteTools/Commands/MigrateSchemaCommand.cs** (line ~30)
+   - Add migration 003 to migration sequence
+
+2. **src/KPatchCore/Applicators/PatchApplicator.cs** (line 421-424)
+   - Change query from `WHERE id = 1` to `WHERE sha256_hash = @targetSha`
+   - Add parameter binding
+   - Update condition check
+
+3. **Patches/Common/GameAPI/GameVersion.cpp** (lines 68-99)
+   - Change query from `WHERE id = 1` to parameterized `WHERE sha256_hash = ?`
+   - Add parameter binding with `sqlite3_bind_text`
+   - Update error messages
+
+### Database Files to Modify
+- `AddressDatabases/kotor1_gog_103.db` → Migrate to v3, add Steam/Crack SHAs, rename to `kotor1_shared.db`
+
+### Files to Delete (After validation)
 - `AddressDatabases/kotor1_steam_103.db` (merged into shared)
 - `AddressDatabases/kotor1_crack_103.db` (merged into shared)
 
 ---
 
+## Implementation Order
+
+### Part A: Code Changes (Steps 1-4)
+1. Create migration 003 SQL file
+2. Update MigrateSchemaCommand to include migration 003
+3. Update PatchApplicator.cs query logic
+4. Update GameVersion.cpp query logic
+5. Build and verify compilation
+
+### Part B: Database Migration (Step 5)
+6. Run migration 003 on kotor1_gog_103.db
+7. Validate migration with ValidateCommand
+8. Insert Steam and Crack SHAs via DB Browser
+9. Verify all 3 versions present in database
+10. Rename database to kotor1_shared.db
+11. Delete redundant databases
+
+### Part C: Testing
+12. Build verification (C# compilation)
+13. Validate kotor1_shared.db shows 3 versions
+14. Test patch installation on GOG version
+15. Test patch installation on Steam version (if available)
+16. Test patch installation on Crack version (if available)
+17. Test game launch and runtime validation
+
+---
+
 ## Notes
 
-**Ghidra Import:**
-- Import is **incremental and safe** - duplicate class/function names will update existing entries
-- You can re-import multiple times as you label more functions in Ghidra
-- Use `--mode append` (default) for upsert behavior, or `--mode replace` to clear all functions first
+**Safety Net:**
+- Existing `original_bytes` validation in hook application catches any real address differences
+- If Steam/GOG/Crack actually differ at a hook location, the hook will fail safely
 
-**Database Schema:**
-- All 4 databases currently at v2 (schema_version = 2)
-- New columns are NULL-able for backward compatibility
-- C++ GameVersion code works with both v1 and v2 schemas
+**Backward Compatibility:**
+- KOTOR 2 databases can remain at schema v2 (no multi-version need)
+- Schema v2 databases continue to work with updated code (query will find the single SHA)
+- Only KOTOR 1 benefits from multi-version support currently
 
-**Phase 4 Decision:**
-- Multi-version support is optional but recommended to reduce database duplication
-- Can be implemented at any time without affecting existing functionality
-- Safety guaranteed by original_bytes hook validation
-
-**Next Immediate Steps:**
-1. Export function data from Ghidra to CSV format
-2. Import CSV into kotor1_gog_103.db using SqliteTools
-3. Test that patches still work with enhanced database
-4. Consider Phase 4 if multi-version support becomes desirable
+**Future Work:**
+- Apply same approach to KOTOR 2 if multiple near-identical versions emerge
+- Consider auto-populating game_version table based on GameDetector's KnownVersions
+- Add SqliteTools command to manage game_version entries (add/remove SHAs)
