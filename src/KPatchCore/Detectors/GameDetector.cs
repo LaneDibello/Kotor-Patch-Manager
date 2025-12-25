@@ -67,7 +67,7 @@ public static class GameDetector
         {
             Platform = Platform.Windows,
             Distribution = Distribution.Steam,
-            Version = "2 1.0.2 (Aspyr)",
+            Version = "2 1.0.2 (Aspyr+Steam)",
             Architecture = Architecture.x86,
             Title = GameTitle.KOTOR2,
             FileSize = 0x648800,

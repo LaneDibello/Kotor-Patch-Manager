@@ -407,28 +407,31 @@ public class PatchApplicator
             }
 
             // Find matching address database by SHA
-            var addressDbFiles = Directory.GetFiles(addressDbSourceDirNormalized, "*.toml");
+            var addressDbFiles = Directory.GetFiles(addressDbSourceDirNormalized, "*.db");
             string? matchingAddressDb = null;
 
             foreach (var dbFile in addressDbFiles)
             {
-                // Parse TOML to check versions_sha field
-                var content = File.ReadAllText(dbFile);
-                var lines = content.Split('\n');
-                foreach (var line in lines)
+                // Query SQLite database to check sha256_hash field
+                try
                 {
-                    if (line.Trim().StartsWith("versions_sha"))
+                    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbFile};Mode=ReadOnly");
+                    connection.Open();
+                    using var command = connection.CreateCommand();
+                    command.CommandText = "SELECT sha256_hash FROM game_version WHERE id = 1";
+                    var sha = command.ExecuteScalar() as string;
+
+                    if (sha == gameVersion.Hash)
                     {
-                        var sha = line.Split('=')[1].Trim().Trim('"');
-                        if (sha == gameVersion.Hash)
-                        {
-                            matchingAddressDb = dbFile;
-                            break;
-                        }
+                        matchingAddressDb = dbFile;
+                        break;
                     }
                 }
-
-                if (matchingAddressDb != null) break;
+                catch
+                {
+                    // Skip databases that can't be read
+                    continue;
+                }
             }
 
             if (matchingAddressDb == null)
@@ -448,13 +451,13 @@ public class PatchApplicator
                 };
             }
 
-            // Copy to game directory as addresses.toml (generic name)
-            var addressDbDest = Path.Combine(gameDir, "addresses.toml");
+            // Copy to game directory as addresses.db (generic name)
+            var addressDbDest = Path.Combine(gameDir, "addresses.db");
             File.Copy(matchingAddressDb, addressDbDest, overwrite: true);
-            messages.Add($"  Copied: {Path.GetFileName(matchingAddressDb)} -> addresses.toml");
+            messages.Add($"  Copied: {Path.GetFileName(matchingAddressDb)} -> addresses.db");
 
-            // Step 7: Copy patcher DLL
-            messages.Add("Step 7/8: Installing patcher DLL...");
+            // Step 7: Copy patcher DLL and SQLite
+            messages.Add("Step 7/8: Installing patcher DLL and dependencies...");
 
             // Copy KotorPatcher.dll to game directory if path provided
             if (!string.IsNullOrEmpty(options.PatcherDllPath))
@@ -474,11 +477,28 @@ public class PatchApplicator
                 var destPath = Path.Combine(gameDir, "KotorPatcher.dll");
                 File.Copy(options.PatcherDllPath, destPath, overwrite: true);
                 messages.Add($"  ✓ Copied KotorPatcher.dll to game directory");
+
+                // Copy sqlite3.dll (should be in same directory as KotorPatcher.dll)
+                var patcherDir = Path.GetDirectoryName(options.PatcherDllPath);
+                if (patcherDir != null)
+                {
+                    var sqliteDllSource = Path.Combine(patcherDir, "sqlite3.dll");
+                    if (File.Exists(sqliteDllSource))
+                    {
+                        var sqliteDllDest = Path.Combine(gameDir, "sqlite3.dll");
+                        File.Copy(sqliteDllSource, sqliteDllDest, overwrite: true);
+                        messages.Add($"  ✓ Copied sqlite3.dll to game directory");
+                    }
+                    else
+                    {
+                        messages.Add($"  ⚠️ Warning: sqlite3.dll not found at: {sqliteDllSource}");
+                    }
+                }
             }
             else
             {
                 messages.Add($"  ⚠️ Warning: KotorPatcher.dll path not provided");
-                messages.Add($"  ⚠️ Make sure KotorPatcher.dll is in game directory");
+                messages.Add($"  ⚠️ Make sure KotorPatcher.dll and sqlite3.dll are in game directory");
             }
 
             return new InstallResult
