@@ -34,13 +34,13 @@ void C2DA::InitializeFunctions() {
             GameVersion::GetFunctionAddress("C2DA", "Unload2DArray")
         );
         getCExoStringEntry = reinterpret_cast<GetCExoStringEntryFn>(
-            GameVersion::GetFunctionAddress("C2DA", "GetCExoStringEntry")
+            GameVersion::GetFunctionAddress("C2DA", "GetCExoStringEntry_2")
         );
         getFLOATEntry = reinterpret_cast<GetFLOATEntryFn>(
-            GameVersion::GetFunctionAddress("C2DA", "GetFLOATEntry")
+            GameVersion::GetFunctionAddress("C2DA", "GetFLOATEntry_2")
         );
         getINTEntry = reinterpret_cast<GetINTEntryFn>(
-            GameVersion::GetFunctionAddress("C2DA", "GetINTEntry")
+            GameVersion::GetFunctionAddress("C2DA", "GetINTEntry_2")
         );
     }
     catch (const GameVersionException& e) {
