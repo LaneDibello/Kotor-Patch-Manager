@@ -23,4 +23,16 @@ void CResRef::InitializeOffsets() {
     offsetsInitialized = true;
 }
 
-//TODO: implement class methods
+char* CResRef::GetCStr() {
+    if (!objectPtr) {
+        return nullptr;
+    }
+
+    // Allocate and copy the string (caller must free!)
+    char* result = (char*)malloc(17);  // 16 chars + null terminator
+    if (result) {
+        memcpy(result, objectPtr, 16);
+        result[16] = '\0';  // Ensure null termination
+    }
+    return result;
+}
