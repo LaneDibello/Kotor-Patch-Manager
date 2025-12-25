@@ -13,6 +13,13 @@ struct Vector {
 	float z;
 };
 
+struct Quaternion {
+	float w;
+	float x;
+	float y;
+	float z;
+};
+
 struct CScriptLocation {
 	Vector postion;
 	Vector orientation;
