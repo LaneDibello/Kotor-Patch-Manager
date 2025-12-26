@@ -1,42 +1,50 @@
 #include "Common.h"
+#include "GameAPI/CResGFF.h"
+
+#define MAX_PLANETS 0x7f
+#define OFFSET_AVAILABLE_PLANETS 0x60
+#define OFFSET_SELECTABLE_PLANETS 0xa0
 
 extern "C" void __cdecl ClearPlanets(void* partyTable) {
-    int* availablePlanets = getObjectProperty<int*>(partyTable, 0x60);
-    int* selectablePlanets = getObjectProperty<int*>(partyTable, 0xa0);
+    int* availablePlanets = getObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS);
+    int* selectablePlanets = getObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS);
 
-    memset(availablePlanets, 0, 4 * 0x7f);
-    memset(selectablePlanets, 0, 4 * 0x7f);
+    memset(availablePlanets, 0, sizeof(int) * MAX_PLANETS);
+    memset(selectablePlanets, 0, sizeof(int) * MAX_PLANETS);
 }
 
 extern "C" void __cdecl WritePlanetMask(void* gff, void* strct, void* partyTable) {
-    //TODO write this out:
-    /*
-    * CResGFF::AddList -> "AvailablePlanets"
-    * CResGFF::AddList -> "SelectablePlanets"
-    * 
-    * foreach PartyTable->availablePlanet -> CResGFF::AddListElement
-    * foreach PartyTable->selectablePlanet -> CResGFF::AddListElement
-    */
+    CResGFF res(gff);
+
+    int* availablePlanets = getObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS);
+    int* selectablePlanets = getObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS);
+
+    res.WriteFieldVOID(strct, (void*)availablePlanets, sizeof(int) * MAX_PLANETS, "AvailablePlanets");
+    res.WriteFieldVOID(strct, (void*)selectablePlanets, sizeof(int) * MAX_PLANETS, "SelectablePlanets");
+
 }
 
 extern "C" void __cdecl ReadPlanetMask(void* gff, void* strct, void* partyTable) {
-    //TODO: write this out:
-    /*
-    * Check if AvailablePlanets/SelectablePlanets exists (see: CResGFF::GetFieldByLabel)
-    * If not, use GlxyMapPlntMsk and return
-    * Otherwise:
-    * CResGFF::GetList/GetListCount -> "AvailablePlanets"
-    * CResGFF::GetList/GetListCount -> "SelectablePlanets"
-    * Loop through each list and populate PartyTable planets
-    */
+    CResGFF res(gff);
+
+    int* availablePlanets;
+    int* selectablePlanets;
+
+    res.ReadFieldVOID(strct, (void*)availablePlanets, sizeof(int) * MAX_PLANETS, "AvailablePlanets", nullptr);
+    res.ReadFieldVOID(strct, (void*)selectablePlanets, sizeof(int) * MAX_PLANETS, "SelectablePlanets", nullptr);
+
+    setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, availablePlanets);
+    setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, availablePlanets);
 }
 
 extern "C" void __cdecl InitializePartyTablePlanets(void* partyTable) {
-    int* availablePlanets = new int[0x7f];
-    int* selectablePlanets = new int[0x7f];
+    int* availablePlanets = new int[MAX_PLANETS];
+    memset((void*)availablePlanets, 0xff, sizeof(int) * MAX_PLANETS);
+    int* selectablePlanets = new int[MAX_PLANETS];
+    memset((void*)selectablePlanets, 0xff, sizeof(int) * MAX_PLANETS);
 
-    setObjectProperty<int*>(partyTable, 0x60, availablePlanets);
-    setObjectProperty<int*>(partyTable, 0xa0, selectablePlanets);
+    setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, availablePlanets);
+    setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, selectablePlanets);
 }
 
 
