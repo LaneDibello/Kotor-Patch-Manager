@@ -7,12 +7,15 @@
 
 extern "C" void __cdecl ClearPlanets(void* partyTable) {
     debugLog("[PlanetsLimits] Running ClearPlanets");
+    debugLog("partyTable at %X with vtable %X", partyTable, partyTable ? *(DWORD *)partyTable : 0);
 
     int* availablePlanets = getObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS);
     int* selectablePlanets = getObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS);
 
-    memset(availablePlanets, 0, sizeof(int) * MAX_PLANETS);
-    memset(selectablePlanets, 0, sizeof(int) * MAX_PLANETS);
+    if (availablePlanets)
+        memset(availablePlanets, 0, sizeof(int) * MAX_PLANETS);
+    if (selectablePlanets)
+        memset(selectablePlanets, 0, sizeof(int) * MAX_PLANETS);
 
     debugLog("[PlanetsLimits] Finished ClearPlanets");
 }
