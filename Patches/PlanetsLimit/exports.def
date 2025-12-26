@@ -7,3 +7,5 @@ EXPORTS
     ReadPlanetMask 
     AllocatePlanetButtons 
     DisposePlanetButtons 
+    AllocateGuiPlanets 
+    DisposeGuiPlanets 

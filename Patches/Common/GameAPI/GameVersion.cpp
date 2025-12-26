@@ -10,8 +10,14 @@ sqlite3_stmt* GameVersion::stmt_function = nullptr;
 sqlite3_stmt* GameVersion::stmt_pointer = nullptr;
 sqlite3_stmt* GameVersion::stmt_offset = nullptr;
 
-bool GameVersion::Initialize() {
-    Reset();
+bool GameVersion::Initialize(bool force = false) {
+    // Quick return if already initialized
+    if (initialized && !force) {
+        OutputDebugStringA("[GameVersion] Already initialized, skipping redundant initialization\n");
+        return true;
+    }
+
+    Reset(true);
 
     // Get version SHA from environment variable
     char envBuffer[512] = {0};
@@ -193,7 +199,7 @@ void* GameVersion::GetFunctionAddress(const std::string& className, const std::s
 
 void* GameVersion::GetGlobalPointer(const std::string& pointerName) {
     if (!initialized) {
-        return nullptr;
+        throw GameVersionException("GameVersion not initialized");
     }
 
     // Bind parameter
@@ -263,7 +269,12 @@ bool GameVersion::HasOffset(const std::string& className, const std::string& pro
     return (rc == SQLITE_ROW);
 }
 
-void GameVersion::Reset() {
+void GameVersion::Reset(bool force = false) {
+    // Quick return if already reset
+    if (!initialized && !db && !stmt_function && !stmt_pointer && !stmt_offset && !force) {
+        return;
+    }
+
     initialized = false;
     versionSha.clear();
 
