@@ -418,13 +418,20 @@ public class PatchApplicator
                     using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbFile};Mode=ReadOnly");
                     connection.Open();
                     using var command = connection.CreateCommand();
-                    command.CommandText = "SELECT sha256_hash FROM game_version WHERE id = 1";
-                    var sha = command.ExecuteScalar() as string;
+                    command.CommandText = "SELECT sha256_hash FROM game_version";
+                    var reader = command.ExecuteReader();
 
-                    if (sha == gameVersion.Hash)
+                    if (reader.HasRows)
                     {
-                        matchingAddressDb = dbFile;
-                        break;
+                        while(reader.Read())
+                        {
+                            var sha = reader.GetString(0);
+                            if (sha == gameVersion.Hash)
+                            {
+                                matchingAddressDb = dbFile;
+                                break;
+                            }
+                        }
                     }
                 }
                 catch

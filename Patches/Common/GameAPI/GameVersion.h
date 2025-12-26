@@ -15,7 +15,7 @@ public:
 
 class GameVersion {
 public:
-    static bool Initialize();
+    static bool Initialize(bool force = false);
     static void Shutdown();
     static std::string GetVersionSha();
     static bool IsInitialized();
@@ -28,7 +28,7 @@ public:
     static bool HasFunction(const std::string& className, const std::string& functionName);
     static bool HasOffset(const std::string& className, const std::string& propertyName);
 
-    static void Reset();
+    static void Reset(bool force = false);
 
 private:
     static bool initialized;

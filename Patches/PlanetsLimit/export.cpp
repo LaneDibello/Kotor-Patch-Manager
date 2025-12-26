@@ -39,7 +39,6 @@ extern "C" void __cdecl DisposePlanets(void* partyTable) {
 
 extern "C" void __cdecl ClearPlanets(void* partyTable) {
     debugLog("[PlanetsLimits] Running ClearPlanets");
-    debugLog("partyTable at %X with vtable %X", partyTable, partyTable ? *(DWORD *)partyTable : 0);
 
     DisposePlanets(partyTable);
 
