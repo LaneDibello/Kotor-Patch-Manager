@@ -1,7 +1,9 @@
 LIBRARY PlanetsLimit 
 EXPORTS 
+    InitializePartyTablePlanets 
+    DisposePlanets 
     ClearPlanets 
     WritePlanetMask 
     ReadPlanetMask 
-    InitializePartyTablePlanets 
-    DisposePlanets 
+    AllocatePlanetButtons 
+    DisposePlanetButtons 

@@ -414,7 +414,7 @@ source = "esi"
 type = "pointer" # CSWGuiInGameGalaxyMap *
 
 [[hooks]]
-address = 0x006951bf
+address = 0x006951bd
 type = "simple"
 original_bytes =	[
 						0x6a, 0x10,			# PUSH 0x10
