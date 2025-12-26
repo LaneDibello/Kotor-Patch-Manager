@@ -34,6 +34,9 @@ extern "C" void __cdecl DisposePlanets(void* partyTable) {
     if (selectablePlanets)
         delete[] selectablePlanets;
 
+    setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, nullptr);
+    setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, nullptr);
+
     debugLog("[PlanetsLimits] Finished DisposePlanets");
 }
 
@@ -86,7 +89,7 @@ extern "C" void __cdecl ReadPlanetMask(void* gff, CResStruct* strct, void* party
     }
 
     setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, availablePlanets);
-    setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, availablePlanets);
+    setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, selectablePlanets);
 
     debugLog("[PlanetsLimits] Finished ReadPlanetMask");
 }
