@@ -318,6 +318,16 @@ replacement_bytes = [
 					]
 
 [[hooks]]
+address = 0x00694c33
+type = "simple"
+original_bytes =	[
+						0x83, 0xfe, 0x10
+					]
+replacement_bytes = [												
+						0x83, 0xfe, 0x7f
+					]
+
+[[hooks]]
 address = 0x00694c73
 type = "replace"
 original_bytes =	[
@@ -344,6 +354,17 @@ replacement_bytes = [
 						0x8B, 0x14, 0x02,		# MOV EDX, dword ptr [EDX + EAX]
 						0x56					# PUSH ESI
 					]
+
+[[hooks]]
+address = 0x00694ce7
+type = "simple"
+original_bytes =	[
+						0xbe, 0x0f, 0x00, 0x00, 0x00
+					]
+replacement_bytes = [												
+						0xbe, 0x7e, 0x00, 0x00, 0x00
+					]
+
 
 [[hooks]]
 address = 0x00694d25
