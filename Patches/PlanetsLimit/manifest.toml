@@ -1,9 +1,9 @@
 [patch]
 id = "planets-limit"
 name = "Max Planets Limit Increase"
-version = "0.1.0"
+version = "0.1.1"
 author = "Lane"
-description = "INcreases the maximum allowed planets in this game from 16 to 127"
+description = "Increases the maximum allowed planets in this game from 16 to 127"
 
 requires = []
 
