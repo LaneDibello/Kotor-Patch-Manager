@@ -4,6 +4,8 @@
 #define MAX_PLANETS 0x7f
 #define OFFSET_AVAILABLE_PLANETS 0x60
 #define OFFSET_SELECTABLE_PLANETS 0xa0
+#define OFFSET_PLANET_BUTTONS 0x64
+#define SIZE_OF_GUI_BUTTON 0x1c4
 
 extern "C" void __cdecl InitializePartyTablePlanets(void* partyTable) {
     debugLog("[PlanetsLimits] Running InitializePartyTablePlanets");
@@ -88,6 +90,17 @@ extern "C" void __cdecl ReadPlanetMask(void* gff, CResStruct* strct, void* party
     debugLog("[PlanetsLimits] Finished ReadPlanetMask");
 }
 
+extern "C" void __cdecl AllocatePlanetButtons(void* inGameGalaxyMap) {
+    void * planetButtonsPtr = malloc(SIZE_OF_GUI_BUTTON * MAX_PLANETS);
+
+    setObjectProperty<void*>(inGameGalaxyMap, OFFSET_PLANET_BUTTONS, planetButtonsPtr);
+}
+
+extern "C" void __cdecl DisposePlanetButtons(void* inGameGalaxyMap) {
+    void* planetButtonsPtr = getObjectProperty<void*>(inGameGalaxyMap, OFFSET_PLANET_BUTTONS);
+    if (planetButtonsPtr)
+        free(planetButtonsPtr);
+}
 
 // DLL Entry Point
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
