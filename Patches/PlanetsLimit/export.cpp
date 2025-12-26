@@ -6,25 +6,39 @@
 #define OFFSET_SELECTABLE_PLANETS 0xa0
 
 extern "C" void __cdecl ClearPlanets(void* partyTable) {
+    debugLog("[PlanetsLimits] Running ClearPlanets");
+
     int* availablePlanets = getObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS);
     int* selectablePlanets = getObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS);
 
     memset(availablePlanets, 0, sizeof(int) * MAX_PLANETS);
     memset(selectablePlanets, 0, sizeof(int) * MAX_PLANETS);
+
+    debugLog("[PlanetsLimits] Finished ClearPlanets");
 }
 
 extern "C" void __cdecl WritePlanetMask(void* gff, CResStruct* strct, void* partyTable) {
+    debugLog("[PlanetsLimits] Running WritePlanetMask");
+
     CResGFF res(gff);
 
     int* availablePlanets = getObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS);
     int* selectablePlanets = getObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS);
 
-    res.WriteFieldVOID(strct, (void*)availablePlanets, sizeof(int) * MAX_PLANETS, "AvailablePlanets");
-    res.WriteFieldVOID(strct, (void*)selectablePlanets, sizeof(int) * MAX_PLANETS, "SelectablePlanets");
+    if (!res.WriteFieldVOID(strct, (void*)availablePlanets, sizeof(int) * MAX_PLANETS, "AvailablePlanets")) {
+        debugLog("[PlanetsLimits] WARNING: Failed to write AvailablePlanets");
+    }
+    if (!res.WriteFieldVOID(strct, (void*)selectablePlanets, sizeof(int) * MAX_PLANETS, "SelectablePlanets")) {
+        debugLog("[PlanetsLimits] WARNING: Failed to write SelectablePlanets");
+    }
+
+    debugLog("[PlanetsLimits] Finished WritePlanetMask");
 
 }
 
 extern "C" void __cdecl ReadPlanetMask(void* gff, CResStruct* strct, void* partyTable) {
+    debugLog("[PlanetsLimits] Running ReadPlanetMask");
+
     CResGFF res(gff);
 
     int* availablePlanets;
@@ -32,14 +46,24 @@ extern "C" void __cdecl ReadPlanetMask(void* gff, CResStruct* strct, void* party
 
     int success = 0;
 
-    res.ReadFieldVOID(strct, (void*)availablePlanets, sizeof(int) * MAX_PLANETS, "AvailablePlanets", &success, nullptr);
-    res.ReadFieldVOID(strct, (void*)selectablePlanets, sizeof(int) * MAX_PLANETS, "SelectablePlanets", &success, nullptr);
+    if (!res.ReadFieldVOID(strct, (void*)availablePlanets, sizeof(int) * MAX_PLANETS, "AvailablePlanets", &success, nullptr)) {
+        debugLog("[PlanetsLimits] WARNING: Failed to read AvailablePlanets");
+
+    }
+    if (!res.ReadFieldVOID(strct, (void*)selectablePlanets, sizeof(int) * MAX_PLANETS, "SelectablePlanets", &success, nullptr)) {
+        debugLog("[PlanetsLimits] WARNING: Failed to read SelectablePlanets");
+
+    }
 
     setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, availablePlanets);
     setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, availablePlanets);
+
+    debugLog("[PlanetsLimits] Finished ReadPlanetMask");
 }
 
 extern "C" void __cdecl InitializePartyTablePlanets(void* partyTable) {
+    debugLog("[PlanetsLimits] Running InitializePartyTablePlanets");
+
     int* availablePlanets = new int[MAX_PLANETS];
     memset((void*)availablePlanets, 0xff, sizeof(int) * MAX_PLANETS);
     int* selectablePlanets = new int[MAX_PLANETS];
@@ -47,6 +71,8 @@ extern "C" void __cdecl InitializePartyTablePlanets(void* partyTable) {
 
     setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, availablePlanets);
     setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, selectablePlanets);
+
+    debugLog("[PlanetsLimits] Finished InitializePartyTablePlanets");
 }
 
 
@@ -57,6 +83,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
+        debugLog("[PlanetsLimits] Attached");
         break;
 
     case DLL_PROCESS_DETACH:
