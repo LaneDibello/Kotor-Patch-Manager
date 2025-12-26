@@ -243,7 +243,9 @@ namespace KotorPatcher {
     static bool ApplySimpleHook(const PatchInfo& patch) {
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
-            OutputDebugStringA("[KotorPatcher] Original bytes mismatch for SIMPLE hook - wrong game version?\n");
+            char errorMsg[256];
+            sprintf_s(errorMsg, "[KotorPatcher] Original bytes mismatch at hookAddress %X - wrong game version?\n", patch.hookAddress);
+            OutputDebugStringA(errorMsg);
             return false;
         }
 
@@ -277,7 +279,9 @@ namespace KotorPatcher {
     static bool ApplyReplaceHook(const PatchInfo& patch) {
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
-            OutputDebugStringA("[KotorPatcher] Original bytes mismatch for REPLACE hook - wrong game version?\n");
+            char errorMsg[256];
+            sprintf_s(errorMsg, "[KotorPatcher] Original bytes mismatch at hookAddress %X - wrong game version?\n", patch.hookAddress);
+            OutputDebugStringA(errorMsg);
             return false;
         }
 
