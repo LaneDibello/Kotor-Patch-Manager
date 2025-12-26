@@ -5,7 +5,9 @@
 #define OFFSET_AVAILABLE_PLANETS 0x60
 #define OFFSET_SELECTABLE_PLANETS 0xa0
 #define OFFSET_PLANET_BUTTONS 0x64
+#define OFFSET_GUI_PLANETS 0x23cc
 #define SIZE_OF_GUI_BUTTON 0x1c4
+#define SIZE_OF_GUI_PLANET 0x18
 
 extern "C" void __cdecl InitializePartyTablePlanets(void* partyTable) {
     debugLog("[PlanetsLimits] Running InitializePartyTablePlanets");
@@ -100,6 +102,18 @@ extern "C" void __cdecl DisposePlanetButtons(void* inGameGalaxyMap) {
     void* planetButtonsPtr = getObjectProperty<void*>(inGameGalaxyMap, OFFSET_PLANET_BUTTONS);
     if (planetButtonsPtr)
         free(planetButtonsPtr);
+}
+
+extern "C" void __cdecl AllocateGuiPlanets(void* inGameGalaxyMap) {
+    void* guiPlanets = malloc(SIZE_OF_GUI_PLANET * MAX_PLANETS);
+
+    setObjectProperty<void*>(inGameGalaxyMap, OFFSET_GUI_PLANETS, guiPlanets);
+}
+
+extern "C" void __cdecl DisposeGuiPlanets(void* inGameGalaxyMap) {
+    void* guiPlanets = getObjectProperty<void*>(inGameGalaxyMap, OFFSET_GUI_PLANETS);
+    if (guiPlanets)
+        free(guiPlanets);
 }
 
 // DLL Entry Point
