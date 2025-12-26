@@ -4,3 +4,4 @@ EXPORTS
     WritePlanetMask 
     ReadPlanetMask 
     InitializePartyTablePlanets 
+    DisposePlanets 

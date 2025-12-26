@@ -5,17 +5,41 @@
 #define OFFSET_AVAILABLE_PLANETS 0x60
 #define OFFSET_SELECTABLE_PLANETS 0xa0
 
-extern "C" void __cdecl ClearPlanets(void* partyTable) {
-    debugLog("[PlanetsLimits] Running ClearPlanets");
-    debugLog("partyTable at %X with vtable %X", partyTable, partyTable ? *(DWORD *)partyTable : 0);
+extern "C" void __cdecl InitializePartyTablePlanets(void* partyTable) {
+    debugLog("[PlanetsLimits] Running InitializePartyTablePlanets");
+
+    int* availablePlanets = new int[MAX_PLANETS];
+    memset((void*)availablePlanets, 0, sizeof(int) * MAX_PLANETS);
+    int* selectablePlanets = new int[MAX_PLANETS];
+    memset((void*)selectablePlanets, 0, sizeof(int) * MAX_PLANETS);
+
+    setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, availablePlanets);
+    setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, selectablePlanets);
+
+    debugLog("[PlanetsLimits] Finished InitializePartyTablePlanets");
+}
+
+extern "C" void __cdecl DisposePlanets(void* partyTable) {
+    debugLog("[PlanetsLimits] Running DisposePlanets");
 
     int* availablePlanets = getObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS);
     int* selectablePlanets = getObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS);
 
     if (availablePlanets)
-        memset(availablePlanets, 0, sizeof(int) * MAX_PLANETS);
+        delete[] availablePlanets;
     if (selectablePlanets)
-        memset(selectablePlanets, 0, sizeof(int) * MAX_PLANETS);
+        delete[] selectablePlanets;
+
+    debugLog("[PlanetsLimits] Finished DisposePlanets");
+}
+
+extern "C" void __cdecl ClearPlanets(void* partyTable) {
+    debugLog("[PlanetsLimits] Running ClearPlanets");
+    debugLog("partyTable at %X with vtable %X", partyTable, partyTable ? *(DWORD *)partyTable : 0);
+
+    DisposePlanets(partyTable);
+
+    InitializePartyTablePlanets(partyTable);
 
     debugLog("[PlanetsLimits] Finished ClearPlanets");
 }
@@ -63,21 +87,6 @@ extern "C" void __cdecl ReadPlanetMask(void* gff, CResStruct* strct, void* party
 
     debugLog("[PlanetsLimits] Finished ReadPlanetMask");
 }
-
-extern "C" void __cdecl InitializePartyTablePlanets(void* partyTable) {
-    debugLog("[PlanetsLimits] Running InitializePartyTablePlanets");
-
-    int* availablePlanets = new int[MAX_PLANETS];
-    memset((void*)availablePlanets, 0xff, sizeof(int) * MAX_PLANETS);
-    int* selectablePlanets = new int[MAX_PLANETS];
-    memset((void*)selectablePlanets, 0xff, sizeof(int) * MAX_PLANETS);
-
-    setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, availablePlanets);
-    setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, selectablePlanets);
-
-    debugLog("[PlanetsLimits] Finished InitializePartyTablePlanets");
-}
-
 
 
 // DLL Entry Point
