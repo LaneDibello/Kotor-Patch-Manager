@@ -113,8 +113,8 @@ private:
     typedef int(__thiscall* AddDataFieldFn)(void* thisPtr, int existingBlockOffset, DWORD sizeOfExistingBlock, DWORD dataLength);
     typedef int(__thiscall* AddDataLayoutFieldFn)(void* thisPtr, int existingBlockOffset, DWORD sizeOfExistingBlock, DWORD dataLength);
     typedef int(__thiscall* AddDataLayoutListFn)(void* thisPtr, int existingBlockOffset, DWORD sizeOfExistingBlock, DWORD dataLength);
-    typedef void*(__thiscall* GetDataFieldFn)(void* thisPtr, CResGFFField* field, DWORD* dataSize);
-    typedef void*(__thiscall* GetDataLayoutListFn)(void* thisPtr, CResGFFField* field, DWORD* dataLength);
+    typedef int(__thiscall* GetDataFieldFn)(void* thisPtr, CResGFFField* field, DWORD* dataSize);
+    typedef int(__thiscall* GetDataLayoutListFn)(void* thisPtr, CResGFFField* field, DWORD* dataLength);
 
     // Structure/Field/Label Management Functions
     typedef DWORD(__thiscall* AddStructFn)(void* thisPtr, DWORD id);
@@ -123,17 +123,17 @@ private:
     typedef int(__thiscall* AddListFn)(void* thisPtr, CResList* list, CResStruct* structPtr, char* labelText);
     typedef int(__thiscall* AddListElementFn)(void* thisPtr, CResStruct* structPtr, CResList* list, DWORD structId);
     typedef int(__thiscall* AddStructToStructFn)(void* thisPtr, CResStruct* parentStruct, CResStruct* childStruct, char* labelText, DWORD structId);
-    typedef CResGFFField*(__thiscall* GetFieldFn)(void* thisPtr, CResGFFStruct* structData, DWORD index);
+    typedef GFFFieldData*(__thiscall* GetFieldFn)(void* thisPtr, CResGFFStruct* structData, DWORD index);
     typedef CResGFFField*(__thiscall* GetField2Fn)(void* thisPtr, CResStruct* structPtr, DWORD fieldIndex);
-    typedef CResGFFField*(__thiscall* GetFieldByLabelFn)(void* thisPtr, CResStruct* structPtr, char* label);
+    typedef DWORD(__thiscall* GetFieldByLabelFn)(void* thisPtr, CResStruct* structPtr, char* label);
     typedef DWORD(__thiscall* GetFieldCountFn)(void* thisPtr, CResStruct* structPtr);
     typedef GFFFieldTypes(__thiscall* GetFieldTypeFn)(void* thisPtr, CResStruct* structPtr, char* label, DWORD fieldIndex);
-    typedef DWORD(__thiscall* GetElementTypeFn)(void* thisPtr, CResStruct* structPtr);
+    typedef int(__thiscall* GetElementTypeFn)(void* thisPtr, CResStruct* structPtr);
     typedef int(__thiscall* GetListFn)(void* thisPtr, CResList* outList, CResStruct* structPtr, char* label);
-    typedef DWORD(__thiscall* GetListCountFn)(void* thisPtr, CResList* list);
+    typedef int(__thiscall* GetListCountFn)(void* thisPtr, CResList* list);
     typedef int(__thiscall* GetListElementFn)(void* thisPtr, CResStruct* structPtr, CResList* list, DWORD index);
     typedef int(__thiscall* GetStructFromStructFn)(void* thisPtr, CResStruct* outStruct, CResStruct* inStruct, char* label);
-    typedef void(__thiscall* GetTopLevelStructFn)(void* thisPtr, CResStruct* outStruct);
+    typedef int(__thiscall* GetTopLevelStructFn)(void* thisPtr, CResStruct* outStruct);
 
     // Read Field Functions
     typedef BYTE(__thiscall* ReadFieldBYTEFn)(void* thisPtr, CResStruct* structPtr, char* label, int* success, BYTE defaultValue);
@@ -143,11 +143,11 @@ private:
     typedef DWORD(__thiscall* ReadFieldDWORDFn)(void* thisPtr, CResStruct* structPtr, char* label, int* success, DWORD defaultValue);
     typedef DWORD64(__thiscall* ReadFieldDWORD64Fn)(void* thisPtr, CResStruct* structPtr, char* label, int* success, DWORD64 defaultValue);
     typedef int(__thiscall* ReadFieldINTFn)(void* thisPtr, CResStruct* structPtr, char* label, int* success, int defaultValue);
-    typedef float(__thiscall* ReadFieldFLOATFn)(void* thisPtr, CResStruct* structPtr, char* label, int* success, float defaultValue);
+    typedef float10(__thiscall* ReadFieldFLOATFn)(void* thisPtr, CResStruct* structPtr, char* label, int* success, float defaultValue);
     typedef CExoString*(__thiscall* ReadFieldCExoStringFn)(void* thisPtr, CExoString* out, CResStruct* structPtr, char* label, int* success, CExoString* defaultValue);
     typedef CResRef*(__thiscall* ReadFieldCResRefFn)(void* thisPtr, CResRef* out, CResStruct* structPtr, char* label, int* success, CResRef* defaultValue);
     typedef void*(__thiscall* ReadFieldCExoLocStringFn)(void* thisPtr, void* out, CResStruct* structPtr, char* label, int* success, void* defaultValue);  // TODO: CExoLocString
-    typedef void(__thiscall* ReadFieldVOIDFn)(void* thisPtr, CResStruct* structPtr, void* buffer, DWORD size, char* label, int* success, void* defaultValue);
+    typedef void*(__thiscall* ReadFieldVOIDFn)(void* thisPtr, CResStruct* structPtr, void* buffer, DWORD size, char* label, int* success, void* defaultValue);
     typedef Vector*(__thiscall* ReadFieldVectorFn)(void* thisPtr, Vector* out, CResStruct* structPtr, char* label, int* success, Vector* defaultValue);
     typedef Quaternion*(__thiscall* ReadFieldQuaternionFn)(void* thisPtr, Quaternion* out, CResStruct* structPtr, char* label, int* success, Quaternion* defaultValue);
 
@@ -169,14 +169,14 @@ private:
 
     // File/Resource Operations
     typedef void(__thiscall* InitializeForWritingFn)(void* thisPtr);
-    typedef void(__thiscall* CreateGFFFileFn)(void* thisPtr, CResStruct* structPtr, CExoString* fileType, CExoString* version);
-    typedef void(__thiscall* WriteGFFDataFn)(void* thisPtr, CExoFile* file, DWORD* totalBytes);
-    typedef void(__thiscall* WriteGFFFileFn)(void* thisPtr, CExoString* name, ResourceType type);
+    typedef int(__thiscall* CreateGFFFileFn)(void* thisPtr, CResStruct* structPtr, CExoString* fileType, CExoString* version);
+    typedef bool(__thiscall* WriteGFFDataFn)(void* thisPtr, CExoFile* file, DWORD* totalBytes);
+    typedef bool(__thiscall* WriteGFFFileFn)(void* thisPtr, CExoString* name, ResourceType type);
     typedef void(__thiscall* PackFn)(void* thisPtr, byte alwaysZero1, DWORD alwaysZero2);
-    typedef void(__thiscall* OnResourceFreedFn)(void* thisPtr);
-    typedef void(__thiscall* OnResourceServicedFn)(void* thisPtr);
+    typedef int(__thiscall* OnResourceFreedFn)(void* thisPtr);
+    typedef int(__thiscall* OnResourceServicedFn)(void* thisPtr);
     typedef void(__thiscall* ReleaseResourceFn)(void* thisPtr);
-    typedef DWORD(__thiscall* GetTotalSizeFn)(void* thisPtr);
+    typedef int(__thiscall* GetTotalSizeFn)(void* thisPtr);
 
     // ===== STATIC FUNCTION POINTERS =====
 
@@ -281,8 +281,8 @@ public:
     int AddDataField(int existingBlockOffset, DWORD sizeOfExistingBlock, DWORD dataLength);
     int AddDataLayoutField(int existingBlockOffset, DWORD sizeOfExistingBlock, DWORD dataLength);
     int AddDataLayoutList(int existingBlockOffset, DWORD sizeOfExistingBlock, DWORD dataLength);
-    void* GetDataField(CResGFFField* field, DWORD* dataSize);
-    void* GetDataLayoutList(CResGFFField* field, DWORD* dataLength);
+    int GetDataField(CResGFFField* field, DWORD* dataSize);
+    int GetDataLayoutList(CResGFFField* field, DWORD* dataLength);
 
     // ===== STRUCTURE/FIELD/LABEL MANAGEMENT =====
     DWORD AddStruct(DWORD id);
@@ -291,17 +291,17 @@ public:
     int AddList(CResList* list, CResStruct* structPtr, char* labelText);
     int AddListElement(CResStruct* structPtr, CResList* list, DWORD structId);
     int AddStructToStruct(CResStruct* parentStruct, CResStruct* childStruct, char* labelText, DWORD structId);
-    CResGFFField* GetField(CResGFFStruct* structData, DWORD index);
+    GFFFieldData* GetField(CResGFFStruct* structData, DWORD index);
     CResGFFField* GetField2(CResStruct* structPtr, DWORD fieldIndex);
-    CResGFFField* GetFieldByLabel(CResStruct* structPtr, char* label);
+    DWORD GetFieldByLabel(CResStruct* structPtr, char* label);
     DWORD GetFieldCount(CResStruct* structPtr);
     GFFFieldTypes GetFieldType(CResStruct* structPtr, char* label, DWORD fieldIndex);
-    DWORD GetElementType(CResStruct* structPtr);
+    int GetElementType(CResStruct* structPtr);
     int GetList(CResList* outList, CResStruct* structPtr, char* label);
-    DWORD GetListCount(CResList* list);
+    int GetListCount(CResList* list);
     int GetListElement(CResStruct* structPtr, CResList* list, DWORD index);
     int GetStructFromStruct(CResStruct* outStruct, CResStruct* inStruct, char* label);
-    void GetTopLevelStruct(CResStruct* outStruct);
+    int GetTopLevelStruct(CResStruct* outStruct);
 
     // ===== READ FIELD FUNCTIONS =====
     BYTE ReadFieldBYTE(CResStruct* structPtr, char* label, int* success, BYTE defaultValue);
@@ -311,11 +311,11 @@ public:
     DWORD ReadFieldDWORD(CResStruct* structPtr, char* label, int* success, DWORD defaultValue);
     DWORD64 ReadFieldDWORD64(CResStruct* structPtr, char* label, int* success, DWORD64 defaultValue);
     int ReadFieldINT(CResStruct* structPtr, char* label, int* success, int defaultValue);
-    float ReadFieldFLOAT(CResStruct* structPtr, char* label, int* success, float defaultValue);
+    float10 ReadFieldFLOAT(CResStruct* structPtr, char* label, int* success, float defaultValue);
     CExoString* ReadFieldCExoString(CExoString* out, CResStruct* structPtr, char* label, int* success, CExoString* defaultValue);
     CResRef* ReadFieldCResRef(CResRef* out, CResStruct* structPtr, char* label, int* success, CResRef* defaultValue);
     void* ReadFieldCExoLocString(void* out, CResStruct* structPtr, char* label, int* success, void* defaultValue);  // TODO: Replace void* with CExoLocString* once implemented
-    void ReadFieldVOID(CResStruct* structPtr, void* buffer, DWORD size, char* label, int* success, void* defaultValue);
+    void* ReadFieldVOID(CResStruct* structPtr, void* buffer, DWORD size, char* label, int* success = nullptr, void* defaultValue = nullptr);
     Vector* ReadFieldVector(Vector* out, CResStruct* structPtr, char* label, int* success, Vector* defaultValue);
     Quaternion* ReadFieldQuaternion(Quaternion* out, CResStruct* structPtr, char* label, int* success, Quaternion* defaultValue);
 
@@ -337,14 +337,14 @@ public:
 
     // ===== FILE/RESOURCE OPERATIONS =====
     void InitializeForWriting();
-    void CreateGFFFile(CResStruct* structPtr, CExoString* fileType, CExoString* version);
-    void WriteGFFData(CExoFile* file, DWORD* totalBytes);
-    void WriteGFFFile(CExoString* name, ResourceType type);
+    int CreateGFFFile(CResStruct* structPtr, CExoString* fileType, CExoString* version);
+    bool WriteGFFData(CExoFile* file, DWORD* totalBytes);
+    bool WriteGFFFile(CExoString* name, ResourceType type);
     void Pack(byte alwaysZero1, DWORD alwaysZero2);
-    void OnResourceFreed();
-    void OnResourceServiced();
+    int OnResourceFreed();
+    int OnResourceServiced();
     void ReleaseResource();
-    DWORD GetTotalSize();
+    int GetTotalSize();
 
     // ===== OVERRIDE METHODS =====
     void InitializeFunctions() override;

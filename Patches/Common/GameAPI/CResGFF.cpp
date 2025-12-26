@@ -485,16 +485,16 @@ int CResGFF::AddDataLayoutList(int existingBlockOffset, DWORD sizeOfExistingBloc
     return addDataLayoutList(objectPtr, existingBlockOffset, sizeOfExistingBlock, dataLength);
 }
 
-void* CResGFF::GetDataField(CResGFFField* field, DWORD* dataSize) {
+int CResGFF::GetDataField(CResGFFField* field, DWORD* dataSize) {
     if (!objectPtr || !getDataField) {
-        return nullptr;
+        return 0;
     }
     return getDataField(objectPtr, field, dataSize);
 }
 
-void* CResGFF::GetDataLayoutList(CResGFFField* field, DWORD* dataLength) {
+int CResGFF::GetDataLayoutList(CResGFFField* field, DWORD* dataLength) {
     if (!objectPtr || !getDataLayoutList) {
-        return nullptr;
+        return 0;
     }
     return getDataLayoutList(objectPtr, field, dataLength);
 }
@@ -543,7 +543,7 @@ int CResGFF::AddStructToStruct(CResStruct* parentStruct, CResStruct* childStruct
     return addStructToStruct(objectPtr, parentStruct, childStruct, labelText, structId);
 }
 
-CResGFFField* CResGFF::GetField(CResGFFStruct* structData, DWORD index) {
+GFFFieldData* CResGFF::GetField(CResGFFStruct* structData, DWORD index) {
     if (!objectPtr || !getField) {
         return nullptr;
     }
@@ -557,9 +557,9 @@ CResGFFField* CResGFF::GetField2(CResStruct* structPtr, DWORD fieldIndex) {
     return getField2(objectPtr, structPtr, fieldIndex);
 }
 
-CResGFFField* CResGFF::GetFieldByLabel(CResStruct* structPtr, char* label) {
+DWORD CResGFF::GetFieldByLabel(CResStruct* structPtr, char* label) {
     if (!objectPtr || !getFieldByLabel) {
-        return nullptr;
+        return 0;
     }
     return getFieldByLabel(objectPtr, structPtr, label);
 }
@@ -578,7 +578,7 @@ GFFFieldTypes CResGFF::GetFieldType(CResStruct* structPtr, char* label, DWORD fi
     return getFieldType(objectPtr, structPtr, label, fieldIndex);
 }
 
-DWORD CResGFF::GetElementType(CResStruct* structPtr) {
+int CResGFF::GetElementType(CResStruct* structPtr) {
     if (!objectPtr || !getElementType) {
         return 0;
     }
@@ -592,7 +592,7 @@ int CResGFF::GetList(CResList* outList, CResStruct* structPtr, char* label) {
     return getList(objectPtr, outList, structPtr, label);
 }
 
-DWORD CResGFF::GetListCount(CResList* list) {
+int CResGFF::GetListCount(CResList* list) {
     if (!objectPtr || !getListCount) {
         return 0;
     }
@@ -613,11 +613,11 @@ int CResGFF::GetStructFromStruct(CResStruct* outStruct, CResStruct* inStruct, ch
     return getStructFromStruct(objectPtr, outStruct, inStruct, label);
 }
 
-void CResGFF::GetTopLevelStruct(CResStruct* outStruct) {
+int CResGFF::GetTopLevelStruct(CResStruct* outStruct) {
     if (!objectPtr || !getTopLevelStruct) {
-        return;
+        return 0;
     }
-    getTopLevelStruct(objectPtr, outStruct);
+    return getTopLevelStruct(objectPtr, outStruct);
 }
 
 // ===== READ FIELD FUNCTIONS =====
@@ -678,12 +678,13 @@ int CResGFF::ReadFieldINT(CResStruct* structPtr, char* label, int* success, int 
     return readFieldINT(objectPtr, structPtr, label, success, defaultValue);
 }
 
-float CResGFF::ReadFieldFLOAT(CResStruct* structPtr, char* label, int* success, float defaultValue) {
+float10 CResGFF::ReadFieldFLOAT(CResStruct* structPtr, char* label, int* success, float defaultValue) {
     if (!objectPtr || !readFieldFLOAT) {
         if (success) *success = 0;
         return defaultValue;
     }
-    return readFieldFLOAT(objectPtr, structPtr, label, success, defaultValue);
+    // Use FPU wrapper for x87 calling convention (returns in ST(0))
+    return CallFPUFunction(readFieldFLOAT, objectPtr, structPtr, label, success, defaultValue);
 }
 
 CExoString* CResGFF::ReadFieldCExoString(CExoString* out, CResStruct* structPtr, char* label, int* success, CExoString* defaultValue) {
@@ -711,12 +712,12 @@ void* CResGFF::ReadFieldCExoLocString(void* out, CResStruct* structPtr, char* la
     return readFieldCExoLocString(objectPtr, out, structPtr, label, success, defaultValue);
 }
 
-void CResGFF::ReadFieldVOID(CResStruct* structPtr, void* buffer, DWORD size, char* label, int* success, void* defaultValue) {
-    if (!objectPtr || !readFieldVOID || !success) {
+void* CResGFF::ReadFieldVOID(CResStruct* structPtr, void* buffer, DWORD size, char* label, int* success, void* defaultValue) {
+    if (!objectPtr || !readFieldVOID) {
         if (success) *success = 0;
-        return;
+        return defaultValue;
     }
-    readFieldVOID(objectPtr, structPtr, buffer, size, label, success, defaultValue);
+    return readFieldVOID(objectPtr, structPtr, buffer, size, label, success, defaultValue);
 }
 
 Vector* CResGFF::ReadFieldVector(Vector* out, CResStruct* structPtr, char* label, int* success, Vector* defaultValue) {
@@ -845,25 +846,25 @@ void CResGFF::InitializeForWriting() {
     initializeForWriting(objectPtr);
 }
 
-void CResGFF::CreateGFFFile(CResStruct* structPtr, CExoString* fileType, CExoString* version) {
+int CResGFF::CreateGFFFile(CResStruct* structPtr, CExoString* fileType, CExoString* version) {
     if (!objectPtr || !createGFFFile) {
-        return;
+        return 0;
     }
-    createGFFFile(objectPtr, structPtr, fileType, version);
+    return createGFFFile(objectPtr, structPtr, fileType, version);
 }
 
-void CResGFF::WriteGFFData(CExoFile* file, DWORD* totalBytes) {
+bool CResGFF::WriteGFFData(CExoFile* file, DWORD* totalBytes) {
     if (!objectPtr || !writeGFFData) {
-        return;
+        return false;
     }
-    writeGFFData(objectPtr, file, totalBytes);
+    return writeGFFData(objectPtr, file, totalBytes);
 }
 
-void CResGFF::WriteGFFFile(CExoString* name, ResourceType type) {
+bool CResGFF::WriteGFFFile(CExoString* name, ResourceType type) {
     if (!objectPtr || !writeGFFFile) {
-        return;
+        return false;
     }
-    writeGFFFile(objectPtr, name, type);
+    return writeGFFFile(objectPtr, name, type);
 }
 
 void CResGFF::Pack(byte alwaysZero1, DWORD alwaysZero2) {
@@ -873,18 +874,18 @@ void CResGFF::Pack(byte alwaysZero1, DWORD alwaysZero2) {
     pack(objectPtr, alwaysZero1, alwaysZero2);
 }
 
-void CResGFF::OnResourceFreed() {
+int CResGFF::OnResourceFreed() {
     if (!objectPtr || !onResourceFreed) {
-        return;
+        return 0;
     }
-    onResourceFreed(objectPtr);
+    return onResourceFreed(objectPtr);
 }
 
-void CResGFF::OnResourceServiced() {
+int CResGFF::OnResourceServiced() {
     if (!objectPtr || !onResourceServiced) {
-        return;
+        return 0;
     }
-    onResourceServiced(objectPtr);
+    return onResourceServiced(objectPtr);
 }
 
 void CResGFF::ReleaseResource() {
@@ -894,7 +895,7 @@ void CResGFF::ReleaseResource() {
     releaseResource(objectPtr);
 }
 
-DWORD CResGFF::GetTotalSize() {
+int CResGFF::GetTotalSize() {
     if (!objectPtr || !getTotalSize) {
         return 0;
     }

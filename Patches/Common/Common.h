@@ -53,7 +53,93 @@ inline void setObjectProperty(void* object, int offset, propType value) {
 	*((propType*)((char*)object + offset)) = value;
 }
 
+// ===== X87 FPU FUNCTION CALL WRAPPER =====
+//
+// KotOR uses the x87 FPU which returns floating-point values in the ST(0) register
+// rather than in EAX like integer returns. This wrapper handles that calling convention.
+//
+// USAGE: Use this wrapper when calling game functions that have a return type of `float10`
+//        in their typedef. The float10 type indicates the function returns via x87 FPU.
+//
+// EXAMPLE:
+//   typedef float10(__thiscall* SomeFn)(void* thisPtr, int param);
+//   SomeFn gameFunction = ...;
+//   float result = CallFPUFunction(gameFunction, objectPtr, 42);
+//
+// NOTE: This wrapper is specifically for __thiscall convention functions (thisPtr in ECX).
 
+// Type alias for functions returning via x87 FPU ST(0)
+typedef float float10;
+
+// Template wrapper for calling x87 FPU functions with no additional parameters
+template<typename FuncPtr>
+inline float CallFPUFunction(FuncPtr funcPtr, void* thisPtr) {
+	float result;
+	__asm {
+		mov ecx, thisPtr
+		call funcPtr
+		fstp dword ptr [result]  // Pop ST(0) to result
+	}
+	return result;
+}
+
+// Template wrapper for calling x87 FPU functions with 1 parameter
+template<typename FuncPtr, typename Arg1>
+inline float CallFPUFunction(FuncPtr funcPtr, void* thisPtr, Arg1 arg1) {
+	float result;
+	__asm {
+		push arg1
+		mov ecx, thisPtr
+		call funcPtr
+		fstp dword ptr [result]
+	}
+	return result;
+}
+
+// Template wrapper for calling x87 FPU functions with 2 parameters
+template<typename FuncPtr, typename Arg1, typename Arg2>
+inline float CallFPUFunction(FuncPtr funcPtr, void* thisPtr, Arg1 arg1, Arg2 arg2) {
+	float result;
+	__asm {
+		push arg2
+		push arg1
+		mov ecx, thisPtr
+		call funcPtr
+		fstp dword ptr [result]
+	}
+	return result;
+}
+
+// Template wrapper for calling x87 FPU functions with 3 parameters
+template<typename FuncPtr, typename Arg1, typename Arg2, typename Arg3>
+inline float CallFPUFunction(FuncPtr funcPtr, void* thisPtr, Arg1 arg1, Arg2 arg2, Arg3 arg3) {
+	float result;
+	__asm {
+		push arg3
+		push arg2
+		push arg1
+		mov ecx, thisPtr
+		call funcPtr
+		fstp dword ptr [result]
+	}
+	return result;
+}
+
+// Template wrapper for calling x87 FPU functions with 4 parameters
+template<typename FuncPtr, typename Arg1, typename Arg2, typename Arg3, typename Arg4>
+inline float CallFPUFunction(FuncPtr funcPtr, void* thisPtr, Arg1 arg1, Arg2 arg2, Arg3 arg3, Arg4 arg4) {
+	float result;
+	__asm {
+		push arg4
+		push arg3
+		push arg2
+		push arg1
+		mov ecx, thisPtr
+		call funcPtr
+		fstp dword ptr [result]
+	}
+	return result;
+}
 
 typedef enum ResourceType {
     NONE = -1,
