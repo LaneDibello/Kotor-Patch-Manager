@@ -13,7 +13,7 @@ extern "C" void __cdecl ClearPlanets(void* partyTable) {
     memset(selectablePlanets, 0, sizeof(int) * MAX_PLANETS);
 }
 
-extern "C" void __cdecl WritePlanetMask(void* gff, void* strct, void* partyTable) {
+extern "C" void __cdecl WritePlanetMask(void* gff, CResStruct* strct, void* partyTable) {
     CResGFF res(gff);
 
     int* availablePlanets = getObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS);
@@ -24,14 +24,16 @@ extern "C" void __cdecl WritePlanetMask(void* gff, void* strct, void* partyTable
 
 }
 
-extern "C" void __cdecl ReadPlanetMask(void* gff, void* strct, void* partyTable) {
+extern "C" void __cdecl ReadPlanetMask(void* gff, CResStruct* strct, void* partyTable) {
     CResGFF res(gff);
 
     int* availablePlanets;
     int* selectablePlanets;
 
-    res.ReadFieldVOID(strct, (void*)availablePlanets, sizeof(int) * MAX_PLANETS, "AvailablePlanets", nullptr);
-    res.ReadFieldVOID(strct, (void*)selectablePlanets, sizeof(int) * MAX_PLANETS, "SelectablePlanets", nullptr);
+    int success = 0;
+
+    res.ReadFieldVOID(strct, (void*)availablePlanets, sizeof(int) * MAX_PLANETS, "AvailablePlanets", &success, nullptr);
+    res.ReadFieldVOID(strct, (void*)selectablePlanets, sizeof(int) * MAX_PLANETS, "SelectablePlanets", &success, nullptr);
 
     setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, availablePlanets);
     setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, availablePlanets);

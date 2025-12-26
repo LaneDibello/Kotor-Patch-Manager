@@ -1,0 +1,6 @@
+LIBRARY PlanetsLimit 
+EXPORTS 
+    ClearPlanets 
+    WritePlanetMask 
+    ReadPlanetMask 
+    InitializePartyTablePlanets 

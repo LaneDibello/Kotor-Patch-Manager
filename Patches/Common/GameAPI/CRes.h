@@ -3,6 +3,7 @@
 #include "../Common.h"
 #include "GameVersion.h"
 #include "GameAPIObject.h"
+#include "CResRef.h"
 
 class CRes : public GameAPIObject {
 private:

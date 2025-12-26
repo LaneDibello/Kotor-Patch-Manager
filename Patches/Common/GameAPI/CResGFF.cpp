@@ -406,7 +406,7 @@ CResGFF::CResGFF(ResourceType resourceType, char* GFFtype, CResRef* templateResR
     }
 
     if (constructor2) {
-        constructor2(objectPtr, resourceType, GFFtype, templateResRef);
+        constructor2(objectPtr, resourceType, GFFtype, templateResRef ? templateResRef->GetPtr() : nullptr);
     } else {
         debugLog("[CResGFF] ERROR: Constructor_2 not initialized\n");
         free(objectPtr);
@@ -573,7 +573,7 @@ DWORD CResGFF::GetFieldCount(CResStruct* structPtr) {
 
 GFFFieldTypes CResGFF::GetFieldType(CResStruct* structPtr, char* label, DWORD fieldIndex) {
     if (!objectPtr || !getFieldType) {
-        return GFFFieldTypes::BYTE;  // Default to first enum value
+        return GFF_NONE;  // Default to first enum value
     }
     return getFieldType(objectPtr, structPtr, label, fieldIndex);
 }
@@ -712,7 +712,7 @@ void* CResGFF::ReadFieldCExoLocString(void* out, CResStruct* structPtr, char* la
 }
 
 void CResGFF::ReadFieldVOID(CResStruct* structPtr, void* buffer, DWORD size, char* label, int* success, void* defaultValue) {
-    if (!objectPtr || !readFieldVOID) {
+    if (!objectPtr || !readFieldVOID || !success) {
         if (success) *success = 0;
         return;
     }

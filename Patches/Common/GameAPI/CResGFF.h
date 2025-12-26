@@ -2,41 +2,43 @@
 #include <windows.h>
 #include "../Common.h"
 #include "GameVersion.h"
+#include "CResRef.h"
 #include "CRes.h"
 #include "CExoString.h"
 
 typedef enum GFFFieldTypes {
-    BYTE = 0,
-    CHAR = 1,
-    WORD = 2,
-    SHORT = 3,
-    DWORD = 4,
-    DWORD64 = 5,
-    INT = 6,
-    INT64 = 7,
-    FLOAT = 8,
-    DOUBLE = 9,
-    CExoString = 10,
-    ResRef = 11,
-    CExoLocString = 12,
-    VOID = 13,
-    Struct = 14,
-    List = 15,
-    Orientation = 16,
-    Vector = 17,
-    StrRef = 18
+    GFF_BYTE = 0,
+    GFF_CHAR = 1,
+    GFF_WORD = 2,
+    GFF_SHORT = 3,
+    GFF_DWORD = 4,
+    GFF_DWORD64 = 5,
+    GFF_INT = 6,
+    GFF_INT64 = 7,
+    GFF_FLOAT = 8,
+    GFF_DOUBLE = 9,
+    GFF_CExoString = 10,
+    GFF_ResRef = 11,
+    GFF_CExoLocString = 12,
+    GFF_VOID = 13,
+    GFF_Struct = 14,
+    GFF_List = 15,
+    GFF_Orientation = 16,
+    GFF_Vector = 17,
+    GFF_StrRef = 18,
+    GFF_NONE = 0xFFFFFFFF
 } GFFFieldTypes;
 
 struct GFFStructData {
     DWORD id;
-    undefined4 data_or_data_offset;
+    DWORD data_or_data_offset;
     DWORD field_count;
 };
 
 struct GFFFieldData {
     enum GFFFieldTypes field_type;
     DWORD label_index;
-    undefined4 data_or_data_offset;
+    DWORD data_or_data_offset;
 };
 
 struct GFFHeaderInfo {
@@ -60,21 +62,21 @@ struct CResStruct {
     DWORD index;
 };
 
-struct CResList { 
-    struct CResStruct struct;
+struct CResList {
+    CResStruct resStruct;
     char label[16];
 };
 
-struct CResGFFField { 
+struct CResGFFField {
     enum GFFFieldTypes field_type;
-    ulong label_index;
-    undefined4 data_or_data_offset;
+    DWORD label_index;
+    DWORD data_or_data_offset;
 };
 
 struct CResGFFStruct {
-    ulong id;
-    undefined4 data_or_data_offset;
-    ulong field_count;
+    DWORD id;
+    DWORD data_or_data_offset;
+    DWORD field_count;
 };
 
 // These will later be replaced by an actual class
@@ -86,8 +88,8 @@ struct CExoFile {
 
 struct CExoFileInternal {
     FILE* fp;
-    struct CExoString file_name;
-    struct CExoString mode;
+    CExoString file_name;
+    CExoString mode;
 };
 
 class CResGFF : public CRes {
@@ -102,7 +104,7 @@ private:
 
     // Constructors/Destructors
     typedef void(__thiscall* ConstructorFn)(void* thisPtr);
-    typedef void(__thiscall* Constructor2Fn)(void* thisPtr, ResourceType resourceType, char* GFFtype, CResRef* templateResRef);
+    typedef void(__thiscall* Constructor2Fn)(void* thisPtr, ResourceType resourceType, char* GFFtype, void* templateResRef);
     typedef void(__thiscall* DestructorFn)(void* thisPtr);
     typedef void(__thiscall* Destructor2Fn)(void* thisPtr, byte shouldFree);
     typedef void(__thiscall* Destructor3Fn)(void* thisPtr);
