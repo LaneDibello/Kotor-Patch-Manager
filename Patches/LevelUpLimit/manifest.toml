@@ -1,7 +1,7 @@
 [patch]
 id = "level-up-limit"
 name = "Max Level Increase"
-version = "2.0.0"
+version = "2.0.1"
 author = "Arniel_Stanislaus aka LanguageWriter123 (with revisions from Lane)"
 description = "Sets the maximum level in kotor 1"
 
