@@ -6,6 +6,7 @@ class CResRef : public GameAPIObject {
 public:
     explicit CResRef(void* ptr);
 
+    // Returns a copy of the string. Caller must free() the returned pointer!
     char* GetCStr();
 
     // Override virtual methods from GameAPIObject

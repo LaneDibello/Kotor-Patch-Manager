@@ -1,6 +1,5 @@
 #include "CExoString.h"
 #include "GameVersion.h"
-#include "../Common.h"
 
 CExoString::DefaultConstructor CExoString::defaultConstructor = nullptr;
 CExoString::CStrLenConstructor CExoString::cStrLenConstructor = nullptr;

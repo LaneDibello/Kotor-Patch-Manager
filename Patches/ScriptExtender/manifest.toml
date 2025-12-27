@@ -1,7 +1,7 @@
 [patch]
 id = "script-extender"
 name = "Lane's KotOR Script Extender"
-version = "1.0.0"
+version = "1.0.1"
 author = "Lane"
 description = "Adds additional NWScript commands."
 

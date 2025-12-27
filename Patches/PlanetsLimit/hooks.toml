@@ -1,0 +1,568 @@
+# CSWGuiInGameGalaxyMap
+[[hooks]]
+address = 0x00695508
+type = "simple"
+original_bytes = [0x83, 0xfb, 0x10]
+replacement_bytes = [0x83, 0xfb, 0x7f]
+
+[[hooks]]
+address = 0x00695837
+type = "simple"
+original_bytes = [0x83, 0xff, 0x10]
+replacement_bytes = [0x83, 0xff, 0x7f]
+
+# CSWPartyTable
+## SetPlanetAvailable
+[[hooks]]
+address = 0x00563b24
+type = "simple"
+original_bytes = [0x83, 0xf8, 0x10]
+replacement_bytes = [0x83, 0xf8, 0x7f]
+
+[[hooks]]
+address = 0x00563b29
+type = "replace"
+original_bytes =	[
+						0x8b, 0x54, 0x24, 0x08,	# MOV EDX, dword ptr [ESP + 0x8]
+						0x89, 0x54, 0x81, 0x60	# MOV dword ptr [ECX + EAX*4 + 0x60], EDX
+					]
+replacement_bytes = [
+						0x8b, 0x54, 0x24, 0x08, # MOV EDX, dword ptr [ESP + 0x8]
+						0x8B, 0x49, 0x60,		# MOV ECX, dword ptr [ECX + 0x60]
+						0x89, 0x14, 0x81		# MOV dword ptr [ECX + EAX*4],EDX
+					]
+
+## GetPlanetAvailable
+[[hooks]]
+address = 0x00563b44
+type = "simple"
+original_bytes = [0x83, 0xf8, 0x10]
+replacement_bytes = [0x83, 0xf8, 0x7f]
+
+[[hooks]]
+address = 0x00563b49
+type = "replace"
+original_bytes =	[
+						0x8b, 0x44, 0x81, 0x60,	# MOV EAX, dword ptr [ECX + EAX*4 + 0x60]
+						0xc2, 0x04, 0x00		# RET 0x4
+					]
+replacement_bytes = [
+						0x8B, 0x49, 0x60,		# MOV ECX, dword ptr [ECX + 0x60]
+						0x8B, 0x04, 0x81,		# MOV EAX, dword ptr [ECX + EAX*4]
+						0xc2, 0x04, 0x00		# RET 0x4
+					]
+
+## SetPlanetSelectable
+[[hooks]]
+address = 0x00563ae4
+type = "simple"
+original_bytes = [0x83, 0xf8, 0x10]
+replacement_bytes = [0x83, 0xf8, 0x7f]
+
+[[hooks]]
+address = 0x00563aed
+type = "replace"
+original_bytes =	[
+						0x89, 0x94, 0x81, 0xa0, 0x00, 0x00, 0x00	# MOV dword ptr [ECX + EAX*0x4 + 0xa0],EDX
+					]
+replacement_bytes = [
+						0x8B, 0x89, 0xA0, 0x00, 0x00, 0x00,			# MOV ECX, dword ptr [ECX + 0xa0]
+						0x89, 0x14, 0x81 							# MOV dword ptr [ECX + EAX*4],EDX
+					]
+
+## GetPlanetSelectable
+[[hooks]]
+address = 0x00563b04
+type = "simple"
+original_bytes = [0x83, 0xf8, 0x10]
+replacement_bytes = [0x83, 0xf8, 0x7f]
+
+[[hooks]]
+address = 0x00563b09
+type = "replace"
+original_bytes =	[
+						0x8b, 0x84, 0x81, 0xa0, 0x00, 0x00, 0x00	# MOV EAX, dword ptr [ECX + EAX*0x4 + 0xa0]
+					]
+replacement_bytes = [
+						0x8B, 0x89, 0xA0, 0x00, 0x00, 0x00,			# MOV ECX, dword ptr [ECX + 0xa0]
+						0x8B, 0x04, 0x81 							# MOV EAX, dword ptr [ECX + EAX*4]
+					]
+
+## SetSelectedPlanet
+[[hooks]]
+address = 0x00563b68
+type = "simple"
+original_bytes = [0x83, 0xf8, 0x10]
+replacement_bytes = [0x83, 0xf8, 0x7f]
+
+[[hooks]]
+address = 0x00563b6d
+type = "replace"
+original_bytes =	[
+						0x8b, 0x54, 0x81, 0x60,	# MOV EDX, dword ptr [ECX + EAX*4 + 0x60]
+						0x85, 0xd2				# TEST EDX, EDX
+					]
+replacement_bytes = [
+						0x51,					# PUSH ECX
+						0x8B, 0x49, 0x60,		# MOV ECX, dword ptr [ECX + 0x60]
+						0x8B, 0x14, 0x81,		# MOV EDX, dword ptr [ECX + EAX*4]
+						0x59, 					# POP ECX
+						0x85, 0xd2				# TEST EDX, EDX
+					]
+
+[[hooks]]
+address = 0x00563b75
+type = "replace"
+original_bytes =	[
+						0x8b, 0x94, 0x81, 0xa0, 0x00, 0x00, 0x00	# MOV EDX, dword ptr [ECX + EAX*4 + 0xa0]
+					]
+replacement_bytes = [												
+						0x51,										# PUSH ECX
+						0x8B, 0x89, 0xA0, 0x00, 0x00, 0x00,			# MOV ECX, dword ptr [ECX + 0xa0]
+						0x8B, 0x14, 0x81,							# MOV EDX, dword ptr [ECX + EAX*4]
+						0x59 										# POP ECX
+					]
+
+## ClearTable
+[[hooks]]
+address = 0x0056324c
+type = "detour"
+original_bytes =	[		
+						0x8d, 0x86, 0xa0, 0x00, 0x00, 0x00,
+						0xb9, 0x10, 0x00, 0x00, 0x00,
+						0x89, 0x68, 0xc0,
+						0x89, 0x28,
+						0x83, 0xc0, 0x04,
+						0x49,
+						0x75, 0xf5
+					]
+function = "ClearPlanets"
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "esi"
+type = "pointer" # CSWPartyTable *
+
+## SaveTableInfo
+[[hooks]]
+address = 0x00564c05
+type = "simple"
+original_bytes =	[0x8d, 0x95, 0xa0, 0x00, 0x00, 0x00]
+replacement_bytes = [0xe9, 0x65, 0x01, 0x00, 0x00, 0x90]	# JMP 0x00564d6f (bypassing all of the planet mask logic
+
+[[hooks]]
+address = 0x00564d8c
+type = "simple"
+original_bytes =	[0x6a, 0x10]	# PUSH 0x10
+replacement_bytes = [0x6a, 0x7f]	# PUSH 0x7f
+
+[[hooks]]
+address = 0x00564d9e
+type = "simple"
+original_bytes =	[0x68, 0x04, 0x92, 0x74, 0x00, 0x52, 0x8d, 0x44, 0x24, 0x1c, 0x50]
+replacement_bytes = [0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x8d, 0x44, 0x24, 0x14, 0x90]
+
+[[hooks]]
+address = 0x00564dab
+type = "detour"
+original_bytes =	[		
+						0xe8, 0xb0, 0xd9, 0xea, 0xff
+					]
+function = "WritePlanetMask"
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # CResGFF *
+[[hooks.parameters]]
+source = "eax"
+type = "pointer" # CResStruct * 
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer" # CSWPartyTable * 
+
+## LoadTableInfo
+[[hooks]]
+address = 0x005660aa
+type = "detour"
+original_bytes =	[
+						0x8d, 0x4c, 0x24, 0x20,
+						0x51,
+						0x8b, 0xce
+					]
+function = "ReadPlanetMask"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "esi"
+type = "pointer" # CResGFF *
+[[hooks.parameters]]
+source = "eax"
+type = "pointer" # CResStruct * 
+[[hooks.parameters]]
+source = "ebx"
+type = "pointer" # CSWPartyTable * 
+
+[[hooks]]
+address = 0x005660d9
+type = "simple"
+original_bytes =	[0x75, 0x39, 0x33, 0xc0, 0x8d, 0x93, 0xa0, 0x00, 0x00, 0x00]
+replacement_bytes = [0xe9, 0x36, 0x00, 0x00, 0x00, 0x90, 0x90, 0x90, 0x90, 0x90] # Bypass all planet mask logic
+
+## Destructor
+[[hooks]]
+address = 0x00563d44
+type = "detour"
+original_bytes =	[		
+						0x8b, 0xbe, 0x18, 0x01, 0x00, 0x00
+					]
+function = "DisposePlanets"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # CSWPartyTable *
+
+# Planet Buttons Fixes
+[[hooks]]
+address = 0x006927d5
+type = "simple"
+original_bytes =	[
+						0x8d, 0x73, 0x64,				# LEA ESI, [EBX + 0x64]
+						0xbf, 0x10, 0x00, 0x00, 0x00	# MOV EDI, 0x10
+					]
+replacement_bytes = [												
+						0x8b, 0x73, 0x64,				# MOV ESI, dword ptr [EBX + 0x64]
+						0xbf, 0x7f, 0x00, 0x00, 0x00 	# MOV EDI, 0x7f
+					]
+
+[[hooks]]
+address = 0x006935da
+type = "replace"
+original_bytes =	[
+						0x8b, 0x54, 0x38, 0x64,	# MOV EDX, dword ptr [EAX + EDI*0x1 + 0x64]
+						0x8d, 0x4c, 0x38, 0x64	# LEA ECX, [EAX + EDI*0x1 + 0x64]
+					]
+replacement_bytes = [												
+						0x8B, 0x57, 0x64,		# MOV EDX, dword ptr [EDI + 0x64]
+						0x8B, 0x14, 0x02,		# MOV EDX, dword ptr [EDX + EAX]
+						0x8B, 0x4F, 0x64,		# MOV ECX, dword ptr [EDI + 0x64]
+						0x8D, 0x0C, 0x01  		# LEA ECX, [ECX + EAX]
+					]
+
+[[hooks]]
+address = 0x00693631
+type = "replace"
+original_bytes =	[
+						0x8b, 0x54, 0x30, 0x64,	# MOV EDX, dword ptr [EAX + ESI*0x1 + 0x64]
+						0x8d, 0x4c, 0x30, 0x64	# LEA ECX, [EAX + ESI*0x1 + 0x64]
+					]
+replacement_bytes = [												
+						0x8B, 0x56, 0x64,		# MOV EDX, dword ptr [ESI + 0x64]
+						0x8B, 0x14, 0x02,		# MOV EDX, dword ptr [EDX + EAX]
+						0x8B, 0x4E, 0x64,		# MOV ECX, dword ptr [ESI + 0x64]
+						0x8D, 0x0C, 0x01   		# LEA ECX, [ECX + EAX]
+					]
+
+[[hooks]]
+address = 0x00694b79
+type = "simple"
+original_bytes =	[
+						0x83, 0xfe, 0x10	# CMP ESI, 0x10
+					]
+replacement_bytes = [												
+						0x83, 0xfe, 0x7f	# CMP ESI, 0x7f
+					]
+
+[[hooks]]
+address = 0x00694b99
+type = "replace"
+original_bytes =	[
+						0x8b, 0x54, 0x28, 0x64,	# MOV EDX, dword ptr [EAX + EBP*0x1 + 0x64]
+						0x8d, 0x4c, 0x28, 0x64	# LEA ECX, [EAX + EBP*0x1 + 0x64]
+					]
+replacement_bytes = [												
+						0x8B, 0x55, 0x64,		# MOV EDX, dword ptr [EBP + 0x64]
+						0x8B, 0x14, 0x02,		# MOV EDX, dword ptr [EDX + EAX]
+						0x8B, 0x4D, 0x64,		# MOV ECX, dword ptr [EBP + 0x64]
+						0x8D, 0x0C, 0x01   	 	# LEA ECX, [ECX + EAX]
+					]
+
+[[hooks]]
+address = 0x00694bb8
+type = "simple"
+original_bytes =	[
+						0x8d, 0xb5, 0xa8, 0x00, 0x00, 0x00 # LEA ESI, [EBP + 0xa8]
+					]
+replacement_bytes = [												
+						0x8B, 0x75, 0x64,				   # MOV ESI, dword ptr [EBP + 0x64]
+						0x8D, 0x76, 0x44 				   # LEA ESI, [ESI + 0x44]
+					]
+
+[[hooks]]
+address = 0x00694bdd
+type = "simple"
+original_bytes =	[
+						0x83, 0xff, 0x10	# CMP EDI, 0x10
+					]
+replacement_bytes = [												
+						0x83, 0xff, 0x7f	# CMP EDI, 0x7f
+					]
+
+[[hooks]]
+address = 0x00694c18
+type = "replace"
+original_bytes =	[
+						0x8b, 0x54, 0x18, 0x64,	# MOV EDX, dword ptr [EAX + EBX*0x1 + 0x64] 
+						0x56,					# PUSH ESI
+						0x8d, 0x4c, 0x18, 0x64	# LEA ECX, [EAX + EBX*0x1 + 0x64]
+					]
+replacement_bytes = [												
+						0x8B, 0x53, 0x64,		# MOV EDX, dword ptr [EBX + 0x64]
+						0x8D, 0x0C, 0x02,		# LEA ECX, [EDX + EAX]
+						0x8B, 0x14, 0x02,		# MOV EDX, dword ptr [EDX + EAX]
+						0x56					# PUSH ESI
+					]
+
+[[hooks]]
+address = 0x00694c33
+type = "simple"
+original_bytes =	[
+						0x83, 0xfe, 0x10
+					]
+replacement_bytes = [												
+						0x83, 0xfe, 0x7f
+					]
+
+[[hooks]]
+address = 0x00694c73
+type = "replace"
+original_bytes =	[
+						0x8b, 0x54, 0x18, 0x64,	 # MOV EDX, dword ptr [EAX + EBX*0x1 + 0x64]
+						0x8d, 0x4c, 0x18, 0x64	 # LEA ECX, [EAX + EBX*0x1 + 0x64]
+					]
+replacement_bytes = [												
+						0x8B, 0x53, 0x64,		 # MOV EDX, dword ptr [EBX + 0x64]
+						0x8D, 0x0C, 0x02,		 # LEA ECX, [EDX + EAX]
+						0x8B, 0x14, 0x02 		 # MOV EDX, dword ptr [EDX + EAX]
+					]		
+					
+[[hooks]]
+address = 0x00694cc8
+type = "replace"
+original_bytes =	[
+						0x8b, 0x54, 0x18, 0x64,	# MOV EDX, dword ptr [EAX + EBX*0x1 + 0x64] 
+						0x56,					# PUSH ESI
+						0x8d, 0x4c, 0x18, 0x64	# LEA ECX, [EAX + EBX*0x1 + 0x64]
+					]
+replacement_bytes = [												
+						0x8B, 0x53, 0x64,		# MOV EDX, dword ptr [EBX + 0x64]
+						0x8D, 0x0C, 0x02,		# LEA ECX, [EDX + EAX]
+						0x8B, 0x14, 0x02,		# MOV EDX, dword ptr [EDX + EAX]
+						0x56					# PUSH ESI
+					]
+
+[[hooks]]
+address = 0x00694ce7
+type = "simple"
+original_bytes =	[
+						0xbe, 0x0f, 0x00, 0x00, 0x00
+					]
+replacement_bytes = [												
+						0xbe, 0x7e, 0x00, 0x00, 0x00
+					]
+
+
+[[hooks]]
+address = 0x00694d25
+type = "replace"
+original_bytes =	[
+						0x8b, 0x54, 0x18, 0x64,	 # MOV EDX, dword ptr [EAX + EBX*0x1 + 0x64]
+						0x8d, 0x4c, 0x18, 0x64	 # LEA ECX, [EAX + EBX*0x1 + 0x64]
+					]
+replacement_bytes = [												
+						0x8B, 0x53, 0x64,		 # MOV EDX, dword ptr [EBX + 0x64]
+						0x8D, 0x0C, 0x02,		 # LEA ECX, [EDX + EAX]
+						0x8B, 0x14, 0x02 		 # MOV EDX, dword ptr [EDX + EAX]
+					]
+
+
+[[hooks]]
+address = 0x006951a9
+type = "detour"
+original_bytes =	[
+						0x50,
+						0x89, 0x74, 0x24, 0x68
+					]
+function = "AllocatePlanetButtons"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "esi"
+type = "pointer" # CSWGuiInGameGalaxyMap *
+
+[[hooks]]
+address = 0x006951bd
+type = "simple"
+original_bytes =	[
+						0x6a, 0x10,			# PUSH 0x10
+						0x8d, 0x46, 0x64	# LEA EAX, [ESI + 0x64]
+					]
+replacement_bytes = [				
+						0x6a, 0x7f,			# PUSH 0x7f								
+						0x8B, 0x46, 0x64	# MOV EAX, dword ptr [ESI + 0x64]
+					]
+
+[[hooks]]
+address = 0x00695470
+type = "simple"
+original_bytes =	[
+						0x8d, 0x7e, 0x64	# LEA EDI, [ESI + 0x64]
+					]
+replacement_bytes = [						
+						0x8B, 0x7e, 0x64	# MOV EDI, dword ptr [ESI + 0x64]
+					]
+
+[[hooks]]
+address = 0x0069568b
+type = "simple"
+original_bytes =	[
+						0x8d, 0x5e, 0x64	# LEA EBX, [ESI + 0x64]
+					]
+replacement_bytes = [						
+						0x8B, 0x5e, 0x64	# MOV EBX, dword ptr [ESI + 0x64]
+					]
+
+[[hooks]]
+address = 0x00695945
+type = "simple"
+original_bytes =	[
+						0x6a, 0x10,		# PUSH 0x10
+					]
+replacement_bytes = [							
+						0x6a, 0x7f,		# PUSH 0x7f	
+					]
+
+[[hooks]]
+address = 0x0069594c
+type = "simple"
+original_bytes =	[
+						0x8d, 0x46, 0x64	# LEA EAX, [ESI + 0x64]
+					]
+replacement_bytes = [							
+						0x8B, 0x46, 0x64	# MOV EAX, dword ptr [ESI + 0x64]
+					]
+
+[[hooks]]
+address = 0x0069595c
+type = "detour"
+original_bytes =	[
+						0xc7, 0x44, 0x24, 0x10, 0xff, 0xff, 0xff, 0xff
+					]
+function = "DisposePlanetButtons"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "esi"
+type = "pointer" # CSWGuiInGameGalaxyMap *
+
+# GUI Planet Entries Fixes
+[[hooks]]
+address = 0x006933fa
+type = "simple"
+original_bytes =	[
+						0x8d, 0x04, 0x7f,				   # LEA EAX, [EDI + EDI*2]
+						0x8d, 0x1c, 0xc6,				   # LEA EBX, [ESI + EAX*8]
+						0x8b, 0x83, 0xcc, 0x23, 0x00, 0x00 # MOV EAX, dword ptr [EBX + 0x23cc]
+					]
+replacement_bytes = [							
+						0x8B, 0x86, 0xCC, 0x23, 0x00, 0x00,# MOV EAX, dword ptr [ESI + 0x23cc]
+						0x6B, 0xDF, 0x18,				   # IMUL EBX, EDI, 0x18
+						0x8B, 0x04, 0x18 				   # MOV EAX, [EAX + EBX]
+					]
+
+[[hooks]]
+address = 0x00693438
+type = "replace"
+original_bytes =	[
+						0x8d, 0x94, 0x7f, 0x7a, 0x04, 0x00, 0x00, # LEA EDX, [EDI*3 + 0x47a]
+						0x8b, 0x04, 0xd6						  # MOV EAX, dword ptr [ESI +EDX*8]
+					]
+replacement_bytes = [							
+						0x8B, 0x86, 0xCC, 0x23, 0x00, 0x00, 	  # MOV EAX, dword ptr [ESI + 0x23cc]
+						0x6B, 0xD7, 0x18, 						  # IMUL EDX, EDI, 0x18
+						0x83, 0xC2, 0x04, 						  # ADD EDX, 0x4
+						0x8B, 0x04, 0x10 						  # MOV EAX, [EAX + EDX]
+					]
+
+[[hooks]]
+address = 0x006934ad
+type = "replace"
+original_bytes =	[
+						0x81, 0xc3, 0xd4, 0x23, 0x00, 0x00		# ADD EBX, 0x23d4
+					]
+replacement_bytes = [							
+						0x8B, 0x9E, 0xCC, 0x23, 0x00, 0x00,		# MOV EBX, [ESI + 0x23cc]
+						0x6B, 0xCF, 0x18,						# IMUL ECX, EDI, 0x18
+						0x83, 0xC1, 0x08,						# ADD ECX, 0x8
+						0x01, 0xCB 								# ADD EBX, ECX
+					]
+
+[[hooks]]
+address = 0x00695292
+type = "replace"
+original_bytes =	[
+						0x8d, 0xbe, 0xd4, 0x23, 0x00, 0x00	# LEA EDI, [ESI + 0x23d4]
+					]
+replacement_bytes = [							
+						0x8B, 0xBE, 0xCC, 0x23, 0x00, 0x00,	# MOV EDI, [ESI + 0x23cc]
+						0x83, 0xC7, 0x08 					# ADD EDI, 0x8
+					]
+
+[[hooks]]
+address = 0x00695298
+type = "simple"
+original_bytes =	[
+						0xc7, 0x44, 0x24, 0x0c, 0x10, 0x00, 0x00, 0x00
+					]
+replacement_bytes = [							
+						0xc7, 0x44, 0x24, 0x0c, 0x7f, 0x00, 0x00, 0x00
+					]
+
+[[hooks]]
+address = 0x0069567f
+type = "replace"
+original_bytes =	[
+						0x8d, 0x86, 0xd0, 0x23, 0x00, 0x00	# LEA EAX, [ESI + 0x23d0]
+					]
+replacement_bytes = [							
+						0x8B, 0x86, 0xCC, 0x23, 0x00, 0x00, # MOV EAX, [ESI + 0x23cc]
+						0x83, 0xC0, 0x04 					# ADD EAX, 0x4
+					]
+
+[[hooks]]
+address = 0x0069528a
+type = "detour"
+original_bytes =	[
+						0xc6, 0x84, 0x24, 0xa4, 0x00, 0x00, 0x00, 0x09
+					]
+function = "AllocateGuiPlanets"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "esi"
+type = "pointer" # CSWGuiInGameGalaxyMap *
+
+
+[[hooks]]
+address = 0x00695969
+type = "detour"
+original_bytes =	[
+						0x8b, 0x4c, 0x24, 0x08, 0x5e
+					]
+function = "DisposeGuiPlanets"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "esi"
+type = "pointer" # CSWGuiInGameGalaxyMap *

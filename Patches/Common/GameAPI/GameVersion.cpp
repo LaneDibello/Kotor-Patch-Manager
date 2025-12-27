@@ -10,8 +10,14 @@ sqlite3_stmt* GameVersion::stmt_function = nullptr;
 sqlite3_stmt* GameVersion::stmt_pointer = nullptr;
 sqlite3_stmt* GameVersion::stmt_offset = nullptr;
 
-bool GameVersion::Initialize() {
-    Reset();
+bool GameVersion::Initialize(bool force) {
+    // Quick return if already initialized
+    if (initialized && !force) {
+        OutputDebugStringA("[GameVersion] Already initialized, skipping redundant initialization\n");
+        return true;
+    }
+
+    Reset(true);
 
     // Get version SHA from environment variable
     char envBuffer[512] = {0};
@@ -46,7 +52,13 @@ bool GameVersion::Initialize() {
 bool GameVersion::OpenDatabase() {
     const char* dbPath = "addresses.db";
 
-    OutputDebugStringA("[GameVersion] Opening SQLite database: addresses.db\n");
+    // Get and log the full path of the database file
+    char fullPath[MAX_PATH];
+    if (GetFullPathNameA(dbPath, MAX_PATH, fullPath, nullptr)) {
+        OutputDebugStringA(("[GameVersion] Opening SQLite database: " + std::string(fullPath) + "\n").c_str());
+    } else {
+        OutputDebugStringA("[GameVersion] Opening SQLite database: addresses.db (could not resolve full path)\n");
+    }
 
     // Open database with read-only and no-mutex flags for performance
     int flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX;
@@ -67,7 +79,7 @@ bool GameVersion::OpenDatabase() {
 
     // Verify game version SHA matches
     sqlite3_stmt* stmt = nullptr;
-    rc = sqlite3_prepare_v2(db, "SELECT sha256_hash FROM game_version WHERE id = 1", -1, &stmt, nullptr);
+    rc = sqlite3_prepare_v2(db, "SELECT sha256_hash FROM game_version", -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
         OutputDebugStringA(("[GameVersion] ERROR: Failed to prepare version query: " + std::string(sqlite3_errmsg(db)) + "\n").c_str());
         sqlite3_close(db);
@@ -75,31 +87,40 @@ bool GameVersion::OpenDatabase() {
         return false;
     }
 
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_ROW) {
+    bool foundAnyRow = false;
+    bool matchFound = false;
+
+    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+        foundAnyRow = true;
+
+        const unsigned char* txt = sqlite3_column_text(stmt, 0);
+        if (!txt) continue;
+
+        const char* dbHash = reinterpret_cast<const char*>(txt);
+        if (versionSha == dbHash) {
+            matchFound = true;
+            break;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (!foundAnyRow) {
         OutputDebugStringA("[GameVersion] ERROR: No game version found in database\n");
-        sqlite3_finalize(stmt);
         sqlite3_close(db);
         db = nullptr;
         return false;
     }
 
-    const char* dbHash = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-    if (!dbHash || std::string(dbHash) != versionSha) {
+    if (!matchFound) {
         OutputDebugStringA("[GameVersion] ERROR: Version SHA mismatch!\n");
         OutputDebugStringA(("  Expected (from env): " + versionSha.substr(0, 16) + "...\n").c_str());
-        if (dbHash) {
-            std::string dbHashStr(dbHash);
-            OutputDebugStringA(("  Found (in DB):       " + dbHashStr.substr(0, 16) + "...\n").c_str());
-        }
-        sqlite3_finalize(stmt);
         sqlite3_close(db);
         db = nullptr;
         return false;
     }
 
     OutputDebugStringA(("[GameVersion] Version SHA validated: " + versionSha.substr(0, 16) + "...\n").c_str());
-    sqlite3_finalize(stmt);
 
     return true;
 }
@@ -193,7 +214,7 @@ void* GameVersion::GetFunctionAddress(const std::string& className, const std::s
 
 void* GameVersion::GetGlobalPointer(const std::string& pointerName) {
     if (!initialized) {
-        return nullptr;
+        throw GameVersionException("GameVersion not initialized");
     }
 
     // Bind parameter
@@ -263,7 +284,12 @@ bool GameVersion::HasOffset(const std::string& className, const std::string& pro
     return (rc == SQLITE_ROW);
 }
 
-void GameVersion::Reset() {
+void GameVersion::Reset(bool force) {
+    // Quick return if already reset
+    if (!initialized && !db && !stmt_function && !stmt_pointer && !stmt_offset && !force) {
+        return;
+    }
+
     initialized = false;
     versionSha.clear();
 
