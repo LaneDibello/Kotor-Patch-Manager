@@ -24,9 +24,13 @@ mkdir "%RELEASE_DIR%\tools" >nul 2>&1
 
 REM Build KotorPatcher.dll
 echo [1/5] Building KotorPatcher...
-cd src\KotorPatcher
-msbuild KotorPatcher.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:OutDir="..\..\%RELEASE_DIR%\bin" /m >nul 2>&1
-cd ..\..
+msbuild KotorPatchManager.sln /p:Configuration=Release /p:Platform=x86 /t:KotorPatcher /m >nul 2>&1
+if exist "bin\Release\KotorPatcher.dll" (
+    copy /Y "bin\Release\KotorPatcher.dll" "%RELEASE_DIR%\bin\" >nul
+    echo   [OK] KotorPatcher.dll built successfully
+) else (
+    echo   [ERROR] KotorPatcher.dll not found in bin\Release\
+)
 
 REM Build launcher
 echo [2/5] Building KPatchLauncher...
@@ -34,6 +38,11 @@ cd src\KPatchLauncher
 dotnet publish -c Release -r win-x86 --self-contained -p:PublishSingleFile=true -o "..\..\%RELEASE_DIR%\bin"
 if exist "..\..\%RELEASE_DIR%\bin\*.pdb" del "..\..\%RELEASE_DIR%\bin\*.pdb" >nul 2>&1
 cd ..\..
+
+REM Copy AddressDatabases
+echo   Copying AddressDatabases...
+mkdir "%RELEASE_DIR%\bin\AddressDatabases" >nul 2>&1
+copy /Y "AddressDatabases\*.db" "%RELEASE_DIR%\bin\AddressDatabases\" >nul
 
 REM Build Patches
 echo [3/5] Building patches...

@@ -31,10 +31,11 @@
     <Description>Mod and patch management system for KOTOR</Description>
   </PropertyGroup>
 
-  <!-- Release build: exclude debug symbols -->
+  <!-- Release build: exclude debug symbols and hide console -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+    <OutputType>WinExe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
