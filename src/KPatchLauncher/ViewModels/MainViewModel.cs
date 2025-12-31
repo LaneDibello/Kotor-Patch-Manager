@@ -479,64 +479,21 @@ public class MainViewModel : ViewModelBase
 
         try
         {
-            var gameDir = Path.GetDirectoryName(GamePath);
-            if (gameDir == null)
-            {
-                StatusMessage = "Error: Invalid game directory";
-                return;
-            }
+            SetOperationInProgress(true, "Launching game...");
 
-            var patcherDllPath = Path.Combine(gameDir, "KotorPatcher.dll");
-            var patchConfigPath = Path.Combine(gameDir, "patch_config.toml");
-
-            // Check if patches are installed
-            if (!File.Exists(patchConfigPath))
-            {
-                // No patches - launch vanilla
-                SetOperationInProgress(true, "Launching game (no patches)...");
-
-                var vanillaProcess = await Task.Run(() => Process.Start(new ProcessStartInfo
-                {
-                    FileName = GamePath,
-                    WorkingDirectory = gameDir,
-                    UseShellExecute = true
-                }));
-
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    if (vanillaProcess != null)
-                    {
-                        SetOperationInProgress(false, $"Game launched (PID: {vanillaProcess.Id})");
-                    }
-                    else
-                    {
-                        SetOperationInProgress(false, "Error: Failed to launch game");
-                    }
-                });
-                return;
-            }
-
-            // Patches detected - launch with injection
-            if (!File.Exists(patcherDllPath))
-            {
-                StatusMessage = "Error: KotorPatcher.dll not found (patches are configured but DLL is missing)";
-                return;
-            }
-
-            SetOperationInProgress(true, "Launching game with patches...");
-
+            // Use KPatchCore's game launcher (handles patch detection and injection automatically)
             var result = await Task.Run(() =>
-                ProcessInjector.LaunchWithInjection(
-                    GamePath,
-                    patcherDllPath,
-                    null,
-                    _detectedGameVersion?.Distribution ?? Distribution.Other));
+            {
+                var orchestrator = new PatchOrchestrator(_patchesPath ?? string.Empty);
+                return orchestrator.LaunchGame(GamePath, commandLineArgs: null);
+            });
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (result.Success && result.Data != null)
+                if (result.Success)
                 {
-                    SetOperationInProgress(false, $"Game launched with patches (PID: {result.Data.Id})");
+                    var mode = result.VanillaLaunch ? "no patches" : "with patches";
+                    SetOperationInProgress(false, $"Game launched {mode} (PID: {result.ProcessId})");
                 }
                 else
                 {
