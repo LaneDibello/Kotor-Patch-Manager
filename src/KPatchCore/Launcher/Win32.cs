@@ -5,7 +5,6 @@ namespace KPatchCore.Launcher;
 /// <summary>
 /// Windows API declarations for process creation and DLL injection
 /// </summary>
-#if WINDOWS
 internal static class Win32
 {
     #region Constants
@@ -134,4 +133,3 @@ internal static class Win32
 
     #endregion
 }
-#endif

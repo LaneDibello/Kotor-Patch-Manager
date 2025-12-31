@@ -19,11 +19,6 @@ public static class GameLauncher
     /// <returns>Launch result with process information</returns>
     public static LaunchResult LaunchGame(string gameExePath, string? commandLineArgs = null)
     {
-#if !WINDOWS
-        return LaunchResult.Fail(
-            "Game launching is only supported on Windows. " +
-            "KOTOR is a Windows x86 game and requires Windows API for DLL injection.");
-#else
         // Validate game path
         if (string.IsNullOrWhiteSpace(gameExePath) || !File.Exists(gameExePath))
         {
@@ -41,7 +36,6 @@ public static class GameLauncher
         // Check if patches are installed
         if (!File.Exists(patchConfigPath))
         {
-            // No patches - launch vanilla
             return LaunchVanilla(gameExePath, commandLineArgs);
         }
 
@@ -57,11 +51,9 @@ public static class GameLauncher
 
         // Detect game version to determine distribution
         var versionResult = GameDetector.DetectVersion(gameExePath);
-        var distribution = versionResult?.Distribution ?? Distribution.Other;
+        var distribution = versionResult.Data?.Distribution ?? Distribution.Other;
 
-        // Launch with injection
         return LaunchWithInjection(gameExePath, patcherDllPath, distribution, commandLineArgs);
-#endif
     }
 
     /// <summary>
@@ -78,11 +70,6 @@ public static class GameLauncher
         Distribution distribution,
         string? commandLineArgs = null)
     {
-#if !WINDOWS
-        return LaunchResult.Fail(
-            "Game launching is only supported on Windows. " +
-            "KOTOR is a Windows x86 game and requires Windows API for DLL injection.");
-#else
         // Validate inputs
         if (string.IsNullOrWhiteSpace(gameExePath) || !File.Exists(gameExePath))
         {
@@ -96,7 +83,6 @@ public static class GameLauncher
 
         // Delegate to ProcessInjector
         return ProcessInjector.LaunchWithInjection(gameExePath, dllPath, commandLineArgs, distribution);
-#endif
     }
 
     /// <summary>

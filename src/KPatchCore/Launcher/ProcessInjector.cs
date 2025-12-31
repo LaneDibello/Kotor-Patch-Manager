@@ -8,7 +8,6 @@ namespace KPatchCore.Launcher;
 /// <summary>
 /// Internal implementation of DLL injection for game processes using Windows API
 /// </summary>
-#if WINDOWS
 internal static class ProcessInjector
 {
     /// <summary>
@@ -35,7 +34,6 @@ internal static class ProcessInjector
             return LaunchResult.Fail($"DLL not found: {dllPath}");
         }
 
-        // Route to appropriate launcher based on distribution
         if (distribution == Distribution.Steam)
         {
             Console.WriteLine("[KPatchCore] Detected Steam distribution, using delayed injection method");
@@ -58,11 +56,9 @@ internal static class ProcessInjector
     {
         try
         {
-            // Get absolute paths
             var absGamePath = Path.GetFullPath(gameExePath);
             var absDllPath = Path.GetFullPath(dllPath);
 
-            // Prepare startup info
             var si = new Win32.STARTUPINFO
             {
                 cb = Marshal.SizeOf(typeof(Win32.STARTUPINFO))
@@ -70,7 +66,6 @@ internal static class ProcessInjector
 
             var pi = new Win32.PROCESS_INFORMATION();
 
-            // Build command line
             var commandLine = $"\"{absGamePath}\"";
             if (!string.IsNullOrWhiteSpace(commandLineArgs))
             {
@@ -104,13 +99,12 @@ internal static class ProcessInjector
 
                 if (!injectResult.Success)
                 {
-                    // Injection failed - terminate the process
                     Process.GetProcessById(pi.dwProcessId).Kill();
                     return LaunchResult.Fail(
                         $"DLL injection failed: {injectResult.Error}");
                 }
 
-                // Debug mode: Wait for debugger attachment before resuming
+                // Debug mode: Set to 'true' if you want to hook a debugger to the process
                 if (false)
                 {
                     Console.WriteLine("========================================");
@@ -137,7 +131,6 @@ internal static class ProcessInjector
                         $"Failed to resume thread (error {error})");
                 }
 
-                // Get the Process object
                 var process = Process.GetProcessById(pi.dwProcessId);
 
                 return LaunchResult.Ok(
@@ -147,7 +140,6 @@ internal static class ProcessInjector
             }
             finally
             {
-                // Clean up handles
                 if (pi.hProcess != IntPtr.Zero) Win32.CloseHandle(pi.hProcess);
                 if (pi.hThread != IntPtr.Zero) Win32.CloseHandle(pi.hThread);
             }
@@ -210,7 +202,6 @@ internal static class ProcessInjector
         {
             Console.WriteLine($"[Injector] Injecting: {dllPath}");
 
-            // Get LoadLibraryA address from kernel32.dll
             var hKernel32 = Win32.GetModuleHandle("kernel32.dll");
             if (hKernel32 == IntPtr.Zero)
             {
@@ -405,14 +396,12 @@ internal static class ProcessInjector
 
                 foreach (var process in processes)
                 {
-                    // Skip processes we've already checked
                     if (checkedPids.Contains(process.Id))
                         continue;
 
                     checkedPids.Add(process.Id);
                     Console.WriteLine($"[KPatchCore] Found process candidate: PID {process.Id}, validating...");
 
-                    // Validate this is a real executable, not a bootstrap
                     if (IsValidGameProcess(process))
                     {
                         // Extra stability check: wait 500ms to ensure it doesn't exit immediately
@@ -513,7 +502,7 @@ internal static class ProcessInjector
 
             try
             {
-                // Read DOS header from process base address (0x400000 is typical for Windows executables)
+                // Read DOS header from process base address
                 byte[] dosHeader = new byte[64];
                 bool readSuccess = Win32.ReadProcessMemory(
                     hProcess,
@@ -570,4 +559,3 @@ internal static class ProcessInjector
         }
     }
 }
-#endif
