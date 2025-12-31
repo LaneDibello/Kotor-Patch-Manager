@@ -15,6 +15,9 @@
 
 ---
 
+NOTE: This document was Ai generated as a means to store context
+It may not be fully accurate
+
 ## Overview
 
 This document describes the architecture for supporting multiple game versions (KotOR 1 GoG, KotOR 1 Steam, KotOR 2 variants) within a single patch system. The design addresses three key challenges:
