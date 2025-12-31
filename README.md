@@ -19,7 +19,7 @@ If you're just interested in experimenting with the existing patches, then you c
 
 This Zip file will contain the following:
 - bin
-	- AddressDatabases: TOML files containing address information for various kotor versions
+	- AddressDatabases: SQLite DB files containing address information for various kotor versions
 	- KotorPatcher.dll: The DLL that we will be injecting
 	- KPatchLauncher.exe: Main Launcher Program (must be in the same directory as KotorPatcher.dll and AddressDatabases to function correctly)
 - patches
