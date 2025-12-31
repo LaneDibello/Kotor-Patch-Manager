@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Avalonia;
 using KPatchCore.Detectors;
+using KPatchCore.Launcher;
 using KPatchCore.Models;
 
 namespace KPatchLauncher;
@@ -145,11 +146,11 @@ class Program
             Console.WriteLine();
 
             // Launch with DLL injection (method depends on distribution)
-            var result = ProcessInjector.LaunchWithInjection(
+            var result = GameLauncher.LaunchWithInjection(
                 gameExePath,
                 patcherDllPath,
-                commandLineArgs: null,
-                distribution: distribution);
+                distribution: distribution,
+                commandLineArgs: null);
 
             if (!result.Success)
             {
@@ -160,7 +161,7 @@ class Program
                 return 1;
             }
 
-            var process = result.Data!;
+            var process = result.GameProcess!;
             Console.WriteLine($"✓ Game launched successfully (PID: {process.Id})");
             Console.WriteLine($"✓ {PatcherDllName} injected");
             Console.WriteLine();

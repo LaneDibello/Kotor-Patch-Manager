@@ -1,4 +1,5 @@
 using KPatchCore.Applicators;
+using KPatchCore.Launcher;
 using KPatchCore.Models;
 
 namespace KPatchCore.Managers;
@@ -147,5 +148,18 @@ public class PatchOrchestrator
     public List<PatchRepository.PatchEntry> FindPatches(Func<PatchRepository.PatchEntry, bool> predicate)
     {
         return _repository.FindPatches(predicate);
+    }
+
+    /// <summary>
+    /// Launches the game with automatic patch detection
+    /// Detects if patches are installed and injects KotorPatcher.dll if needed
+    /// Falls back to vanilla launch if no patches detected
+    /// </summary>
+    /// <param name="gameExePath">Path to game executable</param>
+    /// <param name="commandLineArgs">Optional command line arguments</param>
+    /// <returns>Launch result with process information</returns>
+    public LaunchResult LaunchGame(string gameExePath, string? commandLineArgs = null)
+    {
+        return GameLauncher.LaunchGame(gameExePath, commandLineArgs);
     }
 }
