@@ -7,6 +7,7 @@
 CServerExoApp::GetObjectArrayFn CServerExoApp::getObjectArray = nullptr;
 CServerExoApp::GetPlayerCreatureIdFn CServerExoApp::getPlayerCreatureId = nullptr;
 CServerExoApp::GetCreatureByGameObjectIDFn CServerExoApp::getCreatureByGameObjectID = nullptr;
+CServerExoApp::GetGlobalVariableTableFn CServerExoApp::getGlobalVariableTable = nullptr;
 bool CServerExoApp::functionsInitialized = false;
 bool CServerExoApp::offsetsInitialized = false;
 
@@ -34,6 +35,10 @@ void CServerExoApp::InitializeFunctions() {
         getCreatureByGameObjectID = reinterpret_cast<GetCreatureByGameObjectIDFn>(
             GameVersion::GetFunctionAddress("CServerExoApp", "GetCreatureByGameObjectID")
         );
+
+        getGlobalVariableTable = reinterpret_cast<GetGlobalVariableTableFn>(
+            GameVersion::GetFunctionAddress("CServerExoApp", "GetGlobalVariableTable")
+            );
     }
     catch (const GameVersionException& e) {
         debugLog("[CServerExoApp] ERROR: %s\n", e.what());
@@ -105,4 +110,13 @@ CSWSCreature* CServerExoApp::GetCreatureByGameObjectID(DWORD objectId) {
     }
 
     return new CSWSCreature(creaturePtr);
+}
+
+void* CServerExoApp::GetGlobalVariableTable() {
+    if (!objectPtr || !getGlobalVariableTable) {
+        debugLog("[CServerExoApp] Error: no objectPtr or no getCreatureByGameObjectID");
+        return nullptr;
+    }
+
+    return getGlobalVariableTable(objectPtr);
 }

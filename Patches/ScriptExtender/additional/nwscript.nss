@@ -5297,3 +5297,15 @@ int Get2DAInt(string s2DAName, int nRow, string sColumn);
 // 791. Get2DAFloat
 // Returns a float value from a 2DA file at the specified row and column.
 float Get2DAFloat(string s2DAName, int nRow, string sColumn);
+
+// 792. Increases the value of the given global number by the given amount.
+// This function only works with Number type globals, not booleans. It
+// will fail if the final amount is greater than the max
+// of 127.
+void IncrementGlobalNumber( string sIdentifier, int nAmount );
+
+// 793. Decreases the value of the given global number by the given amount.
+// This function only works with Number type globals, not booleans. It
+// will fail if the final amount is less than the minimum
+// of -128.
+void DecrementGlobalNumber( string sIdentifier, int nAmount );

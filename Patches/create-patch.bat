@@ -152,7 +152,7 @@ if !BUILD_DLL! EQU 1 (
         echo   Including GameAPI library files...
     )
 
-    cl /LD /O2 /MD /W3 /std:c++17 /I"..\Common" /I"..\..\lib" !CPP_FILES! !COMMON_FILES! /link /DEF:exports.def /LIBPATH:"..\..\lib" sqlite3.lib /OUT:windows_x86.dll >build.log 2>&1
+    cl /LD /O2 /MD /W3 /EHsc /std:c++17 /I"..\Common" /I"..\..\lib" !CPP_FILES! !COMMON_FILES! /link /DEF:exports.def /LIBPATH:"..\..\lib" sqlite3.lib /OUT:windows_x86.dll >build.log 2>&1
 
     if !ERRORLEVEL! NEQ 0 (
         echo.
