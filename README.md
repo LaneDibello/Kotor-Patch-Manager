@@ -73,11 +73,11 @@ A patch typically contains 3 parts:
 - `supported_versions`: key/value pair of game versions and their SHA-256s
 
 ### Hooks
-There are 3 different types of hooks currently, `simple`, `replace`, and `detour`. Though they all share certain fields.
+There are 4 different types of hooks currently, `simple`, `replace`, `detour`, and `static`. Though they all share certain fields.
 
 #### Shared Fields
 - `address`: The hexadecimal (`0x########`) address where the hook will be applied
-- `type`: The type of hook, either `"simple"`, `"replace"`, or `"detour"`
+- `type`: The type of hook, either `"simple"`, `"replace"`, `"detour"`, or `"static"`
 
 #### Simple Hooks
 Simple hooks are for when you just want to replace a finite set of bytes with a new set of bytes of the same length.
@@ -101,6 +101,14 @@ Detour hooks are our most advanced option. They replace the code at address with
 - `parameters`: Parameters to be passed in (cdecl/stack style) to your `function`
 	- `source`: the register from which the parameter will be sourced
 	- `type`: The type of the parameter. Currently we support: `Int`, `Uint`, `Pointer`, `Float`, `Byte`, and `Short`
+
+#### Static Hooks
+Static hooks are applied directly to the executable file at install-time, before the game runs. This is necessary for patches that modify the PE header or other structures that must be patched before the executable loads into memory. Unlike other hook types, static hooks do not require runtime injection.
+
+- `original_bytes`: Any number of bytes starting from `address` that will be verified before patching
+- `replacement_bytes`: Bytes equal in length to `original_bytes` that will overwrite the original bytes in the file
+- **Applied at install-time**: These patches are written directly to the executable file when patches are installed
+- **Use cases**: PE header modifications (e.g., 4GB patch), import table modifications, or any change that must occur before the executable loads
 
 ### Building Patches
 To build a patch, use the `create-patch.bat` batch file from within the patch directory. Usually this will look like:

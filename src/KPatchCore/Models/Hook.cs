@@ -18,7 +18,12 @@ public enum HookType
     /// <summary>
     /// REPLACE: JMP to allocated code block with raw assembly, then JMP back (no wrapper, no DLL)
     /// </summary>
-    Replace
+    Replace,
+
+    /// <summary>
+    /// STATIC: Applied at install-time directly to executable file (for PE header patches)
+    /// </summary>
+    Static
 }
 
 /// <summary>
@@ -180,6 +185,32 @@ public sealed class Hook
             if (Parameters.Count > 0)
             {
                 error = "Replace hooks cannot have parameters";
+                return false;
+            }
+        }
+        else if (Type == HookType.Static)
+        {
+            if (ReplacementBytes == null || ReplacementBytes.Length == 0)
+            {
+                error = "ReplacementBytes required for Static hooks";
+                return false;
+            }
+
+            if (ReplacementBytes.Length != OriginalBytes.Length)
+            {
+                error = $"ReplacementBytes length ({ReplacementBytes.Length}) must match OriginalBytes length ({OriginalBytes.Length})";
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(Function))
+            {
+                error = "Static hooks should not have a function name";
+                return false;
+            }
+
+            if (Parameters.Count > 0)
+            {
+                error = "Static hooks cannot have parameters";
                 return false;
             }
         }
