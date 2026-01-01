@@ -32,15 +32,22 @@ int __stdcall ExecuteCommandAdjustGlobalNumber(DWORD routine, int paramCount) {
     int prev;
     getValueNumber(globalVars, indentifier.GetPtr(), &prev);
 
+    int value;
     if (routine == DecrementGlobalNumberIndex) {
-        amount *= -1;
+        value = prev - amount;
+
+        if (value < -128) {
+            delete vm;
+            return -2000;
+        }
     }
+    else {
+        value = prev + amount;
 
-    int value = prev + amount;
-
-    if (value > 127) {
-        delete vm;
-        return -2000;
+        if (value > 127) {
+            delete vm;
+            return -2000;
+        }
     }
 
     setValueNumber(globalVars, indentifier.GetPtr(), value);
