@@ -1,7 +1,6 @@
 #include "globalModifiers.h"
 
-
-int __stdcall ExecuteCommandIncrementGlobalNumber(DWORD routine, int paramCount) {
+int __stdcall ExecuteCommandAdjustGlobalNumber(DWORD routine, int paramCount) {
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
 	if (!vm) return -2001;
 
@@ -33,6 +32,10 @@ int __stdcall ExecuteCommandIncrementGlobalNumber(DWORD routine, int paramCount)
     int prev;
     getValueNumber(globalVars, indentifier.GetPtr(), &prev);
 
+    if (routine == DecrementGlobalNumberIndex) {
+        amount *= -1;
+    }
+
     int value = prev + amount;
 
     if (value > 127) {
@@ -42,10 +45,5 @@ int __stdcall ExecuteCommandIncrementGlobalNumber(DWORD routine, int paramCount)
 
     setValueNumber(globalVars, indentifier.GetPtr(), value);
 
-    return 0;
-}
-
-
-int __stdcall ExecuteCommandDecrementGlobalNumber(DWORD routine, int paramCount) {
     return 0;
 }

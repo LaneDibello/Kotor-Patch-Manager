@@ -38,7 +38,7 @@ void CServerExoApp::InitializeFunctions() {
 
         getGlobalVariableTable = reinterpret_cast<GetGlobalVariableTableFn>(
             GameVersion::GetFunctionAddress("CServerExoApp", "GetGlobalVariableTable")
-            );
+        );
     }
     catch (const GameVersionException& e) {
         debugLog("[CServerExoApp] ERROR: %s\n", e.what());
