@@ -283,6 +283,7 @@ public static class HooksParser
             "detour" => HookType.Detour,
             "simple" => HookType.Simple,
             "replace" => HookType.Replace,
+            "static" => HookType.Static,
             _ => HookType.Detour // Invalid types default to Detour
         };
     }

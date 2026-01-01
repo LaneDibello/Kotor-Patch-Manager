@@ -258,8 +258,61 @@ public class PatchApplicator
                 messages.Add("Step 4/7: Skipping backup (disabled)");
             }
 
+            // Step 4.5: Apply STATIC hooks to executable
+            messages.Add("Step 4.5/8: Applying static hooks...");
+
+            // Collect all static hooks from all patches
+            var allStaticHooks = new List<Hook>();
+            foreach (var patchId in installOrder)
+            {
+                var entry = patchEntries[patchId];
+                var staticHooks = entry.Hooks.Where(h => h.Type == HookType.Static).ToList();
+
+                if (staticHooks.Count > 0)
+                {
+                    allStaticHooks.AddRange(staticHooks);
+                    messages.Add($"  {patchId}: {staticHooks.Count} static hook(s)");
+                }
+            }
+
+            // Apply all static hooks
+            if (allStaticHooks.Count > 0)
+            {
+                var applyResult = StaticHookApplicator.ApplyStaticHooks(
+                    options.GameExePath,
+                    allStaticHooks);
+
+                if (!applyResult.Success)
+                {
+                    // Restore backup on failure
+                    if (backup != null)
+                    {
+                        var restoreResult = BackupManager.RestoreBackup(backup);
+                        if (restoreResult.Success)
+                        {
+                            messages.Add("  Backup restored after static hook failure");
+                        }
+                    }
+
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = $"Static hook application failed: {applyResult.Error}",
+                        DetectedVersion = gameVersion,
+                        Backup = backup,
+                        Messages = messages
+                    };
+                }
+
+                messages.Add($"  Successfully applied {allStaticHooks.Count} static hook(s) to executable");
+            }
+            else
+            {
+                messages.Add("  No static hooks to apply");
+            }
+
             // Step 5: Extract patch DLLs (for DETOUR hooks and DLL-only patches)
-            messages.Add("Step 5/7: Extracting patch DLLs...");
+            messages.Add("Step 5/8: Extracting patch DLLs...");
             var patchesDir = Path.Combine(gameDir, "patches");
 
             var extractedDlls = new Dictionary<string, string>();
@@ -320,7 +373,7 @@ public class PatchApplicator
             }
 
             // Step 6: Generate patch_config.toml
-            messages.Add("Step 6/7: Generating patch_config.toml...");
+            messages.Add("Step 6/8: Generating patch_config.toml...");
             var config = new PatchConfig
             {
                 TargetVersionSha = gameVersion.Hash  // NEW: Set target version SHA

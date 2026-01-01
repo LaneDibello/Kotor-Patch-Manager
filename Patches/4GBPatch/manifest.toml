@@ -1,0 +1,14 @@
+[patch]
+id = "4gb-patch"
+name = "4GB Memory Patch"
+version = "1.0.0"
+author = "KotOR Patch Manager"
+description = "Enables Large Address Aware flag for 4GB memory access on 32-bit systems"
+
+requires = []
+conflicts = []
+
+[patch.supported_versions]
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+kotor1_steam_103 = "C25E2D9C32D328E9476CF095BD8A430C25BDB93DB5CF19069F3BD8D1DD78793D"

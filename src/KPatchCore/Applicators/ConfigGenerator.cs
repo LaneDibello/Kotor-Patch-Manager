@@ -56,12 +56,17 @@ public static class ConfigGenerator
                 ["dll"] = patch.Dll
             };
 
-            // Add hooks array if there are any
-            if (patch.Hooks.Count > 0)
+            // Add hooks array if there are any (EXCLUDE STATIC hooks)
+            // Static hooks are applied at install-time, not runtime
+            var runtimeHooks = patch.Hooks
+                .Where(h => h.Type != HookType.Static)
+                .ToList();
+
+            if (runtimeHooks.Count > 0)
             {
                 var hooksArray = new TomlTableArray();
 
-                foreach (var hook in patch.Hooks)
+                foreach (var hook in runtimeHooks)
                 {
                     var originalBytesArray = new TomlArray();
                     foreach (var b in hook.OriginalBytes)

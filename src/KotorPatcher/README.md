@@ -34,7 +34,7 @@ The wrapper system generates runtime x86 assembly code to intercept game functio
 
 ## Hook Types
 
-KotorPatcher supports four distinct hook types:
+KotorPatcher supports four runtime hook types that are applied when the game launches. A fifth hook type (STATIC) is applied at install-time by KPatchCore and does not require runtime processing.
 
 ### DETOUR Hooks
 
@@ -75,6 +75,10 @@ Allocates executable memory for custom assembly code that executes in place of o
 ### DLL_ONLY
 
 Loads a patch DLL without applying any hooks. Used for patches that hook via their DllMain.
+
+### STATIC (Not Handled by KotorPatcher)
+
+STATIC hooks are applied at install-time by KPatchCore, not at runtime. They modify the executable file directly before the game launches. These hooks are excluded from `patch_config.toml` and never reach the runtime patcher. Use STATIC hooks for PE header modifications (e.g., 4GB patch) or other changes that must occur before the executable loads into memory.
 
 ## Key Classes and Structures
 

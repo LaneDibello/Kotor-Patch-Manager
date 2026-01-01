@@ -23,21 +23,25 @@ The library uses a **PatchResult** pattern instead of exceptions for expected fa
 
 ### Applicators
 
-**PatchApplicator**: Orchestrates the full installation pipeline. Validates inputs, detects game version, loads and validates patches, checks dependencies/conflicts/version compatibility, creates backup, extracts patch DLLs, generates patch_config.toml, deploys KotorPatcher.dll.
+**PatchApplicator**: Orchestrates the full installation pipeline. Validates inputs, detects game version, loads and validates patches, checks dependencies/conflicts/version compatibility, creates backup, applies STATIC hooks to executable file, extracts patch DLLs, generates patch_config.toml, deploys KotorPatcher.dll.
 
-**ConfigGenerator**: Generates patch_config.toml for the runtime patcher. Converts PatchConfig objects to TOML format with patches array, hooks definitions, and target version SHA.
+**StaticHookApplicator**: Applies STATIC hooks directly to the game executable at install-time. Parses PE headers, converts virtual addresses to file offsets, verifies original bytes, writes replacement bytes. Used for patches that modify PE headers or other structures that must be patched before the executable loads.
 
-**BackupManager**: Creates and restores backups of game directories. Stores backup metadata with game version and installed patches list. Automatically restores on installation failure.
+**ConfigGenerator**: Generates patch_config.toml for the runtime patcher. Converts PatchConfig objects to TOML format with patches array, hooks definitions, and target version SHA. Filters out STATIC hooks as they are already applied to the file.
 
-**PatchRemover**: Removes installed patches from game directory. Deletes patch_config.toml, removes patches directory, restores from backup if available.
+**BackupManager**: Creates and restores backups of game directories. Stores backup metadata with game version and installed patches list. Automatically restores on installation failure (including STATIC hook failures).
+
+**PatchRemover**: Removes installed patches from game directory. Deletes patch_config.toml, removes patches directory, restores from backup if available (reverting STATIC hook changes).
 
 ### Parsers
 
 **ManifestParser**: Parses manifest.toml files from .kpatch archives. Extracts patch metadata: id, name, version, author, description, dependencies, conflicts, supported versions. Returns PatchManifest objects.
 
-**HooksParser**: Parses hooks.toml files from .kpatch archives. Supports metadata section with target_versions for game-specific hooks. Extracts hook definitions: address, type, original_bytes, function names, parameters. Validates hook configurations.
+**HooksParser**: Parses hooks.toml files from .kpatch archives. Supports metadata section with target_versions for game-specific hooks. Extracts hook definitions: address, type, original_bytes, function names, parameters. Validates hook configurations. Supports DETOUR, SIMPLE, REPLACE, and STATIC hook types.
 
-**ExecutableParser**: Reserved for future PE header parsing (not currently implemented).
+**ExecutableParser**: Parses basic PE executable metadata (architecture, file size). Used for initial game detection.
+
+**PeHeaderParser**: Parses PE (Portable Executable) headers including DOS header, PE signature, COFF header, optional header, and section headers. Converts virtual addresses to file offsets for STATIC hook application. Provides methods to read and write bytes at virtual addresses in the executable file.
 
 ### Validators
 
@@ -78,15 +82,15 @@ Represents metadata from a patch's manifest.toml:
 
 Represents a single hook point in game code:
 
-- **Address**: Memory address to patch
-- **Type**: DETOUR, SIMPLE, or REPLACE
+- **Address**: Virtual Memory address to patch
+- **Type**: DETOUR, SIMPLE, REPLACE, or STATIC
 - **Function**: Exported function name (DETOUR only)
 - **OriginalBytes**: Bytes at hook address for verification
-- **ReplacementBytes**: New bytes to write (SIMPLE/REPLACE only)
+- **ReplacementBytes**: New bytes to write (SIMPLE/REPLACE/STATIC only)
 - **Parameters**: Parameter extraction configuration (DETOUR only)
-- **PreserveRegisters/PreserveFlags**: State preservation options
-- **ExcludeFromRestore**: Registers to keep modified after hook
-- **SkipOriginalBytes**: Whether to skip re-executing stolen bytes
+- **PreserveRegisters/PreserveFlags**: State preservation options (DETOUR only)
+- **ExcludeFromRestore**: Registers to keep modified after hook (DETOUR only)
+- **SkipOriginalBytes**: Whether to skip re-executing stolen bytes (DETOUR only)
 
 ### PatchResult / PatchResult&lt;T&gt;
 
@@ -131,14 +135,15 @@ Defines parameter extraction for DETOUR hooks:
 
 **PatchOrchestrator.InstallPatches()**: Main installation entry point. Takes InstallOptions with game path, patch IDs, backup preference. Returns InstallResult with success status, installed patches, backup info, game version, config path.
 
-**PatchApplicator.InstallPatches()**: Executes 7-step installation process:
+**PatchApplicator.InstallPatches()**: Executes 8-step installation process:
 1. Validate inputs (game exe exists)
 2. Detect game version (SHA-256 hash)
 3. Load and validate patches (dependencies, conflicts, version compatibility, hook conflicts)
 4. Create backup (optional but recommended)
-5. Extract patch DLLs to patches/ directory
-6. Generate patch_config.toml with version-specific hooks
-7. Deploy KotorPatcher.dll to game directory
+5. Apply STATIC hooks directly to executable file
+6. Extract patch DLLs to patches/ directory
+7. Generate patch_config.toml with version-specific runtime hooks (DETOUR/SIMPLE/REPLACE)
+8. Deploy KotorPatcher.dll to game directory
 
 ### Patch Discovery
 
@@ -199,11 +204,13 @@ Multiple hooks files supported for version-specific patches. Files with target_v
 
 ## Hook Types
 
-**DETOUR**: Full-featured hooks with DLL and parameter extraction. Requires function name, minimum 5 original bytes, optional parameters array. Runtime generates wrapper with state preservation.
+**DETOUR**: Full-featured hooks with DLL and parameter extraction. Requires function name, minimum 5 original bytes, optional parameters array. Runtime generates wrapper with state preservation. Applied at runtime by KotorPatcher.dll.
 
-**SIMPLE**: Direct byte replacement. Requires replacement_bytes of same length as original_bytes. No DLL needed. Perfect for changing constants or NOPing instructions.
+**SIMPLE**: Direct byte replacement in memory. Requires replacement_bytes of same length as original_bytes. No DLL needed. Perfect for changing constants or NOPing instructions. Applied at runtime by KotorPatcher.dll.
 
-**REPLACE**: Allocated code execution. Requires replacement_bytes (any length), minimum 5 original bytes. Writes JMP to allocated memory, executes replacement bytes, JMPs back. No DLL or wrapper needed.
+**REPLACE**: Allocated code execution in memory. Requires replacement_bytes (any length), minimum 5 original bytes. Writes JMP to allocated memory, executes replacement bytes, JMPs back. No DLL or wrapper needed. Applied at runtime by KotorPatcher.dll.
+
+**STATIC**: Direct byte replacement in executable file. Requires replacement_bytes of same length as original_bytes. No DLL needed. Applied at install-time by StaticHookApplicator before the game runs. Perfect for PE header modifications (4GB patch), import table changes, or any modification that must occur before the executable loads. Uses virtual addresses with automatic conversion to file offsets via PE header parsing.
 
 ## Error Handling
 
