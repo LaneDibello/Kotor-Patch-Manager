@@ -1,0 +1,20 @@
+# 4GB Patch for KOTOR 1
+# Sets the IMAGE_FILE_LARGE_ADDRESS_AWARE flag in the PE Optional Header
+# This allows the 32-bit process to use up to 4GB of virtual address space
+# instead of being limited to 2GB
+
+[[hooks]]
+# PE Optional Header: Characteristics field
+# Virtual address 0x00400926 points to the Characteristics field in the PE Optional Header
+# This field contains various flags including LARGE_ADDRESS_AWARE
+address = 0x00400926
+type = "static"
+
+# Original value: 0x010F (without LARGE_ADDRESS_AWARE flag)
+# In little-endian format: 0x0F 0x01
+original_bytes = [0x0F, 0x01]
+
+# New value: 0x012F (with LARGE_ADDRESS_AWARE flag: 0x010F | 0x0020)
+# In little-endian format: 0x2F 0x01
+# The 0x0020 bit (IMAGE_FILE_LARGE_ADDRESS_AWARE) enables 4GB address space
+replacement_bytes = [0x2F, 0x01]
