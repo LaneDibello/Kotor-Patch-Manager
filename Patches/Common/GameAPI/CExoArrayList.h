@@ -1,50 +1,614 @@
-/*
- * CExoArrayList<T> are structured as follows:
- * {
- * T* data;
- * int size;
- * int capacity;
- * }
- * 
- * They are 0xC bytes in size in memory
- * 
- * Because of the nature of the MSVC compilation, a different CExoArrayList<T> structure was generated for each `T`, with different versions of the same functions for these other types. So we'll need to be clever about how we reference remote functions. Not to mention many member functions for these different classes are shared, especially when the size_of(T) is the same for two different types.
- * The way I see it is there are two valid approaches here:
- *	- We could attempt to match the supplied type to existing classes in the data base, and selectively pull the functions based on each of those (if they even exists, which they often don't as unused function were optimized out of the compilation). While this may be "more correct", I think this would get rather messy and out of hand quite quickly.
- *	- We could directly implement our own version of the Core CExoArrayList member functions that mimic the logic of the underlying functions properly. This would allow use to truly support any type `T`, and be a lot cleaner than trying to use game function for manipulating these structures. The only draw back here is we would need to be very sure that our implementations are accurate, lest we create game structures and results that are unexpected within the game.
- * 
- * I believe the second of the above options is preferable
- * 
- * Regardless, we need to store the size of `T` as a member, so that we are able to allocate the correct sized buffers when necessary
- * 
- * CExoArrayList has the following member function:
- *	- Add(T value) | Appends value to the data array, and increases size by 1
- *	- AddUnique(T value) | Performs Add if value doesn't already exists on the array (makes use of the Count function for this)
- *  - Allocate(int capacity) | Updates capacity field, Allocates a new array of length size_of(T) * capacity, Copies data to it, frees old data
- *	- CExoArrayList() | Default constructor, size and capacity are 0, data is nullptr
- *	- CExoArrayList(int capacity) | Allocation Constructor, the default constructor with a call to Allocate(capacity)
- *	- CExoArrayList(CExoArrayList<T> copy) | Copy constructor copies copy into this
- *	- Clear() | Frees all data, size and capacity set to 0
- *	- Count(T value) | Returns the number of times values occurs in the array
- *	- DeleteAt(int index) | Deletes the values at index in the data array, and shifts all other values back 1. Shrinking size
- *	- IndexOf(T value) | Gets the index of the first occurrence of value in the array. Returns -1 if not found
- *	- Insert(T value, int index) | Inserts value into the array such that it will be at index. Other values are shifted forward. Growing size
- *	- operator=(CExoArrayList<T> rhs) | Copies the content of rhs into this array
- *	- Remove(T value) | Removes the *last* occurrence of value from the array, shifting other values backwards, shrinking size
- *	- RemoveAll(T value) | Removes all occurrences of values from the array, shifting other values back, shrinking size
- *	- SetSize(int size) | Typically used for shrinking the size of an array, deleting off-cut data, and setting a new size/capacity
- *	- ~CExoArrayList() | Destructor, essentially the same as Clear
- * 
- * Other functions that may be useful:
- *	- Other operators such as `==`, `!=`, `[]`, `+`, and `+=` would be worth while
- *	- A sort function would be neat, provided T is sortable. Maybe we require a compare function be provided?
- *	- Of course we'll have getters for the internal fields, `data` at 0x0, `size` at 0x4, `capacity` at 0x8
- * 
- * Some other important notes:
- *	- When size is increased, we need to check if it exceeds capacity. If so a call to Allocate will be necessary to grow the array. Kotor typically doubles the capacity, unless the previous capacity was 0, in which case it sets it to 10.
- *	- When clearing, removing, and deleting elements from the array, if T requires a destructor it should be properly invoked. Presumably there's a way to make this simple
- *	- Note that if T is a pointer type, then each value will be 4 bytes. Though sometimes much larger objects are used, so it's important to be aware of this when allocating
- *	- The bulk of the above functions are `__thiscall`s
- *	- Like other classes I want to ability to wrap an actual game object, or construct one ourself. The primary difference here is instead of pulling functions from the DB, we're just implementing it ourself.
- *	- This should still inherit from GameAPIObject though
- */
+#pragma once
+#include "../Common.h"
+#include "GameAPIObject.h"
+#include <cstring>
+#include <type_traits>
+
+/// <summary>
+/// Templated wrapper for KotOR's CExoArrayList<T> class.
+/// Memory layout: { T* data (0x0), int size (0x4), int capacity (0x8) } = 0xC bytes
+///
+/// Unlike other GameAPI classes, CExoArrayList implements its own logic rather than
+/// calling game functions. This allows it to work with any type T and avoids issues
+/// with missing/optimized-out functions in the game binary.
+/// </summary>
+template<typename T>
+class CExoArrayList : public GameAPIObject {
+public:
+    /// <summary>
+    /// Wraps an existing CExoArrayList in game memory.
+    /// </summary>
+    /// <param name="arrayPtr">Pointer to existing game CExoArrayList</param>
+    explicit CExoArrayList(void* arrayPtr);
+
+    /// <summary>
+    /// Default constructor - creates an empty array.
+    /// </summary>
+    CExoArrayList();
+
+    /// <summary>
+    /// Allocation constructor - creates an array with specified capacity.
+    /// </summary>
+    /// <param name="capacity">Initial capacity to allocate</param>
+    explicit CExoArrayList(int capacity);
+
+    /// <summary>
+    /// Copy constructor - creates a deep copy of another array.
+    /// </summary>
+    /// <param name="copy">Array to copy from</param>
+    CExoArrayList(const CExoArrayList<T>& copy);
+
+    /// <summary>
+    /// Destructor - cleans up allocated memory.
+    /// </summary>
+    ~CExoArrayList();
+
+    // === Core operations ===
+
+    /// <summary>
+    /// Appends a value to the end of the array.
+    /// </summary>
+    void Add(const T& value);
+
+    /// <summary>
+    /// Appends a value only if it doesn't already exist in the array.
+    /// </summary>
+    void AddUnique(const T& value);
+
+    /// <summary>
+    /// Allocates or reallocates the internal array to the specified capacity.
+    /// </summary>
+    void Allocate(int newCapacity);
+
+    /// <summary>
+    /// Removes all elements and frees memory.
+    /// </summary>
+    void Clear();
+
+    /// <summary>
+    /// Counts how many times a value appears in the array.
+    /// </summary>
+    int Count(const T& value) const;
+
+    /// <summary>
+    /// Deletes the element at the specified index, shifting subsequent elements back.
+    /// </summary>
+    void DeleteAt(int index);
+
+    /// <summary>
+    /// Finds the first index of a value, or -1 if not found.
+    /// </summary>
+    int IndexOf(const T& value) const;
+
+    /// <summary>
+    /// Inserts a value at the specified index, shifting subsequent elements forward.
+    /// </summary>
+    void Insert(const T& value, int index);
+
+    /// <summary>
+    /// Removes the last occurrence of a value from the array.
+    /// </summary>
+    void Remove(const T& value);
+
+    /// <summary>
+    /// Removes all occurrences of a value from the array.
+    /// </summary>
+    void RemoveAll(const T& value);
+
+    /// <summary>
+    /// Sets the size of the array (typically for shrinking).
+    /// </summary>
+    void SetSize(int newSize);
+
+    // === Getters ===
+
+    /// <summary>
+    /// Gets pointer to the internal data array.
+    /// </summary>
+    T* GetData() const;
+
+    /// <summary>
+    /// Gets the current number of elements.
+    /// </summary>
+    int GetSize() const;
+
+    /// <summary>
+    /// Gets the current capacity.
+    /// </summary>
+    int GetCapacity() const;
+
+    // === Operators ===
+
+    /// <summary>
+    /// Array subscript operator for element access.
+    /// </summary>
+    T& operator[](int index);
+    const T& operator[](int index) const;
+
+    /// <summary>
+    /// Assignment operator - copies content from another array.
+    /// </summary>
+    CExoArrayList<T>& operator=(const CExoArrayList<T>& rhs);
+
+    /// <summary>
+    /// Equality comparison.
+    /// </summary>
+    bool operator==(const CExoArrayList<T>& rhs) const;
+
+    /// <summary>
+    /// Inequality comparison.
+    /// </summary>
+    bool operator!=(const CExoArrayList<T>& rhs) const;
+
+    // === GameAPIObject overrides ===
+
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
+
+private:
+    static bool functionsInitialized;
+    static bool offsetsInitialized;
+
+    /// <summary>
+    /// Helper to grow capacity when needed (doubles capacity, or sets to 10 if 0).
+    /// </summary>
+    void GrowIfNeeded();
+
+    /// <summary>
+    /// Helper to call destructors on elements if needed.
+    /// </summary>
+    void DestroyElement(T* element);
+
+    /// <summary>
+    /// Helper to set the internal data pointer.
+    /// </summary>
+    void SetData(T* data);
+
+    /// <summary>
+    /// Helper to set the internal size.
+    /// </summary>
+    void SetSizeInternal(int size);
+
+    /// <summary>
+    /// Helper to set the internal capacity.
+    /// </summary>
+    void SetCapacityInternal(int capacity);
+};
+
+// === Static member initialization ===
+template<typename T>
+bool CExoArrayList<T>::functionsInitialized = false;
+
+template<typename T>
+bool CExoArrayList<T>::offsetsInitialized = false;
+
+// === Implementation ===
+
+template<typename T>
+CExoArrayList<T>::CExoArrayList(void* arrayPtr)
+    : GameAPIObject(arrayPtr, false) {  // false = wrapping existing memory
+
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+}
+
+template<typename T>
+CExoArrayList<T>::CExoArrayList()
+    : GameAPIObject(nullptr, true) {  // true = we own this memory
+
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    // Allocate the 0xC byte structure
+    objectPtr = malloc(0xC);
+    if (objectPtr) {
+        SetData(nullptr);
+        SetSizeInternal(0);
+        SetCapacityInternal(0);
+    }
+}
+
+template<typename T>
+CExoArrayList<T>::CExoArrayList(int capacity)
+    : GameAPIObject(nullptr, true) {  // true = we own this memory
+
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    // Allocate the 0xC byte structure
+    objectPtr = malloc(0xC);
+    if (objectPtr) {
+        SetData(nullptr);
+        SetSizeInternal(0);
+        SetCapacityInternal(0);
+        Allocate(capacity);
+    }
+}
+
+template<typename T>
+CExoArrayList<T>::CExoArrayList(const CExoArrayList<T>& copy)
+    : GameAPIObject(nullptr, true) {  // true = we own this memory
+
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    // Allocate the 0xC byte structure
+    objectPtr = malloc(0xC);
+    if (objectPtr) {
+        SetData(nullptr);
+        SetSizeInternal(0);
+        SetCapacityInternal(0);
+
+        // Copy elements from source
+        *this = copy;
+    }
+}
+
+template<typename T>
+CExoArrayList<T>::~CExoArrayList() {
+    if (shouldFree && objectPtr) {
+        Clear();
+        free(objectPtr);
+        objectPtr = nullptr;
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::Add(const T& value) {
+    GrowIfNeeded();
+
+    T* data = GetData();
+    int size = GetSize();
+
+    if (data) {
+        data[size] = value;
+        SetSizeInternal(size + 1);
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::AddUnique(const T& value) {
+    if (Count(value) == 0) {
+        Add(value);
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::Allocate(int newCapacity) {
+    if (!objectPtr) return;
+
+    T* oldData = GetData();
+    int currentSize = GetSize();
+
+    // Allocate new array
+    T* newData = nullptr;
+    if (newCapacity > 0) {
+        newData = static_cast<T*>(malloc(sizeof(T) * newCapacity));
+
+        // Copy existing elements
+        if (newData && oldData) {
+            int copyCount = (currentSize < newCapacity) ? currentSize : newCapacity;
+            memcpy(newData, oldData, sizeof(T) * copyCount);
+        }
+    }
+
+    // Free old data
+    if (oldData) {
+        free(oldData);
+    }
+
+    // Update structure
+    SetData(newData);
+    SetCapacityInternal(newCapacity);
+
+    // Adjust size if we shrank below it
+    if (currentSize > newCapacity) {
+        SetSizeInternal(newCapacity);
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::Clear() {
+    if (!objectPtr) return;
+
+    T* data = GetData();
+    int size = GetSize();
+
+    // Call destructors if needed
+    if (data && !std::is_trivially_destructible<T>::value) {
+        for (int i = 0; i < size; i++) {
+            DestroyElement(&data[i]);
+        }
+    }
+
+    // Free memory
+    if (data) {
+        free(data);
+    }
+
+    // Reset structure
+    SetData(nullptr);
+    SetSizeInternal(0);
+    SetCapacityInternal(0);
+}
+
+template<typename T>
+int CExoArrayList<T>::Count(const T& value) const {
+    if (!objectPtr) return 0;
+
+    T* data = GetData();
+    int size = GetSize();
+    int count = 0;
+
+    for (int i = 0; i < size; i++) {
+        if (data[i] == value) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+template<typename T>
+void CExoArrayList<T>::DeleteAt(int index) {
+    if (!objectPtr) return;
+
+    int size = GetSize();
+    if (index < 0 || index >= size) return;
+
+    T* data = GetData();
+
+    // Call destructor if needed
+    if (!std::is_trivially_destructible<T>::value) {
+        DestroyElement(&data[index]);
+    }
+
+    // Shift elements back
+    if (index < size - 1) {
+        memmove(&data[index], &data[index + 1], sizeof(T) * (size - index - 1));
+    }
+
+    SetSizeInternal(size - 1);
+}
+
+template<typename T>
+int CExoArrayList<T>::IndexOf(const T& value) const {
+    if (!objectPtr) return -1;
+
+    T* data = GetData();
+    int size = GetSize();
+
+    for (int i = 0; i < size; i++) {
+        if (data[i] == value) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+template<typename T>
+void CExoArrayList<T>::Insert(const T& value, int index) {
+    if (!objectPtr) return;
+
+    int size = GetSize();
+    if (index < 0 || index > size) return;
+
+    GrowIfNeeded();
+
+    T* data = GetData();
+
+    // Shift elements forward
+    if (index < size) {
+        memmove(&data[index + 1], &data[index], sizeof(T) * (size - index));
+    }
+
+    // Insert new value
+    data[index] = value;
+    SetSizeInternal(size + 1);
+}
+
+template<typename T>
+void CExoArrayList<T>::Remove(const T& value) {
+    if (!objectPtr) return;
+
+    int size = GetSize();
+
+    // Find last occurrence
+    for (int i = size - 1; i >= 0; i--) {
+        T* data = GetData();
+        if (data[i] == value) {
+            DeleteAt(i);
+            return;
+        }
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::RemoveAll(const T& value) {
+    if (!objectPtr) return;
+
+    // Remove from back to front to avoid index shifting issues
+    for (int i = GetSize() - 1; i >= 0; i--) {
+        T* data = GetData();
+        if (data[i] == value) {
+            DeleteAt(i);
+        }
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::SetSize(int newSize) {
+    if (!objectPtr) return;
+
+    int currentSize = GetSize();
+    int capacity = GetCapacity();
+
+    if (newSize < 0) return;
+
+    // If shrinking, call destructors on removed elements
+    if (newSize < currentSize && !std::is_trivially_destructible<T>::value) {
+        T* data = GetData();
+        for (int i = newSize; i < currentSize; i++) {
+            DestroyElement(&data[i]);
+        }
+    }
+
+    // If size exceeds capacity, reallocate
+    if (newSize > capacity) {
+        Allocate(newSize);
+    }
+
+    SetSizeInternal(newSize);
+}
+
+template<typename T>
+T* CExoArrayList<T>::GetData() const {
+    if (!objectPtr) return nullptr;
+    return getObjectProperty<T*>(objectPtr, 0x0);
+}
+
+template<typename T>
+int CExoArrayList<T>::GetSize() const {
+    if (!objectPtr) return 0;
+    return getObjectProperty<int>(objectPtr, 0x4);
+}
+
+template<typename T>
+int CExoArrayList<T>::GetCapacity() const {
+    if (!objectPtr) return 0;
+    return getObjectProperty<int>(objectPtr, 0x8);
+}
+
+template<typename T>
+T& CExoArrayList<T>::operator[](int index) {
+    T* data = GetData();
+    return data[index];
+}
+
+template<typename T>
+const T& CExoArrayList<T>::operator[](int index) const {
+    T* data = GetData();
+    return data[index];
+}
+
+template<typename T>
+CExoArrayList<T>& CExoArrayList<T>::operator=(const CExoArrayList<T>& rhs) {
+    if (this == &rhs) return *this;
+
+    // Clear existing content
+    Clear();
+
+    // Copy elements
+    int rhsSize = rhs.GetSize();
+    if (rhsSize > 0) {
+        Allocate(rhsSize);
+        T* rhsData = rhs.GetData();
+        T* thisData = GetData();
+
+        if (rhsData && thisData) {
+            memcpy(thisData, rhsData, sizeof(T) * rhsSize);
+            SetSizeInternal(rhsSize);
+        }
+    }
+
+    return *this;
+}
+
+template<typename T>
+bool CExoArrayList<T>::operator==(const CExoArrayList<T>& rhs) const {
+    int size = GetSize();
+    if (size != rhs.GetSize()) return false;
+
+    T* thisData = GetData();
+    T* rhsData = rhs.GetData();
+
+    for (int i = 0; i < size; i++) {
+        if (thisData[i] != rhsData[i]) return false;
+    }
+
+    return true;
+}
+
+template<typename T>
+bool CExoArrayList<T>::operator!=(const CExoArrayList<T>& rhs) const {
+    return !(*this == rhs);
+}
+
+template<typename T>
+void CExoArrayList<T>::InitializeFunctions() {
+    if (functionsInitialized) return;
+
+    // No game functions to initialize - we implement everything ourselves
+    functionsInitialized = true;
+}
+
+template<typename T>
+void CExoArrayList<T>::InitializeOffsets() {
+    if (offsetsInitialized) return;
+
+    // Offsets are fixed and known:
+    // data @ 0x0, size @ 0x4, capacity @ 0x8
+    offsetsInitialized = true;
+}
+
+template<typename T>
+void CExoArrayList<T>::GrowIfNeeded() {
+    if (!objectPtr) return;
+
+    int size = GetSize();
+    int capacity = GetCapacity();
+
+    if (size >= capacity) {
+        int newCapacity = (capacity == 0) ? 10 : capacity * 2;
+        Allocate(newCapacity);
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::DestroyElement(T* element) {
+    if (element && !std::is_trivially_destructible<T>::value) {
+        element->~T();
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::SetData(T* data) {
+    if (objectPtr) {
+        setObjectProperty<T*>(objectPtr, 0x0, data);
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::SetSizeInternal(int size) {
+    if (objectPtr) {
+        setObjectProperty<int>(objectPtr, 0x4, size);
+    }
+}
+
+template<typename T>
+void CExoArrayList<T>::SetCapacityInternal(int capacity) {
+    if (objectPtr) {
+        setObjectProperty<int>(objectPtr, 0x8, capacity);
+    }
+}
