@@ -1,0 +1,137 @@
+[metadata]
+target_versions = [
+	"9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+	"761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+]
+
+# LightManager::maxLights
+[[hooks]]
+address = 0x007a1934
+type = "simple"
+original_bytes = [0x03, 0x00, 0x00, 0x00]
+replacement_bytes = [0x07, 0x00, 0x00, 0x00]
+
+# LightManager::PrioritizeIllumination
+[[hooks]]
+address = 0x004a3dc6
+type = "simple"
+original_bytes = [0x83, 0xf8, 0x03]
+replacement_bytes = [0x83, 0xf8, 0x07]
+
+# Scene::DoGobBuckets
+[[hooks]]
+address = 0x00457dcc
+type = "simple"
+original_bytes = [0x6a, 0x03]
+replacement_bytes = [0x6a, 0x07]
+
+[[hooks]]
+address = 0x00457dd5
+type = "simple"
+original_bytes = [0x6a, 0x03]
+replacement_bytes = [0x6a, 0x07]
+
+[[hooks]]
+address = 0x00457e15
+type = "simple"
+original_bytes = [0x6a, 0x03]
+replacement_bytes = [0x6a, 0x07]
+
+# Scene::DoBlurBuckets
+[[hooks]]
+address = 0x0045052a
+type = "simple"
+original_bytes = [0x6a, 0x03]
+replacement_bytes = [0x6a, 0x07]
+
+# Scene::DoLightSaberBucket
+[[hooks]]
+address = 0x004504a8
+type = "simple"
+original_bytes = [0x6a, 0x03]
+replacement_bytes = [0x6a, 0x07]
+
+[[hooks]]
+address = 0x0045049f
+type = "simple"
+original_bytes = [0x6a, 0x03]
+replacement_bytes = [0x6a, 0x07]
+
+# LightManager::EnableHighestPriorityLightsFade
+[[hooks]]
+address = 0x004a443
+type = "simple"
+original_bytes = [0x83, 0xfe, 0x03]
+replacement_bytes = [0x83, 0xfe, 0x07]
+
+[[hooks]]
+address = 0x004a444c
+type = "simple"
+original_bytes = [0x83, 0xfe, 0x03]
+replacement_bytes = [0x83, 0xfe, 0x07]
+
+# LightManager::EnableHighestPriorityLights
+[[hooks]]
+address = 0x004a2f01
+type = "simple"
+original_bytes = [0x83, 0xfe, 0x03]
+replacement_bytes = [0x83, 0xfe, 0x07]
+
+[[hooks]]
+address = 0x004a2f1a
+type = "simple"
+original_bytes = [0x83, 0xfe, 0x03]
+replacement_bytes = [0x83, 0xfe, 0x07]
+
+# LightManager::GetNearestLights
+[[hooks]]
+address = 0x004a37a0
+type = "simple"
+original_bytes = [0x83, 0xfb, 0x03]
+replacement_bytes = [0x83, 0xfb, 0x07]
+
+[[hooks]]
+address = 0x004a3888
+type = "simple"
+original_bytes = [0x83, 0xfb, 0x03]
+replacement_bytes = [0x83, 0xfb, 0x07]
+
+[[hooks]]
+address = 0x004a389f
+type = "simple"
+original_bytes = [0x83, 0xfe, 0x03]
+replacement_bytes = [0x83, 0xfe, 0x07]
+
+
+# LightManager::ControlLightsFade
+[[hooks]]
+address = 0x004a4acb
+type = "simple"
+original_bytes = [0x83, 0xff, 0x03]
+replacement_bytes = [0x83, 0xff, 0x07]
+
+[[hooks]]
+address = 0x004a4aea
+type = "simple"
+original_bytes = [0x83, 0xfe, 0x03]
+replacement_bytes = [0x83, 0xfe, 0x07]
+
+# VertexProgram::FindNumberOfAllowedLights
+[[hooks]]
+address = 0x004a2380
+type = "simple"
+original_bytes = [0x83, 0xfa, 0x03]
+replacement_bytes = [0x83, 0xfa, 0x07]
+
+[[hooks]]
+address = 0x004a238d
+type = "simple"
+original_bytes = [0xb8, 0x03, 0x00, 0x00, 0x00]
+replacement_bytes = [0xb8, 0x07, 0x00, 0x00, 0x00]
+
+# VertexProgram::VertexProgram
+[[hooks]]
+address = 0x004a280a
+type = "simple"
+original_bytes = [0xc7, 0x86, 0x10, 0x20, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00]
+replacement_bytes = [0xc7, 0x86, 0x10, 0x20, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00]
