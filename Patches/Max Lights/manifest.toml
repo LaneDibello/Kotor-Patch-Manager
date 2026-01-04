@@ -1,0 +1,13 @@
+[patch]
+id = "max-light"
+name = "Max Lights"
+version = "0.0.0"
+author = "Lane"
+description = "blah"
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor2_gog_aspyr = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"
