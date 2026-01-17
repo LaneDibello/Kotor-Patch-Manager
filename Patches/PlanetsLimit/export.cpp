@@ -74,8 +74,9 @@ extern "C" void __cdecl ReadPlanetMask(void* gff, CResStruct* strct, void* party
 
     CResGFF res(gff);
 
-    int* availablePlanets;
-    int* selectablePlanets;
+    ClearPlanets(partyTable);
+    int* availablePlanets = getObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS);
+    int* selectablePlanets = getObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS);
 
     int success = 0;
 
