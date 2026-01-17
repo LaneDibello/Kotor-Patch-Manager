@@ -206,7 +206,7 @@ exclude_from_restore = []
 source = "esi"
 type = "pointer" # CResGFF *
 [[hooks.parameters]]
-source = "eax"
+source = "esp+32"
 type = "pointer" # CResStruct * 
 [[hooks.parameters]]
 source = "ebx"
