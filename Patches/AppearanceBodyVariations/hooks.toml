@@ -1,0 +1,31 @@
+# CSWGuiUpgrade::GetArmorModelAndTextureResRef
+[[hooks]]
+address = 0x006c349b
+type = "simple"
+original_bytes = [0x83, 0xf8, 0x0a]
+replacement_bytes = [0x83, 0xf8, 0x1a]
+
+[[hooks]]
+address = 0x006c34bf
+type = "simple"
+original_bytes = [0xb8, 0x0a, 0x00, 0x00, 0x00]
+replacement_bytes = [0xb8, 0x01, 0x00, 0x00, 0x00]
+
+# CSWCCreatureAppearance::GetBTypeModelAndTextureResRef 
+[[hooks]]
+address = 0x00697654
+type = "simple"
+original_bytes = [0x3c, 0x0a]
+replacement_bytes = [0x3c, 0x1a]
+
+[[hooks]]
+address = 0x0069767b
+type = "simple"
+original_bytes = [0x3c, 0x0a]
+replacement_bytes = [0x3c, 0x1a]
+
+[[hooks]]
+address = 0x0069767f
+type = "simple"
+original_bytes = [0xb9, 0x0a, 0x00, 0x00, 0x00]
+replacement_bytes = [0xb9, 0x01, 0x00, 0x00, 0x00]

@@ -1,9 +1,9 @@
 [patch]
-id = "planets-limit"
-name = "Max Planets Limit Increase"
-version = "1.0.0"
+id = "appearance-model-tex-columns"
+name = "More Appearance Model/Texture Variants"
+version = "0.0.0"
 author = "Lane"
-description = "(BETA) Increases the maximum allowed planets in this game from 16 to 127.\nNOTE: saves created with this patch applied will misbehave without it, and vice versa!"
+description = "Allows for the addition of appearance.2da columns for modelk-modelz, and texk-texz. This is what kotor tool calls the \"Body Variation\""
 
 requires = []
 
