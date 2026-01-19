@@ -35,6 +35,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AdditionalConsoleCommands",
 		Patches\AdditionalConsoleCommands\kotor1.hooks.toml = Patches\AdditionalConsoleCommands\kotor1.hooks.toml
 		Patches\AdditionalConsoleCommands\manifest.toml = Patches\AdditionalConsoleCommands\manifest.toml
 		Patches\AdditionalConsoleCommands\README.md = Patches\AdditionalConsoleCommands\README.md
+	
+		Patches\AdditionalConsoleCommands\kotor2-gog-aspyr.hooks.toml = Patches\AdditionalConsoleCommands\kotor2-gog-aspyr.hooks.toml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EnableScriptAurPostString", "EnableScriptAurPostString", "{C051DF2F-D94E-40A5-B004-04308B8991C8}"
@@ -42,6 +44,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EnableScriptAurPostString",
 		Patches\EnableScriptAurPostString\aurpoststring_patch.cpp = Patches\EnableScriptAurPostString\aurpoststring_patch.cpp
 		Patches\EnableScriptAurPostString\hooks.toml = Patches\EnableScriptAurPostString\hooks.toml
 		Patches\EnableScriptAurPostString\manifest.toml = Patches\EnableScriptAurPostString\manifest.toml
+	
+		Patches\EnableScriptAurPostString\exports.def = Patches\EnableScriptAurPostString\exports.def
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MorePlaceablesIn2DA", "MorePlaceablesIn2DA", "{44FCCA62-7F28-4C88-B537-D283B74CC91F}"
@@ -67,12 +71,167 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ScriptExtender", "ScriptExt
 		Patches\ScriptExtender\manifest.toml = Patches\ScriptExtender\manifest.toml
 		Patches\ScriptExtender\ScriptExtender.cpp = Patches\ScriptExtender\ScriptExtender.cpp
 		Patches\ScriptExtender\todo.md = Patches\ScriptExtender\todo.md
+	
+		Patches\ScriptExtender\clientCreatures.cpp = Patches\ScriptExtender\clientCreatures.cpp
+		Patches\ScriptExtender\clientCreatures.h = Patches\ScriptExtender\clientCreatures.h
+		Patches\ScriptExtender\globalModifiers.cpp = Patches\ScriptExtender\globalModifiers.cpp
+		Patches\ScriptExtender\globalModifiers.h = Patches\ScriptExtender\globalModifiers.h
+		Patches\ScriptExtender\twoDA.cpp = Patches\ScriptExtender\twoDA.cpp
+		Patches\ScriptExtender\twoDA.h = Patches\ScriptExtender\twoDA.h
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SemiTransparentLetterbox", "SemiTransparentLetterbox", "{23452DB2-30D6-463C-BC0D-0074EBB12133}"
 	ProjectSection(SolutionItems) = preProject
 		Patches\SemiTransparentLetterbox\hooks.toml = Patches\SemiTransparentLetterbox\hooks.toml
 		Patches\SemiTransparentLetterbox\manifest.toml = Patches\SemiTransparentLetterbox\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A8D99C40-6784-42FF-A902-E6F20AE0E981}"
+	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		publish.bat = publish.bat
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AddressDatabases", "AddressDatabases", "{9149723B-2F97-4142-90A2-03AB43A3D68D}"
+	ProjectSection(SolutionItems) = preProject
+		AddressDatabases\kotor1_0_3.db = AddressDatabases\kotor1_0_3.db
+		AddressDatabases\kotor2_gog_aspyr.db = AddressDatabases\kotor2_gog_aspyr.db
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{352B7770-11E6-45D8-8FDC-F2D14EC8331F}"
+	ProjectSection(SolutionItems) = preProject
+		docs\2da_row_limits.md = docs\2da_row_limits.md
+		docs\AddressDatabaseSystem.md = docs\AddressDatabaseSystem.md
+		docs\MULTI_VERSION_ARCHITECTURE.md = docs\MULTI_VERSION_ARCHITECTURE.md
+		docs\PATCH_OPTIONS_DESIGN.md = docs\PATCH_OPTIONS_DESIGN.md
+		docs\RELEASE_GUIDE.md = docs\RELEASE_GUIDE.md
+		docs\Roadmap2026.md = docs\Roadmap2026.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{715F5B99-9F0E-4E53-8068-75AED0AD420F}"
+	ProjectSection(SolutionItems) = preProject
+		lib\sqlite3.def = lib\sqlite3.def
+		lib\sqlite3.dll = lib\sqlite3.dll
+		lib\sqlite3.exp = lib\sqlite3.exp
+		lib\sqlite3.h = lib\sqlite3.h
+		lib\sqlite3.lib = lib\sqlite3.lib
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4GBPatch", "4GBPatch", "{9885C0AB-DB6D-48B5-828E-B4B3DDA8125E}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\4GBPatch\hooks.toml = Patches\4GBPatch\hooks.toml
+		Patches\4GBPatch\manifest.toml = Patches\4GBPatch\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AppearanceBodyVariations", "AppearanceBodyVariations", "{491E65BA-AB9B-4A2B-B3EC-CD0B266397EB}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\AppearanceBodyVariations\hooks.toml = Patches\AppearanceBodyVariations\hooks.toml
+		Patches\AppearanceBodyVariations\manifest.toml = Patches\AppearanceBodyVariations\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GameAPI", "GameAPI", "{D9D851BD-6DB4-4101-B178-06AB11D6E051}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\Common\GameAPI\C2DA.cpp = Patches\Common\GameAPI\C2DA.cpp
+		Patches\Common\GameAPI\C2DA.h = Patches\Common\GameAPI\C2DA.h
+		Patches\Common\GameAPI\CAppManager.cpp = Patches\Common\GameAPI\CAppManager.cpp
+		Patches\Common\GameAPI\CAppManager.h = Patches\Common\GameAPI\CAppManager.h
+		Patches\Common\GameAPI\CClientExoApp.cpp = Patches\Common\GameAPI\CClientExoApp.cpp
+		Patches\Common\GameAPI\CClientExoApp.h = Patches\Common\GameAPI\CClientExoApp.h
+		Patches\Common\GameAPI\CClientOptions.cpp = Patches\Common\GameAPI\CClientOptions.cpp
+		Patches\Common\GameAPI\CClientOptions.h = Patches\Common\GameAPI\CClientOptions.h
+		Patches\Common\GameAPI\CExoArrayList.cpp = Patches\Common\GameAPI\CExoArrayList.cpp
+		Patches\Common\GameAPI\CExoArrayList.h = Patches\Common\GameAPI\CExoArrayList.h
+		Patches\Common\GameAPI\CExoLinkedList.cpp = Patches\Common\GameAPI\CExoLinkedList.cpp
+		Patches\Common\GameAPI\CExoLinkedList.h = Patches\Common\GameAPI\CExoLinkedList.h
+		Patches\Common\GameAPI\CExoString.cpp = Patches\Common\GameAPI\CExoString.cpp
+		Patches\Common\GameAPI\CExoString.h = Patches\Common\GameAPI\CExoString.h
+		Patches\Common\GameAPI\CGameObject.cpp = Patches\Common\GameAPI\CGameObject.cpp
+		Patches\Common\GameAPI\CGameObject.h = Patches\Common\GameAPI\CGameObject.h
+		Patches\Common\GameAPI\CGameObjectArray.cpp = Patches\Common\GameAPI\CGameObjectArray.cpp
+		Patches\Common\GameAPI\CGameObjectArray.h = Patches\Common\GameAPI\CGameObjectArray.h
+		Patches\Common\GameAPI\CRes.cpp = Patches\Common\GameAPI\CRes.cpp
+		Patches\Common\GameAPI\CRes.h = Patches\Common\GameAPI\CRes.h
+		Patches\Common\GameAPI\CResGFF.cpp = Patches\Common\GameAPI\CResGFF.cpp
+		Patches\Common\GameAPI\CResGFF.h = Patches\Common\GameAPI\CResGFF.h
+		Patches\Common\GameAPI\CResRef.cpp = Patches\Common\GameAPI\CResRef.cpp
+		Patches\Common\GameAPI\CResRef.h = Patches\Common\GameAPI\CResRef.h
+		Patches\Common\GameAPI\CServerExoApp.cpp = Patches\Common\GameAPI\CServerExoApp.cpp
+		Patches\Common\GameAPI\CServerExoApp.h = Patches\Common\GameAPI\CServerExoApp.h
+		Patches\Common\GameAPI\CSWCCreature.cpp = Patches\Common\GameAPI\CSWCCreature.cpp
+		Patches\Common\GameAPI\CSWCCreature.h = Patches\Common\GameAPI\CSWCCreature.h
+		Patches\Common\GameAPI\CSWGuiObject.cpp = Patches\Common\GameAPI\CSWGuiObject.cpp
+		Patches\Common\GameAPI\CSWGuiObject.h = Patches\Common\GameAPI\CSWGuiObject.h
+		Patches\Common\GameAPI\CSWInventory.cpp = Patches\Common\GameAPI\CSWInventory.cpp
+		Patches\Common\GameAPI\CSWInventory.h = Patches\Common\GameAPI\CSWInventory.h
+		Patches\Common\GameAPI\CSWItem.cpp = Patches\Common\GameAPI\CSWItem.cpp
+		Patches\Common\GameAPI\CSWItem.h = Patches\Common\GameAPI\CSWItem.h
+		Patches\Common\GameAPI\CSWSCreature.cpp = Patches\Common\GameAPI\CSWSCreature.cpp
+		Patches\Common\GameAPI\CSWSCreature.h = Patches\Common\GameAPI\CSWSCreature.h
+		Patches\Common\GameAPI\CSWSCreatureStats.cpp = Patches\Common\GameAPI\CSWSCreatureStats.cpp
+		Patches\Common\GameAPI\CSWSCreatureStats.h = Patches\Common\GameAPI\CSWSCreatureStats.h
+		Patches\Common\GameAPI\CSWSObject.cpp = Patches\Common\GameAPI\CSWSObject.cpp
+		Patches\Common\GameAPI\CSWSObject.h = Patches\Common\GameAPI\CSWSObject.h
+		Patches\Common\GameAPI\CVirtualMachine.cpp = Patches\Common\GameAPI\CVirtualMachine.cpp
+		Patches\Common\GameAPI\CVirtualMachine.h = Patches\Common\GameAPI\CVirtualMachine.h
+		Patches\Common\GameAPI\GameAPIObject.cpp = Patches\Common\GameAPI\GameAPIObject.cpp
+		Patches\Common\GameAPI\GameAPIObject.h = Patches\Common\GameAPI\GameAPIObject.h
+		Patches\Common\GameAPI\GameVersion.cpp = Patches\Common\GameAPI\GameVersion.cpp
+		Patches\Common\GameAPI\GameVersion.h = Patches\Common\GameAPI\GameVersion.h
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DialogueRepliesPast9", "DialogueRepliesPast9", "{84C74D0E-81A6-4841-B942-9BCA59C01C27}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\DialogueRepliesPast9\hooks.toml = Patches\DialogueRepliesPast9\hooks.toml
+		Patches\DialogueRepliesPast9\manifest.toml = Patches\DialogueRepliesPast9\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "LevelUpLimit", "LevelUpLimit", "{EBD53BA0-5CAD-46AA-9320-9BA612E57D26}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\LevelUpLimit\exports.def = Patches\LevelUpLimit\exports.def
+		Patches\LevelUpLimit\hooks.toml = Patches\LevelUpLimit\hooks.toml
+		Patches\LevelUpLimit\manifest.toml = Patches\LevelUpLimit\manifest.toml
+		Patches\LevelUpLimit\Reallocations.cpp = Patches\LevelUpLimit\Reallocations.cpp
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "additional", "additional", "{09748B9A-F786-42D3-96A9-4A85E41BD878}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\LevelUpLimit\additional\acbonus.2da = Patches\LevelUpLimit\additional\acbonus.2da
+		Patches\LevelUpLimit\additional\classes.2da = Patches\LevelUpLimit\additional\classes.2da
+		Patches\LevelUpLimit\additional\classpowergain.2da = Patches\LevelUpLimit\additional\classpowergain.2da
+		Patches\LevelUpLimit\additional\cls_spgn_jedi.2da = Patches\LevelUpLimit\additional\cls_spgn_jedi.2da
+		Patches\LevelUpLimit\additional\cls_st_cm_drd.2da = Patches\LevelUpLimit\additional\cls_st_cm_drd.2da
+		Patches\LevelUpLimit\additional\cls_st_ex_drd.2da = Patches\LevelUpLimit\additional\cls_st_ex_drd.2da
+		Patches\LevelUpLimit\additional\cls_st_jedi_c.2da = Patches\LevelUpLimit\additional\cls_st_jedi_c.2da
+		Patches\LevelUpLimit\additional\cls_st_jedi_g.2da = Patches\LevelUpLimit\additional\cls_st_jedi_g.2da
+		Patches\LevelUpLimit\additional\cls_st_jedi_s.2da = Patches\LevelUpLimit\additional\cls_st_jedi_s.2da
+		Patches\LevelUpLimit\additional\cls_st_minion.2da = Patches\LevelUpLimit\additional\cls_st_minion.2da
+		Patches\LevelUpLimit\additional\cls_st_scndrl.2da = Patches\LevelUpLimit\additional\cls_st_scndrl.2da
+		Patches\LevelUpLimit\additional\cls_st_scout.2da = Patches\LevelUpLimit\additional\cls_st_scout.2da
+		Patches\LevelUpLimit\additional\cls_st_soldier.2da = Patches\LevelUpLimit\additional\cls_st_soldier.2da
+		Patches\LevelUpLimit\additional\exptable.2da = Patches\LevelUpLimit\additional\exptable.2da
+		Patches\LevelUpLimit\additional\featgain.2da = Patches\LevelUpLimit\additional\featgain.2da
+		Patches\LevelUpLimit\additional\xptable.2da = Patches\LevelUpLimit\additional\xptable.2da
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PlanetsLimit", "PlanetsLimit", "{CF5B67AF-6810-44DD-B4E1-C98EDE270B7D}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\PlanetsLimit\export.cpp = Patches\PlanetsLimit\export.cpp
+		Patches\PlanetsLimit\exports.def = Patches\PlanetsLimit\exports.def
+		Patches\PlanetsLimit\hooks.toml = Patches\PlanetsLimit\hooks.toml
+		Patches\PlanetsLimit\manifest.toml = Patches\PlanetsLimit\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "additional", "additional", "{0CE7EC37-B554-454F-BD2C-331F77217F1C}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\ScriptExtender\additional\nwscript.nss = Patches\ScriptExtender\additional\nwscript.nss
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShipBuildFalse", "ShipBuildFalse", "{EE5E99F9-1328-4558-9FEB-488A38AA6AEC}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\ShipBuildFalse\hooks.toml = Patches\ShipBuildFalse\hooks.toml
+		Patches\ShipBuildFalse\manifest.toml = Patches\ShipBuildFalse\manifest.toml
 	EndProjectSection
 EndProject
 Global
@@ -146,6 +305,15 @@ Global
 		{A27407B3-9017-4ACC-A268-89655215846F} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{7AC5E75B-E77E-4E4C-8DE0-AB4C70CE80C4} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{23452DB2-30D6-463C-BC0D-0074EBB12133} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{9885C0AB-DB6D-48B5-828E-B4B3DDA8125E} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{491E65BA-AB9B-4A2B-B3EC-CD0B266397EB} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{D9D851BD-6DB4-4101-B178-06AB11D6E051} = {E2EC2BBE-C9B1-45ED-9045-9B9684B93CA7}
+		{84C74D0E-81A6-4841-B942-9BCA59C01C27} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{EBD53BA0-5CAD-46AA-9320-9BA612E57D26} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{09748B9A-F786-42D3-96A9-4A85E41BD878} = {EBD53BA0-5CAD-46AA-9320-9BA612E57D26}
+		{CF5B67AF-6810-44DD-B4E1-C98EDE270B7D} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{0CE7EC37-B554-454F-BD2C-331F77217F1C} = {7AC5E75B-E77E-4E4C-8DE0-AB4C70CE80C4}
+		{EE5E99F9-1328-4558-9FEB-488A38AA6AEC} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EC8C0764-BD06-422A-B325-D20270F5D772}
