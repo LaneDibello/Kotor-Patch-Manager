@@ -10,6 +10,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KPatchLauncher", "src\KPatchLauncher\KPatchLauncher.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{D1E2F3A4-B5C6-7D8E-9F0A-1B2C3D4E5F6A}"
+	ProjectSection(SolutionItems) = preProject
+		tools\Sync-SolutionFolders.bat = tools\Sync-SolutionFolders.bat
+		tools\Sync-SolutionFolders.ps1 = tools\Sync-SolutionFolders.ps1
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqliteTools", "tools\SqliteTools\SqliteTools.csproj", "{C5D6E7F8-A9B0-1C2D-3E4F-5A6B7C8D9E0F}"
 EndProject
