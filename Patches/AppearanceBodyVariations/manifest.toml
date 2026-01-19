@@ -1,9 +1,9 @@
 [patch]
 id = "appearance-model-tex-columns"
-name = "More Appearance Model/Texture Variants"
+name = "More Appearance Body Variations"
 version = "1.0.0"
 author = "Lane"
-description = "Allows for the addition of appearance.2da columns for modelk-modelz, and texk-texz. This is what kotor tool calls the \"Body Variation\""
+description = "Allows for the addition of appearance.2da columns for modelk-modelz, and texk-texz. To be referenced by baseitems.2da as the `bodyvar`"
 
 requires = []
 
