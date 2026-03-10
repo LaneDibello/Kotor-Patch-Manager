@@ -126,7 +126,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     {
     case DLL_PROCESS_ATTACH:
         if (!GameVersion::Initialize()) {
-            debugLog("[ScriptExtender] ERROR: GameVersion::Initialize() failed");
+            debugLog("[PlanetsLimits] ERROR: GameVersion::Initialize() failed");
             return FALSE;
         }
         debugLog("[PlanetsLimits] Attached");
