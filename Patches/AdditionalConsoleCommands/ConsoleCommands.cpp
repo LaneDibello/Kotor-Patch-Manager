@@ -191,6 +191,31 @@ void __cdecl freecam() {
     options->SetCameraMode(7); // Mode 7 is freecam
 }
 
+void __cdecl addfeat(int feat) {
+    CServerExoApp* server = CServerExoApp::GetInstance();
+    if (!server) {
+        return;
+    }
+    
+    CSWSCreature* serverCreature = server->GetPlayerCreature();
+    if (!serverCreature) {
+        delete server;
+        return;
+    }
+
+    CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
+    if (!stats) {
+        delete serverCreature;
+        delete server;
+        return;
+    }
+
+    stats->AddFeat((WORD)feat);
+
+    delete serverCreature;
+    delete server;
+}
+
 extern "C" void __cdecl InitializeAdditionalCommands()
 {
     new ConsoleFunc("runscript", (void*)&runscript, STRING_PARAM);
@@ -203,6 +228,7 @@ extern "C" void __cdecl InitializeAdditionalCommands()
     new ConsoleFunc("boundingboxesrender", (void*)&boundingboxesrender, NO_PARAMS);
     //new ConsoleFunc("setresolution", (void*)&setresolution, STRING_PARAM);
     new ConsoleFunc("freecam", (void*)&freecam, NO_PARAMS);
+    new ConsoleFunc("addfeat", (void*)&addfeat, INT_PARAM);
 
     // Note we never free these values, as they're present up until the game closes anyway, so 
     // memory is of minimal practical concern. May consider hooking an additional function to free

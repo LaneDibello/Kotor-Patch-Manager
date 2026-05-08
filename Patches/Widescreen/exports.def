@@ -1,0 +1,3 @@
+LIBRARY Widescreen 
+EXPORTS 
+    getResolutionString 

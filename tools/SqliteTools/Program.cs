@@ -23,6 +23,9 @@ class Program
                 case "import-ghidra":
                     new ImportGhidraCommand().Execute(commandArgs);
                     break;
+                case "import-offsets":
+                    new ImportOffsetsCommand().Execute(commandArgs);
+                    break;
                 case "migrate":
                     new MigrateSchemaCommand().Execute(commandArgs);
                     break;
@@ -59,6 +62,11 @@ class Program
         Console.WriteLine();
         Console.WriteLine("  import-ghidra --csv <file.csv> --database <database.db> [--mode append|replace]");
         Console.WriteLine("      Import Ghidra function export into SQLite database");
+        Console.WriteLine("      Modes: append (update/insert), replace (delete all first)");
+        Console.WriteLine();
+        Console.WriteLine("  import-offsets --csv <file.csv> --database <database.db> [--mode append|replace]");
+        Console.WriteLine("      Import class member offsets from CSV into SQLite database");
+        Console.WriteLine("      CSV columns: class_name, member_name, offset, notes");
         Console.WriteLine("      Modes: append (update/insert), replace (delete all first)");
         Console.WriteLine();
         Console.WriteLine("  migrate --database <database.db>");

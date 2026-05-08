@@ -11,6 +11,8 @@ The repository contains:
 - C# source for KPatchCore, the framework for parsing and applying these patches
 - C# source for KPatchLauncher, a basic UI for using this patching framework (will likely be replaced in the future)
 
+See road map [here](docs/Roadmap2026.md)
+
 ## Install
 *NOTE: The patch manager is still in Beta, there are likely going to be various issues within the current release. Please feel free to create GitHub Issues or contact Lane if anything strange comes up*
 

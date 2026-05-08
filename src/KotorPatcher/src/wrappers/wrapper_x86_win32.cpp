@@ -339,21 +339,21 @@ namespace KotorPatcher {
                 // 4. 4 times the number of push instructions before this one
                 int actualOffset = STACK_OFFSET_TO_ORIGINAL_DATA + userOffset + pushCount * 4;
 
-                // Generate MOV ECX, [ESP + actualOffset]
+                // Generate LEA ECX, [ESP + actualOffset]
                 if (actualOffset == 0) {
-                    // MOV ECX, [ESP]
-                    EmitByte(code, 0x8B);  // MOV r32, r/m32
+                    // LEA ECX, [ESP]
+                    EmitByte(code, 0x8D);  // LEA r32, m
                     EmitByte(code, 0x0C);  // ModRM: ECX, [ESP]
                     EmitByte(code, 0x24);  // SIB: [ESP]
                 } else if (actualOffset >= -128 && actualOffset <= 127) {
-                    // MOV ECX, [ESP + imm8]
-                    EmitByte(code, 0x8B);  // MOV r32, r/m32
+                    // LEA ECX, [ESP + imm8]
+                    EmitByte(code, 0x8D);  // LEA r32, m
                     EmitByte(code, 0x4C);  // ModRM: ECX, [ESP + disp8]
                     EmitByte(code, 0x24);  // SIB: [ESP]
                     EmitByte(code, static_cast<BYTE>(actualOffset));
                 } else {
-                    // MOV ECX, [ESP + imm32]
-                    EmitByte(code, 0x8B);  // MOV r32, r/m32
+                    // LEA ECX, [ESP + imm32]
+                    EmitByte(code, 0x8D);  // LEA r32, m
                     EmitByte(code, 0x8C);  // ModRM: ECX, [ESP + disp32]
                     EmitByte(code, 0x24);  // SIB: [ESP]
                     EmitDword(code, actualOffset);
