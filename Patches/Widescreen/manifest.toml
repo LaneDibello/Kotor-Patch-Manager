@@ -1,9 +1,9 @@
 [patch]
 id = "widescreen"
-name = "Lane's Widescreen Patch"
-version = "0.0.1"
-author = "Lane"
-description = "Basic Widescreen patch, work-progress"
+name = "Widescreen Patch"
+version = "1.0.0"
+author = "Lane, J."
+description = "Widescreen support for KotOR."
 
 requires = []
 
