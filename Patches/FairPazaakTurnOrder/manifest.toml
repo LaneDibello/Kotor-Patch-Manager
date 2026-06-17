@@ -1,0 +1,15 @@
+[patch]
+id = "fair-pazaak-turn-order"
+name = "Fair Pazaak Turn Order"
+version = "0.1.0"
+author = "Shae Condon (ShaeMyName)"
+description = "Randomizes who takes the first turn of each Pazaak set. Vanilla always gives the player the first turn, but going SECOND is the real advantage (you act with full information on the opponent's board). This evens the odds with a coin-flip on the set's opening turn. Turn-order only - no 2DA changes - so it stacks with every other Pazaak/balance mod."
+
+requires = []
+conflicts = []
+
+# Addresses were reverse-engineered against the GOG-layout 1.03 binary (image base 0x400000).
+[patch.supported_versions]
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+kotor1_steam_103 = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
