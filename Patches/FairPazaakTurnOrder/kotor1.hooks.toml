@@ -1,0 +1,50 @@
+# Fair Pazaak Turn Order
+#
+# Site: state-1 handler of the Pazaak turn state machine. At 0x680085 the engine
+# unconditionally does `mov edi, 2`, then later `mov [esi+0x86d4], edi` -> turn
+# state 2 = "player turn". (State 7 = "AI turn".) So 0x680085 is the sole
+# "who goes first" lever. esi = the Pazaak controller `this` throughout these handlers.
+#
+# We replace that constant load with logic that, ONLY on the first turn of a set,
+# coin-flips between player (edi=2) and AI (edi=7). "First turn of the set" is detected
+# by both side-deck tables being empty: deck object is at [esi+0x86d0]; the player's
+# side-deck table sentinel is [deck+0x28] and the AI's is [deck+0x98] (-1 == empty).
+# Card tables live in the DECK object, not the controller (this deref was the key fix
+# during RE). On every later turn the tables are populated, so we fall through to the
+# vanilla edi=2 and normal player/AI alternation is preserved.
+
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+    "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
+]
+
+[[hooks]]
+address = 0x00680085
+type = "replace"
+# mov edi, 2   (vanilla: player always takes the first turn)
+original_bytes = [ 0xBF, 0x02, 0x00, 0x00, 0x00 ]
+replacement_bytes = [
+    0x9C,                                            # pushfd                    ; preserve flags (the original MOV sets none)
+    0x51,                                            # push ecx                  ; preserve cdecl caller-saved regs across rand()
+    0x52,                                            # push edx
+    0x8B, 0x86, 0xD0, 0x86, 0x00, 0x00,              # mov  eax, [esi+0x86D0]    ; eax = Pazaak deck object
+    0x83, 0x78, 0x28, 0xFF,                          # cmp  dword [eax+0x28], -1 ; player side-deck table empty?
+    0x75, 0x14,                                      # jne  vanilla              ; populated -> not the first turn
+    0x83, 0xB8, 0x98, 0x00, 0x00, 0x00, 0xFF,        # cmp  dword [eax+0x98], -1 ; AI side-deck table empty?
+    0x75, 0x0B,                                      # jne  vanilla
+    0xB8, 0x47, 0xC4, 0x6F, 0x00,                    # mov  eax, 0x006FC447      ; game's rand() (MS CRT LCG)
+    0xFF, 0xD0,                                      # call eax
+    0xA8, 0x01,                                      # test al, 1
+    0x75, 0x07,                                      # jnz  ai                   ; odd -> AI goes first
+    0xBF, 0x02, 0x00, 0x00, 0x00,                    # mov  edi, 2   (vanilla)   ; player goes first (turn state 2)
+    0xEB, 0x05,                                      # jmp  done
+    0xBF, 0x07, 0x00, 0x00, 0x00,                    # mov  edi, 7   (ai)        ; AI goes first (turn state 7)
+    0x5A,                                            # pop  edx      (done)
+    0x59,                                            # pop  ecx
+    0x9D,                                            # popfd
+    0xB8, 0x8A, 0x00, 0x68, 0x00,                    # mov  eax, 0x0068008A      ; resume point (address + 5)
+    0xFF, 0xE0                                       # jmp  eax
+    ]
+exclude_from_restore = []
