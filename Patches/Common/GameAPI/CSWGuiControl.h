@@ -4,14 +4,18 @@
 
 class CSWGuiControl : public CSWGuiObject {
 public:
-	explicit CSWGuiControl(void* objectPtr);
-	~CSWGuiControl();
+    explicit CSWGuiControl(void* objectPtr);
+    ~CSWGuiControl();
 
-	void InitializeFunctions() override;
-	void InitializeOffsets() override;
+    // Accessors
+    CSWGuiControl* GetParentControl();
+
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 protected:
-	static bool functionsInitialized;
-	static bool offsetsInitialized;
+    static bool functionsInitialized;
+    static bool offsetsInitialized;
 
+    static int offsetParentControl;
 };

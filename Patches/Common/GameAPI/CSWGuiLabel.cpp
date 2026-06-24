@@ -1,8 +1,11 @@
 #include "CSWGuiLabel.h"
 #include "GameVersion.h"
+#include "CSWGuiText.h"
 
 bool CSWGuiLabel::functionsInitialized = false;
 bool CSWGuiLabel::offsetsInitialized = false;
+
+int CSWGuiLabel::offsetText = -1;
 
 void CSWGuiLabel::InitializeFunctions() {
     if (functionsInitialized) {
@@ -40,7 +43,7 @@ void CSWGuiLabel::InitializeOffsets() {
     }
 
     try {
-        // Offsets Here
+        offsetText = GameVersion::GetOffset("CSWGuiLabel", "text");
 
         offsetsInitialized = true;
     }
@@ -63,4 +66,11 @@ CSWGuiLabel::CSWGuiLabel(void* objectPtr)
 CSWGuiLabel::~CSWGuiLabel()
 {
     // Base class destructor handles objectPtr cleanup
+}
+
+CSWGuiText* CSWGuiLabel::GetText() {
+    if (!objectPtr || offsetText < 0) {
+        return nullptr;
+    }
+    return new CSWGuiText((char*)objectPtr + offsetText);
 }

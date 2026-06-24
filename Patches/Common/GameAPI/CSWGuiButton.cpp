@@ -1,8 +1,11 @@
 #include "CSWGuiButton.h"
 #include "GameVersion.h"
+#include "CSWGuiText.h"
 
 bool CSWGuiButton::functionsInitialized = false;
 bool CSWGuiButton::offsetsInitialized = false;
+
+int CSWGuiButton::offsetText = -1;
 
 void CSWGuiButton::InitializeFunctions() {
     if (functionsInitialized) {
@@ -40,7 +43,7 @@ void CSWGuiButton::InitializeOffsets() {
     }
 
     try {
-        // Offsets Here
+        offsetText = GameVersion::GetOffset("CSWGuiButton", "text");
 
         offsetsInitialized = true;
     }
@@ -63,4 +66,11 @@ CSWGuiButton::CSWGuiButton(void* objectPtr)
 CSWGuiButton::~CSWGuiButton()
 {
     // Base class destructor handles objectPtr cleanup
+}
+
+CSWGuiText* CSWGuiButton::GetText() {
+    if (!objectPtr || offsetText < 0) {
+        return nullptr;
+    }
+    return new CSWGuiText((char*)objectPtr + offsetText);
 }

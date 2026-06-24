@@ -4,6 +4,8 @@
 bool CSWGuiControl::functionsInitialized = false;
 bool CSWGuiControl::offsetsInitialized = false;
 
+int CSWGuiControl::offsetParentControl = -1;
+
 void CSWGuiControl::InitializeFunctions() {
     if (functionsInitialized) {
         return;
@@ -40,7 +42,7 @@ void CSWGuiControl::InitializeOffsets() {
     }
 
     try {
-        // Offsets Here
+        offsetParentControl = GameVersion::GetOffset("CSWGuiControl", "parent_control");
 
         offsetsInitialized = true;
     }
@@ -63,4 +65,15 @@ CSWGuiControl::CSWGuiControl(void* objectPtr)
 CSWGuiControl::~CSWGuiControl()
 {
     // Base class destructor handles objectPtr cleanup
+}
+
+CSWGuiControl* CSWGuiControl::GetParentControl() {
+    if (!objectPtr || offsetParentControl < 0) {
+        return nullptr;
+    }
+    void* parentPtr = getObjectProperty<void*>(objectPtr, offsetParentControl);
+    if (!parentPtr) {
+        return nullptr;
+    }
+    return new CSWGuiControl(parentPtr);
 }

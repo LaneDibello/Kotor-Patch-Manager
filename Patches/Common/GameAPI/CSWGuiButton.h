@@ -2,16 +2,22 @@
 #include "../Common.h"
 #include "CSWGuiNavigable.h"
 
+class CSWGuiText;
+
 class CSWGuiButton : public CSWGuiNavigable {
 public:
-	explicit CSWGuiButton(void* objectPtr);
-	~CSWGuiButton();
+    explicit CSWGuiButton(void* objectPtr);
+    ~CSWGuiButton();
 
-	void InitializeFunctions() override;
-	void InitializeOffsets() override;
+    // Accessors
+    CSWGuiText* GetText();
+
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 protected:
-	static bool functionsInitialized;
-	static bool offsetsInitialized;
+    static bool functionsInitialized;
+    static bool offsetsInitialized;
 
+    static int offsetText;
 };
