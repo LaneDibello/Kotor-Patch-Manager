@@ -31,7 +31,7 @@ void CSWGuiObject::InitializeOffsets() {
     }
 
     if (!GameVersion::IsInitialized()) {
-        OutputDebugStringA("[CSWCCreature] ERROR: GameVersion not initialized\n");
+        OutputDebugStringA("[CSWGuiObject] ERROR: GameVersion not initialized\n");
         return;
     }
 
@@ -41,20 +41,15 @@ void CSWGuiObject::InitializeOffsets() {
         offsetsInitialized = true;
     }
     catch (const GameVersionException& e) {
-        debugLog("[CSWCCreature] ERROR: %s\n", e.what());
+        debugLog("[CSWGuiObject] ERROR: %s\n", e.what());
     }
 }
 
 CSWGuiObject::CSWGuiObject(void* objectPtr)
     : GameAPIObject(objectPtr, false)  // false = don't free (wrapping existing)
 {
-    if (!functionsInitialized) {
-        InitializeFunctions();
-    }
-
-    if (!offsetsInitialized) {
-        InitializeOffsets();
-    }
+    InitializeFunctions();
+    InitializeOffsets();
 }
 
 CSWGuiObject::~CSWGuiObject()
