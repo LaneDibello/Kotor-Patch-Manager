@@ -27,10 +27,17 @@ public:
     // Returned wrapper is heap allocated; caller owns it.
     CExoArrayList<CSWGuiPanel*>* GetPanels();
 
+    // Functions
+    void AddPanel(CSWGuiPanel* panel, int flags, int playSound);
+
     void InitializeFunctions() override;
     void InitializeOffsets() override;
 
 protected:
+    typedef void (__thiscall* AddPanelFn)(void* thisPtr, void* panel, int flags, int playSound);
+
+    static AddPanelFn addPanel;
+
     static bool functionsInitialized;
     static bool offsetsInitialized;
 
