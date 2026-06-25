@@ -116,21 +116,21 @@ CResRef* CSWGuiBorderParams::GetCornerImageResRef() {
         return nullptr;
     }
     // Inline CResRef member: wrap its in-place address.
-    return new CResRef((char*)objectPtr + offsetCornerImageResRef);
+    return new CResRef(static_cast<void*>((char*)objectPtr + offsetCornerImageResRef));
 }
 
 CResRef* CSWGuiBorderParams::GetEdgeImageResRef() {
     if (!objectPtr || offsetEdgeImageResRef < 0) {
         return nullptr;
     }
-    return new CResRef((char*)objectPtr + offsetEdgeImageResRef);
+    return new CResRef(static_cast<void*>((char*)objectPtr + offsetEdgeImageResRef));
 }
 
 CResRef* CSWGuiBorderParams::GetFillImageResRef() {
     if (!objectPtr || offsetFillImageResRef < 0) {
         return nullptr;
     }
-    return new CResRef((char*)objectPtr + offsetFillImageResRef);
+    return new CResRef(static_cast<void*>((char*)objectPtr + offsetFillImageResRef));
 }
 
 CSWGuiBorder* CSWGuiBorderParams::GetBorder() {

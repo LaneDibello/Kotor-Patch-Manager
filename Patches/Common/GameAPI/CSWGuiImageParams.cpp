@@ -93,7 +93,7 @@ CResRef* CSWGuiImageParams::GetResRef() {
         return nullptr;
     }
     // Inline CResRef member: wrap its in-place address.
-    return new CResRef((char*)objectPtr + offsetResRef);
+    return new CResRef(static_cast<void*>((char*)objectPtr + offsetResRef));
 }
 
 CSWGuiImage* CSWGuiImageParams::GetImageObject() {

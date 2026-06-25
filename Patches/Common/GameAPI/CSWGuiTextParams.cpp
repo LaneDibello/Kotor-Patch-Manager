@@ -140,7 +140,7 @@ CExoString* CSWGuiTextParams::GetText() {
         return nullptr;
     }
     // Inline CExoString member: wrap its in-place address.
-    return new CExoString((char*)objectPtr + offsetText);
+    return new CExoString(static_cast<void*>((char*)objectPtr + offsetText));
 }
 
 int CSWGuiTextParams::GetStrRef() {
@@ -155,7 +155,7 @@ CResRef* CSWGuiTextParams::GetFont() {
         return nullptr;
     }
     // Inline CResRef member: wrap its in-place address.
-    return new CResRef((char*)objectPtr + offsetFont);
+    return new CResRef(static_cast<void*>((char*)objectPtr + offsetFont));
 }
 
 Vector CSWGuiTextParams::GetColor() {
