@@ -11,6 +11,7 @@ template<typename T> class CExoArrayList;
 class CSWGuiListBox : public CSWGuiNavigable {
 public:
     explicit CSWGuiListBox(void* objectPtr);
+    CSWGuiListBox();
     ~CSWGuiListBox();
 
     // Accessors
@@ -26,6 +27,13 @@ public:
     void InitializeOffsets() override;
 
 protected:
+    typedef void* (__thiscall* ConstructorFn)(void* thisPtr);
+    typedef void* (__thiscall* DestructorFn)(void* thisPtr);
+
+    static ConstructorFn constructor;
+    static DestructorFn  destructor;
+    static int classSize;
+
     static bool functionsInitialized;
     static bool offsetsInitialized;
 

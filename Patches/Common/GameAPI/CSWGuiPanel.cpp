@@ -2,24 +2,27 @@
 #include "GameVersion.h"
 #include "CSWGuiControl.h"
 #include "CSWGuiBorder.h"
+#include "CSWGuiManager.h"
 #include "CExoArrayList.h"
 #include "CExoString.h"
 #include "CResRef.h"
 
-CSWGuiPanel::AddControlFn                       CSWGuiPanel::addControl                       = nullptr;
-CSWGuiPanel::CenterPanelFn                      CSWGuiPanel::centerPanel                      = nullptr;
-CSWGuiPanel::GetControlFn                       CSWGuiPanel::getControl                       = nullptr;
+CSWGuiPanel::AddControlFn                        CSWGuiPanel::addControl                        = nullptr;
+CSWGuiPanel::CenterPanelFn                       CSWGuiPanel::centerPanel                       = nullptr;
+CSWGuiPanel::GetControlFn                        CSWGuiPanel::getControl                        = nullptr;
 CSWGuiPanel::GetExtentAccountingForPanelOffsetFn CSWGuiPanel::getExtentAccountingForPanelOffset = nullptr;
-CSWGuiPanel::GetFullScreenBGFn                  CSWGuiPanel::getFullScreenBG                  = nullptr;
-CSWGuiPanel::GetLocalMouseCoordsFn              CSWGuiPanel::getLocalMouseCoords              = nullptr;
-CSWGuiPanel::HitCheckMouseFn                    CSWGuiPanel::hitCheckMouse                    = nullptr;
-CSWGuiPanel::InitControlFn                      CSWGuiPanel::initControl                      = nullptr;
-CSWGuiPanel::ResetFontFn                        CSWGuiPanel::resetFont                        = nullptr;
-CSWGuiPanel::SetActiveControlFn                 CSWGuiPanel::setActiveControl                 = nullptr;
-CSWGuiPanel::SetBackgroundFn                    CSWGuiPanel::setBackground                    = nullptr;
-CSWGuiPanel::SetVisibleFn                       CSWGuiPanel::setVisible                       = nullptr;
-CSWGuiPanel::StartLoadFromLayoutFn              CSWGuiPanel::startLoadFromLayout              = nullptr;
-CSWGuiPanel::StopLoadFromLayoutFn               CSWGuiPanel::stopLoadFromLayout               = nullptr;
+CSWGuiPanel::GetFullScreenBGFn                   CSWGuiPanel::getFullScreenBG                   = nullptr;
+CSWGuiPanel::GetLocalMouseCoordsFn               CSWGuiPanel::getLocalMouseCoords               = nullptr;
+CSWGuiPanel::HitCheckMouseFn                     CSWGuiPanel::hitCheckMouse                     = nullptr;
+CSWGuiPanel::InitControlFn                       CSWGuiPanel::initControl                       = nullptr;
+CSWGuiPanel::ResetFontFn                         CSWGuiPanel::resetFont                         = nullptr;
+CSWGuiPanel::SetActiveControlFn                  CSWGuiPanel::setActiveControl                  = nullptr;
+CSWGuiPanel::SetBackgroundFn                     CSWGuiPanel::setBackground                     = nullptr;
+CSWGuiPanel::SetVisibleFn                        CSWGuiPanel::setVisible                        = nullptr;
+CSWGuiPanel::StartLoadFromLayoutFn               CSWGuiPanel::startLoadFromLayout               = nullptr;
+CSWGuiPanel::StopLoadFromLayoutFn                CSWGuiPanel::stopLoadFromLayout                = nullptr;
+CSWGuiPanel::ConstructorFn                       CSWGuiPanel::constructor                       = nullptr;
+CSWGuiPanel::DestructorFn                        CSWGuiPanel::destructor                        = nullptr;
 
 bool CSWGuiPanel::functionsInitialized = false;
 bool CSWGuiPanel::offsetsInitialized = false;
@@ -29,6 +32,7 @@ int CSWGuiPanel::offsetControls = -1;
 int CSWGuiPanel::offsetAlpha = -1;
 int CSWGuiPanel::offsetColor = -1;
 int CSWGuiPanel::offsetBorder = -1;
+int CSWGuiPanel::classSize = -1;
 
 void CSWGuiPanel::InitializeFunctions() {
     if (functionsInitialized) {
@@ -43,20 +47,22 @@ void CSWGuiPanel::InitializeFunctions() {
     }
 
     try {
-        addControl                       = reinterpret_cast<AddControlFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "AddControl"));
-        centerPanel                      = reinterpret_cast<CenterPanelFn>                     (GameVersion::GetFunctionAddress("CSWGuiPanel", "CenterPanel"));
-        getControl                       = reinterpret_cast<GetControlFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetControl"));
+        addControl                        = reinterpret_cast<AddControlFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "AddControl"));
+        centerPanel                       = reinterpret_cast<CenterPanelFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "CenterPanel"));
+        getControl                        = reinterpret_cast<GetControlFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetControl"));
         getExtentAccountingForPanelOffset = reinterpret_cast<GetExtentAccountingForPanelOffsetFn>(GameVersion::GetFunctionAddress("CSWGuiPanel", "GetExtentAccountingForPanelOffset"));
-        getFullScreenBG                  = reinterpret_cast<GetFullScreenBGFn>                 (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetFullScreenBG"));
-        getLocalMouseCoords              = reinterpret_cast<GetLocalMouseCoordsFn>             (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetLocalMouseCoords"));
-        hitCheckMouse                    = reinterpret_cast<HitCheckMouseFn>                   (GameVersion::GetFunctionAddress("CSWGuiPanel", "HitCheckMouse"));
-        initControl                      = reinterpret_cast<InitControlFn>                     (GameVersion::GetFunctionAddress("CSWGuiPanel", "InitControl"));
-        resetFont                        = reinterpret_cast<ResetFontFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "ResetFont"));
-        setActiveControl                 = reinterpret_cast<SetActiveControlFn>                (GameVersion::GetFunctionAddress("CSWGuiPanel", "SetActiveControl"));
-        setBackground                    = reinterpret_cast<SetBackgroundFn>                   (GameVersion::GetFunctionAddress("CSWGuiPanel", "SetBackground"));
-        setVisible                       = reinterpret_cast<SetVisibleFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "SetVisible"));
-        startLoadFromLayout              = reinterpret_cast<StartLoadFromLayoutFn>             (GameVersion::GetFunctionAddress("CSWGuiPanel", "StartLoadFromLayout"));
-        stopLoadFromLayout               = reinterpret_cast<StopLoadFromLayoutFn>              (GameVersion::GetFunctionAddress("CSWGuiPanel", "StopLoadFromLayout"));
+        getFullScreenBG                   = reinterpret_cast<GetFullScreenBGFn>                  (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetFullScreenBG"));
+        getLocalMouseCoords               = reinterpret_cast<GetLocalMouseCoordsFn>              (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetLocalMouseCoords"));
+        hitCheckMouse                     = reinterpret_cast<HitCheckMouseFn>                    (GameVersion::GetFunctionAddress("CSWGuiPanel", "HitCheckMouse"));
+        initControl                       = reinterpret_cast<InitControlFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "InitControl"));
+        resetFont                         = reinterpret_cast<ResetFontFn>                        (GameVersion::GetFunctionAddress("CSWGuiPanel", "ResetFont"));
+        setActiveControl                  = reinterpret_cast<SetActiveControlFn>                 (GameVersion::GetFunctionAddress("CSWGuiPanel", "SetActiveControl"));
+        setBackground                     = reinterpret_cast<SetBackgroundFn>                    (GameVersion::GetFunctionAddress("CSWGuiPanel", "SetBackground"));
+        setVisible                        = reinterpret_cast<SetVisibleFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "SetVisible"));
+        startLoadFromLayout               = reinterpret_cast<StartLoadFromLayoutFn>              (GameVersion::GetFunctionAddress("CSWGuiPanel", "StartLoadFromLayout"));
+        stopLoadFromLayout                = reinterpret_cast<StopLoadFromLayoutFn>               (GameVersion::GetFunctionAddress("CSWGuiPanel", "StopLoadFromLayout"));
+        constructor                       = reinterpret_cast<ConstructorFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "Constructor"));
+        destructor                        = reinterpret_cast<DestructorFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "Destructor"));
 
         functionsInitialized = true;
     }
@@ -84,6 +90,7 @@ void CSWGuiPanel::InitializeOffsets() {
         offsetAlpha         = GameVersion::GetOffset("CSWGuiPanel", "alpha");
         offsetColor         = GameVersion::GetOffset("CSWGuiPanel", "color");
         offsetBorder        = GameVersion::GetOffset("CSWGuiPanel", "border");
+        classSize           = GameVersion::GetClassSize("CSWGuiPanel");
 
         offsetsInitialized = true;
     }
@@ -103,9 +110,35 @@ CSWGuiPanel::CSWGuiPanel(void* objectPtr)
     }
 }
 
+CSWGuiPanel::CSWGuiPanel(CSWGuiManager* manager)
+    : CSWGuiObject(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr, manager ? manager->GetPtr() : nullptr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiPanel::~CSWGuiPanel()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }
 
 CSWGuiControl* CSWGuiPanel::GetActiveControl() {

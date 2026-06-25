@@ -5,6 +5,9 @@
 CSWGuiButton::ReSetFontFn  CSWGuiButton::reSetFont  = nullptr;
 CSWGuiButton::SetActiveFn  CSWGuiButton::setActive  = nullptr;
 CSWGuiButton::SetEnabledFn CSWGuiButton::setEnabled = nullptr;
+CSWGuiButton::ConstructorFn CSWGuiButton::constructor = nullptr;
+CSWGuiButton::DestructorFn  CSWGuiButton::destructor  = nullptr;
+int CSWGuiButton::classSize = -1;
 
 bool CSWGuiButton::functionsInitialized = false;
 bool CSWGuiButton::offsetsInitialized = false;
@@ -27,6 +30,8 @@ void CSWGuiButton::InitializeFunctions() {
         reSetFont  = reinterpret_cast<ReSetFontFn> (GameVersion::GetFunctionAddress("CSWGuiButton", "ReSetFont"));
         setActive  = reinterpret_cast<SetActiveFn> (GameVersion::GetFunctionAddress("CSWGuiButton", "SetActive"));
         setEnabled = reinterpret_cast<SetEnabledFn>(GameVersion::GetFunctionAddress("CSWGuiButton", "SetEnabled"));
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiButton", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiButton", "Destructor"));
 
         functionsInitialized = true;
     }
@@ -50,6 +55,7 @@ void CSWGuiButton::InitializeOffsets() {
 
     try {
         offsetText = GameVersion::GetOffset("CSWGuiButton", "text");
+        classSize = GameVersion::GetClassSize("CSWGuiButton");
 
         offsetsInitialized = true;
     }
@@ -69,9 +75,35 @@ CSWGuiButton::CSWGuiButton(void* objectPtr)
     }
 }
 
+CSWGuiButton::CSWGuiButton()
+    : CSWGuiNavigable(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiButton::~CSWGuiButton()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }
 
 CSWGuiText* CSWGuiButton::GetText() {

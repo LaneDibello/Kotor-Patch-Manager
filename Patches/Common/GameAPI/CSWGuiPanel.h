@@ -4,6 +4,7 @@
 
 class CSWGuiControl;
 class CSWGuiBorder;
+class CSWGuiManager;
 class CExoString;
 class CResRef;
 template<typename T> class CExoArrayList;
@@ -11,6 +12,8 @@ template<typename T> class CExoArrayList;
 class CSWGuiPanel : public CSWGuiObject {
 public:
     explicit CSWGuiPanel(void* objectPtr);
+    // Allocates a new panel and runs the game's CSWGuiPanel(CSWGuiManager*) constructor.
+    explicit CSWGuiPanel(CSWGuiManager* manager);
     ~CSWGuiPanel();
 
     // Accessors
@@ -56,6 +59,8 @@ protected:
     typedef void  (__thiscall* SetVisibleFn)(void* thisPtr, int isVisible);
     typedef void  (__thiscall* StartLoadFromLayoutFn)(void* thisPtr, void* guiResref);
     typedef void  (__thiscall* StopLoadFromLayoutFn)(void* thisPtr);
+    typedef void* (__thiscall* ConstructorFn)(void* thisPtr, void* manager);
+    typedef void* (__thiscall* DestructorFn)(void* thisPtr);
 
     static AddControlFn addControl;
     static CenterPanelFn centerPanel;
@@ -71,6 +76,8 @@ protected:
     static SetVisibleFn setVisible;
     static StartLoadFromLayoutFn startLoadFromLayout;
     static StopLoadFromLayoutFn stopLoadFromLayout;
+    static ConstructorFn constructor;
+    static DestructorFn  destructor;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;
@@ -80,4 +87,6 @@ protected:
     static int offsetAlpha;
     static int offsetColor;
     static int offsetBorder;
+
+    static int classSize;
 };

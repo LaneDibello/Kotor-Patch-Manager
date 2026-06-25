@@ -14,6 +14,10 @@ bool CSWGuiControl::offsetsInitialized = false;
 
 int CSWGuiControl::offsetParentControl = -1;
 
+CSWGuiControl::ConstructorFn CSWGuiControl::constructor = nullptr;
+CSWGuiControl::DestructorFn  CSWGuiControl::destructor  = nullptr;
+int CSWGuiControl::classSize = -1;
+
 void CSWGuiControl::InitializeFunctions() {
     if (functionsInitialized) {
         return;
@@ -34,6 +38,8 @@ void CSWGuiControl::InitializeFunctions() {
         getSelectableParent = reinterpret_cast<GetSelectableParentFn>(GameVersion::GetFunctionAddress("CSWGuiControl", "GetSelectableParent"));
         setActive           = reinterpret_cast<SetActiveFn>          (GameVersion::GetFunctionAddress("CSWGuiControl", "SetActive"));
         setEnabled          = reinterpret_cast<SetEnabledFn>         (GameVersion::GetFunctionAddress("CSWGuiControl", "SetEnabled"));
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiControl", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiControl", "Destructor"));
 
         functionsInitialized = true;
     }
@@ -57,6 +63,7 @@ void CSWGuiControl::InitializeOffsets() {
 
     try {
         offsetParentControl = GameVersion::GetOffset("CSWGuiControl", "parent_control");
+        classSize = GameVersion::GetClassSize("CSWGuiControl");
 
         offsetsInitialized = true;
     }
@@ -76,9 +83,35 @@ CSWGuiControl::CSWGuiControl(void* objectPtr)
     }
 }
 
+CSWGuiControl::CSWGuiControl()
+    : CSWGuiObject(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiControl::~CSWGuiControl()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }
 
 CSWGuiControl* CSWGuiControl::GetParentControl() {
