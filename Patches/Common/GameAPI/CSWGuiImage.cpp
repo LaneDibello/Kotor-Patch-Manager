@@ -1,6 +1,8 @@
 #include "CSWGuiImage.h"
 #include "GameVersion.h"
 
+CSWGuiImage::GetImageExtentFn CSWGuiImage::getImageExtent = nullptr;
+
 bool CSWGuiImage::functionsInitialized = false;
 bool CSWGuiImage::offsetsInitialized = false;
 
@@ -17,7 +19,7 @@ void CSWGuiImage::InitializeFunctions() {
     }
 
     try {
-        // Functions Here
+        getImageExtent = reinterpret_cast<GetImageExtentFn>(GameVersion::GetFunctionAddress("CSWGuiImage", "GetImageExtent"));
 
         functionsInitialized = true;
     }
@@ -63,4 +65,9 @@ CSWGuiImage::CSWGuiImage(void* objectPtr)
 CSWGuiImage::~CSWGuiImage()
 {
     // Base class destructor handles objectPtr cleanup
+}
+
+void CSWGuiImage::GetImageExtent(CSWGuiExtent* outExtent) {
+    if (!objectPtr || !getImageExtent || !outExtent) return;
+    getImageExtent(objectPtr, outExtent);
 }

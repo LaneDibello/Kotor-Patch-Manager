@@ -2,6 +2,9 @@
 #include "GameVersion.h"
 #include "CSWGuiText.h"
 
+CSWGuiLabel::ReSetFontFn  CSWGuiLabel::reSetFont  = nullptr;
+CSWGuiLabel::SetEnabledFn CSWGuiLabel::setEnabled = nullptr;
+
 bool CSWGuiLabel::functionsInitialized = false;
 bool CSWGuiLabel::offsetsInitialized = false;
 
@@ -20,7 +23,8 @@ void CSWGuiLabel::InitializeFunctions() {
     }
 
     try {
-        // Functions Here
+        reSetFont  = reinterpret_cast<ReSetFontFn> (GameVersion::GetFunctionAddress("CSWGuiLabel", "ReSetFont"));
+        setEnabled = reinterpret_cast<SetEnabledFn>(GameVersion::GetFunctionAddress("CSWGuiLabel", "SetEnabled"));
 
         functionsInitialized = true;
     }
@@ -73,4 +77,14 @@ CSWGuiText* CSWGuiLabel::GetText() {
         return nullptr;
     }
     return new CSWGuiText((char*)objectPtr + offsetText);
+}
+
+void CSWGuiLabel::ReSetFont() {
+    if (!objectPtr || !reSetFont) return;
+    reSetFont(objectPtr);
+}
+
+void CSWGuiLabel::SetEnabled(UINT enabled) {
+    if (!objectPtr || !setEnabled) return;
+    setEnabled(objectPtr, enabled);
 }

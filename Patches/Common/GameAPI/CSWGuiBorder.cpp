@@ -1,6 +1,9 @@
 #include "CSWGuiBorder.h"
 #include "GameVersion.h"
 
+CSWGuiBorder::FillCenterFn CSWGuiBorder::fillCenter = nullptr;
+CSWGuiBorder::FillTileFn   CSWGuiBorder::fillTile   = nullptr;
+
 bool CSWGuiBorder::functionsInitialized = false;
 bool CSWGuiBorder::offsetsInitialized = false;
 
@@ -17,7 +20,8 @@ void CSWGuiBorder::InitializeFunctions() {
     }
 
     try {
-        // Functions Here
+        fillCenter = reinterpret_cast<FillCenterFn>(GameVersion::GetFunctionAddress("CSWGuiBorder", "FillCenter"));
+        fillTile   = reinterpret_cast<FillTileFn>  (GameVersion::GetFunctionAddress("CSWGuiBorder", "FillTile"));
 
         functionsInitialized = true;
     }
@@ -63,4 +67,14 @@ CSWGuiBorder::CSWGuiBorder(void* objectPtr)
 CSWGuiBorder::~CSWGuiBorder()
 {
     // Base class destructor handles objectPtr cleanup
+}
+
+void CSWGuiBorder::FillCenter(int height, int width, int x, int y, float alpha, Vector* color) {
+    if (!objectPtr || !fillCenter) return;
+    fillCenter(objectPtr, height, width, x, y, alpha, color);
+}
+
+void CSWGuiBorder::FillTile(int height, int width, int x, int y, float alpha, Vector* color) {
+    if (!objectPtr || !fillTile) return;
+    fillTile(objectPtr, height, width, x, y, alpha, color);
 }

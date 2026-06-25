@@ -1,6 +1,8 @@
 #include "CSWGuiButtonToggle.h"
 #include "GameVersion.h"
 
+CSWGuiButtonToggle::SetSelectedFn CSWGuiButtonToggle::setSelected = nullptr;
+
 bool CSWGuiButtonToggle::functionsInitialized = false;
 bool CSWGuiButtonToggle::offsetsInitialized = false;
 
@@ -17,7 +19,7 @@ void CSWGuiButtonToggle::InitializeFunctions() {
     }
 
     try {
-        // Functions Here
+        setSelected = reinterpret_cast<SetSelectedFn>(GameVersion::GetFunctionAddress("CSWGuiButtonToggle", "SetSelected"));
 
         functionsInitialized = true;
     }
@@ -63,4 +65,9 @@ CSWGuiButtonToggle::CSWGuiButtonToggle(void* objectPtr)
 CSWGuiButtonToggle::~CSWGuiButtonToggle()
 {
     // Base class destructor handles objectPtr cleanup
+}
+
+void CSWGuiButtonToggle::SetSelected(UINT selected) {
+    if (!objectPtr || !setSelected) return;
+    setSelected(objectPtr, selected);
 }

@@ -2,6 +2,10 @@
 #include "GameVersion.h"
 #include "CSWGuiText.h"
 
+CSWGuiButton::ReSetFontFn  CSWGuiButton::reSetFont  = nullptr;
+CSWGuiButton::SetActiveFn  CSWGuiButton::setActive  = nullptr;
+CSWGuiButton::SetEnabledFn CSWGuiButton::setEnabled = nullptr;
+
 bool CSWGuiButton::functionsInitialized = false;
 bool CSWGuiButton::offsetsInitialized = false;
 
@@ -20,7 +24,9 @@ void CSWGuiButton::InitializeFunctions() {
     }
 
     try {
-        // Functions Here
+        reSetFont  = reinterpret_cast<ReSetFontFn> (GameVersion::GetFunctionAddress("CSWGuiButton", "ReSetFont"));
+        setActive  = reinterpret_cast<SetActiveFn> (GameVersion::GetFunctionAddress("CSWGuiButton", "SetActive"));
+        setEnabled = reinterpret_cast<SetEnabledFn>(GameVersion::GetFunctionAddress("CSWGuiButton", "SetEnabled"));
 
         functionsInitialized = true;
     }
@@ -73,4 +79,19 @@ CSWGuiText* CSWGuiButton::GetText() {
         return nullptr;
     }
     return new CSWGuiText((char*)objectPtr + offsetText);
+}
+
+void CSWGuiButton::ReSetFont() {
+    if (!objectPtr || !reSetFont) return;
+    reSetFont(objectPtr);
+}
+
+void CSWGuiButton::SetActive(UINT active) {
+    if (!objectPtr || !setActive) return;
+    setActive(objectPtr, active);
+}
+
+void CSWGuiButton::SetEnabled(UINT enabled) {
+    if (!objectPtr || !setEnabled) return;
+    setEnabled(objectPtr, enabled);
 }

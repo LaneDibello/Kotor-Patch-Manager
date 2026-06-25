@@ -1,6 +1,14 @@
 #include "CSWGuiControl.h"
 #include "GameVersion.h"
 
+CSWGuiControl::AddChildControlFn       CSWGuiControl::addChildControl       = nullptr;
+CSWGuiControl::AddEventFn              CSWGuiControl::addEvent              = nullptr;
+CSWGuiControl::GetIsChildFn            CSWGuiControl::getIsChild            = nullptr;
+CSWGuiControl::GetIsSelectableFn       CSWGuiControl::getIsSelectable       = nullptr;
+CSWGuiControl::GetSelectableParentFn   CSWGuiControl::getSelectableParent   = nullptr;
+CSWGuiControl::SetActiveFn             CSWGuiControl::setActive             = nullptr;
+CSWGuiControl::SetEnabledFn            CSWGuiControl::setEnabled            = nullptr;
+
 bool CSWGuiControl::functionsInitialized = false;
 bool CSWGuiControl::offsetsInitialized = false;
 
@@ -19,7 +27,13 @@ void CSWGuiControl::InitializeFunctions() {
     }
 
     try {
-        // Functions Here
+        addChildControl     = reinterpret_cast<AddChildControlFn>    (GameVersion::GetFunctionAddress("CSWGuiControl", "AddChildControl"));
+        addEvent            = reinterpret_cast<AddEventFn>           (GameVersion::GetFunctionAddress("CSWGuiControl", "AddEvent"));
+        getIsChild          = reinterpret_cast<GetIsChildFn>         (GameVersion::GetFunctionAddress("CSWGuiControl", "GetIsChild"));
+        getIsSelectable     = reinterpret_cast<GetIsSelectableFn>    (GameVersion::GetFunctionAddress("CSWGuiControl", "GetIsSelectable"));
+        getSelectableParent = reinterpret_cast<GetSelectableParentFn>(GameVersion::GetFunctionAddress("CSWGuiControl", "GetSelectableParent"));
+        setActive           = reinterpret_cast<SetActiveFn>          (GameVersion::GetFunctionAddress("CSWGuiControl", "SetActive"));
+        setEnabled          = reinterpret_cast<SetEnabledFn>         (GameVersion::GetFunctionAddress("CSWGuiControl", "SetEnabled"));
 
         functionsInitialized = true;
     }
@@ -76,4 +90,41 @@ CSWGuiControl* CSWGuiControl::GetParentControl() {
         return nullptr;
     }
     return new CSWGuiControl(parentPtr);
+}
+
+void CSWGuiControl::AddChildControl(CSWGuiControl* child) {
+    if (!objectPtr || !addChildControl) return;
+    addChildControl(objectPtr, child ? child->GetPtr() : nullptr);
+}
+
+void CSWGuiControl::AddEvent(int eventFlag, CSWGuiObject* guiObject, void* menuFunc) {
+    if (!objectPtr || !addEvent) return;
+    addEvent(objectPtr, eventFlag, guiObject ? guiObject->GetPtr() : nullptr, menuFunc);
+}
+
+bool CSWGuiControl::GetIsChild(CSWGuiControl* child) {
+    if (!objectPtr || !getIsChild) return false;
+    return getIsChild(objectPtr, child ? child->GetPtr() : nullptr);
+}
+
+bool CSWGuiControl::GetIsSelectable() {
+    if (!objectPtr || !getIsSelectable) return false;
+    return getIsSelectable(objectPtr);
+}
+
+CSWGuiControl* CSWGuiControl::GetSelectableParent() {
+    if (!objectPtr || !getSelectableParent) return nullptr;
+    void* parentPtr = getSelectableParent(objectPtr);
+    if (!parentPtr) return nullptr;
+    return new CSWGuiControl(parentPtr);
+}
+
+void CSWGuiControl::SetActive(UINT active) {
+    if (!objectPtr || !setActive) return;
+    setActive(objectPtr, active);
+}
+
+void CSWGuiControl::SetEnabled(UINT enabled) {
+    if (!objectPtr || !setEnabled) return;
+    setEnabled(objectPtr, enabled);
 }

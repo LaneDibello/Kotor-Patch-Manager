@@ -1,6 +1,12 @@
 #include "CSWGuiEditBox.h"
 #include "GameVersion.h"
 
+// Note: DB uses class key "CSWGuiEditbox" (lowercase b) for lookups.
+CSWGuiEditBox::GetIsSelectableFn CSWGuiEditBox::getIsSelectable = nullptr;
+CSWGuiEditBox::ReSetFontFn       CSWGuiEditBox::reSetFont       = nullptr;
+CSWGuiEditBox::SetEnabledFn      CSWGuiEditBox::setEnabled      = nullptr;
+CSWGuiEditBox::SetFocusFn        CSWGuiEditBox::setFocus        = nullptr;
+
 bool CSWGuiEditBox::functionsInitialized = false;
 bool CSWGuiEditBox::offsetsInitialized = false;
 
@@ -17,7 +23,10 @@ void CSWGuiEditBox::InitializeFunctions() {
     }
 
     try {
-        // Functions Here
+        getIsSelectable = reinterpret_cast<GetIsSelectableFn>(GameVersion::GetFunctionAddress("CSWGuiEditbox", "GetIsSelectable"));
+        reSetFont       = reinterpret_cast<ReSetFontFn>      (GameVersion::GetFunctionAddress("CSWGuiEditbox", "ReSetFont"));
+        setEnabled      = reinterpret_cast<SetEnabledFn>     (GameVersion::GetFunctionAddress("CSWGuiEditbox", "SetEnabled"));
+        setFocus        = reinterpret_cast<SetFocusFn>       (GameVersion::GetFunctionAddress("CSWGuiEditbox", "SetFocus"));
 
         functionsInitialized = true;
     }
@@ -63,4 +72,24 @@ CSWGuiEditBox::CSWGuiEditBox(void* objectPtr)
 CSWGuiEditBox::~CSWGuiEditBox()
 {
     // Base class destructor handles objectPtr cleanup
+}
+
+bool CSWGuiEditBox::GetIsSelectable() {
+    if (!objectPtr || !getIsSelectable) return false;
+    return getIsSelectable(objectPtr);
+}
+
+void CSWGuiEditBox::ReSetFont() {
+    if (!objectPtr || !reSetFont) return;
+    reSetFont(objectPtr);
+}
+
+void CSWGuiEditBox::SetEnabled(UINT enabled) {
+    if (!objectPtr || !setEnabled) return;
+    setEnabled(objectPtr, enabled);
+}
+
+void CSWGuiEditBox::SetFocus() {
+    if (!objectPtr || !setFocus) return;
+    setFocus(objectPtr);
 }

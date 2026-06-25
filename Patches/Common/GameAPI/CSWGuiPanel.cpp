@@ -3,6 +3,23 @@
 #include "CSWGuiControl.h"
 #include "CSWGuiBorder.h"
 #include "CExoArrayList.h"
+#include "CExoString.h"
+#include "CResRef.h"
+
+CSWGuiPanel::AddControlFn                       CSWGuiPanel::addControl                       = nullptr;
+CSWGuiPanel::CenterPanelFn                      CSWGuiPanel::centerPanel                      = nullptr;
+CSWGuiPanel::GetControlFn                       CSWGuiPanel::getControl                       = nullptr;
+CSWGuiPanel::GetExtentAccountingForPanelOffsetFn CSWGuiPanel::getExtentAccountingForPanelOffset = nullptr;
+CSWGuiPanel::GetFullScreenBGFn                  CSWGuiPanel::getFullScreenBG                  = nullptr;
+CSWGuiPanel::GetLocalMouseCoordsFn              CSWGuiPanel::getLocalMouseCoords              = nullptr;
+CSWGuiPanel::HitCheckMouseFn                    CSWGuiPanel::hitCheckMouse                    = nullptr;
+CSWGuiPanel::InitControlFn                      CSWGuiPanel::initControl                      = nullptr;
+CSWGuiPanel::ResetFontFn                        CSWGuiPanel::resetFont                        = nullptr;
+CSWGuiPanel::SetActiveControlFn                 CSWGuiPanel::setActiveControl                 = nullptr;
+CSWGuiPanel::SetBackgroundFn                    CSWGuiPanel::setBackground                    = nullptr;
+CSWGuiPanel::SetVisibleFn                       CSWGuiPanel::setVisible                       = nullptr;
+CSWGuiPanel::StartLoadFromLayoutFn              CSWGuiPanel::startLoadFromLayout              = nullptr;
+CSWGuiPanel::StopLoadFromLayoutFn               CSWGuiPanel::stopLoadFromLayout               = nullptr;
 
 bool CSWGuiPanel::functionsInitialized = false;
 bool CSWGuiPanel::offsetsInitialized = false;
@@ -26,7 +43,20 @@ void CSWGuiPanel::InitializeFunctions() {
     }
 
     try {
-        // Functions Here
+        addControl                       = reinterpret_cast<AddControlFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "AddControl"));
+        centerPanel                      = reinterpret_cast<CenterPanelFn>                     (GameVersion::GetFunctionAddress("CSWGuiPanel", "CenterPanel"));
+        getControl                       = reinterpret_cast<GetControlFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetControl"));
+        getExtentAccountingForPanelOffset = reinterpret_cast<GetExtentAccountingForPanelOffsetFn>(GameVersion::GetFunctionAddress("CSWGuiPanel", "GetExtentAccountingForPanelOffset"));
+        getFullScreenBG                  = reinterpret_cast<GetFullScreenBGFn>                 (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetFullScreenBG"));
+        getLocalMouseCoords              = reinterpret_cast<GetLocalMouseCoordsFn>             (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetLocalMouseCoords"));
+        hitCheckMouse                    = reinterpret_cast<HitCheckMouseFn>                   (GameVersion::GetFunctionAddress("CSWGuiPanel", "HitCheckMouse"));
+        initControl                      = reinterpret_cast<InitControlFn>                     (GameVersion::GetFunctionAddress("CSWGuiPanel", "InitControl"));
+        resetFont                        = reinterpret_cast<ResetFontFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "ResetFont"));
+        setActiveControl                 = reinterpret_cast<SetActiveControlFn>                (GameVersion::GetFunctionAddress("CSWGuiPanel", "SetActiveControl"));
+        setBackground                    = reinterpret_cast<SetBackgroundFn>                   (GameVersion::GetFunctionAddress("CSWGuiPanel", "SetBackground"));
+        setVisible                       = reinterpret_cast<SetVisibleFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "SetVisible"));
+        startLoadFromLayout              = reinterpret_cast<StartLoadFromLayoutFn>             (GameVersion::GetFunctionAddress("CSWGuiPanel", "StartLoadFromLayout"));
+        stopLoadFromLayout               = reinterpret_cast<StopLoadFromLayoutFn>              (GameVersion::GetFunctionAddress("CSWGuiPanel", "StopLoadFromLayout"));
 
         functionsInitialized = true;
     }
@@ -134,4 +164,81 @@ CSWGuiBorder* CSWGuiPanel::GetBorder() {
         return nullptr;
     }
     return new CSWGuiBorder(borderPtr);
+}
+
+void CSWGuiPanel::AddControl(CSWGuiControl* control) {
+    if (!objectPtr || !addControl) return;
+    addControl(objectPtr, control ? control->GetPtr() : nullptr);
+}
+
+void CSWGuiPanel::CenterPanel() {
+    if (!objectPtr || !centerPanel) return;
+    centerPanel(objectPtr);
+}
+
+CSWGuiControl* CSWGuiPanel::GetControl(int index) {
+    if (!objectPtr || !getControl) return nullptr;
+    void* ctrlPtr = getControl(objectPtr, index);
+    if (!ctrlPtr) return nullptr;
+    return new CSWGuiControl(ctrlPtr);
+}
+
+void CSWGuiPanel::GetExtentAccountingForPanelOffset(CSWGuiExtent* outExtent) {
+    if (!objectPtr || !getExtentAccountingForPanelOffset || !outExtent) return;
+    getExtentAccountingForPanelOffset(objectPtr, outExtent);
+}
+
+void CSWGuiPanel::GetFullScreenBG(CExoString* outBGString) {
+    if (!objectPtr || !getFullScreenBG || !outBGString) return;
+    getFullScreenBG(objectPtr, outBGString->GetPtr());
+}
+
+void CSWGuiPanel::GetLocalMouseCoords(int* outX, int* outY) {
+    if (!objectPtr || !getLocalMouseCoords) return;
+    getLocalMouseCoords(objectPtr, outX, outY);
+}
+
+bool CSWGuiPanel::HitCheckMouse(int mouseX, int mouseY) {
+    if (!objectPtr || !hitCheckMouse) return false;
+    return hitCheckMouse(objectPtr, mouseX, mouseY);
+}
+
+void CSWGuiPanel::InitControl(CSWGuiControl* controlToInit, CExoString* label, int activate) {
+    if (!objectPtr || !initControl) return;
+    initControl(objectPtr,
+                controlToInit ? controlToInit->GetPtr() : nullptr,
+                label ? label->GetPtr() : nullptr,
+                activate);
+}
+
+void CSWGuiPanel::ResetFont() {
+    if (!objectPtr || !resetFont) return;
+    resetFont(objectPtr);
+}
+
+void CSWGuiPanel::SetActiveControl(CSWGuiControl* controlToActivate, int playSound) {
+    if (!objectPtr || !setActiveControl) return;
+    setActiveControl(objectPtr,
+                     controlToActivate ? controlToActivate->GetPtr() : nullptr,
+                     playSound);
+}
+
+void CSWGuiPanel::SetBackground(CResRef* image) {
+    if (!objectPtr || !setBackground) return;
+    setBackground(objectPtr, image ? image->GetPtr() : nullptr);
+}
+
+void CSWGuiPanel::SetVisible(int isVisible) {
+    if (!objectPtr || !setVisible) return;
+    setVisible(objectPtr, isVisible);
+}
+
+void CSWGuiPanel::StartLoadFromLayout(CResRef* guiResref) {
+    if (!objectPtr || !startLoadFromLayout) return;
+    startLoadFromLayout(objectPtr, guiResref ? guiResref->GetPtr() : nullptr);
+}
+
+void CSWGuiPanel::StopLoadFromLayout() {
+    if (!objectPtr || !stopLoadFromLayout) return;
+    stopLoadFromLayout(objectPtr);
 }

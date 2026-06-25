@@ -4,14 +4,20 @@
 
 class CSWGuiImage : public CSWGuiObject {
 public:
-	explicit CSWGuiImage(void* objectPtr);
-	~CSWGuiImage();
+    explicit CSWGuiImage(void* objectPtr);
+    ~CSWGuiImage();
 
-	void InitializeFunctions() override;
-	void InitializeOffsets() override;
+    // Functions
+    void GetImageExtent(CSWGuiExtent* outExtent);
+
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 protected:
-	static bool functionsInitialized;
-	static bool offsetsInitialized;
+    typedef void (__thiscall* GetImageExtentFn)(void* thisPtr, CSWGuiExtent* outExtent);
 
+    static GetImageExtentFn getImageExtent;
+
+    static bool functionsInitialized;
+    static bool offsetsInitialized;
 };

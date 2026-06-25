@@ -4,14 +4,29 @@
 
 class CSWGuiEditBox : public CSWGuiNavigable {
 public:
-	explicit CSWGuiEditBox(void* objectPtr);
-	~CSWGuiEditBox();
+    explicit CSWGuiEditBox(void* objectPtr);
+    ~CSWGuiEditBox();
 
-	void InitializeFunctions() override;
-	void InitializeOffsets() override;
+    // Functions
+    bool GetIsSelectable();
+    void ReSetFont();
+    void SetEnabled(UINT enabled);
+    void SetFocus();
+
+    void InitializeFunctions() override;
+    void InitializeOffsets() override;
 
 protected:
-	static bool functionsInitialized;
-	static bool offsetsInitialized;
+    typedef bool (__thiscall* GetIsSelectableFn)(void* thisPtr);
+    typedef void (__thiscall* ReSetFontFn)(void* thisPtr);
+    typedef void (__thiscall* SetEnabledFn)(void* thisPtr, UINT enabled);
+    typedef void (__thiscall* SetFocusFn)(void* thisPtr);
 
+    static GetIsSelectableFn getIsSelectable;
+    static ReSetFontFn reSetFont;
+    static SetEnabledFn setEnabled;
+    static SetFocusFn setFocus;
+
+    static bool functionsInitialized;
+    static bool offsetsInitialized;
 };
