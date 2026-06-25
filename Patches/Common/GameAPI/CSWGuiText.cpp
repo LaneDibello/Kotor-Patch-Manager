@@ -1,11 +1,16 @@
 #include "CSWGuiText.h"
+#include "CSWGuiTextParams.h"
 #include "GameVersion.h"
 
 bool CSWGuiText::functionsInitialized = false;
 bool CSWGuiText::offsetsInitialized = false;
 CSWGuiText::ConstructorFn CSWGuiText::constructor = nullptr;
 CSWGuiText::DestructorFn  CSWGuiText::destructor  = nullptr;
+CSWGuiText::GetFontHeightFn  CSWGuiText::getFontHeight  = nullptr;
+CSWGuiText::GetIdealHeightFn CSWGuiText::getIdealHeight = nullptr;
+CSWGuiText::WrapTextFn       CSWGuiText::wrapTextFn      = nullptr;
 int CSWGuiText::classSize = -1;
+int CSWGuiText::offsetTextParams = -1;
 
 void CSWGuiText::InitializeFunctions() {
     if (functionsInitialized) {
@@ -23,6 +28,9 @@ void CSWGuiText::InitializeFunctions() {
         // Functions Here
         constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiText", "Constructor"));
         destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiText", "Destructor"));
+        getFontHeight  = reinterpret_cast<GetFontHeightFn> (GameVersion::GetFunctionAddress("CSWGuiText", "GetFontHeight"));
+        getIdealHeight = reinterpret_cast<GetIdealHeightFn>(GameVersion::GetFunctionAddress("CSWGuiText", "GetIdealHeight"));
+        wrapTextFn     = reinterpret_cast<WrapTextFn>      (GameVersion::GetFunctionAddress("CSWGuiText", "wrapText"));
 
         functionsInitialized = true;
     }
@@ -46,6 +54,7 @@ void CSWGuiText::InitializeOffsets() {
 
     try {
         // Offsets Here
+        offsetTextParams = GameVersion::GetOffset("CSWGuiText", "text_params");
         classSize = GameVersion::GetClassSize("CSWGuiText");
 
         offsetsInitialized = true;
@@ -95,4 +104,27 @@ CSWGuiText::~CSWGuiText()
         objectPtr = nullptr;
         shouldFree = false;
     }
+}
+
+CSWGuiTextParams* CSWGuiText::GetTextParams() {
+    if (!objectPtr || offsetTextParams < 0) {
+        return nullptr;
+    }
+    // Inline CSWGuiTextParams member: wrap its in-place address.
+    return new CSWGuiTextParams((char*)objectPtr + offsetTextParams);
+}
+
+int CSWGuiText::GetFontHeight() {
+    if (!objectPtr || !getFontHeight) return 0;
+    return getFontHeight(objectPtr);
+}
+
+int CSWGuiText::GetIdealHeight() {
+    if (!objectPtr || !getIdealHeight) return 0;
+    return getIdealHeight(objectPtr);
+}
+
+void CSWGuiText::wrapText() {
+    if (!objectPtr || !wrapTextFn) return;
+    wrapTextFn(objectPtr);
 }

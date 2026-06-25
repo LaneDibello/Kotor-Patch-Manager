@@ -1,10 +1,12 @@
 #include "CSWGuiImage.h"
+#include "CSWGuiImageParams.h"
 #include "GameVersion.h"
 
 CSWGuiImage::GetImageExtentFn CSWGuiImage::getImageExtent = nullptr;
 CSWGuiImage::ConstructorFn CSWGuiImage::constructor = nullptr;
 CSWGuiImage::DestructorFn  CSWGuiImage::destructor  = nullptr;
 int CSWGuiImage::classSize = -1;
+int CSWGuiImage::offsetParams = -1;
 
 bool CSWGuiImage::functionsInitialized = false;
 bool CSWGuiImage::offsetsInitialized = false;
@@ -48,6 +50,7 @@ void CSWGuiImage::InitializeOffsets() {
 
     try {
         // Offsets Here
+        offsetParams = GameVersion::GetOffset("CSWGuiImage", "params");
         classSize = GameVersion::GetClassSize("CSWGuiImage");
 
         offsetsInitialized = true;
@@ -102,4 +105,12 @@ CSWGuiImage::~CSWGuiImage()
 void CSWGuiImage::GetImageExtent(CSWGuiExtent* outExtent) {
     if (!objectPtr || !getImageExtent || !outExtent) return;
     getImageExtent(objectPtr, outExtent);
+}
+
+CSWGuiImageParams* CSWGuiImage::GetParams() {
+    if (!objectPtr || offsetParams < 0) {
+        return nullptr;
+    }
+    // Inline CSWGuiImageParams member: wrap its in-place address.
+    return new CSWGuiImageParams((char*)objectPtr + offsetParams);
 }

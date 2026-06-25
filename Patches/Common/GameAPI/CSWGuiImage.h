@@ -2,11 +2,16 @@
 #include "../Common.h"
 #include "CSWGuiObject.h"
 
+class CSWGuiImageParams;
+
 class CSWGuiImage : public CSWGuiObject {
 public:
     explicit CSWGuiImage(void* objectPtr);
     CSWGuiImage();
     ~CSWGuiImage();
+
+    // Accessors. Returned wrapper is heap allocated; caller owns it.
+    CSWGuiImageParams* GetParams();
 
     // Functions
     void GetImageExtent(CSWGuiExtent* outExtent);
@@ -26,4 +31,6 @@ protected:
 
     static bool functionsInitialized;
     static bool offsetsInitialized;
+
+    static int offsetParams;
 };
