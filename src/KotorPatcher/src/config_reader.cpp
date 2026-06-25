@@ -233,6 +233,14 @@ namespace KotorPatcher {
                         continue;
                     }
 
+                    // DETOUR hooks overwrite a 5-byte JMP at the hook address and NOP the
+                    // remaining stolen bytes; fewer than 5 original_bytes makes the
+                    // (size - 5) NOP-count underflow in ApplyPatch. Reject early (mirrors REPLACE).
+                    if (patch.type == HookType::DETOUR && patch.originalBytes.size() < 5) {
+                        OutputDebugStringA("[Config] DETOUR hook original_bytes must be at least 5 bytes (for JMP instruction)\n");
+                        continue;
+                    }
+
                     // original_bytes are used for both verification and execution in wrapper
                     // No separate stolen_bytes field needed
 
