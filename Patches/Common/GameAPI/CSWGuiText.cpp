@@ -3,6 +3,9 @@
 
 bool CSWGuiText::functionsInitialized = false;
 bool CSWGuiText::offsetsInitialized = false;
+CSWGuiText::ConstructorFn CSWGuiText::constructor = nullptr;
+CSWGuiText::DestructorFn  CSWGuiText::destructor  = nullptr;
+int CSWGuiText::classSize = -1;
 
 void CSWGuiText::InitializeFunctions() {
     if (functionsInitialized) {
@@ -18,6 +21,8 @@ void CSWGuiText::InitializeFunctions() {
 
     try {
         // Functions Here
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiText", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiText", "Destructor"));
 
         functionsInitialized = true;
     }
@@ -41,6 +46,7 @@ void CSWGuiText::InitializeOffsets() {
 
     try {
         // Offsets Here
+        classSize = GameVersion::GetClassSize("CSWGuiText");
 
         offsetsInitialized = true;
     }
@@ -60,7 +66,33 @@ CSWGuiText::CSWGuiText(void* objectPtr)
     }
 }
 
+CSWGuiText::CSWGuiText()
+    : CSWGuiObject(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiText::~CSWGuiText()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }

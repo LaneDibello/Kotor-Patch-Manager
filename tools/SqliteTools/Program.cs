@@ -26,6 +26,9 @@ class Program
                 case "import-offsets":
                     new ImportOffsetsCommand().Execute(commandArgs);
                     break;
+                case "import-classes":
+                    new ImportClassesCommand().Execute(commandArgs);
+                    break;
                 case "migrate":
                     new MigrateSchemaCommand().Execute(commandArgs);
                     break;
@@ -67,6 +70,11 @@ class Program
         Console.WriteLine("  import-offsets --csv <file.csv> --database <database.db> [--mode append|replace]");
         Console.WriteLine("      Import class member offsets from CSV into SQLite database");
         Console.WriteLine("      CSV columns: class_name, member_name, offset, notes");
+        Console.WriteLine("      Modes: append (update/insert), replace (delete all first)");
+        Console.WriteLine();
+        Console.WriteLine("  import-classes --csv <file.csv> --database <database.db> [--mode append|replace]");
+        Console.WriteLine("      Import class metadata (e.g. size) from CSV into SQLite database");
+        Console.WriteLine("      CSV columns: class_name, size, notes");
         Console.WriteLine("      Modes: append (update/insert), replace (delete all first)");
         Console.WriteLine();
         Console.WriteLine("  migrate --database <database.db>");

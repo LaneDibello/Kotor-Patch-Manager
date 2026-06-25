@@ -3,6 +3,9 @@
 
 bool CSWGuiScrollBar::functionsInitialized = false;
 bool CSWGuiScrollBar::offsetsInitialized = false;
+CSWGuiScrollBar::ConstructorFn CSWGuiScrollBar::constructor = nullptr;
+CSWGuiScrollBar::DestructorFn  CSWGuiScrollBar::destructor  = nullptr;
+int CSWGuiScrollBar::classSize = -1;
 
 void CSWGuiScrollBar::InitializeFunctions() {
     if (functionsInitialized) {
@@ -18,6 +21,8 @@ void CSWGuiScrollBar::InitializeFunctions() {
 
     try {
         // Functions Here
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiScrollBar", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiScrollBar", "Destructor"));
 
         functionsInitialized = true;
     }
@@ -41,6 +46,7 @@ void CSWGuiScrollBar::InitializeOffsets() {
 
     try {
         // Offsets Here
+        classSize = GameVersion::GetClassSize("CSWGuiScrollBar");
 
         offsetsInitialized = true;
     }
@@ -60,7 +66,33 @@ CSWGuiScrollBar::CSWGuiScrollBar(void* objectPtr)
     }
 }
 
+CSWGuiScrollBar::CSWGuiScrollBar()
+    : CSWGuiControl(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiScrollBar::~CSWGuiScrollBar()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }

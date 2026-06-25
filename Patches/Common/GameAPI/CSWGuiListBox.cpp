@@ -5,6 +5,10 @@
 #include "CSWGuiControl.h"
 #include "CExoArrayList.h"
 
+CSWGuiListBox::ConstructorFn CSWGuiListBox::constructor = nullptr;
+CSWGuiListBox::DestructorFn  CSWGuiListBox::destructor  = nullptr;
+int CSWGuiListBox::classSize = -1;
+
 bool CSWGuiListBox::functionsInitialized = false;
 bool CSWGuiListBox::offsetsInitialized = false;
 
@@ -29,6 +33,8 @@ void CSWGuiListBox::InitializeFunctions() {
 
     try {
         // Functions Here
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiListBox", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiListBox", "Destructor"));
 
         functionsInitialized = true;
     }
@@ -57,6 +63,7 @@ void CSWGuiListBox::InitializeOffsets() {
         offsetControlExtents = GameVersion::GetOffset("CSWGuiListBox", "control_extents");
         offsetHoveredControl = GameVersion::GetOffset("CSWGuiListBox", "hovered_control");
         offsetColor          = GameVersion::GetOffset("CSWGuiListBox", "color");
+        classSize = GameVersion::GetClassSize("CSWGuiListBox");
 
         offsetsInitialized = true;
     }
@@ -76,9 +83,35 @@ CSWGuiListBox::CSWGuiListBox(void* objectPtr)
     }
 }
 
+CSWGuiListBox::CSWGuiListBox()
+    : CSWGuiNavigable(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiListBox::~CSWGuiListBox()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }
 
 CSWGuiBorder* CSWGuiListBox::GetBorder() {

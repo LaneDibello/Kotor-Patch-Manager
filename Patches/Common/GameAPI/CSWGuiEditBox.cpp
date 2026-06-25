@@ -6,6 +6,9 @@ CSWGuiEditBox::GetIsSelectableFn CSWGuiEditBox::getIsSelectable = nullptr;
 CSWGuiEditBox::ReSetFontFn       CSWGuiEditBox::reSetFont       = nullptr;
 CSWGuiEditBox::SetEnabledFn      CSWGuiEditBox::setEnabled      = nullptr;
 CSWGuiEditBox::SetFocusFn        CSWGuiEditBox::setFocus        = nullptr;
+CSWGuiEditBox::ConstructorFn CSWGuiEditBox::constructor = nullptr;
+CSWGuiEditBox::DestructorFn  CSWGuiEditBox::destructor  = nullptr;
+int CSWGuiEditBox::classSize = -1;
 
 bool CSWGuiEditBox::functionsInitialized = false;
 bool CSWGuiEditBox::offsetsInitialized = false;
@@ -27,6 +30,8 @@ void CSWGuiEditBox::InitializeFunctions() {
         reSetFont       = reinterpret_cast<ReSetFontFn>      (GameVersion::GetFunctionAddress("CSWGuiEditbox", "ReSetFont"));
         setEnabled      = reinterpret_cast<SetEnabledFn>     (GameVersion::GetFunctionAddress("CSWGuiEditbox", "SetEnabled"));
         setFocus        = reinterpret_cast<SetFocusFn>       (GameVersion::GetFunctionAddress("CSWGuiEditbox", "SetFocus"));
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiEditbox", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiEditbox", "Destructor_2"));
 
         functionsInitialized = true;
     }
@@ -50,6 +55,7 @@ void CSWGuiEditBox::InitializeOffsets() {
 
     try {
         // Offsets Here
+        classSize = GameVersion::GetClassSize("CSWGuiEditbox");
 
         offsetsInitialized = true;
     }
@@ -69,9 +75,35 @@ CSWGuiEditBox::CSWGuiEditBox(void* objectPtr)
     }
 }
 
+CSWGuiEditBox::CSWGuiEditBox()
+    : CSWGuiNavigable(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiEditBox::~CSWGuiEditBox()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }
 
 bool CSWGuiEditBox::GetIsSelectable() {

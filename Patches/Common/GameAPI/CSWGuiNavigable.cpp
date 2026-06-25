@@ -3,6 +3,9 @@
 
 bool CSWGuiNavigable::functionsInitialized = false;
 bool CSWGuiNavigable::offsetsInitialized = false;
+CSWGuiNavigable::ConstructorFn CSWGuiNavigable::constructor = nullptr;
+CSWGuiNavigable::DestructorFn  CSWGuiNavigable::destructor  = nullptr;
+int CSWGuiNavigable::classSize = -1;
 
 void CSWGuiNavigable::InitializeFunctions() {
     if (functionsInitialized) {
@@ -18,6 +21,8 @@ void CSWGuiNavigable::InitializeFunctions() {
 
     try {
         // Functions Here
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiNavigable", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiNavigable", "Destructor"));
 
         functionsInitialized = true;
     }
@@ -41,6 +46,7 @@ void CSWGuiNavigable::InitializeOffsets() {
 
     try {
         // Offsets Here
+        classSize = GameVersion::GetClassSize("CSWGuiNavigable");
 
         offsetsInitialized = true;
     }
@@ -60,7 +66,33 @@ CSWGuiNavigable::CSWGuiNavigable(void* objectPtr)
     }
 }
 
+CSWGuiNavigable::CSWGuiNavigable()
+    : CSWGuiControl(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiNavigable::~CSWGuiNavigable()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }

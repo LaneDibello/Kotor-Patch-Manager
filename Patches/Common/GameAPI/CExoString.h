@@ -34,4 +34,8 @@ private:
 
     static int offsetCStr;
     static int offsetLength;
+
+    // Size of the CExoString struct in game memory, looked up from the
+    // classes table at init time (replaces the previously hard-coded 8).
+    static int classSize;
 };

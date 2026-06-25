@@ -3,6 +3,9 @@
 
 CSWGuiBorder::FillCenterFn CSWGuiBorder::fillCenter = nullptr;
 CSWGuiBorder::FillTileFn   CSWGuiBorder::fillTile   = nullptr;
+CSWGuiBorder::ConstructorFn CSWGuiBorder::constructor = nullptr;
+CSWGuiBorder::DestructorFn  CSWGuiBorder::destructor  = nullptr;
+int CSWGuiBorder::classSize = -1;
 
 bool CSWGuiBorder::functionsInitialized = false;
 bool CSWGuiBorder::offsetsInitialized = false;
@@ -22,6 +25,8 @@ void CSWGuiBorder::InitializeFunctions() {
     try {
         fillCenter = reinterpret_cast<FillCenterFn>(GameVersion::GetFunctionAddress("CSWGuiBorder", "FillCenter"));
         fillTile   = reinterpret_cast<FillTileFn>  (GameVersion::GetFunctionAddress("CSWGuiBorder", "FillTile"));
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiBorder", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiBorder", "Destructor"));
 
         functionsInitialized = true;
     }
@@ -45,6 +50,7 @@ void CSWGuiBorder::InitializeOffsets() {
 
     try {
         // Offsets Here
+        classSize = GameVersion::GetClassSize("CSWGuiBorder");
 
         offsetsInitialized = true;
     }
@@ -64,9 +70,35 @@ CSWGuiBorder::CSWGuiBorder(void* objectPtr)
     }
 }
 
+CSWGuiBorder::CSWGuiBorder()
+    : CSWGuiObject(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiBorder::~CSWGuiBorder()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }
 
 void CSWGuiBorder::FillCenter(int height, int width, int x, int y, float alpha, Vector* color) {

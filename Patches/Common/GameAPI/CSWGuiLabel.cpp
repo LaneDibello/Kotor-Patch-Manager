@@ -4,6 +4,9 @@
 
 CSWGuiLabel::ReSetFontFn  CSWGuiLabel::reSetFont  = nullptr;
 CSWGuiLabel::SetEnabledFn CSWGuiLabel::setEnabled = nullptr;
+CSWGuiLabel::ConstructorFn CSWGuiLabel::constructor = nullptr;
+CSWGuiLabel::DestructorFn  CSWGuiLabel::destructor  = nullptr;
+int CSWGuiLabel::classSize = -1;
 
 bool CSWGuiLabel::functionsInitialized = false;
 bool CSWGuiLabel::offsetsInitialized = false;
@@ -25,6 +28,8 @@ void CSWGuiLabel::InitializeFunctions() {
     try {
         reSetFont  = reinterpret_cast<ReSetFontFn> (GameVersion::GetFunctionAddress("CSWGuiLabel", "ReSetFont"));
         setEnabled = reinterpret_cast<SetEnabledFn>(GameVersion::GetFunctionAddress("CSWGuiLabel", "SetEnabled"));
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiLabel", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiLabel", "Destructor"));
 
         functionsInitialized = true;
     }
@@ -48,6 +53,7 @@ void CSWGuiLabel::InitializeOffsets() {
 
     try {
         offsetText = GameVersion::GetOffset("CSWGuiLabel", "text");
+        classSize = GameVersion::GetClassSize("CSWGuiLabel");
 
         offsetsInitialized = true;
     }
@@ -67,9 +73,35 @@ CSWGuiLabel::CSWGuiLabel(void* objectPtr)
     }
 }
 
+CSWGuiLabel::CSWGuiLabel()
+    : CSWGuiControl(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiLabel::~CSWGuiLabel()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }
 
 CSWGuiText* CSWGuiLabel::GetText() {

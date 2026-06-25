@@ -5,6 +5,7 @@
 class CSWGuiControl : public CSWGuiObject {
 public:
     explicit CSWGuiControl(void* objectPtr);
+    CSWGuiControl();
     ~CSWGuiControl();
 
     // Accessors
@@ -30,6 +31,8 @@ protected:
     typedef void* (__thiscall* GetSelectableParentFn)(void* thisPtr);
     typedef void  (__thiscall* SetActiveFn)(void* thisPtr, UINT active);
     typedef void  (__thiscall* SetEnabledFn)(void* thisPtr, UINT enabled);
+    typedef void* (__thiscall* ConstructorFn)(void* thisPtr);
+    typedef void* (__thiscall* DestructorFn)(void* thisPtr);
 
     static AddChildControlFn addChildControl;
     static AddEventFn addEvent;
@@ -43,4 +46,8 @@ protected:
     static bool offsetsInitialized;
 
     static int offsetParentControl;
+
+    static ConstructorFn constructor;
+    static DestructorFn  destructor;
+    static int classSize;
 };

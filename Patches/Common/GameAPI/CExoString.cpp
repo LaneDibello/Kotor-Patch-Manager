@@ -11,6 +11,7 @@ bool CExoString::offsetsInitialized = false;
 
 int CExoString::offsetCStr = -1;
 int CExoString::offsetLength = -1;
+int CExoString::classSize = -1;
 
 void CExoString::InitializeFunctions() {
     if (functionsInitialized) {
@@ -57,6 +58,7 @@ void CExoString::InitializeOffsets() {
     try {
         offsetCStr = GameVersion::GetOffset("CExoString", "CStr");
         offsetLength = GameVersion::GetOffset("CExoString", "Length");
+        classSize = GameVersion::GetClassSize("CExoString");
 
         offsetsInitialized = true;
     }
@@ -88,9 +90,11 @@ CExoString::CExoString()
         InitializeOffsets();
     }
 
-    objectPtr = malloc(8);
+    objectPtr = (classSize > 0) ? malloc(classSize) : nullptr;
 
-    defaultConstructor(static_cast<CExoString*>(objectPtr));
+    if (objectPtr) {
+        defaultConstructor(static_cast<CExoString*>(objectPtr));
+    }
 }
 
 CExoString::CExoString(char* src, int length)
@@ -104,9 +108,11 @@ CExoString::CExoString(char* src, int length)
         InitializeOffsets();
     }
 
-    objectPtr = malloc(8);
+    objectPtr = (classSize > 0) ? malloc(classSize) : nullptr;
 
-    cStrLenConstructor(static_cast<CExoString*>(objectPtr), src, length);
+    if (objectPtr) {
+        cStrLenConstructor(static_cast<CExoString*>(objectPtr), src, length);
+    }
 }
 
 CExoString::CExoString(char* src)
@@ -120,9 +126,11 @@ CExoString::CExoString(char* src)
         InitializeOffsets();
     }
 
-    objectPtr = malloc(8);
+    objectPtr = (classSize > 0) ? malloc(classSize) : nullptr;
 
-    cStrConstructor(static_cast<CExoString*>(objectPtr), src);
+    if (objectPtr) {
+        cStrConstructor(static_cast<CExoString*>(objectPtr), src);
+    }
 }
 
 CExoString::~CExoString() {

@@ -15,9 +15,12 @@ CSWGuiTextParams::SetStrRefFn           CSWGuiTextParams::setStrRef           = 
 CSWGuiTextParams::SetTextFn             CSWGuiTextParams::setText             = nullptr;
 CSWGuiTextParams::SetTextObjectFn       CSWGuiTextParams::setTextObject       = nullptr;
 CSWGuiTextParams::AssignFn              CSWGuiTextParams::assign              = nullptr;
+CSWGuiTextParams::ConstructorFn         CSWGuiTextParams::constructor         = nullptr;
 
 bool CSWGuiTextParams::functionsInitialized = false;
 bool CSWGuiTextParams::offsetsInitialized = false;
+
+int CSWGuiTextParams::classSize = -1;
 
 int CSWGuiTextParams::offsetText         = -1;
 int CSWGuiTextParams::offsetStrRef       = -1;
@@ -49,6 +52,7 @@ void CSWGuiTextParams::InitializeFunctions() {
         setText             = reinterpret_cast<SetTextFn>            (GameVersion::GetFunctionAddress("CSWGuiTextParams", "SetText"));
         setTextObject       = reinterpret_cast<SetTextObjectFn>      (GameVersion::GetFunctionAddress("CSWGuiTextParams", "SetTextObject"));
         assign              = reinterpret_cast<AssignFn>             (GameVersion::GetFunctionAddress("CSWGuiTextParams", "operator="));
+        constructor         = reinterpret_cast<ConstructorFn>       (GameVersion::GetFunctionAddress("CSWGuiTextParams", "Constructor"));
 
         functionsInitialized = true;
     }
@@ -76,6 +80,7 @@ void CSWGuiTextParams::InitializeOffsets() {
         offsetDefaultColor = GameVersion::GetOffset("CSWGuiTextParams", "default_color");
         offsetTextObject   = GameVersion::GetOffset("CSWGuiTextParams", "text_object");
         offsetOpacity      = GameVersion::GetOffset("CSWGuiTextParams", "opacity");
+        classSize          = GameVersion::GetClassSize("CSWGuiTextParams");
 
         offsetsInitialized = true;
     }
@@ -91,9 +96,29 @@ CSWGuiTextParams::CSWGuiTextParams(void* objectPtr)
     InitializeOffsets();
 }
 
+CSWGuiTextParams::CSWGuiTextParams()
+    : GameAPIObject(nullptr, false)
+{
+    InitializeFunctions();
+    InitializeOffsets();
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiTextParams::~CSWGuiTextParams()
 {
-    // Base class destructor handles objectPtr cleanup
+    // CSWGuiTextParams has no game destructor; just free if we own the memory.
+    if (shouldFree && objectPtr) {
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }
 
 float CSWGuiTextParams::GetOpacity() {

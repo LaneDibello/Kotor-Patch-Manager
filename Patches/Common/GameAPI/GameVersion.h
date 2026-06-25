@@ -25,8 +25,11 @@ public:
 
     static int GetOffset(const std::string& className, const std::string& propertyName);
 
+    static int GetClassSize(const std::string& className);
+
     static bool HasFunction(const std::string& className, const std::string& functionName);
     static bool HasOffset(const std::string& className, const std::string& propertyName);
+    static bool HasClass(const std::string& className);
 
     static void Reset(bool force = false);
 
@@ -39,6 +42,7 @@ private:
     static sqlite3_stmt* stmt_function;
     static sqlite3_stmt* stmt_pointer;
     static sqlite3_stmt* stmt_offset;
+    static sqlite3_stmt* stmt_class_size;
 
     static bool OpenDatabase();
     static bool PrepareStatements();

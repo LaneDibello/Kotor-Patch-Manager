@@ -16,6 +16,7 @@ class CSWGuiText;
 class CSWGuiTextParams : public GameAPIObject {
 public:
     explicit CSWGuiTextParams(void* objectPtr);
+    CSWGuiTextParams();
     ~CSWGuiTextParams();
 
     // Accessors (offset without a dedicated game setter)
@@ -61,6 +62,7 @@ protected:
     typedef void  (__thiscall* SetTextFn)            (void* thisPtr, void* text);
     typedef void  (__thiscall* SetTextObjectFn)      (void* thisPtr, void* text);
     typedef void* (__thiscall* AssignFn)             (void* thisPtr, void* rhs);
+    typedef void* (__thiscall* ConstructorFn)        (void* thisPtr);
 
     static RestoreDefaultColorFn restoreDefaultColor;
     static SetAlignmentFn        setAlignment;
@@ -73,6 +75,7 @@ protected:
     static SetTextFn             setText;
     static SetTextObjectFn       setTextObject;
     static AssignFn              assign;
+    static ConstructorFn         constructor;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;
@@ -84,4 +87,6 @@ protected:
     static int offsetDefaultColor;
     static int offsetTextObject;
     static int offsetOpacity;
+
+    static int classSize;
 };

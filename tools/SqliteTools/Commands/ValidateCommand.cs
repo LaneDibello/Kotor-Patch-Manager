@@ -129,6 +129,20 @@ public class ValidateCommand : ICommand
             isValid = false;
         }
 
+        // Check classes table
+        try
+        {
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM classes";
+            int classCount = Convert.ToInt32(cmd.ExecuteScalar());
+            Console.WriteLine($"✓ Classes table: {classCount} entries");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ Classes table error: {ex.Message}");
+            isValid = false;
+        }
+
         Console.WriteLine();
         if (isValid)
         {

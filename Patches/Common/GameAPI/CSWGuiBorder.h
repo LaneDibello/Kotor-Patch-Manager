@@ -5,6 +5,7 @@
 class CSWGuiBorder : public CSWGuiObject {
 public:
     explicit CSWGuiBorder(void* objectPtr);
+    CSWGuiBorder();
     ~CSWGuiBorder();
 
     // Functions
@@ -17,9 +18,14 @@ public:
 protected:
     typedef void (__thiscall* FillCenterFn)(void* thisPtr, int height, int width, int x, int y, float alpha, Vector* color);
     typedef void (__thiscall* FillTileFn)  (void* thisPtr, int height, int width, int x, int y, float alpha, Vector* color);
+    typedef void* (__thiscall* ConstructorFn)(void* thisPtr);
+    typedef void* (__thiscall* DestructorFn)(void* thisPtr);
 
     static FillCenterFn fillCenter;
     static FillTileFn fillTile;
+    static ConstructorFn constructor;
+    static DestructorFn  destructor;
+    static int classSize;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;

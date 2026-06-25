@@ -9,6 +9,7 @@ sqlite3* GameVersion::db = nullptr;
 sqlite3_stmt* GameVersion::stmt_function = nullptr;
 sqlite3_stmt* GameVersion::stmt_pointer = nullptr;
 sqlite3_stmt* GameVersion::stmt_offset = nullptr;
+sqlite3_stmt* GameVersion::stmt_class_size = nullptr;
 
 bool GameVersion::Initialize(bool force) {
     // Quick return if already initialized
@@ -149,6 +150,16 @@ bool GameVersion::PrepareStatements() {
         return false;
     }
 
+    // Prepare class size lookup. The classes table was added in schema v3, so an
+    // older addresses.db may not have it. Treat this as non-fatal: leave the
+    // statement null and let GetClassSize/HasClass report the size as unavailable
+    // rather than breaking every other lookup.
+    const char* sql_class_size = "SELECT size FROM classes WHERE class_name = ?";
+    if (sqlite3_prepare_v2(db, sql_class_size, -1, &stmt_class_size, nullptr) != SQLITE_OK) {
+        OutputDebugStringA(("[GameVersion] WARNING: Failed to prepare class size statement (classes table may be missing): " + std::string(sqlite3_errmsg(db)) + "\n").c_str());
+        stmt_class_size = nullptr;
+    }
+
     return true;
 }
 
@@ -164,6 +175,10 @@ void GameVersion::FinalizeStatements() {
     if (stmt_offset) {
         sqlite3_finalize(stmt_offset);
         stmt_offset = nullptr;
+    }
+    if (stmt_class_size) {
+        sqlite3_finalize(stmt_class_size);
+        stmt_class_size = nullptr;
     }
 }
 
@@ -254,6 +269,31 @@ int GameVersion::GetOffset(const std::string& className, const std::string& prop
     return sqlite3_column_int(stmt_offset, 0);
 }
 
+int GameVersion::GetClassSize(const std::string& className) {
+    if (!initialized) {
+        throw GameVersionException("GameVersion not initialized");
+    }
+
+    if (!stmt_class_size) {
+        throw GameVersionException("Class size lookup unavailable (classes table missing)");
+    }
+
+    // Bind parameter
+    sqlite3_reset(stmt_class_size);
+    sqlite3_bind_text(stmt_class_size, 1, className.c_str(), -1, SQLITE_TRANSIENT);
+
+    // Execute query
+    int rc = sqlite3_step(stmt_class_size);
+    if (rc != SQLITE_ROW) {
+        std::stringstream ss;
+        ss << "Class size not found: " << className;
+        throw GameVersionException(ss.str());
+    }
+
+    // Get result
+    return sqlite3_column_int(stmt_class_size, 0);
+}
+
 bool GameVersion::HasFunction(const std::string& className, const std::string& functionName) {
     if (!initialized) {
         return false;
@@ -284,9 +324,23 @@ bool GameVersion::HasOffset(const std::string& className, const std::string& pro
     return (rc == SQLITE_ROW);
 }
 
+bool GameVersion::HasClass(const std::string& className) {
+    if (!initialized || !stmt_class_size) {
+        return false;
+    }
+
+    // Bind parameter
+    sqlite3_reset(stmt_class_size);
+    sqlite3_bind_text(stmt_class_size, 1, className.c_str(), -1, SQLITE_TRANSIENT);
+
+    // Execute query
+    int rc = sqlite3_step(stmt_class_size);
+    return (rc == SQLITE_ROW);
+}
+
 void GameVersion::Reset(bool force) {
     // Quick return if already reset
-    if (!initialized && !db && !stmt_function && !stmt_pointer && !stmt_offset && !force) {
+    if (!initialized && !db && !stmt_function && !stmt_pointer && !stmt_offset && !stmt_class_size && !force) {
         return;
     }
 

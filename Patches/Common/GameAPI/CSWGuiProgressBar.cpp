@@ -1,6 +1,10 @@
 #include "CSWGuiProgressBar.h"
 #include "GameVersion.h"
 
+CSWGuiProgressBar::ConstructorFn CSWGuiProgressBar::constructor = nullptr;
+CSWGuiProgressBar::DestructorFn  CSWGuiProgressBar::destructor  = nullptr;
+int CSWGuiProgressBar::classSize = -1;
+
 bool CSWGuiProgressBar::functionsInitialized = false;
 bool CSWGuiProgressBar::offsetsInitialized = false;
 
@@ -18,6 +22,8 @@ void CSWGuiProgressBar::InitializeFunctions() {
 
     try {
         // Functions Here
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiProgressBar", "Constructor"));
+        destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiProgressBar", "Destructor_2"));
 
         functionsInitialized = true;
     }
@@ -41,6 +47,7 @@ void CSWGuiProgressBar::InitializeOffsets() {
 
     try {
         // Offsets Here
+        classSize = GameVersion::GetClassSize("CSWGuiProgressBar");
 
         offsetsInitialized = true;
     }
@@ -60,7 +67,33 @@ CSWGuiProgressBar::CSWGuiProgressBar(void* objectPtr)
     }
 }
 
+CSWGuiProgressBar::CSWGuiProgressBar()
+    : CSWGuiControl(nullptr)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (classSize > 0 && constructor) {
+        objectPtr = malloc(classSize);
+        if (objectPtr) {
+            constructor(objectPtr);
+            shouldFree = true;
+        }
+    }
+}
+
 CSWGuiProgressBar::~CSWGuiProgressBar()
 {
-    // Base class destructor handles objectPtr cleanup
+    if (shouldFree && objectPtr) {
+        if (destructor) {
+            destructor(objectPtr);
+        }
+        free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
+    }
 }
