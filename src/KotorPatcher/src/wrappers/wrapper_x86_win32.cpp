@@ -60,9 +60,17 @@ namespace KotorPatcher {
         }
 
         void* WrapperGenerator_x86_Win32::GenerateDetourWrapper(const WrapperConfig& config) {
-            // Estimate wrapper size
-            // Base: ~100 bytes, +10 per excluded register
-            size_t estimatedSize = 128 + (config.excludeFromRestore.size() * 10);
+            // Estimate wrapper size (sound upper bound)
+            // Fixed sections worst case (prologue PUSHAD/PUSHFD + MOV EBX,ESP + CALL rel32 +
+            // ADD ESP,imm32 cleanup + MOV ESP,EBX + POPFD + selective restore of all 8
+            // registers + JMP rel32) fits well under the 96-byte constant. Each parameter
+            // emits at most 8 bytes (LEA ECX,[ESP+imm32] = 7 + PUSH ECX = 1). The original
+            // bytes are emitted verbatim when !skipOriginalBytes. Selective register restore
+            // emits up to 3 bytes per excluded register on top of the fixed budget.
+            size_t estimatedSize = 96
+                + config.parameters.size() * 8
+                + config.originalBytes.size()
+                + config.excludeFromRestore.size() * 3;
 
             BYTE* wrapperMem = static_cast<BYTE*>(AllocateExecutableMemory(estimatedSize));
             if (!wrapperMem) {
