@@ -1,7 +1,6 @@
 #pragma once
 #include "../Common.h"
 #include "GameAPIObject.h"
-#include "CSWGuiExtent.h"
 
 // Forward declarations (returned/passed by pointer only)
 class CResRef;
@@ -9,17 +8,21 @@ class CSWGuiImage;
 
 /// <summary>
 /// Standalone helper that wraps a CSWGuiImageParams struct in game memory.
-/// Holds the descriptive parameters (resref, extent and image object) used to
-/// configure a CSWGuiImage. Does not derive from CSWGuiObject.
+/// Holds the descriptive parameters (resref, angle, alpha, color and image
+/// object) used to configure a CSWGuiImage. Does not derive from CSWGuiObject.
 /// </summary>
 class CSWGuiImageParams : public GameAPIObject {
 public:
     explicit CSWGuiImageParams(void* objectPtr);
     ~CSWGuiImageParams();
 
-    // Accessors (offset without a dedicated game setter)
-    CSWGuiExtent GetExtent();
-    void SetExtent(const CSWGuiExtent& extent);
+    // Accessors (offsets without a dedicated game setter)
+    float GetAngle();
+    void SetAngle(float angle);
+    float GetAlpha();
+    void SetAlpha(float alpha);
+    Vector GetColor();
+    void SetColor(const Vector& color);
 
     // Accessors (offsets with a dedicated game setter -> getter only).
     // Returned wrappers are heap allocated; caller owns them.
@@ -50,6 +53,8 @@ protected:
     static bool offsetsInitialized;
 
     static int offsetResRef;
-    static int offsetExtent;
+    static int offsetAngle;
+    static int offsetAlpha;
+    static int offsetColor;
     static int offsetImageObject;
 };
