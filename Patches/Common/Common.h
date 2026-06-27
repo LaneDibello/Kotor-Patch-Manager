@@ -53,6 +53,32 @@ inline void setObjectProperty(void* object, int offset, propType value) {
 	*((propType*)((char*)object + offset)) = value;
 }
 
+// ===== MEMBER FUNCTION -> RAW CODE ADDRESS =====
+//
+// The game stores GUI callbacks ("menuFunc") as a plain code address and invokes
+// them as __thiscall: the registered guiObject in ECX, one parameter on the stack.
+// A non-virtual C++ member function has exactly that ABI, so a real member can serve
+// as a menuFunc directly -- register the owning object as the guiObject and its
+// 'this' lands in ECX. The language just forbids casting a pointer-to-member to
+// void*, even when (on x86, single inheritance, non-virtual) it IS a 4-byte address.
+//
+// This helper punches through that restriction. The static_assert guards the
+// precondition: if the pointer-to-member ever stops being a plain address (a virtual
+// member, or multiple/virtual inheritance), it fails at compile time instead of
+// silently handing the game a garbage pointer.
+//
+// USAGE:
+//   button.AddEvent(0x27, this, memberFuncAddr(&MyPanel::OnClick));
+template<typename MemFn>
+inline void* memberFuncAddr(MemFn fn) {
+	static_assert(sizeof(MemFn) == sizeof(void*),
+		"Member function pointer is not a plain code address "
+		"(virtual member, or multiple/virtual inheritance?)");
+	union { MemFn m; void* p; } u;
+	u.m = fn;
+	return u.p;
+}
+
 // ===== X87 FPU FUNCTION CALL WRAPPER =====
 //
 // KotOR uses the x87 FPU which returns floating-point values in the ST(0) register

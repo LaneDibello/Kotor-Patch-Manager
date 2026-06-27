@@ -1,0 +1,4 @@
+LIBRARY K1GUITests 
+EXPORTS 
+    InjectOptionsButton 
+    AddCreateEvent 

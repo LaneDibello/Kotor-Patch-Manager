@@ -1,0 +1,66 @@
+#include "Common.h"
+#include "GameAPI/CSWGuiPanel.h"
+#include "GameAPI/CSWGuiManager.h"
+#include "GameAPI/CSWGuiLabel.h"
+#include "GameAPI/CSWGuiButton.h"
+#include "GameAPI/CResRef.h"
+#include "GameAPI/CExoString.h"
+
+class TestGUI : public CSWGuiPanel {
+public:
+    //Controls
+    CSWGuiLabel titleLabel;
+    CSWGuiLabel testLabel;
+    CSWGuiButton redButton;
+    CSWGuiButton orangeButton;
+    CSWGuiButton yellowButton;
+    CSWGuiButton greenButton;
+    CSWGuiButton blueButton;
+    CSWGuiButton violetButton;
+
+    // Callbacks
+    void buttonCallback(void* control) {
+        debugLog("Pressed Button at %X", control);
+    }
+
+	TestGUI(CSWGuiManager* manager) :
+        CSWGuiPanel(manager),
+        titleLabel(),
+        testLabel(),
+        redButton(),
+        orangeButton(),
+        yellowButton(),
+        greenButton(),
+        blueButton(),
+        violetButton()
+    {
+
+        CResRef guiResref("test1");
+        this->StartLoadFromLayout(&guiResref);
+        CExoString titleTag("LBL_TITLE");
+        this->InitControl(&titleLabel, &titleTag, 1);
+        CExoString testTag("LBL_TEST");
+        this->InitControl(&testLabel, &testTag, 1);
+        CExoString redTag("B_RED");
+        this->InitControl(&redButton, &redTag, 1);
+        CExoString orangeTag("B_ORANGE");
+        this->InitControl(&orangeButton, &orangeTag, 1);
+        CExoString yellowTag("B_YELLOW");
+        this->InitControl(&yellowButton, &yellowTag, 1);
+        CExoString greenTag("B_GREEN");
+        this->InitControl(&greenButton, &greenTag, 1);
+        CExoString blueTag("B_BLUE");
+        this->InitControl(&blueButton, &blueTag, 1);
+        CExoString violetTag("B_VIOLET");
+        this->InitControl(&violetButton, &violetTag, 1);
+        this->StopLoadFromLayout();
+
+        redButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+        orangeButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+        yellowButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+        greenButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+        blueButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+        violetButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+	}
+
+};
