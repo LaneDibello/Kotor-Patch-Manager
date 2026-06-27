@@ -2,6 +2,8 @@
 #include "CSWGuiPanel.h"
 #include "GameVersion.h"
 
+CSWGuiManager::AddPanelFn CSWGuiManager::addPanel = nullptr;
+
 bool CSWGuiManager::functionsInitialized = false;
 bool CSWGuiManager::offsetsInitialized = false;
 
@@ -14,8 +16,20 @@ void CSWGuiManager::InitializeFunctions() {
         return;
     }
 
-    // Functions to be added later.
-    functionsInitialized = true;
+    if (!GameVersion::IsInitialized()) {
+        OutputDebugStringA("[CSWGuiManager] ERROR: GameVersion not initialized\n");
+        return;
+    }
+
+    try {
+        addPanel = reinterpret_cast<AddPanelFn>(GameVersion::GetFunctionAddress("CSWGuiManager", "AddPanel"));
+
+        functionsInitialized = true;
+    }
+    catch (const GameVersionException& e) {
+        debugLog("[CSWGuiManager] ERROR: %s\n", e.what());
+        return;
+    }
 }
 
 void CSWGuiManager::InitializeOffsets() {
@@ -107,4 +121,9 @@ CExoArrayList<CSWGuiPanel*>* CSWGuiManager::GetPanels() {
     }
     // Inline CExoArrayList member: wrap its in-place address.
     return new CExoArrayList<CSWGuiPanel*>((char*)objectPtr + offsetPanels);
+}
+
+void CSWGuiManager::AddPanel(CSWGuiPanel* panel, int flags, int playSound) {
+    if (!objectPtr || !addPanel) return;
+    addPanel(objectPtr, panel ? panel->GetPtr() : nullptr, flags, playSound);
 }

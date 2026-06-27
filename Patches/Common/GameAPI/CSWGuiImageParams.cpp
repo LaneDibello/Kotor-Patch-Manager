@@ -12,7 +12,9 @@ bool CSWGuiImageParams::functionsInitialized = false;
 bool CSWGuiImageParams::offsetsInitialized = false;
 
 int CSWGuiImageParams::offsetResRef      = -1;
-int CSWGuiImageParams::offsetExtent      = -1;
+int CSWGuiImageParams::offsetAngle       = -1;
+int CSWGuiImageParams::offsetAlpha       = -1;
+int CSWGuiImageParams::offsetColor       = -1;
 int CSWGuiImageParams::offsetImageObject = -1;
 
 void CSWGuiImageParams::InitializeFunctions() {
@@ -51,7 +53,9 @@ void CSWGuiImageParams::InitializeOffsets() {
 
     try {
         offsetResRef      = GameVersion::GetOffset("CSWGuiImageParams", "resref");
-        offsetExtent      = GameVersion::GetOffset("CSWGuiImageParams", "extent");
+        offsetAngle       = GameVersion::GetOffset("CSWGuiImageParams", "angle");
+        offsetAlpha       = GameVersion::GetOffset("CSWGuiImageParams", "alpha");
+        offsetColor       = GameVersion::GetOffset("CSWGuiImageParams", "color");
         offsetImageObject = GameVersion::GetOffset("CSWGuiImageParams", "image_object");
 
         offsetsInitialized = true;
@@ -73,19 +77,47 @@ CSWGuiImageParams::~CSWGuiImageParams()
     // Base class destructor handles objectPtr cleanup
 }
 
-CSWGuiExtent CSWGuiImageParams::GetExtent() {
-    CSWGuiExtent result = {0, 0, 0, 0};
-    if (!objectPtr || offsetExtent < 0) {
-        return result;
+float CSWGuiImageParams::GetAngle() {
+    if (!objectPtr || offsetAngle < 0) {
+        return 0.0f;
     }
-    return getObjectProperty<CSWGuiExtent>(objectPtr, offsetExtent);
+    return getObjectProperty<float>(objectPtr, offsetAngle);
 }
 
-void CSWGuiImageParams::SetExtent(const CSWGuiExtent& extent) {
-    if (!objectPtr || offsetExtent < 0) {
+void CSWGuiImageParams::SetAngle(float angle) {
+    if (!objectPtr || offsetAngle < 0) {
         return;
     }
-    setObjectProperty<CSWGuiExtent>(objectPtr, offsetExtent, extent);
+    setObjectProperty<float>(objectPtr, offsetAngle, angle);
+}
+
+float CSWGuiImageParams::GetAlpha() {
+    if (!objectPtr || offsetAlpha < 0) {
+        return 0.0f;
+    }
+    return getObjectProperty<float>(objectPtr, offsetAlpha);
+}
+
+void CSWGuiImageParams::SetAlpha(float alpha) {
+    if (!objectPtr || offsetAlpha < 0) {
+        return;
+    }
+    setObjectProperty<float>(objectPtr, offsetAlpha, alpha);
+}
+
+Vector CSWGuiImageParams::GetColor() {
+    Vector result = {0.0f, 0.0f, 0.0f};
+    if (!objectPtr || offsetColor < 0) {
+        return result;
+    }
+    return getObjectProperty<Vector>(objectPtr, offsetColor);
+}
+
+void CSWGuiImageParams::SetColor(const Vector& color) {
+    if (!objectPtr || offsetColor < 0) {
+        return;
+    }
+    setObjectProperty<Vector>(objectPtr, offsetColor, color);
 }
 
 CResRef* CSWGuiImageParams::GetResRef() {
@@ -93,7 +125,7 @@ CResRef* CSWGuiImageParams::GetResRef() {
         return nullptr;
     }
     // Inline CResRef member: wrap its in-place address.
-    return new CResRef((char*)objectPtr + offsetResRef);
+    return new CResRef(static_cast<void*>((char*)objectPtr + offsetResRef));
 }
 
 CSWGuiImage* CSWGuiImageParams::GetImageObject() {

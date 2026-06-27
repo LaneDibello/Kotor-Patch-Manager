@@ -1,7 +1,6 @@
 #pragma once
 #include "../Common.h"
 #include "GameAPIObject.h"
-#include "CSWGuiExtent.h"
 
 // Forward declarations (returned/passed by pointer only)
 class CResRef;
@@ -9,9 +8,9 @@ class CSWGuiBorder;
 
 /// <summary>
 /// Standalone helper that wraps a CSWGuiBorderParams struct in game memory.
-/// Holds the descriptive parameters (extent, color, corner/edge/fill image
-/// resrefs and the owning border) used to configure a CSWGuiBorder.
-/// Does not derive from CSWGuiObject.
+/// Holds the descriptive parameters (dimension, inner offset, fill angle, alpha,
+/// color, corner/edge/fill image resrefs and the owning border) used to configure
+/// a CSWGuiBorder. Does not derive from CSWGuiObject.
 /// </summary>
 class CSWGuiBorderParams : public GameAPIObject {
 public:
@@ -19,8 +18,14 @@ public:
     ~CSWGuiBorderParams();
 
     // Accessors (offsets without a dedicated game setter)
-    CSWGuiExtent GetExtent();
-    void SetExtent(const CSWGuiExtent& extent);
+    int GetDimension();
+    void SetDimension(int dimension);
+    int GetInnerOffset();
+    void SetInnerOffset(int innerOffset);
+    int GetFillAngle();
+    void SetFillAngle(int fillAngle);
+    float GetAlpha();
+    void SetAlpha(float alpha);
     Vector GetColor();
     void SetColor(const Vector& color);
 
@@ -59,7 +64,10 @@ protected:
     static bool functionsInitialized;
     static bool offsetsInitialized;
 
-    static int offsetExtent;
+    static int offsetDimension;
+    static int offsetInnerOffset;
+    static int offsetFillAngle;
+    static int offsetAlpha;
     static int offsetColor;
     static int offsetCornerImageResRef;
     static int offsetEdgeImageResRef;
