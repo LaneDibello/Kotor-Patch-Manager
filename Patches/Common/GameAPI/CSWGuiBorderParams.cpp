@@ -12,7 +12,10 @@ CSWGuiBorderParams::AssignFn         CSWGuiBorderParams::assign         = nullpt
 bool CSWGuiBorderParams::functionsInitialized = false;
 bool CSWGuiBorderParams::offsetsInitialized = false;
 
-int CSWGuiBorderParams::offsetExtent            = -1;
+int CSWGuiBorderParams::offsetDimension         = -1;
+int CSWGuiBorderParams::offsetInnerOffset       = -1;
+int CSWGuiBorderParams::offsetFillAngle         = -1;
+int CSWGuiBorderParams::offsetAlpha             = -1;
 int CSWGuiBorderParams::offsetColor             = -1;
 int CSWGuiBorderParams::offsetCornerImageResRef = -1;
 int CSWGuiBorderParams::offsetEdgeImageResRef   = -1;
@@ -55,7 +58,10 @@ void CSWGuiBorderParams::InitializeOffsets() {
     }
 
     try {
-        offsetExtent            = GameVersion::GetOffset("CSWGuiBorderParams", "extent");
+        offsetDimension         = GameVersion::GetOffset("CSWGuiBorderParams", "dimension");
+        offsetInnerOffset       = GameVersion::GetOffset("CSWGuiBorderParams", "inner_offset");
+        offsetFillAngle         = GameVersion::GetOffset("CSWGuiBorderParams", "fill_angle");
+        offsetAlpha             = GameVersion::GetOffset("CSWGuiBorderParams", "alpha");
         offsetColor             = GameVersion::GetOffset("CSWGuiBorderParams", "color");
         offsetCornerImageResRef = GameVersion::GetOffset("CSWGuiBorderParams", "corner_image_resref");
         offsetEdgeImageResRef   = GameVersion::GetOffset("CSWGuiBorderParams", "edge_image_resref");
@@ -81,19 +87,60 @@ CSWGuiBorderParams::~CSWGuiBorderParams()
     // Base class destructor handles objectPtr cleanup
 }
 
-CSWGuiExtent CSWGuiBorderParams::GetExtent() {
-    CSWGuiExtent result = {0, 0, 0, 0};
-    if (!objectPtr || offsetExtent < 0) {
-        return result;
+int CSWGuiBorderParams::GetDimension() {
+    if (!objectPtr || offsetDimension < 0) {
+        return 0;
     }
-    return getObjectProperty<CSWGuiExtent>(objectPtr, offsetExtent);
+    return getObjectProperty<int>(objectPtr, offsetDimension);
 }
 
-void CSWGuiBorderParams::SetExtent(const CSWGuiExtent& extent) {
-    if (!objectPtr || offsetExtent < 0) {
+void CSWGuiBorderParams::SetDimension(int dimension) {
+    if (!objectPtr || offsetDimension < 0) {
         return;
     }
-    setObjectProperty<CSWGuiExtent>(objectPtr, offsetExtent, extent);
+    setObjectProperty<int>(objectPtr, offsetDimension, dimension);
+}
+
+int CSWGuiBorderParams::GetInnerOffset() {
+    if (!objectPtr || offsetInnerOffset < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetInnerOffset);
+}
+
+void CSWGuiBorderParams::SetInnerOffset(int innerOffset) {
+    if (!objectPtr || offsetInnerOffset < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetInnerOffset, innerOffset);
+}
+
+int CSWGuiBorderParams::GetFillAngle() {
+    if (!objectPtr || offsetFillAngle < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetFillAngle);
+}
+
+void CSWGuiBorderParams::SetFillAngle(int fillAngle) {
+    if (!objectPtr || offsetFillAngle < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetFillAngle, fillAngle);
+}
+
+float CSWGuiBorderParams::GetAlpha() {
+    if (!objectPtr || offsetAlpha < 0) {
+        return 0.0f;
+    }
+    return getObjectProperty<float>(objectPtr, offsetAlpha);
+}
+
+void CSWGuiBorderParams::SetAlpha(float alpha) {
+    if (!objectPtr || offsetAlpha < 0) {
+        return;
+    }
+    setObjectProperty<float>(objectPtr, offsetAlpha, alpha);
 }
 
 Vector CSWGuiBorderParams::GetColor() {
