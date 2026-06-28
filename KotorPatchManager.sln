@@ -102,6 +102,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AddressDatabases", "Address
 	ProjectSection(SolutionItems) = preProject
 		AddressDatabases\kotor1_0_3.db = AddressDatabases\kotor1_0_3.db
 		AddressDatabases\kotor2_gog_aspyr.db = AddressDatabases\kotor2_gog_aspyr.db
+	
+		AddressDatabases\kotor2_steam_aspyr.db = AddressDatabases\kotor2_steam_aspyr.db
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{352B7770-11E6-45D8-8FDC-F2D14EC8331F}"
@@ -127,6 +129,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4GBPatch", "4GBPatch", "{98
 	ProjectSection(SolutionItems) = preProject
 		Patches\4GBPatch\hooks.toml = Patches\4GBPatch\hooks.toml
 		Patches\4GBPatch\manifest.toml = Patches\4GBPatch\manifest.toml
+	
+		Patches\4GBPatch\kotor1.hooks.toml = Patches\4GBPatch\kotor1.hooks.toml
+		Patches\4GBPatch\kotor2-gog-aspyr.hooks.toml = Patches\4GBPatch\kotor2-gog-aspyr.hooks.toml
+		Patches\4GBPatch\kotor2-steam-aspyr.hooks.toml = Patches\4GBPatch\kotor2-steam-aspyr.hooks.toml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AppearanceBodyVariations", "AppearanceBodyVariations", "{491E65BA-AB9B-4A2B-B3EC-CD0B266397EB}"
@@ -183,6 +189,46 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GameAPI", "GameAPI", "{D9D8
 		Patches\Common\GameAPI\GameAPIObject.h = Patches\Common\GameAPI\GameAPIObject.h
 		Patches\Common\GameAPI\GameVersion.cpp = Patches\Common\GameAPI\GameVersion.cpp
 		Patches\Common\GameAPI\GameVersion.h = Patches\Common\GameAPI\GameVersion.h
+	
+		Patches\Common\GameAPI\CSWGui3DSceneView.cpp = Patches\Common\GameAPI\CSWGui3DSceneView.cpp
+		Patches\Common\GameAPI\CSWGui3DSceneView.h = Patches\Common\GameAPI\CSWGui3DSceneView.h
+		Patches\Common\GameAPI\CSWGuiBorder.cpp = Patches\Common\GameAPI\CSWGuiBorder.cpp
+		Patches\Common\GameAPI\CSWGuiBorder.h = Patches\Common\GameAPI\CSWGuiBorder.h
+		Patches\Common\GameAPI\CSWGuiBorderParams.cpp = Patches\Common\GameAPI\CSWGuiBorderParams.cpp
+		Patches\Common\GameAPI\CSWGuiBorderParams.h = Patches\Common\GameAPI\CSWGuiBorderParams.h
+		Patches\Common\GameAPI\CSWGuiButton.cpp = Patches\Common\GameAPI\CSWGuiButton.cpp
+		Patches\Common\GameAPI\CSWGuiButton.h = Patches\Common\GameAPI\CSWGuiButton.h
+		Patches\Common\GameAPI\CSWGuiButtonToggle.cpp = Patches\Common\GameAPI\CSWGuiButtonToggle.cpp
+		Patches\Common\GameAPI\CSWGuiButtonToggle.h = Patches\Common\GameAPI\CSWGuiButtonToggle.h
+		Patches\Common\GameAPI\CSWGuiControl.cpp = Patches\Common\GameAPI\CSWGuiControl.cpp
+		Patches\Common\GameAPI\CSWGuiControl.h = Patches\Common\GameAPI\CSWGuiControl.h
+		Patches\Common\GameAPI\CSWGuiEditBox.cpp = Patches\Common\GameAPI\CSWGuiEditBox.cpp
+		Patches\Common\GameAPI\CSWGuiEditBox.h = Patches\Common\GameAPI\CSWGuiEditBox.h
+		Patches\Common\GameAPI\CSWGuiExtent.h = Patches\Common\GameAPI\CSWGuiExtent.h
+		Patches\Common\GameAPI\CSWGuiImage.cpp = Patches\Common\GameAPI\CSWGuiImage.cpp
+		Patches\Common\GameAPI\CSWGuiImage.h = Patches\Common\GameAPI\CSWGuiImage.h
+		Patches\Common\GameAPI\CSWGuiImageParams.cpp = Patches\Common\GameAPI\CSWGuiImageParams.cpp
+		Patches\Common\GameAPI\CSWGuiImageParams.h = Patches\Common\GameAPI\CSWGuiImageParams.h
+		Patches\Common\GameAPI\CSWGuiLabel.cpp = Patches\Common\GameAPI\CSWGuiLabel.cpp
+		Patches\Common\GameAPI\CSWGuiLabel.h = Patches\Common\GameAPI\CSWGuiLabel.h
+		Patches\Common\GameAPI\CSWGuiListBox.cpp = Patches\Common\GameAPI\CSWGuiListBox.cpp
+		Patches\Common\GameAPI\CSWGuiListBox.h = Patches\Common\GameAPI\CSWGuiListBox.h
+		Patches\Common\GameAPI\CSWGuiManager.cpp = Patches\Common\GameAPI\CSWGuiManager.cpp
+		Patches\Common\GameAPI\CSWGuiManager.h = Patches\Common\GameAPI\CSWGuiManager.h
+		Patches\Common\GameAPI\CSWGuiNavigable.cpp = Patches\Common\GameAPI\CSWGuiNavigable.cpp
+		Patches\Common\GameAPI\CSWGuiNavigable.h = Patches\Common\GameAPI\CSWGuiNavigable.h
+		Patches\Common\GameAPI\CSWGuiPanel.cpp = Patches\Common\GameAPI\CSWGuiPanel.cpp
+		Patches\Common\GameAPI\CSWGuiPanel.h = Patches\Common\GameAPI\CSWGuiPanel.h
+		Patches\Common\GameAPI\CSWGuiProgressBar.cpp = Patches\Common\GameAPI\CSWGuiProgressBar.cpp
+		Patches\Common\GameAPI\CSWGuiProgressBar.h = Patches\Common\GameAPI\CSWGuiProgressBar.h
+		Patches\Common\GameAPI\CSWGuiScrollBar.cpp = Patches\Common\GameAPI\CSWGuiScrollBar.cpp
+		Patches\Common\GameAPI\CSWGuiScrollBar.h = Patches\Common\GameAPI\CSWGuiScrollBar.h
+		Patches\Common\GameAPI\CSWGuiSlider.cpp = Patches\Common\GameAPI\CSWGuiSlider.cpp
+		Patches\Common\GameAPI\CSWGuiSlider.h = Patches\Common\GameAPI\CSWGuiSlider.h
+		Patches\Common\GameAPI\CSWGuiText.cpp = Patches\Common\GameAPI\CSWGuiText.cpp
+		Patches\Common\GameAPI\CSWGuiText.h = Patches\Common\GameAPI\CSWGuiText.h
+		Patches\Common\GameAPI\CSWGuiTextParams.cpp = Patches\Common\GameAPI\CSWGuiTextParams.cpp
+		Patches\Common\GameAPI\CSWGuiTextParams.h = Patches\Common\GameAPI\CSWGuiTextParams.h
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DialogueRepliesPast9", "DialogueRepliesPast9", "{84C74D0E-81A6-4841-B942-9BCA59C01C27}"
@@ -230,12 +276,108 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "additional", "additional", "{0CE7EC37-B554-454F-BD2C-331F77217F1C}"
 	ProjectSection(SolutionItems) = preProject
 		Patches\ScriptExtender\additional\nwscript.nss = Patches\ScriptExtender\additional\nwscript.nss
+	
+		Patches\FullPartySelect\additional\partyselect_p.gui = Patches\FullPartySelect\additional\partyselect_p.gui
+		Patches\FullPartySelect\additional\readme.md = Patches\FullPartySelect\additional\readme.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShipBuildFalse", "ShipBuildFalse", "{EE5E99F9-1328-4558-9FEB-488A38AA6AEC}"
 	ProjectSection(SolutionItems) = preProject
 		Patches\ShipBuildFalse\hooks.toml = Patches\ShipBuildFalse\hooks.toml
 		Patches\ShipBuildFalse\manifest.toml = Patches\ShipBuildFalse\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BorderlessFullscreen", "BorderlessFullscreen", "{A246DA08-FD0C-4EA7-8BBB-6339CE456809}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\BorderlessFullscreen\kotor1.hooks.toml = Patches\BorderlessFullscreen\kotor1.hooks.toml
+		Patches\BorderlessFullscreen\kotor2-gog-aspyr.hooks.toml = Patches\BorderlessFullscreen\kotor2-gog-aspyr.hooks.toml
+		Patches\BorderlessFullscreen\kotor2-steam-aspyr.hooks.toml = Patches\BorderlessFullscreen\kotor2-steam-aspyr.hooks.toml
+		Patches\BorderlessFullscreen\manifest.toml = Patches\BorderlessFullscreen\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DeSteamify", "DeSteamify", "{D36A9142-50DE-4D39-BA3C-2A43E5EFE11B}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\DeSteamify\kotor2-steam-aspyr.hooks.toml = Patches\DeSteamify\kotor2-steam-aspyr.hooks.toml
+		Patches\DeSteamify\manifest.toml = Patches\DeSteamify\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FairPazaakTurnOrder", "FairPazaakTurnOrder", "{4C32A871-78CB-41E4-86B6-EE9C0A986415}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\FairPazaakTurnOrder\kotor1.hooks.toml = Patches\FairPazaakTurnOrder\kotor1.hooks.toml
+		Patches\FairPazaakTurnOrder\manifest.toml = Patches\FairPazaakTurnOrder\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FullPartySelect", "FullPartySelect", "{B4B89116-2C38-4FF0-B916-6E8EF27A0340}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml = Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml
+		Patches\FullPartySelect\kotor2-gog-aspyr.hooks.toml = Patches\FullPartySelect\kotor2-gog-aspyr.hooks.toml
+		Patches\FullPartySelect\kotor2-steam-aspyr.hooks.toml = Patches\FullPartySelect\kotor2-steam-aspyr.hooks.toml
+		Patches\FullPartySelect\manifest.toml = Patches\FullPartySelect\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GoodAlignmentHeads", "GoodAlignmentHeads", "{43E78283-596C-4BF5-AAE7-A3C70E201340}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\GoodAlignmentHeads\kotor2-gog-aspyr.hooks.toml = Patches\GoodAlignmentHeads\kotor2-gog-aspyr.hooks.toml
+		Patches\GoodAlignmentHeads\kotor2-steam-aspyr.hooks.toml = Patches\GoodAlignmentHeads\kotor2-steam-aspyr.hooks.toml
+		Patches\GoodAlignmentHeads\manifest.toml = Patches\GoodAlignmentHeads\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1GUITests", "K1GUITests", "{88243151-0E06-4E08-8A2F-1F507FC0AEC7}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K1GUITests\exports.cpp = Patches\K1GUITests\exports.cpp
+		Patches\K1GUITests\exports.def = Patches\K1GUITests\exports.def
+		Patches\K1GUITests\hooks.toml = Patches\K1GUITests\hooks.toml
+		Patches\K1GUITests\manifest.toml = Patches\K1GUITests\manifest.toml
+		Patches\K1GUITests\TestGUI.h = Patches\K1GUITests\TestGUI.h
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1SkillPointsIntModFix", "K1SkillPointsIntModFix", "{AE59EBA4-A3EF-482A-A86F-BDB4284DA41F}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K1SkillPointsIntModFix\hooks.toml = Patches\K1SkillPointsIntModFix\hooks.toml
+		Patches\K1SkillPointsIntModFix\manifest.toml = Patches\K1SkillPointsIntModFix\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2AspyrColorCorrection", "K2AspyrColorCorrection", "{FEA16A23-452D-469E-ADA7-39595727FE50}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K2AspyrColorCorrection\kotor2-gog-aspyr.hooks.toml = Patches\K2AspyrColorCorrection\kotor2-gog-aspyr.hooks.toml
+		Patches\K2AspyrColorCorrection\kotor2-steam-aspyr.hooks.toml = Patches\K2AspyrColorCorrection\kotor2-steam-aspyr.hooks.toml
+		Patches\K2AspyrColorCorrection\manifest.toml = Patches\K2AspyrColorCorrection\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2AspyrFogReflectionFix", "K2AspyrFogReflectionFix", "{6C869998-CF4C-4881-9B29-EC191BEDC3CC}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K2AspyrFogReflectionFix\kotor2-gog-aspyr.hooks.toml = Patches\K2AspyrFogReflectionFix\kotor2-gog-aspyr.hooks.toml
+		Patches\K2AspyrFogReflectionFix\kotor2-steam-aspyr.hooks.toml = Patches\K2AspyrFogReflectionFix\kotor2-steam-aspyr.hooks.toml
+		Patches\K2AspyrFogReflectionFix\manifest.toml = Patches\K2AspyrFogReflectionFix\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2AspyrMusicFix", "K2AspyrMusicFix", "{5D10BAEC-6D42-4FD6-8714-955A85E47657}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K2AspyrMusicFix\kotor2-gog-aspyr.hooks.toml = Patches\K2AspyrMusicFix\kotor2-gog-aspyr.hooks.toml
+		Patches\K2AspyrMusicFix\kotor2-steam-aspyr.hooks.toml = Patches\K2AspyrMusicFix\kotor2-steam-aspyr.hooks.toml
+		Patches\K2AspyrMusicFix\manifest.toml = Patches\K2AspyrMusicFix\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2AspyrNormalMapsFix", "K2AspyrNormalMapsFix", "{E5BA5DC9-CF08-4165-A5A4-1FD3DFA3EC5E}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K2AspyrNormalMapsFix\kotor2-gog-aspyr.hooks.toml = Patches\K2AspyrNormalMapsFix\kotor2-gog-aspyr.hooks.toml
+		Patches\K2AspyrNormalMapsFix\kotor2-steam-aspyr.hooks.toml = Patches\K2AspyrNormalMapsFix\kotor2-steam-aspyr.hooks.toml
+		Patches\K2AspyrNormalMapsFix\manifest.toml = Patches\K2AspyrNormalMapsFix\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2AspyrSaberTextureFix", "K2AspyrSaberTextureFix", "{A7FA1EDF-D28D-49FD-8DCC-138CFDA2D475}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K2AspyrSaberTextureFix\kotor2-gog-aspyr.hooks.toml = Patches\K2AspyrSaberTextureFix\kotor2-gog-aspyr.hooks.toml
+		Patches\K2AspyrSaberTextureFix\kotor2-steam-aspyr.hooks.toml = Patches\K2AspyrSaberTextureFix\kotor2-steam-aspyr.hooks.toml
+		Patches\K2AspyrSaberTextureFix\manifest.toml = Patches\K2AspyrSaberTextureFix\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Widescreen", "Widescreen", "{E8A4B3ED-3523-42C6-8955-5C5DD92001B9}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\Widescreen\export.cpp = Patches\Widescreen\export.cpp
+		Patches\Widescreen\exports.def = Patches\Widescreen\exports.def
+		Patches\Widescreen\hooks.toml = Patches\Widescreen\hooks.toml
+		Patches\Widescreen\manifest.toml = Patches\Widescreen\manifest.toml
 	EndProjectSection
 EndProject
 Global
@@ -318,6 +460,19 @@ Global
 		{CF5B67AF-6810-44DD-B4E1-C98EDE270B7D} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{0CE7EC37-B554-454F-BD2C-331F77217F1C} = {7AC5E75B-E77E-4E4C-8DE0-AB4C70CE80C4}
 		{EE5E99F9-1328-4558-9FEB-488A38AA6AEC} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{A246DA08-FD0C-4EA7-8BBB-6339CE456809} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{D36A9142-50DE-4D39-BA3C-2A43E5EFE11B} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{4C32A871-78CB-41E4-86B6-EE9C0A986415} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{B4B89116-2C38-4FF0-B916-6E8EF27A0340} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{43E78283-596C-4BF5-AAE7-A3C70E201340} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{88243151-0E06-4E08-8A2F-1F507FC0AEC7} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{AE59EBA4-A3EF-482A-A86F-BDB4284DA41F} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{FEA16A23-452D-469E-ADA7-39595727FE50} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{6C869998-CF4C-4881-9B29-EC191BEDC3CC} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{5D10BAEC-6D42-4FD6-8714-955A85E47657} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{E5BA5DC9-CF08-4165-A5A4-1FD3DFA3EC5E} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{A7FA1EDF-D28D-49FD-8DCC-138CFDA2D475} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{E8A4B3ED-3523-42C6-8955-5C5DD92001B9} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EC8C0764-BD06-422A-B325-D20270F5D772}
