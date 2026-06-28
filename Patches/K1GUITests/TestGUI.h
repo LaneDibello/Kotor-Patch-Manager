@@ -27,8 +27,27 @@ public:
     // this TestGUI as its `this`, so it can reach our controls; calls the wrapper's
     // HandleInputEvent to invoke the game's original behavior.
     void _HandleInputEvent(int event, int param2) {
-        debugLog("TestGUI onInputEvent: this=%X event=%d param2=%d", this, event, param2);
+        debugLog("TestGUI _HandleInputEvent: this=%X event=%d param2=%d", this, event, param2);
         HandleInputEvent(event, param2);
+    }
+
+    void _OnPanelAdded() {
+        debugLog("TestGUI _OnPanelAdded: this=%X", this);
+        OnPanelAdded();
+    }
+
+    void _OnPanelRemoved() {
+        debugLog("TestGUI _OnPanelRemoved: this=%X", this);
+        OnPanelRemoved();
+    }
+
+    void _Draw(float f) {
+        debugLog("TestGUI _Draw: this=%X param=%f", this, f);
+        Draw(f);
+    }
+
+    void _Update(float f) {
+        debugLog("TestGUI _Update: this=%X param=%f", this, f);
     }
 
 	TestGUI(CSWGuiManager* manager) :
@@ -72,6 +91,10 @@ public:
 
         // Redirect the panel's HandleInputEvent to our handler
         this->OverrideHandleInputEvent(memberFuncAddr(&TestGUI::_HandleInputEvent));
+        this->OverrideOnPanelAdded(memberFuncAddr(&TestGUI::_OnPanelAdded));
+        this->OverrideOnPanelRemoved(memberFuncAddr(&TestGUI::_OnPanelRemoved));
+        this->OverrideDraw(memberFuncAddr(&TestGUI::_Draw));
+        this->OverrideUpdate(memberFuncAddr(&TestGUI::_Update));
 	}
 
 };

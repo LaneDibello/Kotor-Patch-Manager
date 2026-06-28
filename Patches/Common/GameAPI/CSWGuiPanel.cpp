@@ -10,6 +10,9 @@
 CSWGuiPanel::AddControlFn                        CSWGuiPanel::addControl                        = nullptr;
 CSWGuiPanel::CenterPanelFn                       CSWGuiPanel::centerPanel                       = nullptr;
 CSWGuiPanel::HandleInputEventFn                  CSWGuiPanel::handleInputEvent                  = nullptr;
+CSWGuiPanel::DrawFn                              CSWGuiPanel::draw                              = nullptr;
+CSWGuiPanel::OnPanelAddedFn                      CSWGuiPanel::onPanelAdded                      = nullptr;
+CSWGuiPanel::OnPanelRemovedFn                    CSWGuiPanel::onPanelRemoved                    = nullptr;
 CSWGuiPanel::GetControlFn                        CSWGuiPanel::getControl                        = nullptr;
 CSWGuiPanel::GetExtentAccountingForPanelOffsetFn CSWGuiPanel::getExtentAccountingForPanelOffset = nullptr;
 CSWGuiPanel::GetFullScreenBGFn                   CSWGuiPanel::getFullScreenBG                   = nullptr;
@@ -51,6 +54,9 @@ void CSWGuiPanel::InitializeFunctions() {
         addControl                        = reinterpret_cast<AddControlFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "AddControl"));
         centerPanel                       = reinterpret_cast<CenterPanelFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "CenterPanel"));
         handleInputEvent                  = reinterpret_cast<HandleInputEventFn>                 (GameVersion::GetFunctionAddress("CSWGuiPanel", "HandleInputEvent"));
+        draw                              = reinterpret_cast<DrawFn>                             (GameVersion::GetFunctionAddress("CSWGuiPanel", "Draw"));
+        onPanelAdded                      = reinterpret_cast<OnPanelAddedFn>                     (GameVersion::GetFunctionAddress("CSWGuiPanel", "OnPanelAdded"));
+        onPanelRemoved                    = reinterpret_cast<OnPanelRemovedFn>                   (GameVersion::GetFunctionAddress("CSWGuiPanel", "OnPanelRemoved"));
         getControl                        = reinterpret_cast<GetControlFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetControl"));
         getExtentAccountingForPanelOffset = reinterpret_cast<GetExtentAccountingForPanelOffsetFn>(GameVersion::GetFunctionAddress("CSWGuiPanel", "GetExtentAccountingForPanelOffset"));
         getFullScreenBG                   = reinterpret_cast<GetFullScreenBGFn>                  (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetFullScreenBG"));
@@ -101,11 +107,26 @@ void CSWGuiPanel::InitializeOffsets() {
     }
 }
 
-// Direct wrapper for the game's HandleInputEvent (called by address, like the
-// other panel functions). Used to invoke the original behavior.
+// Direct wrappers for the game functions (called by address, like the other panel
+// functions). Used to invoke the original behavior.
 void CSWGuiPanel::HandleInputEvent(int event, int param2) {
     if (!objectPtr || !handleInputEvent) return;
     handleInputEvent(objectPtr, event, param2);
+}
+
+void CSWGuiPanel::Draw(float param1) {
+    if (!objectPtr || !draw) return;
+    draw(objectPtr, param1);
+}
+
+void CSWGuiPanel::OnPanelAdded() {
+    if (!objectPtr || !onPanelAdded) return;
+    onPanelAdded(objectPtr);
+}
+
+void CSWGuiPanel::OnPanelRemoved() {
+    if (!objectPtr || !onPanelRemoved) return;
+    onPanelRemoved(objectPtr);
 }
 
 // Installed into the HandleInputEvent vtable slot. The game invokes it as
@@ -120,6 +141,38 @@ void __fastcall CSWGuiPanel::HandleInputEventThunk(void* gameObj, void* /*edx*/,
 
     auto handler = reinterpret_cast<void(__thiscall*)(void*, int, int)>(self->inputEventHandler);
     handler(self, event, param2);
+}
+
+void __fastcall CSWGuiPanel::DrawThunk(void* gameObj, void* /*edx*/, float param1) {
+    CSWGuiPanel* self = static_cast<CSWGuiPanel*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->drawHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, float)>(self->drawHandler);
+    handler(self, param1);
+}
+
+void __fastcall CSWGuiPanel::OnPanelAddedThunk(void* gameObj, void* /*edx*/) {
+    CSWGuiPanel* self = static_cast<CSWGuiPanel*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->onPanelAddedHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*)>(self->onPanelAddedHandler);
+    handler(self);
+}
+
+void __fastcall CSWGuiPanel::OnPanelRemovedThunk(void* gameObj, void* /*edx*/) {
+    CSWGuiPanel* self = static_cast<CSWGuiPanel*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->onPanelRemovedHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*)>(self->onPanelRemovedHandler);
+    handler(self);
+}
+
+void __fastcall CSWGuiPanel::UpdateThunk(void* gameObj, void* /*edx*/, float param1) {
+    CSWGuiPanel* self = static_cast<CSWGuiPanel*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->updateHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, float)>(self->updateHandler);
+    handler(self, param1);
 }
 
 bool CSWGuiPanel::EnsureVTableOverride() {
@@ -152,6 +205,42 @@ void CSWGuiPanel::OverrideHandleInputEvent(void* handler) {
     inputEventHandler = handler;
     vtableOverride->Override(static_cast<int>(PanelVTableSlot::HandleInputEvent),
                              reinterpret_cast<void*>(&CSWGuiPanel::HandleInputEventThunk));
+}
+
+void CSWGuiPanel::OverrideDraw(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    drawHandler = handler;
+    vtableOverride->Override(static_cast<int>(PanelVTableSlot::Draw),
+                             reinterpret_cast<void*>(&CSWGuiPanel::DrawThunk));
+}
+
+void CSWGuiPanel::OverrideOnPanelAdded(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    onPanelAddedHandler = handler;
+    vtableOverride->Override(static_cast<int>(PanelVTableSlot::OnPanelAdded),
+                             reinterpret_cast<void*>(&CSWGuiPanel::OnPanelAddedThunk));
+}
+
+void CSWGuiPanel::OverrideOnPanelRemoved(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    onPanelRemovedHandler = handler;
+    vtableOverride->Override(static_cast<int>(PanelVTableSlot::OnPanelRemoved),
+                             reinterpret_cast<void*>(&CSWGuiPanel::OnPanelRemovedThunk));
+}
+
+void CSWGuiPanel::OverrideUpdate(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    updateHandler = handler;
+    vtableOverride->Override(static_cast<int>(PanelVTableSlot::Update),
+                             reinterpret_cast<void*>(&CSWGuiPanel::UpdateThunk));
 }
 
 int CSWGuiPanel::PanelVTableCount() {
