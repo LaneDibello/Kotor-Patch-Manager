@@ -2,9 +2,39 @@
 #include <windows.h>
 #include <sqlite3.h>
 #include <sstream>
+#include <algorithm>
+#include <cctype>
+
+namespace {
+    // Case-insensitive comparison of two ASCII strings.
+    bool iequals(const std::string& a, const std::string& b) {
+        if (a.size() != b.size()) return false;
+        for (size_t i = 0; i < a.size(); ++i) {
+            if (std::tolower((unsigned char)a[i]) != std::tolower((unsigned char)b[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    GameTitle ParseTitle(const std::string& name) {
+        if (iequals(name, "KOTOR1")) return GameTitle::KOTOR1;
+        if (iequals(name, "KOTOR2")) return GameTitle::KOTOR2;
+        return GameTitle::Unknown;
+    }
+
+    GamePlatform ParsePlatform(const std::string& name) {
+        if (iequals(name, "Windows")) return GamePlatform::Windows;
+        if (iequals(name, "MacOS"))   return GamePlatform::MacOS;
+        if (iequals(name, "Linux"))   return GamePlatform::Linux;
+        return GamePlatform::Unknown;
+    }
+}
 
 bool GameVersion::initialized = false;
 std::string GameVersion::versionSha;
+GameTitle GameVersion::gameTitle = GameTitle::Unknown;
+GamePlatform GameVersion::gamePlatform = GamePlatform::Unknown;
 sqlite3* GameVersion::db = nullptr;
 sqlite3_stmt* GameVersion::stmt_function = nullptr;
 sqlite3_stmt* GameVersion::stmt_pointer = nullptr;
@@ -78,9 +108,18 @@ bool GameVersion::OpenDatabase() {
         return false;
     }
 
-    // Verify game version SHA matches
+    // Verify game version SHA matches, and capture the game name / platform of
+    // the matching row. The platform column was added in schema v4, so an older
+    // addresses.db may not have it -- fall back to a name-only query in that case
+    // and leave the platform as Unknown rather than failing initialization.
     sqlite3_stmt* stmt = nullptr;
-    rc = sqlite3_prepare_v2(db, "SELECT sha256_hash FROM game_version", -1, &stmt, nullptr);
+    bool havePlatformColumn = true;
+    rc = sqlite3_prepare_v2(db, "SELECT sha256_hash, game_name, platform FROM game_version", -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        OutputDebugStringA("[GameVersion] WARNING: platform column missing, falling back to name-only version query\n");
+        havePlatformColumn = false;
+        rc = sqlite3_prepare_v2(db, "SELECT sha256_hash, game_name FROM game_version", -1, &stmt, nullptr);
+    }
     if (rc != SQLITE_OK) {
         OutputDebugStringA(("[GameVersion] ERROR: Failed to prepare version query: " + std::string(sqlite3_errmsg(db)) + "\n").c_str());
         sqlite3_close(db);
@@ -100,6 +139,19 @@ bool GameVersion::OpenDatabase() {
         const char* dbHash = reinterpret_cast<const char*>(txt);
         if (versionSha == dbHash) {
             matchFound = true;
+
+            const unsigned char* nameTxt = sqlite3_column_text(stmt, 1);
+            if (nameTxt) {
+                gameTitle = ParseTitle(reinterpret_cast<const char*>(nameTxt));
+            }
+
+            if (havePlatformColumn) {
+                const unsigned char* platTxt = sqlite3_column_text(stmt, 2);
+                if (platTxt) {
+                    gamePlatform = ParsePlatform(reinterpret_cast<const char*>(platTxt));
+                }
+            }
+
             break;
         }
     }
@@ -202,6 +254,14 @@ std::string GameVersion::GetVersionSha() {
 
 bool GameVersion::IsInitialized() {
     return initialized;
+}
+
+GameTitle GameVersion::GetTitle() {
+    return gameTitle;
+}
+
+GamePlatform GameVersion::GetPlatform() {
+    return gamePlatform;
 }
 
 void* GameVersion::GetFunctionAddress(const std::string& className, const std::string& functionName) {
@@ -346,6 +406,8 @@ void GameVersion::Reset(bool force) {
 
     initialized = false;
     versionSha.clear();
+    gameTitle = GameTitle::Unknown;
+    gamePlatform = GamePlatform::Unknown;
 
     FinalizeStatements();
 

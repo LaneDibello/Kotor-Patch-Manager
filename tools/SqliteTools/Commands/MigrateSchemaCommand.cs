@@ -38,8 +38,14 @@ public class MigrateSchemaCommand : ICommand
             Console.WriteLine("Applied migration 003: Add classes table");
         }
 
+        if (currentVersion < 4)
+        {
+            ApplyMigration(connection, "004_add_platform.sql");
+            Console.WriteLine("Applied migration 004: Add platform column");
+        }
+
         // Future migrations would go here
-        // if (currentVersion < 4) { ApplyMigration(connection, "004_..."); }
+        // if (currentVersion < 5) { ApplyMigration(connection, "005_..."); }
 
         int newVersion = GetCurrentSchemaVersion(connection);
         Console.WriteLine($"Schema migration complete. Current version: {newVersion}");

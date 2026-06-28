@@ -1,0 +1,21 @@
+[[hooks]]
+address = 0x006ab648
+type = "detour"
+original_bytes = [0x8d, 0x4c, 0x24, 0x10, 0x88, 0x5c, 0x24, 0x2c]
+function = "InjectOptionsButton"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "esi"
+type = "pointer" # ESI is `this`
+
+[[hooks]]
+address = 0x006ab70b
+type = "detour"
+original_bytes = [0x8d, 0xbe, 0x58, 0x01, 0x00, 0x00]
+function = "AddCreateEvent"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "esi"
+type = "pointer" # ESI is `this`
