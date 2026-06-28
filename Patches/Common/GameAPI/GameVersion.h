@@ -13,12 +13,24 @@ public:
         : std::runtime_error(message) {}
 };
 
+// Identifies which game this build is. Sourced from the game_version.game_name
+// column of addresses.db.
+enum class GameTitle { Unknown, KOTOR1, KOTOR2 };
+
+// Identifies the OS/platform a build targets. Sourced from the
+// game_version.platform column of addresses.db (added in schema v4). Used to
+// select version-specific layout data such as vtable sizes.
+enum class GamePlatform { Unknown, Windows, MacOS, Linux };
+
 class GameVersion {
 public:
     static bool Initialize(bool force = false);
     static void Shutdown();
     static std::string GetVersionSha();
     static bool IsInitialized();
+
+    static GameTitle GetTitle();
+    static GamePlatform GetPlatform();
 
     static void* GetFunctionAddress(const std::string& className, const std::string& functionName);
     static void* GetGlobalPointer(const std::string& pointerName);
@@ -36,6 +48,8 @@ public:
 private:
     static bool initialized;
     static std::string versionSha;
+    static GameTitle gameTitle;
+    static GamePlatform gamePlatform;
 
     // SQLite database handle and prepared statements
     static sqlite3* db;

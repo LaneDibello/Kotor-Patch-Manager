@@ -9,6 +9,7 @@
 
 CSWGuiPanel::AddControlFn                        CSWGuiPanel::addControl                        = nullptr;
 CSWGuiPanel::CenterPanelFn                       CSWGuiPanel::centerPanel                       = nullptr;
+CSWGuiPanel::HandleInputEventFn                  CSWGuiPanel::handleInputEvent                  = nullptr;
 CSWGuiPanel::GetControlFn                        CSWGuiPanel::getControl                        = nullptr;
 CSWGuiPanel::GetExtentAccountingForPanelOffsetFn CSWGuiPanel::getExtentAccountingForPanelOffset = nullptr;
 CSWGuiPanel::GetFullScreenBGFn                   CSWGuiPanel::getFullScreenBG                   = nullptr;
@@ -49,6 +50,7 @@ void CSWGuiPanel::InitializeFunctions() {
     try {
         addControl                        = reinterpret_cast<AddControlFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "AddControl"));
         centerPanel                       = reinterpret_cast<CenterPanelFn>                      (GameVersion::GetFunctionAddress("CSWGuiPanel", "CenterPanel"));
+        handleInputEvent                  = reinterpret_cast<HandleInputEventFn>                 (GameVersion::GetFunctionAddress("CSWGuiPanel", "HandleInputEvent"));
         getControl                        = reinterpret_cast<GetControlFn>                       (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetControl"));
         getExtentAccountingForPanelOffset = reinterpret_cast<GetExtentAccountingForPanelOffsetFn>(GameVersion::GetFunctionAddress("CSWGuiPanel", "GetExtentAccountingForPanelOffset"));
         getFullScreenBG                   = reinterpret_cast<GetFullScreenBGFn>                  (GameVersion::GetFunctionAddress("CSWGuiPanel", "GetFullScreenBG"));
@@ -99,6 +101,72 @@ void CSWGuiPanel::InitializeOffsets() {
     }
 }
 
+// Direct wrapper for the game's HandleInputEvent (called by address, like the
+// other panel functions). Used to invoke the original behavior.
+void CSWGuiPanel::HandleInputEvent(int event, int param2) {
+    if (!objectPtr || !handleInputEvent) return;
+    handleInputEvent(objectPtr, event, param2);
+}
+
+// Installed into the HandleInputEvent vtable slot. The game invokes it as
+// __thiscall (game object in ECX, (event, param2) on the stack); __fastcall is the
+// stand-in (gameObj -> ECX, dummy -> EDX, args off the stack -- same trick as
+// CreateTestGui in exports.cpp). We recover the wrapper via the override's
+// back-pointer and forward to the registered handler with the wrapper as `this`,
+// so handler member functions resolve their members correctly.
+void __fastcall CSWGuiPanel::InputEventThunk(void* gameObj, void* /*edx*/, int event, int param2) {
+    CSWGuiPanel* self = static_cast<CSWGuiPanel*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->inputEventHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, int, int)>(self->inputEventHandler);
+    handler(self, event, param2);
+}
+
+bool CSWGuiPanel::EnsureVTableOverride() {
+    if (vtableOverride) {
+        return vtableOverride->IsActive();
+    }
+    if (!objectPtr) {
+        return false;
+    }
+
+    int count = PanelVTableCount();
+    if (count < 0) {
+        return false;  // Unsupported version; overriding disabled (already logged).
+    }
+
+    vtableOverride = new VTableOverride(objectPtr, this, count);
+    if (!vtableOverride->IsActive()) {
+        debugLog("[CSWGuiPanel] ERROR: failed to install vtable override\n");
+        delete vtableOverride;
+        vtableOverride = nullptr;
+        return false;
+    }
+    return true;
+}
+
+void CSWGuiPanel::OverrideInputEvent(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    inputEventHandler = handler;
+    vtableOverride->Override(static_cast<int>(PanelVTableSlot::HandleInputEvent),
+                             reinterpret_cast<void*>(&CSWGuiPanel::InputEventThunk));
+}
+
+int CSWGuiPanel::PanelVTableCount() {
+    // Only KotOR 1 on Windows is supported for now. Other versions/platforms
+    // return -1 so callers disable vtable overriding rather than corrupting a
+    // mismatched layout.
+    if (GameVersion::GetTitle() == GameTitle::KOTOR1 &&
+        GameVersion::GetPlatform() == GamePlatform::Windows) {
+        return PANEL_VTABLE_SLOT_COUNT;
+    }
+
+    debugLog("[CSWGuiPanel] WARNING: panel vtable layout unknown for this game version; vtable overriding disabled\n");
+    return -1;
+}
+
 CSWGuiPanel::CSWGuiPanel(void* objectPtr)
     : CSWGuiObject(objectPtr)
 {
@@ -131,6 +199,13 @@ CSWGuiPanel::CSWGuiPanel(CSWGuiManager* manager)
 
 CSWGuiPanel::~CSWGuiPanel()
 {
+    // Restore the game's original vtable (and free our copy) before the game's
+    // destructor runs, so it dispatches against its own vtable.
+    if (vtableOverride) {
+        delete vtableOverride;
+        vtableOverride = nullptr;
+    }
+
     if (shouldFree && objectPtr) {
         if (destructor) {
             destructor(objectPtr);

@@ -23,6 +23,14 @@ public:
         debugLog("Pressed Button at %X", control);
     }
 
+    // Custom input handler, registered via OverrideInputEvent below. Runs with
+    // this TestGUI as its `this`, so it can reach our controls; calls the wrapper's
+    // HandleInputEvent to invoke the game's original behavior.
+    void onInputEvent(int event, int param2) {
+        debugLog("TestGUI onInputEvent: event=%d param2=%d", event, param2);
+        HandleInputEvent(event, param2);
+    }
+
 	TestGUI(CSWGuiManager* manager) :
         CSWGuiPanel(manager),
         titleLabel(),
@@ -61,6 +69,9 @@ public:
         greenButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
         blueButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
         violetButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+
+        // Redirect the panel's HandleInputEvent to our handler (like AddEvent).
+        this->OverrideInputEvent(memberFuncAddr(&TestGUI::onInputEvent));
 	}
 
 };
