@@ -88,34 +88,19 @@ public:
     void InitializeOffsets() override;
 
     // Redirect the panel's HandleInputEvent virtual to a method on the derived
-    // wrapper, mirroring how controls register event callbacks via AddEvent:
-    //
-    //     this->OverrideInputEvent(memberFuncAddr(&MyPanel::OnInput));
-    //
-    // `handler` must be a method on this object with the signature
-    // void(int event, int param2); pass it through memberFuncAddr (see Common.h).
+    // wrapper. Pass it through memberFuncAddr (see Common.h).
     // The handler runs with this wrapper as its `this`, so it can reach the
     // wrapper's controls, and may call HandleInputEvent() to invoke the original.
-    // No-op if the game version's panel vtable layout is unsupported.
     void OverrideHandleInputEvent(void* handler);
 
-    // Redirect the panel's Draw virtual to a method on the derived wrapper, same
-    // pattern as OverrideHandleInputEvent. `handler` must be a method on this
-    // object with signature void(float param1), passed via memberFuncAddr. The
-    // handler may call Draw() to invoke the original.
+    // Redirect the panel's Draw virtual
     void OverrideDraw(void* handler);
 
-    // Redirect OnPanelAdded / OnPanelRemoved to a method on the derived wrapper.
-    // `handler` must be a method on this object with signature void(), passed via
-    // memberFuncAddr; it may call OnPanelAdded()/OnPanelRemoved() for the original.
+    // Redirect OnPanelAdded / OnPanelRemoved 
     void OverrideOnPanelAdded(void* handler);
     void OverrideOnPanelRemoved(void* handler);
 
-    // Redirect the panel's Update virtual to a method on the derived wrapper.
-    // `handler` must be a method on this object with signature void(float param1),
-    // passed via memberFuncAddr. Unlike the others there is no Update() wrapper to
-    // chain to: the base Update is pure virtual and its vtable slot is just a void
-    // stub, so there is no original behavior to invoke.
+    // Redirect the panel's Update virtual
     void OverrideUpdate(void* handler);
 
     // Returns the number of entries in the game's CSWGuiPanel vtable for the
