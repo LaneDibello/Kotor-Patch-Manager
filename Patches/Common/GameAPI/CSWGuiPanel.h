@@ -46,15 +46,12 @@ enum class PanelVTableSlot : int {
     ResetFont
 };
 
-// Number of function entries in the K1/Windows panel vtable above. This is a
-// count, not a slot -- kept separate from PanelVTableSlot so it isn't mistaken
-// for one of the functions.
+// Number of function entries in the K1/Windows panel vtable above.
 inline constexpr int PANEL_VTABLE_SLOT_COUNT = 27;
 
 class CSWGuiPanel : public CSWGuiObject {
 public:
     explicit CSWGuiPanel(void* objectPtr);
-    // Allocates a new panel and runs the game's CSWGuiPanel(CSWGuiManager*) constructor.
     explicit CSWGuiPanel(CSWGuiManager* manager);
     ~CSWGuiPanel();
 
@@ -70,9 +67,6 @@ public:
     // Functions
     void AddControl(CSWGuiControl* control);
     void CenterPanel();
-    // Direct wrapper for the panel's HandleInputEvent. Call this to invoke the
-    // game's original behavior (e.g. from inside a custom input handler).
-    // param2 relates to whether the control the input is dispatched to is activated.
     void HandleInputEvent(int event, int param2);
     CSWGuiControl* GetControl(int index);
     void GetExtentAccountingForPanelOffset(CSWGuiExtent* outExtent);
@@ -100,7 +94,7 @@ public:
     // The handler runs with this wrapper as its `this`, so it can reach the
     // wrapper's controls, and may call HandleInputEvent() to invoke the original.
     // No-op if the game version's panel vtable layout is unsupported.
-    void OverrideInputEvent(void* handler);
+    void OverrideHandleInputEvent(void* handler);
 
     // Returns the number of entries in the game's CSWGuiPanel vtable for the
     // currently-detected game version, or -1 if the version is unsupported (in
@@ -173,5 +167,5 @@ protected:
     // override's back-pointer and forward to its registered inputEventHandler.
     // __fastcall stands in for __thiscall on this free-standing function (MSVC
     // forbids __thiscall here); the static member can still touch private state.
-    static void __fastcall InputEventThunk(void* gameObj, void* edx, int event, int param2);
+    static void __fastcall HandleInputEventThunk(void* gameObj, void* edx, int event, int param2);
 };

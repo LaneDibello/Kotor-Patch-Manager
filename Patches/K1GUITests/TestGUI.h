@@ -26,8 +26,8 @@ public:
     // Custom input handler, registered via OverrideInputEvent below. Runs with
     // this TestGUI as its `this`, so it can reach our controls; calls the wrapper's
     // HandleInputEvent to invoke the game's original behavior.
-    void onInputEvent(int event, int param2) {
-        debugLog("TestGUI onInputEvent: event=%d param2=%d", event, param2);
+    void _HandleInputEvent(int event, int param2) {
+        debugLog("TestGUI onInputEvent: this=%X event=%d param2=%d", this, event, param2);
         HandleInputEvent(event, param2);
     }
 
@@ -70,8 +70,8 @@ public:
         blueButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
         violetButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
 
-        // Redirect the panel's HandleInputEvent to our handler (like AddEvent).
-        this->OverrideInputEvent(memberFuncAddr(&TestGUI::onInputEvent));
+        // Redirect the panel's HandleInputEvent to our handler
+        this->OverrideHandleInputEvent(memberFuncAddr(&TestGUI::_HandleInputEvent));
 	}
 
 };

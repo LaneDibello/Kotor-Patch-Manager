@@ -114,7 +114,7 @@ void CSWGuiPanel::HandleInputEvent(int event, int param2) {
 // CreateTestGui in exports.cpp). We recover the wrapper via the override's
 // back-pointer and forward to the registered handler with the wrapper as `this`,
 // so handler member functions resolve their members correctly.
-void __fastcall CSWGuiPanel::InputEventThunk(void* gameObj, void* /*edx*/, int event, int param2) {
+void __fastcall CSWGuiPanel::HandleInputEventThunk(void* gameObj, void* /*edx*/, int event, int param2) {
     CSWGuiPanel* self = static_cast<CSWGuiPanel*>(VTableOverride::GetOwner(gameObj));
     if (!self || !self->inputEventHandler) return;
 
@@ -145,13 +145,13 @@ bool CSWGuiPanel::EnsureVTableOverride() {
     return true;
 }
 
-void CSWGuiPanel::OverrideInputEvent(void* handler) {
+void CSWGuiPanel::OverrideHandleInputEvent(void* handler) {
     if (!EnsureVTableOverride()) {
         return;
     }
     inputEventHandler = handler;
     vtableOverride->Override(static_cast<int>(PanelVTableSlot::HandleInputEvent),
-                             reinterpret_cast<void*>(&CSWGuiPanel::InputEventThunk));
+                             reinterpret_cast<void*>(&CSWGuiPanel::HandleInputEventThunk));
 }
 
 int CSWGuiPanel::PanelVTableCount() {
