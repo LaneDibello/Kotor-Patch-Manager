@@ -93,8 +93,8 @@ public:
         this->OverrideHandleInputEvent(memberFuncAddr(&TestGUI::_HandleInputEvent));
         this->OverrideOnPanelAdded(memberFuncAddr(&TestGUI::_OnPanelAdded));
         this->OverrideOnPanelRemoved(memberFuncAddr(&TestGUI::_OnPanelRemoved));
-        this->OverrideDraw(memberFuncAddr(&TestGUI::_Draw));
-        this->OverrideUpdate(memberFuncAddr(&TestGUI::_Update));
+        //this->OverrideDraw(memberFuncAddr(&TestGUI::_Draw));
+        //this->OverrideUpdate(memberFuncAddr(&TestGUI::_Update));
 	}
 
 };
