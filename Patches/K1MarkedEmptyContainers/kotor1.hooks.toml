@@ -1,0 +1,73 @@
+# K1 Marked Empty Containers
+#
+# CSWGuiTargetActionMenu::UpdateNameLabel assembles the hovered object's name into
+# a temporary CExoString and, at 0x685E69, does `call SetNameLabel` to display it.
+# This replace-hook runs first: if the hovered object is a placeable container that
+# currently holds zero items, it appends " (empty)" to that temporary string; then
+# it performs the original SetNameLabel call and resumes. The container's real name,
+# the loot-window title, and scripting are untouched. Looted corpses are "Remains"
+# placeables, so they are covered too. The suffix is written as instruction
+# immediates (no stored string), so nothing can corrupt it.
+
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+    "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
+]
+
+[[hooks]]
+address = 0x00685E69
+type = "replace"
+# call CSWGuiTargetActionMenu::SetNameLabel   (vanilla: just display the name)
+original_bytes = [ 0xE8, 0x82, 0xFC, 0xFF, 0xFF ]
+replacement_bytes = [
+    0x60,                                        # pushad                          ; entered via KPM jump; ecx=menu, [esp]=&name, ebp=UpdateNameLabel frame
+    0x8B, 0x55, 0x08,                            # mov edx,[ebp+8]                 ; edx = hovered client object
+    0x85, 0xD2,                                  # test edx,edx
+    0x74, 0x76,                                  # jz  skip
+    0x8B, 0x02,                                  # mov eax,[edx]                   ; eax = client vtable
+    0x3D, 0xD0, 0x37, 0x75, 0x00,                # cmp eax,0x007537D0              ; CSWCPlaceable_vtable ? (is it a placeable)
+    0x75, 0x6D,                                  # jne skip
+    0x8B, 0xCA,                                  # mov ecx,edx
+    0xB8, 0xB0, 0xD4, 0x63, 0x00,                # mov eax,0x0063D4B0              ; CSWCObject::GetServerObject
+    0xFF, 0xD0,                                  # call eax                        ; eax = server object
+    0x85, 0xC0,                                  # test eax,eax
+    0x74, 0x60,                                  # jz  skip
+    0x8B, 0x88, 0x24, 0x03, 0x00, 0x00,          # mov ecx,[eax+0x324]            ; item repository pointer
+    0x85, 0xC9,                                  # test ecx,ecx
+    0x74, 0x56,                                  # jz  skip                        ; no inventory -> not a container
+    0x8B, 0xC8,                                  # mov ecx,eax
+    0x6A, 0x00,                                  # push 0                          ; flag 0 = count ALL items
+    0xB8, 0x10, 0x77, 0x58, 0x00,                # mov eax,0x00587710             ; CSWSPlaceable::GetItemCount
+    0xFF, 0xD0,                                  # call eax
+    0x85, 0xC0,                                  # test eax,eax
+    0x75, 0x47,                                  # jnz skip                        ; non-empty -> leave name alone
+    0x8B, 0x74, 0x24, 0x20,                      # mov esi,[esp+0x20]             ; esi = &name (CExoString*)
+    0x8B, 0x36,                                  # mov esi,[esi]                   ; esi = name text
+    0x85, 0xF6,                                  # test esi,esi
+    0x74, 0x3D,                                  # jz  skip                        ; empty name -> skip
+    0x81, 0xEC, 0x00, 0x01, 0x00, 0x00,          # sub esp,0x100                  ; scratch buffer
+    0x8B, 0xFC,                                  # mov edi,esp
+    0x8A, 0x06,                                  # cn: mov al,[esi]                ; copy the name
+    0x84, 0xC0,                                  # test al,al
+    0x74, 0x06,                                  # jz  ws
+    0x88, 0x07,                                  # mov [edi],al
+    0x46,                                        # inc esi
+    0x47,                                        # inc edi
+    0xEB, 0xF4,                                  # jmp cn
+    0xC7, 0x07, 0x20, 0x28, 0x65, 0x6D,          # ws: mov dword[edi]," (em"       ; append " (empty)" as immediates
+    0xC7, 0x47, 0x04, 0x70, 0x74, 0x79, 0x29,    # mov dword[edi+4],"pty)"
+    0xC6, 0x47, 0x08, 0x00,                      # mov byte[edi+8],0              ; explicit NUL terminator
+    0x8B, 0x8C, 0x24, 0x20, 0x01, 0x00, 0x00,    # mov ecx,[esp+0x120]            ; ecx = &name
+    0x8D, 0x14, 0x24,                            # lea edx,[esp]                  ; edx = scratch buffer
+    0x52,                                        # push edx
+    0xB8, 0x40, 0x51, 0x5E, 0x00,                # mov eax,0x005E5140             ; CExoString::operator=(char const*)
+    0xFF, 0xD0,                                  # call eax                        ; name = "<name> (empty)"
+    0x81, 0xC4, 0x00, 0x01, 0x00, 0x00,          # add esp,0x100
+    0x61,                                        # skip: popad
+    0xB8, 0xF0, 0x5A, 0x68, 0x00,                # mov eax,0x00685AF0             ; CSWGuiTargetActionMenu::SetNameLabel
+    0xFF, 0xD0,                                  # call eax                        ; perform the original (replaced) call
+    0xB8, 0x6E, 0x5E, 0x68, 0x00,                # mov eax,0x00685E6E             ; resume = address + 5
+    0xFF, 0xE0                                   # jmp eax
+]
