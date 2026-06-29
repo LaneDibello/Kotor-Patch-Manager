@@ -26,6 +26,6 @@ target_versions = [
 #   0x0044DC0C  BE 00 00 00 90    mov esi, 0x90000000
 [[hooks]]
 address = 0x0044DC0C
-type = "simple"
+type = "static"
 original_bytes = [0xBE, 0x00, 0x00, 0xCF, 0x02]
 replacement_bytes = [0xBE, 0x00, 0x00, 0x00, 0x90]
