@@ -13,6 +13,6 @@ target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963
 #   section:     .text
 [[hooks]]
 address = 0x00868C49
-type = "simple"
+type = "static"
 original_bytes = [0x00, 0x00, 0xCF, 0x02, 0xC7, 0x45]
 replacement_bytes = [0x00, 0x00, 0x00, 0x90, 0xC7, 0x45]
