@@ -1,0 +1,44 @@
+!!ARBvp1.0
+PARAM mvM[4] = { state.matrix.modelview[0] };
+PARAM mvpM[4] = { state.matrix.mvp };
+TEMP vTemp, vReg0, vReg1, vReg2, vReg3, vReg4, vReg10, vNormalWorld, t;
+PARAM f = state.fog.params;
+ALIAS vFinalColour = vTemp;
+
+DP4 result.position.x, mvpM[0], vertex.position;
+DP4 result.position.y, mvpM[1], vertex.position;
+DP4 result.position.z, mvpM[2], vertex.position;
+DP4 result.position.w, mvpM[3], vertex.position;
+DP4 vReg10.x, mvM[0], vertex.position;
+DP4 vReg10.y, mvM[1], vertex.position;
+DP4 vReg10.z, mvM[2], vertex.position;
+DP4 vReg10.w, mvM[3], vertex.position;
+DP3 vNormalWorld.x, mvM[0], vertex.normal;
+DP3 vNormalWorld.y, mvM[1], vertex.normal;
+DP3 vNormalWorld.z, mvM[2], vertex.normal;
+DP3 vReg0.x, vReg10, vReg10;
+RSQ vReg0.x, vReg0.x;
+RCP vReg0.x, vReg0.x;
+MOV result.fogcoord, vReg0.x;
+ADD vReg1.x, -f.y, vReg0.x;
+SLT t.x, 0.0, state.fog.color;
+MUL t.y, vReg1.x, f.w;
+MUL result.color.secondary.x, t.y, t.x;
+DP3 vReg0.x, vNormalWorld, -vReg10;
+MUL vReg1, vReg0.x, vNormalWorld;
+MUL vReg2, vReg1, program.env[16].y;
+ADD vReg3, vReg10, vReg2;
+DP3 vReg3.w, vReg3, vReg3;
+RSQ vReg3.w, vReg3.w;
+MUL vReg3, vReg3, vReg3.w;
+DP3 vReg4.x, program.env[92], vReg3;
+DP3 vReg4.y, program.env[91], vReg3;
+DP3 vReg4.z, program.env[90], vReg3;
+MOV vReg4.w, program.env[16].w;
+MOV result.texcoord[0], vertex.texcoord[0];
+MOV result.texcoord[1], vReg4;
+MOV result.texcoord[2], vertex.texcoord[2];
+MOV result.texcoord[3], vertex.texcoord[3];
+MOV result.color, program.env[15].wwwz;
+
+END

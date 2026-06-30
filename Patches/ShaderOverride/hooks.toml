@@ -1,0 +1,4 @@
+# DLL-only patch.
+# The runtime DLL waits for the game to initialize OpenGL, then swaps the
+# game's glProgramStringARB function pointer for a wrapper that dumps and
+# optionally overrides shader source from disk.

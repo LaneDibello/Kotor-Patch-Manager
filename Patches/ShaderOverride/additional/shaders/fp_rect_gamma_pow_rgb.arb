@@ -1,0 +1,49 @@
+!!ARBfp1.0
+ATTRIB T0 = fragment.texcoord[0];
+PARAM exponent = program.env[1];
+PARAM exposure = { 1.08, 1.08, 1.08, 1.08 };
+PARAM tonemap_bias = { 0.95, 0.95, 0.95, 0.95 };
+PARAM film_strength = { 0.18, 0.18, 0.18, 0.18 };
+PARAM luma = { 0.2126, 0.7152, 0.0722, 0.0 };
+PARAM saturation = { 1.06, 1.06, 1.06, 1.06 };
+PARAM contrast = { 1.04, 1.04, 1.04, 1.04 };
+PARAM color_balance = { 0.990, 0.985, 1.015, 1.000 };
+PARAM half = { 0.5, 0.5, 0.5, 0.5 };
+TEMP r0, r1, r2;
+TEX r0, T0, texture[0], RECT;
+
+MUL r0.rgb, r0, exposure;
+ADD r1.rgb, r0, tonemap_bias;
+RCP r1.r, r1.r;
+RCP r1.g, r1.g;
+RCP r1.b, r1.b;
+MUL r1.rgb, r0, r1;
+SUB r1.rgb, r1, r0;
+MAD r0.rgb, r1, film_strength, r0;
+
+DP3 r1.rgb, r0, luma;
+SUB r2.rgb, r0, r1;
+MAD r0.rgb, r2, saturation, r1;
+SUB r0.rgb, r0, half;
+MUL r0.rgb, r0, contrast;
+ADD r0.rgb, r0, half;
+MUL r0.rgb, r0, color_balance;
+
+POW r0.r, r0.r, exponent.r;
+POW r0.g, r0.g, exponent.r;
+POW r0.b, r0.b, exponent.r;
+MOV result.color.rgb, r0;
+MOV result.color.a, 1.0;
+
+# Changes from original:
+# - Added subtle exposure before gamma.
+# - Added weak Reinhard-style film curve controlled by tonemap_bias/film_strength.
+# - Added small saturation and contrast boosts.
+# - Added tiny color_balance to reduce the warm/yellow Aspyr cast.
+# - Kept the original gamma slider exponent and final output behavior.
+
+# Debug color override for fp_rect_gamma_pow_rgb.
+# Comment out the next two lines to use the original shader output.
+# PARAM debug_color = { 0.875, 1.000, 0.000, 0.500 };
+# MOV result.color, debug_color;
+END
