@@ -1,0 +1,50 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+]
+
+# KOTOR 1-only hooks.  This metadata is required once KOTOR 2
+# hook files are added; otherwise KPM treats an untagged hooks.toml
+# as applying to every supported executable.
+
+# Semi-Transparent Letterbox - SIMPLE Patch Example
+# This demonstrates the SIMPLE hook type which requires no DLL
+
+[[hooks]]
+# Address where the alpha value is pushed onto the stack
+address = 0x006a89b2
+
+# Hook type: simple (no DLL, direct byte replacement)
+type = "simple"
+
+# Original bytes: PUSH 1.0f
+# 68 = PUSH immediate dword
+# 00 00 80 3f = 1.0f in IEEE 754 little-endian format
+original_bytes = [0x68, 0x00, 0x00, 0x80, 0x3f]
+
+# Replacement bytes: PUSH 0.5f
+# 68 = PUSH immediate dword
+# 00 00 00 3f = 0.5f in IEEE 754 little-endian format
+replacement_bytes = [0x68, 0x00, 0x00, 0x00, 0x3f]
+
+# Note: SIMPLE hooks don't have:
+# - function (no DLL required)
+# - parameters (direct byte replacement)
+# - preserve_registers/preserve_flags (not applicable)
+
+# This is verified at runtime before being applied, ensuring we're patching
+# the correct location in the correct game version
+
+[[hooks]]
+address = 0x006a7645
+type = "simple"
+original_bytes = [0x68, 0x00, 0x00, 0x80, 0x3f]
+replacement_bytes = [0x68, 0x00, 0x00, 0x00, 0x3f]
+
+[[hooks]]
+address = 0x006a75f4
+type = "simple"
+original_bytes = [0x68, 0x00, 0x00, 0x80, 0x3f]
+replacement_bytes = [0x68, 0x00, 0x00, 0x00, 0x3f]

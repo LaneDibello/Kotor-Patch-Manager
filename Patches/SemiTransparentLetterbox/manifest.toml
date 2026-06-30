@@ -5,7 +5,7 @@
 id = "semi-transparent-letterbox"
 name = "Semi-Transparent Letterbox"
 version = "1.0.0"
-author = "KotOR Patch Manager"
+author = "Lane (K1) & Vriff (K2)"
 description = "Changes the dialogue letterbox alpha from 1.0 (opaque) to 0.5 (semi-transparent)"
 
 requires = []
@@ -16,3 +16,5 @@ conflicts = []
 kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
 kotor1_steam_103 = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
 kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+kotor2_gog_aspyr = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"
+kotor2_steam_aspyr = "6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"
