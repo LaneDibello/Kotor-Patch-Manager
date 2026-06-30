@@ -14,6 +14,26 @@
 /// </summary>
 template<typename T>
 class CExoArrayList : public GameAPIObject {
+    // === Element category (see docs/CExoArrayList_WrapperAware.md) ===
+    // A "wrapper pointer" element (e.g. CSWGuiControl*) is a pointer to a
+    // GameAPIObject-derived handle. The game stores these lists as arrays of
+    // raw game-object pointers, so we marshal via GetPtr() on the way in and
+    // reconstruct a wrapper on the way out.
+    static constexpr bool kIsWrapperPtr =
+        std::is_pointer<T>::value &&
+        std::is_base_of<GameAPIObject, typename std::remove_pointer<T>::type>::value;
+
+    // A "wrapper value" element (e.g. CSWGuiControl) would require sizing slots
+    // by the game class size and a (shallow) memcpy on copy. Reserved for now.
+    static constexpr bool kIsWrapperValue =
+        !std::is_pointer<T>::value &&
+        std::is_base_of<GameAPIObject, T>::value;
+
+    static_assert(!kIsWrapperValue,
+        "CExoArrayList<Wrapper> (by-value storage of a GameAPIObject) is not yet "
+        "supported. Use CExoArrayList<Wrapper*> for the game's pointer arrays. "
+        "See docs/CExoArrayList_WrapperAware.md (row 4).");
+
 public:
     /// <summary>
     /// Wraps an existing CExoArrayList in game memory.
@@ -117,6 +137,23 @@ public:
     /// </summary>
     int GetCapacity() const;
 
+    /// <summary>
+    /// Gets the raw stored value at an index as a void*. For wrapper-pointer
+    /// lists this is the raw game-object pointer; for other lists it is the
+    /// element's bytes reinterpreted as a pointer (rarely useful for PODs).
+    /// </summary>
+    void* GetRaw(int index) const;
+
+    /// <summary>
+    /// Invokes fn for each element in order. For wrapper-pointer lists
+    /// (e.g. CExoArrayList&lt;CSWGuiControl*&gt;), fn receives a non-owning stack
+    /// wrapper by reference (e.g. CSWGuiControl&amp;). For all other element types,
+    /// fn receives a reference to the stored element (T&amp;). This is the safe way
+    /// to read wrapper lists; see operator[] caveat in the docs.
+    /// </summary>
+    template<typename Fn>
+    void ForEach(Fn&& fn);
+
     // === Operators ===
 
     /// <summary>
@@ -148,6 +185,15 @@ public:
 private:
     static bool functionsInitialized;
     static bool offsetsInitialized;
+
+    /// <summary>
+    /// Maps a caller-supplied element to the value actually stored in the
+    /// buffer. For wrapper-pointer lists this is the wrapped raw game pointer
+    /// (value-&gt;GetPtr()); for all other element types it is the value itself.
+    /// Used by every store/compare path so the buffer always holds the same
+    /// representation the game expects.
+    /// </summary>
+    static T toStored(const T& value);
 
     /// <summary>
     /// Helper to grow capacity when needed (doubles capacity, or sets to 10 if 0).
@@ -281,7 +327,7 @@ void CExoArrayList<T>::Add(const T& value) {
     int size = GetSize();
 
     if (data) {
-        data[size] = value;
+        data[size] = toStored(value);
         SetSizeInternal(size + 1);
     }
 }
@@ -359,9 +405,10 @@ int CExoArrayList<T>::Count(const T& value) const {
     T* data = GetData();
     int size = GetSize();
     int count = 0;
+    T target = toStored(value);
 
     for (int i = 0; i < size; i++) {
-        if (data[i] == value) {
+        if (data[i] == target) {
             count++;
         }
     }
@@ -397,9 +444,10 @@ int CExoArrayList<T>::IndexOf(const T& value) const {
 
     T* data = GetData();
     int size = GetSize();
+    T target = toStored(value);
 
     for (int i = 0; i < size; i++) {
-        if (data[i] == value) {
+        if (data[i] == target) {
             return i;
         }
     }
@@ -424,7 +472,7 @@ void CExoArrayList<T>::Insert(const T& value, int index) {
     }
 
     // Insert new value
-    data[index] = value;
+    data[index] = toStored(value);
     SetSizeInternal(size + 1);
 }
 
@@ -433,11 +481,12 @@ void CExoArrayList<T>::Remove(const T& value) {
     if (!objectPtr) return;
 
     int size = GetSize();
+    T target = toStored(value);
 
     // Find last occurrence
     for (int i = size - 1; i >= 0; i--) {
         T* data = GetData();
-        if (data[i] == value) {
+        if (data[i] == target) {
             DeleteAt(i);
             return;
         }
@@ -449,9 +498,10 @@ void CExoArrayList<T>::RemoveAll(const T& value) {
     if (!objectPtr) return;
 
     // Remove from back to front to avoid index shifting issues
+    T target = toStored(value);
     for (int i = GetSize() - 1; i >= 0; i--) {
         T* data = GetData();
-        if (data[i] == value) {
+        if (data[i] == target) {
             DeleteAt(i);
         }
     }
@@ -498,6 +548,47 @@ template<typename T>
 int CExoArrayList<T>::GetCapacity() const {
     if (!objectPtr) return 0;
     return getObjectProperty<int>(objectPtr, 0x8);
+}
+
+template<typename T>
+T CExoArrayList<T>::toStored(const T& value) {
+    if constexpr (kIsWrapperPtr) {
+        // value is a wrapper pointer (e.g. CSWGuiControl*); store the raw
+        // game-object pointer it wraps.
+        return reinterpret_cast<T>(value ? value->GetPtr() : nullptr);
+    } else {
+        return value;
+    }
+}
+
+template<typename T>
+void* CExoArrayList<T>::GetRaw(int index) const {
+    T* data = GetData();
+    if (!data || index < 0 || index >= GetSize()) return nullptr;
+    if constexpr (std::is_pointer<T>::value) {
+        // Pointer element: return the stored pointer value (the raw game pointer
+        // for wrapper-pointer lists).
+        return reinterpret_cast<void*>(data[index]);
+    } else {
+        // Value element: return the address of the inline slot.
+        return &data[index];
+    }
+}
+
+template<typename T>
+template<typename Fn>
+void CExoArrayList<T>::ForEach(Fn&& fn) {
+    T* data = GetData();
+    int size = GetSize();
+    for (int i = 0; i < size; i++) {
+        if constexpr (kIsWrapperPtr) {
+            // Reconstruct a non-owning wrapper around the stored raw pointer.
+            typename std::remove_pointer<T>::type wrapper(reinterpret_cast<void*>(data[i]));
+            fn(wrapper);
+        } else {
+            fn(data[i]);
+        }
+    }
 }
 
 template<typename T>
