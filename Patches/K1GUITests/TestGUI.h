@@ -3,8 +3,12 @@
 #include "GameAPI/CSWGuiManager.h"
 #include "GameAPI/CSWGuiLabel.h"
 #include "GameAPI/CSWGuiButton.h"
+#include "GameAPI/CSWGuiText.h"
+#include "GameAPI/CSWGuiTextParams.h"
+#include "GameAPI/CSWGuiListBox.h"
 #include "GameAPI/CResRef.h"
 #include "GameAPI/CExoString.h"
+#include "GameAPI/CExoArrayList.h"
 
 class TestGUI : public CSWGuiPanel {
 public:
@@ -17,6 +21,7 @@ public:
     CSWGuiButton greenButton;
     CSWGuiButton blueButton;
     CSWGuiButton violetButton;
+    CSWGuiListBox testListBox;
 
     // Callbacks
     void buttonCallback(void* control) {
@@ -59,7 +64,8 @@ public:
         yellowButton(),
         greenButton(),
         blueButton(),
-        violetButton()
+        violetButton(),
+        testListBox()
     {
 
         CResRef guiResref("test1");
@@ -80,7 +86,24 @@ public:
         this->InitControl(&blueButton, &blueTag, 1);
         CExoString violetTag("B_VIOLET");
         this->InitControl(&violetButton, &violetTag, 1);
+        CExoString lbTag("LB_TEST");
+        this->InitControl(&testListBox, &lbTag, 1);
         this->StopLoadFromLayout();
+
+        // Populate the list box with the color buttons. Spelled exactly as the
+        // game stores control lists (CExoArrayList<CSWGuiControl*>); the wrapper
+        // marshals each button to its raw game pointer via GetPtr() internally.
+        CExoArrayList<CSWGuiControl*> listButtons;
+        for (int i = 0; i < 5; i++) {
+            CSWGuiButton* button = new CSWGuiButton();
+            char testBuffer[16];
+            sprintf_s(testBuffer, 16, "Button %i", i);
+            CExoString buttonText(testBuffer);
+            button->GetText()->GetTextParams()->SetText(&buttonText);
+            listButtons.Add(button);
+        }
+        testListBox.AddControls(&listButtons, 0, 1, 0);
+        testListBox.SetSelectedControl(0, 0);
 
         redButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
         orangeButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
