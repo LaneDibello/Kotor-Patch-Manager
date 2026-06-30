@@ -1,0 +1,13 @@
+[patch]
+id = "shader-override"
+name = "Shader Override"
+version = "1.0"
+author = "J"
+description = "Dumps ARB shaders to disk and replaces them with editable override files. Press F10 in-game to open the shader overlay."
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor2_gog_aspyr = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"
