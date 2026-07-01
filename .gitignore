@@ -25,6 +25,9 @@ mono_crash.*
 # patch Results
 *.kpatch
 
+# Temporary Files
+*.temp
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
