@@ -172,6 +172,19 @@ type = "simple"
 original_bytes = [0x0f, 0xb6, 0xcb]
 replacement_bytes = [0x90, 0x89, 0xd9]
 
+[[hooks]] # Treatment of (Rules->internal).required_exp_per_level in CSWSCreatureStats::SetExperience level-up threshold check
+address = 0x005af65b
+type = "replace"
+original_bytes = [
+					0xa1, 0x28, 0x3a, 0x7a, 0x00, # MOV EAX, dword ptr [Rules]
+					0x8b, 0x44, 0x90, 0x38        # MOV EAX, dword ptr [EAX+EDX*4+0x38]
+				]
+replacement_bytes = [
+					0xa1, 0x28, 0x3a, 0x7a, 0x00, # MOV EAX, dword ptr [Rules]
+					0x8b, 0x40, 0x38,             # MOV EAX, dword ptr [EAX+0x38]
+					0x8b, 0x04, 0x90              # MOV EAX, dword ptr [EAX+EDX*4]
+				]
+
 # CSWSCreatureStats::GetLevel
 [[hooks]]
 address = 0x005a6049

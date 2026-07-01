@@ -1,0 +1,41 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+]
+# KOTOR 1/ swkotor.exe
+# Store expensive-item confirmation bypass patch.
+#
+# The original code uses:
+#   cmp item_value, threshold
+#   jbe direct_transaction
+#   ... build confirmation message box ...
+#
+# These hooks replace the conditional jbe with an unconditional near jmp to the
+# same direct transaction blocks. The item value and threshold are still computed,
+# but the expensive-item confirmation box is never entered.
+#
+# All addresses are virtual addresses. For this PE, file offset = VA - 0x00400000.
+
+[[hooks]]
+# Sell path: always jump to direct SellItem block.
+# Original:
+#   006C1023  0F 86 E5 00 00 00    jbe 0x006C110E
+# Patched:
+#   006C1023  E9 E6 00 00 00 90    jmp 0x006C110E ; nop
+address = 0x006C1023
+type = "simple"
+original_bytes = [0x0F, 0x86, 0xE5, 0x00, 0x00, 0x00]
+replacement_bytes = [0xE9, 0xE6, 0x00, 0x00, 0x00, 0x90]
+
+[[hooks]]
+# Buy path: always jump to direct BuyItem block after the affordability check has passed.
+# Original:
+#   006C120C  0F 86 E5 00 00 00    jbe 0x006C12F7
+# Patched:
+#   006C120C  E9 E6 00 00 00 90    jmp 0x006C12F7 ; nop
+address = 0x006C120C
+type = "simple"
+original_bytes = [0x0F, 0x86, 0xE5, 0x00, 0x00, 0x00]
+replacement_bytes = [0xE9, 0xE6, 0x00, 0x00, 0x00, 0x90]

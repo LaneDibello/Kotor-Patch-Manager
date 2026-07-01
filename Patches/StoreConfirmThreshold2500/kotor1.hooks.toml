@@ -1,0 +1,68 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+]
+
+# KOTOR 1 / swkotor.exe
+# Store expensive-item confirmation threshold patch.
+#
+# Original behavior:
+#   Buy confirmation threshold  = player_level * 50, fallback 50
+#   Sell confirmation threshold = min(player_level * 50, 250), fallback/cap 250
+#
+# Patched behavior:
+#   Buy confirmation threshold  = 2500
+#   Sell confirmation threshold = 2500
+#
+# All addresses are virtual addresses. For this PE, file offset = VA - 0x00400000.
+# 2500 decimal = 0x000009C4 = C4 09 00 00 little-endian.
+
+[[hooks]]
+# Buy path: redirect the no-player fallback branch to the shared fixed-threshold load.
+# Original:
+#   006C11E4  74 17       je 0x006C11FD
+# Patched:
+#   006C11E4  74 12       je 0x006C11F8
+address = 0x006C11E4
+type = "simple"
+original_bytes = [0x74, 0x17]
+replacement_bytes = [0x74, 0x12]
+
+[[hooks]]
+# Buy path: replace level*50/fallback-50 threshold setup with fixed edi = 2500.
+# Original:
+#   006C11F8  6B FF 32             imul edi, edi, 0x32
+#   006C11FB  EB 05                jmp 0x006C1202
+#   006C11FD  BF 32 00 00 00       mov edi, 0x32
+# Patched:
+#   006C11F8  BF C4 09 00 00       mov edi, 0x9C4
+#   006C11FD  EB 03                jmp 0x006C1202
+#   006C11FF  90 90 90             nop; nop; nop
+address = 0x006C11F8
+type = "simple"
+original_bytes = [0x6B, 0xFF, 0x32, 0xEB, 0x05, 0xBF, 0x32, 0x00, 0x00, 0x00]
+replacement_bytes = [0xBF, 0xC4, 0x09, 0x00, 0x00, 0xEB, 0x03, 0x90, 0x90, 0x90]
+
+[[hooks]]
+# Sell path: always use the capped-threshold path.
+# Original:
+#   006C0FFB  7F 17       jg 0x006C1014
+# Patched:
+#   006C0FFB  EB 17       jmp 0x006C1014
+address = 0x006C0FFB
+type = "simple"
+original_bytes = [0x7F, 0x17]
+replacement_bytes = [0xEB, 0x17]
+
+[[hooks]]
+# Sell path: change the cap/fallback value from 250 to 2500.
+# Original:
+#   006C1014  BF FA 00 00 00       mov edi, 0xFA
+# Patched:
+#   006C1014  BF C4 09 00 00       mov edi, 0x9C4
+address = 0x006C1014
+type = "simple"
+original_bytes = [0xBF, 0xFA, 0x00, 0x00, 0x00]
+replacement_bytes = [0xBF, 0xC4, 0x09, 0x00, 0x00]
