@@ -6,6 +6,7 @@
 #include "CResRef.h"
 #include "CSWCCreature.h"
 #include "CGameObject.h"
+#include "CGuiInGame.h"
 
 CClientExoApp::GetClientOptionsFn CClientExoApp::getClientOptions = nullptr;
 
@@ -41,6 +42,7 @@ CClientExoApp::DismissInGameGUIFn CClientExoApp::dismissInGameGUI = nullptr;
 CClientExoApp::DisplayMainMenuFn CClientExoApp::displayMainMenu = nullptr;
 CClientExoApp::ShutDownToMainMenuFn CClientExoApp::shutDownToMainMenu = nullptr;
 CClientExoApp::GetGUIStringFn CClientExoApp::getGUIString = nullptr;
+CClientExoApp::GetInGameGuiFn CClientExoApp::getInGameGui = nullptr;
 
 CClientExoApp::ExitProgramFn CClientExoApp::exitProgram = nullptr;
 CClientExoApp::QueryExitProgramFn CClientExoApp::queryExitProgram = nullptr;
@@ -150,6 +152,8 @@ void CClientExoApp::InitializeFunctions() {
             GameVersion::GetFunctionAddress("CClientExoApp", "ShutDownToMainMenu"));
         getGUIString = reinterpret_cast<GetGUIStringFn>(
             GameVersion::GetFunctionAddress("CClientExoApp", "GetGUIString"));
+        getInGameGui = reinterpret_cast<GetInGameGuiFn>(
+            GameVersion::GetFunctionAddress("CClientExoApp", "GetInGameGui"));
 
         exitProgram = reinterpret_cast<ExitProgramFn>(
             GameVersion::GetFunctionAddress("CClientExoApp", "ExitProgram"));
@@ -488,6 +492,19 @@ CExoString* CClientExoApp::GetGUIString(CExoString* outString, DWORD strRef) {
     }
 
     return new CExoString(resultPtr);
+}
+
+CGuiInGame* CClientExoApp::GetInGameGui() {
+    if (!objectPtr || !getInGameGui) {
+        return nullptr;
+    }
+
+    void* guiInGamePtr = getInGameGui(objectPtr);
+    if (!guiInGamePtr) {
+        return nullptr;
+    }
+
+    return new CGuiInGame(guiInGamePtr);
 }
 
 // ===== Program lifecycle =====
