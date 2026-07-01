@@ -8,6 +8,7 @@ class CExoString;
 class CResRef;
 class CSWCCreature;
 class CGameObject;
+class CGuiInGame;
 
 class CClientExoApp : public GameAPIObject {
 public:
@@ -53,6 +54,8 @@ public:
     void DisplayMainMenu();
     void ShutDownToMainMenu();
     CExoString* GetGUIString(CExoString* outString, DWORD strRef);
+    // Returns the in-game GUI manager (heap-allocated wrapper; caller owns it). K1 only.
+    CGuiInGame* GetInGameGui();
 
     // Program lifecycle
     void ExitProgram();
@@ -135,6 +138,7 @@ private:
     typedef void(__thiscall* DisplayMainMenuFn)(void* thisPtr);
     typedef void(__thiscall* ShutDownToMainMenuFn)(void* thisPtr);
     typedef void* (__thiscall* GetGUIStringFn)(void* thisPtr, void* outString, DWORD strRef);
+    typedef void* (__thiscall* GetInGameGuiFn)(void* thisPtr);
 
     typedef void(__stdcall* ExitProgramFn)();
     typedef void(__thiscall* QueryExitProgramFn)(void* thisPtr);
@@ -201,6 +205,7 @@ private:
     static DisplayMainMenuFn displayMainMenu;
     static ShutDownToMainMenuFn shutDownToMainMenu;
     static GetGUIStringFn getGUIString;
+    static GetInGameGuiFn getInGameGui;
 
     static ExitProgramFn exitProgram;
     static QueryExitProgramFn queryExitProgram;
