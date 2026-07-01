@@ -112,18 +112,18 @@ public:
             sprintf_s(testBuffer, 16, "Button %i", i);
             CExoString buttonText(testBuffer);
             button->GetText()->GetTextParams()->SetText(&buttonText);
-            button->AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+            button->AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback)); //OnClick Event
             listButtons.Add(button);
         }
         testListBox.AddControls(&listButtons, 1, 0, 0);
         testListBox.SetSelectedControl(0, 0);
 
-        redButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        orangeButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        yellowButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        greenButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        blueButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        violetButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+        redButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        orangeButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        yellowButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        greenButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        blueButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        violetButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
 
         // Redirect the panel's HandleInputEvent to our handler
         this->OverrideHandleInputEvent(memberFuncAddr(&TestGUI::_HandleInputEvent));
