@@ -1,0 +1,35 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+]
+
+# KOTOR 1 / 1.03
+#
+# Reworks the old double-weapon/off-hand repeater hook into a main-hand bonus.
+# This is the same original site used by the existing RepeatingBlaster patch:
+# CSWSCombatRound::CalculateOffHandAttacks, at the double-weapon
+# weapon_wield == 3 check.
+#
+# Behavior:
+#   weapon_wield == 3: fall through to the original double-weapon off-hand path.
+#   weapon_wield == 6: increment CSWSCombatRound::on_hand_attacks at this + 0x990,
+#                      then skip the original off-hand assignment.
+#   otherwise:         skip the original off-hand assignment.
+#
+# Register note:
+#   The K1 optimized function keeps the CSWSCombatRound pointer in ESI at this
+#   site; EAX is the CSWBaseItem pointer already being checked by vanilla code.
+
+[[hooks]]
+address = 0x004D2B16
+type = "replace"
+# Original: cmp byte ptr [eax + CSWBaseItem::weapon_wield], 3; jne 0x004D2B21
+original_bytes = [
+    0x80, 0x78, 0x08, 0x03, 0x75, 0x05
+]
+replacement_bytes = [
+    0x80, 0x78, 0x08, 0x03, 0x74, 0x12, 0x80, 0x78, 0x08, 0x06, 0x75, 0x06,
+    0xFF, 0x86, 0x90, 0x09, 0x00, 0x00, 0x68, 0x21, 0x2B, 0x4D, 0x00, 0xC3
+]
