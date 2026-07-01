@@ -54,7 +54,8 @@ namespace KotorPatcher {
                 return true;
             }
             // Prevent 32-bit wrap/overflow for the DWORD + length calculation
-            DWORD endAddr64 = static_cast<DWORD>(startAddress) + static_cast<DWORD>(length);
+            // Compute in 64-bit so the comparison is meaningful (a DWORD can never exceed 0xFFFFFFFF).
+            unsigned long long endAddr64 = static_cast<unsigned long long>(startAddress) + static_cast<unsigned long long>(length);
             if (endAddr64 > 0xFFFFFFFFULL) {
                 OutputDebugStringA("[Trampoline] WriteNoOps: requested range overflows 32-bit address space\n");
                 return false;

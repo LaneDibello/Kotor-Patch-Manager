@@ -223,10 +223,12 @@ namespace KotorPatcher {
             return false;
         }
 
-        // Clear out the remaining bytes with NOPs
-        if (!Trampoline::WriteNoOps(patch.hookAddress + 5, patch.originalBytes.size() - 5)) {
-            OutputDebugStringA("[KotorPatcher] Failed to write No-Ops after trampoline\n");
-            return false;
+        // Clear out the remaining bytes with NOPs (only if there are stolen bytes beyond the 5-byte JMP)
+        if (patch.originalBytes.size() > 5) {
+            if (!Trampoline::WriteNoOps(patch.hookAddress + 5, patch.originalBytes.size() - 5)) {
+                OutputDebugStringA("[KotorPatcher] Failed to write No-Ops after trampoline\n");
+                return false;
+            }
         }
 
 
