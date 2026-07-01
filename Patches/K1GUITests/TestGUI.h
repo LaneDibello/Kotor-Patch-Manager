@@ -90,12 +90,16 @@ public:
         this->InitControl(&testListBox, &lbTag, 1);
         this->StopLoadFromLayout();
 
-        // Populate the list box with the color buttons. Spelled exactly as the
-        // game stores control lists (CExoArrayList<CSWGuiControl*>); the wrapper
-        // marshals each button to its raw game pointer via GetPtr() internally.
+        CSWGuiExtent buttonExtent;
+        buttonExtent.top = 0;
+        buttonExtent.left = 0;
+        buttonExtent.height = 100;
+        buttonExtent.width = 100;
+
         CExoArrayList<CSWGuiControl*> listButtons;
         for (int i = 0; i < 5; i++) {
             CSWGuiButton* button = new CSWGuiButton();
+            button->SetExtent(buttonExtent);
             char testBuffer[16];
             sprintf_s(testBuffer, 16, "Button %i", i);
             CExoString buttonText(testBuffer);
