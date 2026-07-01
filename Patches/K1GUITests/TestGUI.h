@@ -3,8 +3,14 @@
 #include "GameAPI/CSWGuiManager.h"
 #include "GameAPI/CSWGuiLabel.h"
 #include "GameAPI/CSWGuiButton.h"
+#include "GameAPI/CSWGuiText.h"
+#include "GameAPI/CSWGuiTextParams.h"
+#include "GameAPI/CSWGuiBorder.h"
+#include "GameAPI/CSWGuiBorderParams.h"
+#include "GameAPI/CSWGuiListBox.h"
 #include "GameAPI/CResRef.h"
 #include "GameAPI/CExoString.h"
+#include "GameAPI/CExoArrayList.h"
 
 class TestGUI : public CSWGuiPanel {
 public:
@@ -17,6 +23,7 @@ public:
     CSWGuiButton greenButton;
     CSWGuiButton blueButton;
     CSWGuiButton violetButton;
+    CSWGuiListBox testListBox;
 
     // Callbacks
     void buttonCallback(void* control) {
@@ -59,7 +66,8 @@ public:
         yellowButton(),
         greenButton(),
         blueButton(),
-        violetButton()
+        violetButton(),
+        testListBox()
     {
 
         CResRef guiResref("test1");
@@ -80,14 +88,42 @@ public:
         this->InitControl(&blueButton, &blueTag, 1);
         CExoString violetTag("B_VIOLET");
         this->InitControl(&violetButton, &violetTag, 1);
+        CExoString lbTag("LB_TEST");
+        this->InitControl(&testListBox, &lbTag, 1);
         this->StopLoadFromLayout();
 
-        redButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        orangeButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        yellowButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        greenButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        blueButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
-        violetButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
+        // Style each item from the listbox's proto item (loaded from the .gui).
+        // Width comes from the viewport (minus padding), height from the proto extent.
+        CSWGuiButton proto(testListBox.GetProtoItem()->GetPtr());
+        CSWGuiExtent buttonExtent;
+        buttonExtent.top = 0;
+        buttonExtent.left = 0;
+        buttonExtent.width = testListBox.GetViewportWidth() - 2 * testListBox.GetPadding();
+        buttonExtent.height = proto.GetExtent().height;
+
+        CExoArrayList<CSWGuiControl*> listButtons;
+        for (int i = 0; i < 5; i++) {
+            CSWGuiButton* button = new CSWGuiButton();
+            button->Initialize(&buttonExtent,
+                               proto.GetText()->GetTextParams(),
+                               proto.GetBorder1()->GetBorderParams(),
+                               proto.GetBorder2()->GetBorderParams());
+            char testBuffer[16];
+            sprintf_s(testBuffer, 16, "Button %i", i);
+            CExoString buttonText(testBuffer);
+            button->GetText()->GetTextParams()->SetText(&buttonText);
+            button->AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback)); //OnClick Event
+            listButtons.Add(button);
+        }
+        testListBox.AddControls(&listButtons, 1, 0, 0);
+        testListBox.SetSelectedControl(0, 0);
+
+        redButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        orangeButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        yellowButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        greenButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        blueButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
+        violetButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&TestGUI::buttonCallback));
 
         // Redirect the panel's HandleInputEvent to our handler
         this->OverrideHandleInputEvent(memberFuncAddr(&TestGUI::_HandleInputEvent));
