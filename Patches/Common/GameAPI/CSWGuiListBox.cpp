@@ -39,7 +39,13 @@ int CSWGuiListBox::offsetScrollbar = -1;
 int CSWGuiListBox::offsetControls = -1;
 int CSWGuiListBox::offsetControlExtents = -1;
 int CSWGuiListBox::offsetHoveredControl = -1;
+int CSWGuiListBox::offsetProtoItem = -1;
 int CSWGuiListBox::offsetColor = -1;
+int CSWGuiListBox::offsetViewportX = -1;
+int CSWGuiListBox::offsetViewportY = -1;
+int CSWGuiListBox::offsetViewportWidth = -1;
+int CSWGuiListBox::offsetViewportHeight = -1;
+int CSWGuiListBox::offsetPadding = -1;
 
 void CSWGuiListBox::InitializeFunctions() {
     if (functionsInitialized) {
@@ -106,7 +112,13 @@ void CSWGuiListBox::InitializeOffsets() {
         offsetControls       = GameVersion::GetOffset("CSWGuiListBox", "controls");
         offsetControlExtents = GameVersion::GetOffset("CSWGuiListBox", "control_extents");
         offsetHoveredControl = GameVersion::GetOffset("CSWGuiListBox", "hovered_control");
+        offsetProtoItem      = GameVersion::GetOffset("CSWGuiListBox", "proto_item");
         offsetColor          = GameVersion::GetOffset("CSWGuiListBox", "color");
+        offsetViewportX      = GameVersion::GetOffset("CSWGuiListBox", "viewport_x");
+        offsetViewportY      = GameVersion::GetOffset("CSWGuiListBox", "viewport_y");
+        offsetViewportWidth  = GameVersion::GetOffset("CSWGuiListBox", "viewport_width");
+        offsetViewportHeight = GameVersion::GetOffset("CSWGuiListBox", "viewport_height");
+        offsetPadding        = GameVersion::GetOffset("CSWGuiListBox", "padding");
         classSize = GameVersion::GetClassSize("CSWGuiListBox");
 
         offsetsInitialized = true;
@@ -195,6 +207,42 @@ CSWGuiControl* CSWGuiListBox::GetHoveredControl() {
         return nullptr;
     }
     return new CSWGuiControl(ctrlPtr);
+}
+
+CSWGuiControl* CSWGuiListBox::GetProtoItem() {
+    if (!objectPtr || offsetProtoItem < 0) {
+        return nullptr;
+    }
+    void* protoPtr = getObjectProperty<void*>(objectPtr, offsetProtoItem);
+    if (!protoPtr) {
+        return nullptr;
+    }
+    return new CSWGuiControl(protoPtr);
+}
+
+int CSWGuiListBox::GetViewportX() {
+    if (!objectPtr || offsetViewportX < 0) return 0;
+    return getObjectProperty<int>(objectPtr, offsetViewportX);
+}
+
+int CSWGuiListBox::GetViewportY() {
+    if (!objectPtr || offsetViewportY < 0) return 0;
+    return getObjectProperty<int>(objectPtr, offsetViewportY);
+}
+
+int CSWGuiListBox::GetViewportWidth() {
+    if (!objectPtr || offsetViewportWidth < 0) return 0;
+    return getObjectProperty<int>(objectPtr, offsetViewportWidth);
+}
+
+int CSWGuiListBox::GetViewportHeight() {
+    if (!objectPtr || offsetViewportHeight < 0) return 0;
+    return getObjectProperty<int>(objectPtr, offsetViewportHeight);
+}
+
+int CSWGuiListBox::GetPadding() {
+    if (!objectPtr || offsetPadding < 0) return 0;
+    return getObjectProperty<unsigned char>(objectPtr, offsetPadding); // padding is a byte
 }
 
 Vector CSWGuiListBox::GetColor() {

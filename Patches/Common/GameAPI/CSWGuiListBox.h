@@ -20,8 +20,14 @@ public:
     CExoArrayList<CSWGuiControl*>* GetControls();
     CExoArrayList<CSWGuiExtent>* GetControlExtents();
     CSWGuiControl* GetHoveredControl();
+    CSWGuiControl* GetProtoItem();
     Vector GetColor();
     void SetColor(const Vector& color);
+    int GetViewportX();
+    int GetViewportY();
+    int GetViewportWidth();
+    int GetViewportHeight();
+    int GetPadding();
 
     // Functions
     void AddControls(CExoArrayList<CSWGuiControl*>* controls, int suppressCleanUp, int restoreExtents, int varyItemHeights);
@@ -109,5 +115,11 @@ protected:
     static int offsetControls;
     static int offsetControlExtents;
     static int offsetHoveredControl;
+    static int offsetProtoItem;
     static int offsetColor;
+    static int offsetViewportX;
+    static int offsetViewportY;
+    static int offsetViewportWidth;
+    static int offsetViewportHeight;
+    static int offsetPadding;
 };
