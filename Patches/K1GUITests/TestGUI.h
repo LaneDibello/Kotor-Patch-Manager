@@ -5,6 +5,8 @@
 #include "GameAPI/CSWGuiButton.h"
 #include "GameAPI/CSWGuiText.h"
 #include "GameAPI/CSWGuiTextParams.h"
+#include "GameAPI/CSWGuiBorder.h"
+#include "GameAPI/CSWGuiBorderParams.h"
 #include "GameAPI/CSWGuiListBox.h"
 #include "GameAPI/CResRef.h"
 #include "GameAPI/CExoString.h"
@@ -90,23 +92,30 @@ public:
         this->InitControl(&testListBox, &lbTag, 1);
         this->StopLoadFromLayout();
 
+        // Style each item from the listbox's proto item (loaded from the .gui).
+        // Width comes from the viewport (minus padding), height from the proto extent.
+        CSWGuiButton proto(testListBox.GetProtoItem()->GetPtr());
         CSWGuiExtent buttonExtent;
         buttonExtent.top = 0;
         buttonExtent.left = 0;
-        buttonExtent.height = 100;
-        buttonExtent.width = 100;
+        buttonExtent.width = testListBox.GetViewportWidth() - 2 * testListBox.GetPadding();
+        buttonExtent.height = proto.GetExtent().height;
 
         CExoArrayList<CSWGuiControl*> listButtons;
         for (int i = 0; i < 5; i++) {
             CSWGuiButton* button = new CSWGuiButton();
-            button->SetExtent(buttonExtent);
+            button->Initialize(&buttonExtent,
+                               proto.GetText()->GetTextParams(),
+                               proto.GetBorder1()->GetBorderParams(),
+                               proto.GetBorder2()->GetBorderParams());
             char testBuffer[16];
             sprintf_s(testBuffer, 16, "Button %i", i);
             CExoString buttonText(testBuffer);
             button->GetText()->GetTextParams()->SetText(&buttonText);
+            button->AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
             listButtons.Add(button);
         }
-        testListBox.AddControls(&listButtons, 0, 1, 0);
+        testListBox.AddControls(&listButtons, 1, 0, 0);
         testListBox.SetSelectedControl(0, 0);
 
         redButton.AddEvent(0x27, this, memberFuncAddr(&TestGUI::buttonCallback));
