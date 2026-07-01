@@ -1,0 +1,14 @@
+[patch]
+id = "k1-pazaak-k2-speed"
+name = "KOTOR 1 Pazaak KOTOR 2 Speed"
+version = "1.0.0"
+author = "Vriff"
+description = "Retunes KOTOR 1 GOG 1.03 pazaak GUI sequence delays to match the shorter KOTOR 2 pacing constants: 0.4s -> 0.1s for two state transitions, and 0.8s -> 0.2s for the AI action delay."
+
+requires = []
+conflicts = []
+
+[patch.supported_versions]
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+kotor1_steam_103 = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
+kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
