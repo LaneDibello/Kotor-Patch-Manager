@@ -1,0 +1,3 @@
+LIBRARY K2AspyrVisibleConsole
+EXPORTS
+    DrawVisibleConsoleText

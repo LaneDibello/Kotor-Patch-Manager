@@ -1,0 +1,29 @@
+[metadata]
+target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"]
+
+# KOTOR2 Aspyr leaves the legacy debug text renderer empty:
+#   0081A250 55        PUSH EBP
+#   0081A251 8B EC     MOV EBP, ESP
+#   0081A253 5D        POP EBP
+#   0081A254 C3        RET
+#
+# The cheat console still queues prompt/input text through this renderer, so replacing
+# the empty function is enough to make the existing console visible again.
+[[hooks]]
+address = 0x0081A250
+function = "DrawVisibleConsoleText"
+original_bytes = [0x55, 0x8B, 0xEC, 0x5D, 0xC3]
+type = "detour"
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+4"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+8"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+12"
+type = "pointer"
