@@ -26,9 +26,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{E2EC2B
 	ProjectSection(SolutionItems) = preProject
 		Patches\Common\Common.cpp = Patches\Common\Common.cpp
 		Patches\Common\Common.h = Patches\Common\Common.h
-		Patches\Common\Kotor1Functions.cpp = Patches\Common\Kotor1Functions.cpp
-		Patches\Common\Kotor1Functions.h = Patches\Common\Kotor1Functions.h
 		Patches\Common\VirtualFunctionCall.h = Patches\Common\VirtualFunctionCall.h
+	
+		Patches\Common\VTableOverride.h = Patches\Common\VTableOverride.h
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AdditionalConsoleCommands", "AdditionalConsoleCommands", "{F96014DA-1F4F-4367-810D-860A753FD9F9}"
@@ -74,7 +74,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ScriptExtender", "ScriptExt
 		Patches\ScriptExtender\hooks.toml = Patches\ScriptExtender\hooks.toml
 		Patches\ScriptExtender\manifest.toml = Patches\ScriptExtender\manifest.toml
 		Patches\ScriptExtender\ScriptExtender.cpp = Patches\ScriptExtender\ScriptExtender.cpp
-		Patches\ScriptExtender\todo.md = Patches\ScriptExtender\todo.md
 	
 		Patches\ScriptExtender\clientCreatures.cpp = Patches\ScriptExtender\clientCreatures.cpp
 		Patches\ScriptExtender\clientCreatures.h = Patches\ScriptExtender\clientCreatures.h
@@ -86,8 +85,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ScriptExtender", "ScriptExt
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SemiTransparentLetterbox", "SemiTransparentLetterbox", "{23452DB2-30D6-463C-BC0D-0074EBB12133}"
 	ProjectSection(SolutionItems) = preProject
-		Patches\SemiTransparentLetterbox\hooks.toml = Patches\SemiTransparentLetterbox\hooks.toml
 		Patches\SemiTransparentLetterbox\manifest.toml = Patches\SemiTransparentLetterbox\manifest.toml
+	
+		Patches\SemiTransparentLetterbox\kotor1.hooks.toml = Patches\SemiTransparentLetterbox\kotor1.hooks.toml
+		Patches\SemiTransparentLetterbox\kotor2-gog-aspyr.hooks.toml = Patches\SemiTransparentLetterbox\kotor2-gog-aspyr.hooks.toml
+		Patches\SemiTransparentLetterbox\kotor2-steam-aspyr.hooks.toml = Patches\SemiTransparentLetterbox\kotor2-steam-aspyr.hooks.toml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A8D99C40-6784-42FF-A902-E6F20AE0E981}"
@@ -114,6 +116,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{352B7770-1
 		docs\PATCH_OPTIONS_DESIGN.md = docs\PATCH_OPTIONS_DESIGN.md
 		docs\RELEASE_GUIDE.md = docs\RELEASE_GUIDE.md
 		docs\Roadmap2026.md = docs\Roadmap2026.md
+	
+		docs\CExoArrayList_WrapperAware.md = docs\CExoArrayList_WrapperAware.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{715F5B99-9F0E-4E53-8068-75AED0AD420F}"
@@ -127,7 +131,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{715F5B99-9F0
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4GBPatch", "4GBPatch", "{9885C0AB-DB6D-48B5-828E-B4B3DDA8125E}"
 	ProjectSection(SolutionItems) = preProject
-		Patches\4GBPatch\hooks.toml = Patches\4GBPatch\hooks.toml
 		Patches\4GBPatch\manifest.toml = Patches\4GBPatch\manifest.toml
 	
 		Patches\4GBPatch\kotor1.hooks.toml = Patches\4GBPatch\kotor1.hooks.toml
@@ -229,6 +232,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GameAPI", "GameAPI", "{D9D8
 		Patches\Common\GameAPI\CSWGuiText.h = Patches\Common\GameAPI\CSWGuiText.h
 		Patches\Common\GameAPI\CSWGuiTextParams.cpp = Patches\Common\GameAPI\CSWGuiTextParams.cpp
 		Patches\Common\GameAPI\CSWGuiTextParams.h = Patches\Common\GameAPI\CSWGuiTextParams.h
+	
+		Patches\Common\GameAPI\CGuiInGame.cpp = Patches\Common\GameAPI\CGuiInGame.cpp
+		Patches\Common\GameAPI\CGuiInGame.h = Patches\Common\GameAPI\CGuiInGame.h
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DialogueRepliesPast9", "DialogueRepliesPast9", "{84C74D0E-81A6-4841-B942-9BCA59C01C27}"
@@ -279,6 +285,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "additional", "additional", 
 	
 		Patches\FullPartySelect\additional\partyselect_p.gui = Patches\FullPartySelect\additional\partyselect_p.gui
 		Patches\FullPartySelect\additional\readme.md = Patches\FullPartySelect\additional\readme.md
+	
+		Patches\K1GUITests\additional\optionsingame.gui = Patches\K1GUITests\additional\optionsingame.gui
+		Patches\K1GUITests\additional\test1.gui = Patches\K1GUITests\additional\test1.gui
+	
+		Patches\ShaderOverride\additional\README.md = Patches\ShaderOverride\additional\README.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShipBuildFalse", "ShipBuildFalse", "{EE5E99F9-1328-4558-9FEB-488A38AA6AEC}"
@@ -313,6 +324,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FullPartySelect", "FullPart
 		Patches\FullPartySelect\kotor2-gog-aspyr.hooks.toml = Patches\FullPartySelect\kotor2-gog-aspyr.hooks.toml
 		Patches\FullPartySelect\kotor2-steam-aspyr.hooks.toml = Patches\FullPartySelect\kotor2-steam-aspyr.hooks.toml
 		Patches\FullPartySelect\manifest.toml = Patches\FullPartySelect\manifest.toml
+	
+		Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml = Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml
+	
+		Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml = Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GoodAlignmentHeads", "GoodAlignmentHeads", "{43E78283-596C-4BF5-AAE7-A3C70E201340}"
@@ -372,12 +387,57 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2AspyrSaberTextureFix", "K
 		Patches\K2AspyrSaberTextureFix\manifest.toml = Patches\K2AspyrSaberTextureFix\manifest.toml
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Widescreen", "Widescreen", "{E8A4B3ED-3523-42C6-8955-5C5DD92001B9}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1MarkedEmptyContainers", "K1MarkedEmptyContainers", "{14EDAB40-C701-4CC1-9857-2B386764A8A0}"
 	ProjectSection(SolutionItems) = preProject
-		Patches\Widescreen\export.cpp = Patches\Widescreen\export.cpp
-		Patches\Widescreen\exports.def = Patches\Widescreen\exports.def
-		Patches\Widescreen\hooks.toml = Patches\Widescreen\hooks.toml
-		Patches\Widescreen\manifest.toml = Patches\Widescreen\manifest.toml
+		Patches\K1MarkedEmptyContainers\kotor1.hooks.toml = Patches\K1MarkedEmptyContainers\kotor1.hooks.toml
+		Patches\K1MarkedEmptyContainers\manifest.toml = Patches\K1MarkedEmptyContainers\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2AspyrVisibleConsole", "K2AspyrVisibleConsole", "{779678C5-D3A8-4A19-8805-F7EDBFE4373C}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K2AspyrVisibleConsole\exports.def = Patches\K2AspyrVisibleConsole\exports.def
+		Patches\K2AspyrVisibleConsole\hooks.toml = Patches\K2AspyrVisibleConsole\hooks.toml
+		Patches\K2AspyrVisibleConsole\manifest.toml = Patches\K2AspyrVisibleConsole\manifest.toml
+		Patches\K2AspyrVisibleConsole\VisibleConsole.cpp = Patches\K2AspyrVisibleConsole\VisibleConsole.cpp
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MoviePatch-v1.0", "MoviePatch-v1.0", "{15C064E7-59EC-4035-8189-DE7EBD234C1C}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\MoviePatch-v1.0\better_movie_playback.cpp = Patches\MoviePatch-v1.0\better_movie_playback.cpp
+		Patches\MoviePatch-v1.0\better_movie_playback.h = Patches\MoviePatch-v1.0\better_movie_playback.h
+		Patches\MoviePatch-v1.0\export.cpp = Patches\MoviePatch-v1.0\export.cpp
+		Patches\MoviePatch-v1.0\exports.def = Patches\MoviePatch-v1.0\exports.def
+		Patches\MoviePatch-v1.0\hooks.toml = Patches\MoviePatch-v1.0\hooks.toml
+		Patches\MoviePatch-v1.0\manifest.toml = Patches\MoviePatch-v1.0\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShaderOverride", "ShaderOverride", "{E1624006-BA06-4E58-AD71-7C33E37FF4AB}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\ShaderOverride\exports.def = Patches\ShaderOverride\exports.def
+		Patches\ShaderOverride\hooks.toml = Patches\ShaderOverride\hooks.toml
+		Patches\ShaderOverride\LICENSE_gShaderReplacer.txt = Patches\ShaderOverride\LICENSE_gShaderReplacer.txt
+		Patches\ShaderOverride\LICENSE_ShaderOverride.txt = Patches\ShaderOverride\LICENSE_ShaderOverride.txt
+		Patches\ShaderOverride\manifest.toml = Patches\ShaderOverride\manifest.toml
+		Patches\ShaderOverride\ShaderOverride.cpp = Patches\ShaderOverride\ShaderOverride.cpp
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{426E78EA-516C-498E-A901-58C186163DB9}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\ShaderOverride\additional\shaders\fp_1tex_vertex_alpha_lerp_cube.arb = Patches\ShaderOverride\additional\shaders\fp_1tex_vertex_alpha_lerp_cube.arb
+		Patches\ShaderOverride\additional\shaders\fp_2tex_multiply_vertex_lit.arb = Patches\ShaderOverride\additional\shaders\fp_2tex_multiply_vertex_lit.arb
+		Patches\ShaderOverride\additional\shaders\fp_2tex_vertexplus_secondary_multiply.arb = Patches\ShaderOverride\additional\shaders\fp_2tex_vertexplus_secondary_multiply.arb
+		Patches\ShaderOverride\additional\shaders\fp_3tex_base_plus_detail_plus_alpha_add.arb = Patches\ShaderOverride\additional\shaders\fp_3tex_base_plus_detail_plus_alpha_add.arb
+		Patches\ShaderOverride\additional\shaders\fp_rect_gamma_pow_rgb.arb = Patches\ShaderOverride\additional\shaders\fp_rect_gamma_pow_rgb.arb
+		Patches\ShaderOverride\additional\shaders\shader_ident.txt = Patches\ShaderOverride\additional\shaders\shader_ident.txt
+		Patches\ShaderOverride\additional\shaders\vp_3light_diffuse_spec_fog_4tex.arb = Patches\ShaderOverride\additional\shaders\vp_3light_diffuse_spec_fog_4tex.arb
+		Patches\ShaderOverride\additional\shaders\vp_3light_diffuse_spec_fog_projected_env_tex1.arb = Patches\ShaderOverride\additional\shaders\vp_3light_diffuse_spec_fog_projected_env_tex1.arb
+		Patches\ShaderOverride\additional\shaders\vp_3light_diffuse_spec_fog_projected_env_tex2.arb = Patches\ShaderOverride\additional\shaders\vp_3light_diffuse_spec_fog_projected_env_tex2.arb
+		Patches\ShaderOverride\additional\shaders\vp_basis_transform_fog_projected_env.arb = Patches\ShaderOverride\additional\shaders\vp_basis_transform_fog_projected_env.arb
+		Patches\ShaderOverride\additional\shaders\vp_mvp_normal_fogcolor_billboard.arb = Patches\ShaderOverride\additional\shaders\vp_mvp_normal_fogcolor_billboard.arb
+		Patches\ShaderOverride\additional\shaders\vp_position_along_normal_offset_fog_2tex.arb = Patches\ShaderOverride\additional\shaders\vp_position_along_normal_offset_fog_2tex.arb
+		Patches\ShaderOverride\additional\shaders\vp_skinned_3light_diffuse_spec_fog.arb = Patches\ShaderOverride\additional\shaders\vp_skinned_3light_diffuse_spec_fog.arb
+		Patches\ShaderOverride\additional\shaders\vp_skinned_basis_transform_fog_projected_env.arb = Patches\ShaderOverride\additional\shaders\vp_skinned_basis_transform_fog_projected_env.arb
+		Patches\ShaderOverride\additional\shaders\vp_skinned_position_normal_offset_fog.arb = Patches\ShaderOverride\additional\shaders\vp_skinned_position_normal_offset_fog.arb
 	EndProjectSection
 EndProject
 Global
@@ -472,7 +532,11 @@ Global
 		{5D10BAEC-6D42-4FD6-8714-955A85E47657} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{E5BA5DC9-CF08-4165-A5A4-1FD3DFA3EC5E} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{A7FA1EDF-D28D-49FD-8DCC-138CFDA2D475} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
-		{E8A4B3ED-3523-42C6-8955-5C5DD92001B9} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{14EDAB40-C701-4CC1-9857-2B386764A8A0} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{779678C5-D3A8-4A19-8805-F7EDBFE4373C} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{15C064E7-59EC-4035-8189-DE7EBD234C1C} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{E1624006-BA06-4E58-AD71-7C33E37FF4AB} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{426E78EA-516C-498E-A901-58C186163DB9} = {0CE7EC37-B554-454F-BD2C-331F77217F1C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EC8C0764-BD06-422A-B325-D20270F5D772}
