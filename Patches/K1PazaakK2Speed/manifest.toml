@@ -1,9 +1,9 @@
 [patch]
-id = "repeating-blaster-fix"
-name = "Repeating Blaster Fix (off-hand)"
-version = "0.2.0"
-author = "Lane"
-description = "Gives an Off-Hand attack to the repeating blasters."
+id = "k1-pazaak-k2-speed"
+name = "KOTOR 1 Pazaak KOTOR 2 Speed"
+version = "1.0.0"
+author = "Vriff"
+description = "Retunes KOTOR 1 GOG 1.03 pazaak GUI sequence delays to match the shorter KOTOR 2 pacing constants: 0.4s -> 0.1s for two state transitions, and 0.8s -> 0.2s for the AI action delay."
 
 requires = []
 conflicts = []

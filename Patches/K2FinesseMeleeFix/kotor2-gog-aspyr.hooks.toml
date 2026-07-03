@@ -1,0 +1,33 @@
+[metadata]
+target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"]
+
+# KOTOR 2 GOG Aspyr / swkotor2.exe
+# Strict Finesse behavior patch.
+#
+# Function:
+#   CSWSCreatureStats::GetWeaponFinesse(CSWSItem*)
+#   VA 0x006F5220, file offset 0x002F4620
+#
+# Original lightsaber path:
+#   if item is a lightsaber:
+#       if HasFeat(0xC1) return true      ; Finesse: Lightsabers
+#       else fall through to melee check  ; allows Finesse: Melee Weapons
+#
+# Patched lightsaber path:
+#   if item is a lightsaber:
+#       if HasFeat(0xC1) return true
+#       else return false
+#
+# This leaves non-lightsaber melee weapons unchanged.
+# File offset for .text addresses in this executable: VA - 0x00400C00.
+# Validated SHA-256: 777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914
+
+# Original:
+#   006F5279  74 09  je 0x006F5284  ; no Finesse: Lightsabers -> continue to melee-weapon check
+# Patched:
+#   006F5279  74 78  je 0x006F52F3  ; no Finesse: Lightsabers -> return false
+[[hooks]]
+address = 0x006F5279
+type = "simple"
+original_bytes = [0x74, 0x09]
+replacement_bytes = [0x74, 0x78]
