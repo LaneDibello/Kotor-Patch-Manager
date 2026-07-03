@@ -1,0 +1,39 @@
+[metadata]
+target_versions = ["6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"]
+
+# KOTOR 2 Steam Aspyr / swkotor2.exe
+# Store expensive-item confirmation bypass patch.
+#
+# The original code uses:
+#   cmp item_value, threshold
+#   jbe direct_transaction
+#   ... build confirmation message box ...
+#
+# These hooks replace the conditional jbe with an unconditional near jmp to the
+# same direct transaction blocks. The value and threshold may still be computed,
+# but the expensive-item confirmation box is never entered.
+#
+# File offset for .text addresses in this executable: VA - 0x00400C00.
+# Validated SHA-256: 6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF
+
+# Sell path: always jump to the existing direct SellItem block.
+# Original:
+#   008B6656  0f 86 90 01 00 00  jbe 0x008B67EC
+# Patched:
+#   008B6656  e9 91 01 00 00 90  jmp 0x008B67EC ; nop
+[[hooks]]
+address = 0x008B6656
+type = "simple"
+original_bytes = [0x0F, 0x86, 0x90, 0x01, 0x00, 0x00]
+replacement_bytes = [0xE9, 0x91, 0x01, 0x00, 0x00, 0x90]
+
+# Buy path: always jump to the existing direct BuyItem block after the affordability check has already passed.
+# Original:
+#   008B6A7C  0f 86 79 01 00 00  jbe 0x008B6BFB
+# Patched:
+#   008B6A7C  e9 7a 01 00 00 90  jmp 0x008B6BFB ; nop
+[[hooks]]
+address = 0x008B6A7C
+type = "simple"
+original_bytes = [0x0F, 0x86, 0x79, 0x01, 0x00, 0x00]
+replacement_bytes = [0xE9, 0x7A, 0x01, 0x00, 0x00, 0x90]

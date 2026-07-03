@@ -1,0 +1,54 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+]
+# KOTOR 1/ swkotor.exe
+# Function: CSWGuiPazaakGame::DoGameSequence
+# Goal: match KOTOR 2's shorter pazaak GUI pacing constants.
+#
+# Timer field in this binary: [this + 0x86D8]
+# State field in this binary: [this + 0x86D4]
+#
+# Float encodings:
+#   0.1f = CD CC CC 3D
+#   0.2f = CD CC 4C 3E
+#   0.4f = CD CC CC 3E
+#   0.8f = CD CC 4C 3F
+#
+# All addresses below are virtual addresses, matching KotorPatchManager's existing
+# KOTOR 1 patch convention. For this PE, file offset = VA - 0x00400000.
+
+# State 1 -> 2 lead-in delay: 0.4s -> 0.1s
+# Original:
+#   006800CA  C7 86 D8 86 00 00 CD CC CC 3E   mov dword ptr [esi+0x86D8], 0x3ECCCCCD
+# Patched:
+#   006800CA  C7 86 D8 86 00 00 CD CC CC 3D   mov dword ptr [esi+0x86D8], 0x3DCCCCCD
+[[hooks]]
+address = 0x006800CA
+type = "simple"
+original_bytes = [0xC7, 0x86, 0xD8, 0x86, 0x00, 0x00, 0xCD, 0xCC, 0xCC, 0x3E]
+replacement_bytes = [0xC7, 0x86, 0xD8, 0x86, 0x00, 0x00, 0xCD, 0xCC, 0xCC, 0x3D]
+
+# Hand-off into the AI/opponent phase: 0.4s -> 0.1s
+# Original:
+#   006802E2  C7 86 D8 86 00 00 CD CC CC 3E   mov dword ptr [esi+0x86D8], 0x3ECCCCCD
+# Patched:
+#   006802E2  C7 86 D8 86 00 00 CD CC CC 3D   mov dword ptr [esi+0x86D8], 0x3DCCCCCD
+[[hooks]]
+address = 0x006802E2
+type = "simple"
+original_bytes = [0xC7, 0x86, 0xD8, 0x86, 0x00, 0x00, 0xCD, 0xCC, 0xCC, 0x3E]
+replacement_bytes = [0xC7, 0x86, 0xD8, 0x86, 0x00, 0x00, 0xCD, 0xCC, 0xCC, 0x3D]
+
+# AI draw/use-card delay: 0.8s -> 0.2s
+# Original:
+#   0068041B  C7 86 D8 86 00 00 CD CC 4C 3F   mov dword ptr [esi+0x86D8], 0x3F4CCCCD
+# Patched:
+#   0068041B  C7 86 D8 86 00 00 CD CC 4C 3E   mov dword ptr [esi+0x86D8], 0x3E4CCCCD
+[[hooks]]
+address = 0x0068041B
+type = "simple"
+original_bytes = [0xC7, 0x86, 0xD8, 0x86, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3F]
+replacement_bytes = [0xC7, 0x86, 0xD8, 0x86, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3E]

@@ -1,0 +1,73 @@
+[metadata]
+target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"]
+
+# KOTOR 2 GOG Aspyr / swkotor2.exe
+# Store expensive-item confirmation threshold patch.
+#
+# Original behavior:
+#   Buy confirmation threshold  = player_level * 50, fallback 50
+#   Sell confirmation threshold = min(player_level * 50, 250), fallback/cap 250
+#
+# Patched behavior:
+#   Buy confirmation threshold  = 2500
+#   Sell confirmation threshold = 2500
+#
+# 2500 decimal = 0x000009C4 = C4 09 00 00 little-endian.
+# File offset for .text addresses in this executable: VA - 0x00400C00.
+# Validated SHA-256: 777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914
+
+# Sell path: make the cap branch unconditional by NOPing jle, so the capped-threshold block is used for all player levels.
+[[hooks]]
+address = 0x005AA20A
+type = "simple"
+original_bytes = [0x7E, 0x0C]
+replacement_bytes = [0x90, 0x90]
+
+# Sell path: change capped local threshold value from 250 to 2500.
+# Original instruction:
+#   005AA20C  c7 85 0c ff ff ff fa 00 00 00  mov dword ptr [ebp-0xf4], 0xFA
+# Patched instruction:
+#   005AA20C  c7 85 0c ff ff ff c4 09 00 00  mov dword ptr [ebp-0xf4], 0x9C4
+[[hooks]]
+address = 0x005AA212
+type = "simple"
+original_bytes = [0xFA, 0x00, 0x00, 0x00]
+replacement_bytes = [0xC4, 0x09, 0x00, 0x00]
+
+# Sell path: change no-player fallback/cap threshold from 250 to 2500.
+# Original instruction:
+#   005AA24B  c7 45 e8 fa 00 00 00  mov dword ptr [ebp-0x18], 0xFA
+# Patched instruction:
+#   005AA24B  c7 45 e8 c4 09 00 00  mov dword ptr [ebp-0x18], 0x9C4
+[[hooks]]
+address = 0x005AA24E
+type = "simple"
+original_bytes = [0xFA, 0x00, 0x00, 0x00]
+replacement_bytes = [0xC4, 0x09, 0x00, 0x00]
+
+# Buy path: redirect the no-player fallback branch to the shared fixed-threshold load.
+# Original:
+#   005AA963  74 21  je 0x005AA986
+# Patched:
+#   005AA963  74 19  je 0x005AA97E
+[[hooks]]
+address = 0x005AA963
+type = "simple"
+original_bytes = [0x74, 0x21]
+replacement_bytes = [0x74, 0x19]
+
+# Buy path: replace level*50/fallback-50 threshold setup with fixed [ebp-0x18] = 2500.
+# Original block:
+#   005AA97E  6b c0 32                 imul eax, eax, 0x32
+#   005AA981  89 45 e8                 mov [ebp-0x18], eax
+#   005AA984  eb 07                    jmp 0x005AA98D
+#   005AA986  c7 45 e8 32 00 00 00     mov [ebp-0x18], 0x32
+# Patched block:
+#   005AA97E  c7 45 e8 c4 09 00 00     mov [ebp-0x18], 0x9C4
+#   005AA985  eb 06                    jmp 0x005AA98D
+#   005AA987  90 ...                   nops
+[[hooks]]
+address = 0x005AA97E
+type = "simple"
+original_bytes = [0x6B, 0xC0, 0x32, 0x89, 0x45, 0xE8, 0xEB, 0x07, 0xC7, 0x45, 0xE8, 0x32, 0x00, 0x00, 0x00]
+replacement_bytes = [0xC7, 0x45, 0xE8, 0xC4, 0x09, 0x00, 0x00, 0xEB, 0x06, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90]

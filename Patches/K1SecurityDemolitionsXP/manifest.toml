@@ -1,0 +1,13 @@
+[patch]
+id = "k1-security-demolitions-xp"
+name = "KOTOR 1 Security and Demolitions XP Rewards"
+version = "1.0.0"
+author = "Vriff"
+description = "Adds XP rewards for successful Security unlocks and Demolitions mine disarm/recover actions."
+requires = []
+conflicts = []
+
+[patch.supported_versions]
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+kotor1_steam_103 = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
+kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9"
