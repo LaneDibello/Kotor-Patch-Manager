@@ -58,12 +58,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MorePlaceablesIn2DA", "More
 		Patches\MorePlaceablesIn2DA\manifest.toml = Patches\MorePlaceablesIn2DA\manifest.toml
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "RepeatingBlaster", "RepeatingBlaster", "{A27407B3-9017-4ACC-A268-89655215846F}"
-	ProjectSection(SolutionItems) = preProject
-		Patches\RepeatingBlaster\hooks.toml = Patches\RepeatingBlaster\hooks.toml
-		Patches\RepeatingBlaster\manifest.toml = Patches\RepeatingBlaster\manifest.toml
-	EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ScriptExtender", "ScriptExtender", "{7AC5E75B-E77E-4E4C-8DE0-AB4C70CE80C4}"
 	ProjectSection(SolutionItems) = preProject
 		Patches\ScriptExtender\creatureStats.cpp = Patches\ScriptExtender\creatureStats.cpp
@@ -328,6 +322,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FullPartySelect", "FullPart
 		Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml = Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml
 	
 		Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml = Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml
+	
+		Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml = Patches\FullPartySelect\kotor2-gog-aspyr.hooks - Copy.toml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GoodAlignmentHeads", "GoodAlignmentHeads", "{43E78283-596C-4BF5-AAE7-A3C70E201340}"
@@ -440,6 +436,56 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{426E
 		Patches\ShaderOverride\additional\shaders\vp_skinned_position_normal_offset_fog.arb = Patches\ShaderOverride\additional\shaders\vp_skinned_position_normal_offset_fog.arb
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1PazaakK2Speed", "K1PazaakK2Speed", "{25FA63C3-E9C2-493E-8605-FC323A103BFA}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K1PazaakK2Speed\kotor1.hooks.toml = Patches\K1PazaakK2Speed\kotor1.hooks.toml
+		Patches\K1PazaakK2Speed\manifest.toml = Patches\K1PazaakK2Speed\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1SecurityDemolitionsXP", "K1SecurityDemolitionsXP", "{EF96DBD4-A06B-4020-BC69-366B14AE1070}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K1SecurityDemolitionsXP\hooks.toml = Patches\K1SecurityDemolitionsXP\hooks.toml
+		Patches\K1SecurityDemolitionsXP\K1SecurityDemolitionsXP.cpp = Patches\K1SecurityDemolitionsXP\K1SecurityDemolitionsXP.cpp
+		Patches\K1SecurityDemolitionsXP\manifest.toml = Patches\K1SecurityDemolitionsXP\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1SecuritySpikes", "K1SecuritySpikes", "{46320615-FA00-417B-BEBC-A8F9CFC089E0}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K1SecuritySpikes\hooks.toml = Patches\K1SecuritySpikes\hooks.toml
+		Patches\K1SecuritySpikes\K1SecuritySpikes.cpp = Patches\K1SecuritySpikes\K1SecuritySpikes.cpp
+		Patches\K1SecuritySpikes\manifest.toml = Patches\K1SecuritySpikes\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2FinesseMeleeFix", "K2FinesseMeleeFix", "{FC036E7F-1E5F-418D-9350-3AD4AF55FD03}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\K2FinesseMeleeFix\kotor2-gog-aspyr.hooks.toml = Patches\K2FinesseMeleeFix\kotor2-gog-aspyr.hooks.toml
+		Patches\K2FinesseMeleeFix\kotor2-steam-aspyr.hooks.toml = Patches\K2FinesseMeleeFix\kotor2-steam-aspyr.hooks.toml
+		Patches\K2FinesseMeleeFix\manifest.toml = Patches\K2FinesseMeleeFix\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Max Lights", "Max Lights", "{726BFED0-8F79-495E-B329-DB53F7229B0D}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\Max Lights\kotor2-gog-aspyr.hooks.toml = Patches\Max Lights\kotor2-gog-aspyr.hooks.toml
+		Patches\Max Lights\kotor2-steam-aspyr.hooks.toml = Patches\Max Lights\kotor2-steam-aspyr.hooks.toml
+		Patches\Max Lights\manifest.toml = Patches\Max Lights\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "StoreConfirmThreshold2500", "StoreConfirmThreshold2500", "{57D786AC-9A34-44C2-B70C-0FBC6DBB51A9}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\StoreConfirmThreshold2500\kotor1.hooks.toml = Patches\StoreConfirmThreshold2500\kotor1.hooks.toml
+		Patches\StoreConfirmThreshold2500\kotor2-gog-aspyr.hooks.toml = Patches\StoreConfirmThreshold2500\kotor2-gog-aspyr.hooks.toml
+		Patches\StoreConfirmThreshold2500\kotor2-steam-aspyr.hooks.toml = Patches\StoreConfirmThreshold2500\kotor2-steam-aspyr.hooks.toml
+		Patches\StoreConfirmThreshold2500\manifest.toml = Patches\StoreConfirmThreshold2500\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "StoreNoConfirmThreshold", "StoreNoConfirmThreshold", "{255DFDD4-E313-4837-A03F-AFA0AF613DD8}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\StoreNoConfirmThreshold\kotor1.hooks.toml = Patches\StoreNoConfirmThreshold\kotor1.hooks.toml
+		Patches\StoreNoConfirmThreshold\kotor2-gog-aspyr.hooks.toml = Patches\StoreNoConfirmThreshold\kotor2-gog-aspyr.hooks.toml
+		Patches\StoreNoConfirmThreshold\kotor2-steam-aspyr.hooks.toml = Patches\StoreNoConfirmThreshold\kotor2-steam-aspyr.hooks.toml
+		Patches\StoreNoConfirmThreshold\manifest.toml = Patches\StoreNoConfirmThreshold\manifest.toml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -508,7 +554,6 @@ Global
 		{F96014DA-1F4F-4367-810D-860A753FD9F9} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{C051DF2F-D94E-40A5-B004-04308B8991C8} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{44FCCA62-7F28-4C88-B537-D283B74CC91F} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
-		{A27407B3-9017-4ACC-A268-89655215846F} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{7AC5E75B-E77E-4E4C-8DE0-AB4C70CE80C4} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{23452DB2-30D6-463C-BC0D-0074EBB12133} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{9885C0AB-DB6D-48B5-828E-B4B3DDA8125E} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
@@ -537,6 +582,13 @@ Global
 		{15C064E7-59EC-4035-8189-DE7EBD234C1C} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{E1624006-BA06-4E58-AD71-7C33E37FF4AB} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{426E78EA-516C-498E-A901-58C186163DB9} = {0CE7EC37-B554-454F-BD2C-331F77217F1C}
+		{25FA63C3-E9C2-493E-8605-FC323A103BFA} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{EF96DBD4-A06B-4020-BC69-366B14AE1070} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{46320615-FA00-417B-BEBC-A8F9CFC089E0} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{FC036E7F-1E5F-418D-9350-3AD4AF55FD03} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{726BFED0-8F79-495E-B329-DB53F7229B0D} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{57D786AC-9A34-44C2-B70C-0FBC6DBB51A9} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{255DFDD4-E313-4837-A03F-AFA0AF613DD8} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EC8C0764-BD06-422A-B325-D20270F5D772}
