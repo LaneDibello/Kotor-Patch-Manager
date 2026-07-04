@@ -6,20 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- Force x86 (32-bit) to match KOTOR architecture -->
-    <PlatformTarget>x86</PlatformTarget>
     <OutputPath>..\..\bin\$(Configuration)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <UseAppHost>true</UseAppHost>
-
-    <!-- Publishing options for release builds -->
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <PublishTrimmed>false</PublishTrimmed>
-    <PublishReadyToRun>true</PublishReadyToRun>
 
     <!-- Application metadata -->
     <Version>0.1.0</Version>
@@ -29,6 +19,19 @@
     <Authors>Lane Duncan</Authors>
     <Product>KotOR Patch Manager</Product>
     <Description>Mod and patch management system for KOTOR</Description>
+  </PropertyGroup>
+
+  <!-- Windows ships a self-contained win-x86 single file (x86 to match the 32-bit
+       game and the injection target). Off Windows we build native so the manager
+       runs on the desktop and stages patches for the game under Wine/Proton. -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <PlatformTarget>x86</PlatformTarget>
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <!-- Release build: exclude debug symbols and hide console -->
