@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using KPatchCore.Detectors;
 using KPatchCore.Models;
 
@@ -81,8 +82,26 @@ public static class GameLauncher
             return LaunchResult.Fail($"DLL not found: {dllPath}");
         }
 
-        // Delegate to ProcessInjector
-        return ProcessInjector.LaunchWithInjection(gameExePath, dllPath, commandLineArgs, distribution);
+        // Delegate to the platform-specific injector
+        return CreateInjector().LaunchWithInjection(gameExePath, dllPath, commandLineArgs, distribution);
+    }
+
+    /// <summary>
+    /// Selects the injection strategy for the current platform.
+    /// </summary>
+    private static IGameInjector CreateInjector()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return new WindowsGameInjector();
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return new LinuxGameInjector();
+        }
+
+        return new UnsupportedGameInjector();
     }
 
     /// <summary>
