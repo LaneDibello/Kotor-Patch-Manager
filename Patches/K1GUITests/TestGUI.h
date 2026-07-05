@@ -11,6 +11,8 @@
 #include "GameAPI/CResRef.h"
 #include "GameAPI/CExoString.h"
 #include "GameAPI/CExoArrayList.h"
+#include "GameAPI/CSWGui3DSceneView.h"
+#include "GameAPI/CSWGuiScene.h"
 
 class TestGUI : public CSWGuiPanel {
 public:
@@ -24,6 +26,8 @@ public:
     CSWGuiButton blueButton;
     CSWGuiButton violetButton;
     CSWGuiListBox testListBox;
+    CSWGuiLabel imageLabel;
+    CSWGui3DSceneView scene3d;
 
     // Callbacks
     void buttonCallback(void* control) {
@@ -67,7 +71,9 @@ public:
         greenButton(),
         blueButton(),
         violetButton(),
-        testListBox()
+        testListBox(),
+        imageLabel(),
+        scene3d()
     {
 
         CResRef guiResref("test1");
@@ -90,7 +96,14 @@ public:
         this->InitControl(&violetButton, &violetTag, 1);
         CExoString lbTag("LB_TEST");
         this->InitControl(&testListBox, &lbTag, 1);
+        CExoString lbMonk("L_MONK");
+        this->InitControl(&imageLabel, &lbMonk, 1);
+        CExoString test3DTag("TEST_3D");
+        this->InitControl(&scene3d, &test3DTag, 1);
         this->StopLoadFromLayout();
+
+        CExoString model("c_kinrath");
+        scene3d.GetScene()->AddModel(&model, 0);
 
         // Style each item from the listbox's proto item (loaded from the .gui).
         // Width comes from the viewport (minus padding), height from the proto extent.

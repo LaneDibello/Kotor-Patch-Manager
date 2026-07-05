@@ -1,7 +1,7 @@
 [patch]
 id = "gui-test-1"
 name = "GUI TESTS"
-version = "0.0.1"
+version = "0.0.3"
 author = "Lane"
 description = "I wonder if we can get custom GUIs into the game"
 
