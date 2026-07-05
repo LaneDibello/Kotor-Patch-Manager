@@ -6,6 +6,8 @@
 #include "CExoString.h"
 #include "CExoArrayList.h"
 
+CSWGuiScene::ConstructorFn CSWGuiScene::constructor = nullptr;
+
 CSWGuiScene::AddModelFn    CSWGuiScene::addModel    = nullptr;
 CSWGuiScene::AddModel2Fn   CSWGuiScene::addModel2   = nullptr;
 CSWGuiScene::GetModelFn    CSWGuiScene::getModel    = nullptr;
@@ -32,6 +34,7 @@ void CSWGuiScene::InitializeFunctions() {
     }
 
     try {
+        constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiScene", "Constructor"));
         addModel    = reinterpret_cast<AddModelFn>   (GameVersion::GetFunctionAddress("CSWGuiScene", "AddModel"));
         addModel2   = reinterpret_cast<AddModel2Fn>  (GameVersion::GetFunctionAddress("CSWGuiScene", "AddModel_2"));
         getModel    = reinterpret_cast<GetModelFn>   (GameVersion::GetFunctionAddress("CSWGuiScene", "GetModel"));
@@ -84,6 +87,12 @@ CSWGuiScene::CSWGuiScene(void* objectPtr)
 CSWGuiScene::~CSWGuiScene()
 {
     // Base class destructor handles objectPtr cleanup
+}
+
+void CSWGuiScene::Construct() {
+    if (objectPtr && constructor) {
+        constructor(objectPtr);
+    }
 }
 
 Scene* CSWGuiScene::GetScene() {

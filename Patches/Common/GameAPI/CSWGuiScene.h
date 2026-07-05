@@ -21,6 +21,11 @@ public:
     Vector GetBackgroundColor();
     void SetBackgroundColor(const Vector& color);
 
+    // Runs the game's CSWGuiScene constructor over the currently-wrapped memory.
+    // Used to build an embedded scene in place (e.g. the scene field inside a
+    // CSWGui3DSceneView, whose own constructor was inlined away).
+    void Construct();
+
     // Functions
     int  AddModel(Gob* model, int insertIndex, int attachToScene);
     Gob* AddModel(CExoString* model, int insertIndex);
@@ -35,6 +40,9 @@ protected:
     typedef void* (__thiscall* AddModel2Fn)  (void* thisPtr, void* model, int insertIndex);
     typedef void* (__thiscall* GetModelFn)   (void* thisPtr, int indx);
     typedef int   (__thiscall* RemoveModelFn)(void* thisPtr, int index, int freeModel);
+    typedef void* (__thiscall* ConstructorFn) (void* thisPtr);
+
+    static ConstructorFn constructor;
 
     static AddModelFn    addModel;
     static AddModel2Fn   addModel2;
