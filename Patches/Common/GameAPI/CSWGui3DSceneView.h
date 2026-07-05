@@ -30,4 +30,10 @@ protected:
 
 	static int offsetScene;
 	static int classSize;
+
+	// The class's own vtable address (from the classes table). Written to
+	// offset 0 after construction because the inlined constructor set the
+	// CSWGuiControl vtable, not the CSWGui3DSceneView one. May be null when the
+	// DB doesn't record it, in which case we leave the control vtable in place.
+	static void* vtable;
 };

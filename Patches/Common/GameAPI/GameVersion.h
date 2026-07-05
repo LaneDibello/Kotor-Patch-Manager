@@ -39,6 +39,12 @@ public:
 
     static int GetClassSize(const std::string& className);
 
+    // Returns a class's virtual table address, or nullptr when unavailable
+    // (no such class, the vtable column/value is NULL, or the DB predates
+    // schema v5). Non-throwing: not all classes have a vtable, so callers treat
+    // a null result as "not recorded" rather than an error.
+    static void* GetClassVtable(const std::string& className);
+
     static bool HasFunction(const std::string& className, const std::string& functionName);
     static bool HasOffset(const std::string& className, const std::string& propertyName);
     static bool HasClass(const std::string& className);
@@ -57,6 +63,7 @@ private:
     static sqlite3_stmt* stmt_pointer;
     static sqlite3_stmt* stmt_offset;
     static sqlite3_stmt* stmt_class_size;
+    static sqlite3_stmt* stmt_class_vtable;
 
     static bool OpenDatabase();
     static bool PrepareStatements();
