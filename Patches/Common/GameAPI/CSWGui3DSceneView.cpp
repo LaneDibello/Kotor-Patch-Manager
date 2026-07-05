@@ -1,8 +1,11 @@
 #include "CSWGui3DSceneView.h"
 #include "GameVersion.h"
+#include "CSWGuiScene.h"
 
 bool CSWGui3DSceneView::functionsInitialized = false;
 bool CSWGui3DSceneView::offsetsInitialized = false;
+
+int CSWGui3DSceneView::offsetScene = -1;
 
 void CSWGui3DSceneView::InitializeFunctions() {
     if (functionsInitialized) {
@@ -40,7 +43,7 @@ void CSWGui3DSceneView::InitializeOffsets() {
     }
 
     try {
-        // Offsets Here
+        offsetScene = GameVersion::GetOffset("CSWGui3DSceneView", "scene");
 
         offsetsInitialized = true;
     }
@@ -63,4 +66,12 @@ CSWGui3DSceneView::CSWGui3DSceneView(void* objectPtr)
 CSWGui3DSceneView::~CSWGui3DSceneView()
 {
     // Base class destructor handles objectPtr cleanup
+}
+
+CSWGuiScene* CSWGui3DSceneView::GetScene() {
+    if (!objectPtr || offsetScene < 0) {
+        return nullptr;
+    }
+    // scene is an embedded CSWGuiScene sub-object, not a pointer.
+    return new CSWGuiScene((char*)objectPtr + offsetScene);
 }
