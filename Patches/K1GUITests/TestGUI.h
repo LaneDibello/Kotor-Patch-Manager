@@ -105,6 +105,8 @@ public:
         CExoString model("c_kinrath");
         scene3d.GetScene()->AddModel(&model, 0);
 
+        debugLog("scene3d is at %X", &scene3d);
+
         // Style each item from the listbox's proto item (loaded from the .gui).
         // Width comes from the viewport (minus padding), height from the proto extent.
         CSWGuiButton proto(testListBox.GetProtoItem()->GetPtr());
