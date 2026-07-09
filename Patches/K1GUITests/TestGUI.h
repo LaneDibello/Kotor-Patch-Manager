@@ -13,6 +13,9 @@
 #include "GameAPI/CExoArrayList.h"
 #include "GameAPI/CSWGui3DSceneView.h"
 #include "GameAPI/CSWGuiScene.h"
+#include "GameAPI/Gob.h"
+#include "GameAPI/Camera.h"
+#include "GameAPI/Scene.h"
 
 class TestGUI : public CSWGuiPanel {
 public:
@@ -102,10 +105,28 @@ public:
         this->InitControl(&scene3d, &test3DTag, 1);
         this->StopLoadFromLayout();
 
+        CSWGuiScene * guiScene = scene3d.GetScene();
+        Vector zeroV{0.0f, 0.0f, 0.0f};
+        Quaternion quat{ 0.0f, 0.0f, 0.0f, 1.0f };
+        guiScene->GetScene()->SpawnRoom("gui3D_room", &zeroV, &quat);
+        //CExoString model("mainmenu");
         CExoString model("c_kinrath");
-        scene3d.GetScene()->AddModel(&model, 0);
+        Gob* gameObject = guiScene->AddModel(&model, -1);
+        CExoString model2("plc_light");
+        guiScene->AddModel(&model2, -1);
 
-        debugLog("scene3d is at %X", &scene3d);
+
+        Camera * camera = scene3d.GetScene()->GetCamera();
+        //camera->AttachToObject(gameObject, "camerahook", 0);
+        Vector scrap;
+        Vector pos{ 5.0f, 0.0f, 1.0f };
+        camera->SetPosition(&scrap, pos);
+        Quaternion scrap2;
+        Quaternion orientation{ 0.4f, 0.5f, 0.5f, 0.5f };
+        camera->SetOrientation(&scrap2, orientation);
+
+
+        debugLog("scene3d is at %X, Camera is at %X", &scene3d, camera);
 
         // Style each item from the listbox's proto item (loaded from the .gui).
         // Width comes from the viewport (minus padding), height from the proto extent.
