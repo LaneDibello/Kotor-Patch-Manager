@@ -3,6 +3,7 @@
 #include "Gob.h"
 
 Camera::AsCAurObjectFn Camera::asCAurObject = nullptr;
+Camera::AttachToObjectFn Camera::attachToObject = nullptr;
 Camera::BehaviorMessageFn Camera::behaviorMessage = nullptr;
 Camera::EndViewAngleAnimationFn Camera::endViewAngleAnimation = nullptr;
 Camera::GetClipDistFn Camera::getClipDist = nullptr;
@@ -38,6 +39,7 @@ void Camera::InitializeFunctions() {
 
     try {
         asCAurObject = reinterpret_cast<AsCAurObjectFn>(GameVersion::GetFunctionAddress("Camera", "AsCAurObject"));
+        attachToObject = reinterpret_cast<AttachToObjectFn>(GameVersion::GetFunctionAddress("Camera", "AttachToObject"));
         behaviorMessage = reinterpret_cast<BehaviorMessageFn>(GameVersion::GetFunctionAddress("Camera", "BehaviorMessage"));
         endViewAngleAnimation = reinterpret_cast<EndViewAngleAnimationFn>(GameVersion::GetFunctionAddress("Camera", "EndViewAngleAnimation"));
         getClipDist = reinterpret_cast<GetClipDistFn>(GameVersion::GetFunctionAddress("Camera", "GetClipDist"));
@@ -113,6 +115,11 @@ Gob* Camera::AsCAurObject() {
     if (!objectPtr || !asCAurObject) return nullptr;
     void* __ret = asCAurObject(objectPtr);
     return __ret ? new Gob(__ret) : nullptr;
+}
+
+void Camera::AttachToObject(Gob* object, char* partName, int _unused) {
+    if (!objectPtr || !attachToObject) return;
+    attachToObject(objectPtr, object ? object->GetPtr() : nullptr, partName, _unused);
 }
 
 void Camera::BehaviorMessage(char* message) {

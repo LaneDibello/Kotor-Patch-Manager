@@ -53,6 +53,7 @@ public:
     unsigned char SetGeomFadeProperties(int property);
     void SetObjectScale(Gob* object, float scale);
     void SetSceneFocus(Vector focus);
+    Gob* SpawnRoom(char* modelName, Vector* position, Quaternion* orientation);
     void UpdateEmitters();
 
     void InitializeFunctions() override;
@@ -83,6 +84,7 @@ protected:
     typedef unsigned char (__stdcall* SetGeomFadePropertiesFn)(int property);
     typedef void (__thiscall* SetObjectScaleFn)(void* thisPtr, void* object, float scale);
     typedef void (__thiscall* SetSceneFocusFn)(void* thisPtr, Vector focus);
+    typedef Gob* (__thiscall* SpawnRoomFn)(void* thisPtr, char* modelName, Vector* position, Quaternion* orientation);
     typedef void (__thiscall* UpdateEmittersFn)(void* thisPtr);
 
     static ChildAddFn childAdd;
@@ -109,6 +111,7 @@ protected:
     static SetGeomFadePropertiesFn setGeomFadeProperties;
     static SetObjectScaleFn setObjectScale;
     static SetSceneFocusFn setSceneFocus;
+    static SpawnRoomFn spawnRoom;
     static UpdateEmittersFn updateEmitters;
 
     static bool functionsInitialized;

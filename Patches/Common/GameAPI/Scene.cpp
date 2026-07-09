@@ -27,6 +27,7 @@ Scene::SetFogRangeFn Scene::setFogRange = nullptr;
 Scene::SetGeomFadePropertiesFn Scene::setGeomFadeProperties = nullptr;
 Scene::SetObjectScaleFn Scene::setObjectScale = nullptr;
 Scene::SetSceneFocusFn Scene::setSceneFocus = nullptr;
+Scene::SpawnRoomFn Scene::spawnRoom = nullptr;
 Scene::UpdateEmittersFn Scene::updateEmitters = nullptr;
 
 bool Scene::functionsInitialized = false;
@@ -74,6 +75,7 @@ void Scene::InitializeFunctions() {
         setGeomFadeProperties = reinterpret_cast<SetGeomFadePropertiesFn>(GameVersion::GetFunctionAddress("Scene", "SetGeomFadeProperties"));
         setObjectScale = reinterpret_cast<SetObjectScaleFn>(GameVersion::GetFunctionAddress("Scene", "SetObjectScale"));
         setSceneFocus = reinterpret_cast<SetSceneFocusFn>(GameVersion::GetFunctionAddress("Scene", "SetSceneFocus"));
+        spawnRoom = reinterpret_cast<SpawnRoomFn>(GameVersion::GetFunctionAddress("Scene", "SpawnRoom"));
         updateEmitters = reinterpret_cast<UpdateEmittersFn>(GameVersion::GetFunctionAddress("Scene", "UpdateEmitters"));
 
         functionsInitialized = true;
@@ -285,6 +287,12 @@ void Scene::SetObjectScale(Gob* object, float scale) {
 void Scene::SetSceneFocus(Vector focus) {
     if (!objectPtr || !setSceneFocus) return;
     setSceneFocus(objectPtr, focus);
+}
+
+Gob* Scene::SpawnRoom(char* modelName, Vector* position, Quaternion* orientation) {
+    if (!objectPtr || !spawnRoom) return nullptr;
+    Gob* __ret = spawnRoom(objectPtr, modelName, position, orientation);
+    return __ret ? new Gob(__ret) : nullptr;
 }
 
 void Scene::UpdateEmitters() {
