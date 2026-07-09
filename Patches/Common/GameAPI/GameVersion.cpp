@@ -40,6 +40,7 @@ sqlite3_stmt* GameVersion::stmt_function = nullptr;
 sqlite3_stmt* GameVersion::stmt_pointer = nullptr;
 sqlite3_stmt* GameVersion::stmt_offset = nullptr;
 sqlite3_stmt* GameVersion::stmt_class_size = nullptr;
+sqlite3_stmt* GameVersion::stmt_class_vtable = nullptr;
 
 bool GameVersion::Initialize(bool force) {
     // Quick return if already initialized
@@ -212,6 +213,16 @@ bool GameVersion::PrepareStatements() {
         stmt_class_size = nullptr;
     }
 
+    // Prepare class vtable lookup. The vtable column was added in schema v5, so a
+    // DB migrated only to v3/v4 has the classes table but not this column. Treat
+    // a failed prepare as non-fatal: leave the statement null and let
+    // GetClassVtable report the vtable as unavailable (returns nullptr).
+    const char* sql_class_vtable = "SELECT vtable FROM classes WHERE class_name = ?";
+    if (sqlite3_prepare_v2(db, sql_class_vtable, -1, &stmt_class_vtable, nullptr) != SQLITE_OK) {
+        OutputDebugStringA(("[GameVersion] WARNING: Failed to prepare class vtable statement (vtable column may be missing): " + std::string(sqlite3_errmsg(db)) + "\n").c_str());
+        stmt_class_vtable = nullptr;
+    }
+
     return true;
 }
 
@@ -231,6 +242,10 @@ void GameVersion::FinalizeStatements() {
     if (stmt_class_size) {
         sqlite3_finalize(stmt_class_size);
         stmt_class_size = nullptr;
+    }
+    if (stmt_class_vtable) {
+        sqlite3_finalize(stmt_class_vtable);
+        stmt_class_vtable = nullptr;
     }
 }
 
@@ -354,6 +369,32 @@ int GameVersion::GetClassSize(const std::string& className) {
     return sqlite3_column_int(stmt_class_size, 0);
 }
 
+void* GameVersion::GetClassVtable(const std::string& className) {
+    // Non-throwing: a missing class, NULL vtable, or a DB without the vtable
+    // column (statement never prepared) all mean "no vtable recorded".
+    if (!initialized || !stmt_class_vtable) {
+        return nullptr;
+    }
+
+    // Bind parameter
+    sqlite3_reset(stmt_class_vtable);
+    sqlite3_bind_text(stmt_class_vtable, 1, className.c_str(), -1, SQLITE_TRANSIENT);
+
+    // Execute query
+    int rc = sqlite3_step(stmt_class_vtable);
+    if (rc != SQLITE_ROW) {
+        return nullptr;
+    }
+
+    // A row with a NULL vtable is legitimate (class has no vtable recorded).
+    if (sqlite3_column_type(stmt_class_vtable, 0) == SQLITE_NULL) {
+        return nullptr;
+    }
+
+    sqlite3_int64 address = sqlite3_column_int64(stmt_class_vtable, 0);
+    return reinterpret_cast<void*>(static_cast<uintptr_t>(address));
+}
+
 bool GameVersion::HasFunction(const std::string& className, const std::string& functionName) {
     if (!initialized) {
         return false;
@@ -400,7 +441,7 @@ bool GameVersion::HasClass(const std::string& className) {
 
 void GameVersion::Reset(bool force) {
     // Quick return if already reset
-    if (!initialized && !db && !stmt_function && !stmt_pointer && !stmt_offset && !stmt_class_size && !force) {
+    if (!initialized && !db && !stmt_function && !stmt_pointer && !stmt_offset && !stmt_class_size && !stmt_class_vtable && !force) {
         return;
     }
 

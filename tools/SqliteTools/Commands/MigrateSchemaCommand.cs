@@ -44,8 +44,14 @@ public class MigrateSchemaCommand : ICommand
             Console.WriteLine("Applied migration 004: Add platform column");
         }
 
+        if (currentVersion < 5)
+        {
+            ApplyMigration(connection, "005_add_class_vtable.sql");
+            Console.WriteLine("Applied migration 005: Add class vtable column");
+        }
+
         // Future migrations would go here
-        // if (currentVersion < 5) { ApplyMigration(connection, "005_..."); }
+        // if (currentVersion < 6) { ApplyMigration(connection, "006_..."); }
 
         int newVersion = GetCurrentSchemaVersion(connection);
         Console.WriteLine($"Schema migration complete. Current version: {newVersion}");

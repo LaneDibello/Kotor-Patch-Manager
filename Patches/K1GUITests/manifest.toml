@@ -1,9 +1,9 @@
 [patch]
 id = "gui-test-1"
 name = "GUI TESTS"
-version = "0.0.1"
+version = "0.0.4"
 author = "Lane"
-description = "I wonder if we can get custom GUIs into the game"
+description = "I wonder if we can get custom GUIs into the game. this can be used as a decent example for creating basic GUI patches"
 
 requires = []
 
