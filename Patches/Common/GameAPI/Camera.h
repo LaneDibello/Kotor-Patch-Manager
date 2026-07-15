@@ -20,7 +20,7 @@ public:
     // Functions
     // Returns this Camera's underlying game object (the embedded Gob / CAurObject).
     Gob* AsCAurObject();
-    void AttachToObject(Gob* object, char* partName, int _unused);
+    void AttachToObject(Gob* object, char* partName, int behavior);
     void BehaviorMessage(char* message);
     void EndViewAngleAnimation(bool resetAngle);
     void GetClipDist(float* clipStart, float* clipEnd);

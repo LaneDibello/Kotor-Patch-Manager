@@ -117,9 +117,9 @@ Gob* Camera::AsCAurObject() {
     return __ret ? new Gob(__ret) : nullptr;
 }
 
-void Camera::AttachToObject(Gob* object, char* partName, int _unused) {
+void Camera::AttachToObject(Gob* object, char* partName, int behavior) {
     if (!objectPtr || !attachToObject) return;
-    attachToObject(objectPtr, object ? object->GetPtr() : nullptr, partName, _unused);
+    attachToObject(objectPtr, object ? object->GetPtr() : nullptr, partName, behavior);
 }
 
 void Camera::BehaviorMessage(char* message) {
