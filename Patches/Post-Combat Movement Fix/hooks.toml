@@ -1,0 +1,7 @@
+# Error: Event 10109 can leave the movement-disabled flag set after combat, blocking W/S movement.
+# Fix: NOP `sete al` so EAX stays zero and the movement-disabled flag is cleared.
+[[hooks]]
+address = 0x00618453
+type = "static"
+original_bytes = [0x0F, 0x94, 0xC0]
+replacement_bytes = [0x90, 0x90, 0x90]
