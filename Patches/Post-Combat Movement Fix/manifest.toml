@@ -1,9 +1,9 @@
 [patch]
 id = "post-combat-movement-fix-v1"
 name = "Post-Combat Movement Fix"
-version = "1.4.0"
+version = "1.8.0"
 author = "J"
-description = "Fixes a bug that can leave the player unable to move after combat."
+description = "Fixes high-FPS movement locks after combat actions, Force powers, and item use."
 
 requires = []
 conflicts = []
