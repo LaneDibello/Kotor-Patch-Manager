@@ -15,6 +15,7 @@ using KPatchCore.Managers;
 using KPatchCore.Models;
 using KPatchCore.Applicators;
 using KPatchCore.Detectors;
+using KPatchCore.Launcher;
 using KPatchCore.Validators;
 using KPatchLauncher.Models;
 
@@ -38,6 +39,8 @@ public class MainViewModel : ViewModelBase
     private bool _isUpdatingSelectAllState;
     private bool _isBulkUpdatingPatchChecks;
     private int _patchStatusRequestVersion;
+    private bool _useCustomLaunch;
+    private string _customLaunchCommand = string.Empty;
 
     public MainViewModel()
     {
@@ -48,6 +51,8 @@ public class MainViewModel : ViewModelBase
         _settings = AppSettings.Load();
         _gamePath = _settings.GamePath;
         _patchesPath = _settings.PatchesPath;
+        _useCustomLaunch = _settings.LaunchMethod == LaunchMethod.Custom;
+        _customLaunchCommand = _settings.CustomLaunchCommand;
         ClearPersistedPatchSelection();
 
         // Create simple commands
@@ -172,6 +177,48 @@ public class MainViewModel : ViewModelBase
                     UpdateSelectAllState();
                     UpdatePendingChanges();
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether the launch-method controls apply. Only the proxy deployment method
+    /// reads them (Steam or a custom command); the injection method ignores launch
+    /// config, so they stay hidden there.
+    /// </summary>
+    public bool ShowLaunchSettings =>
+        DeploymentPolicy.ForCurrentPlatform() == DeploymentMethod.Proxy;
+
+    /// <summary>
+    /// When true, the game is launched with <see cref="CustomLaunchCommand"/>
+    /// instead of through Steam. Applies to the proxy deployment method.
+    /// </summary>
+    public bool UseCustomLaunch
+    {
+        get => _useCustomLaunch;
+        set
+        {
+            if (SetProperty(ref _useCustomLaunch, value))
+            {
+                _settings.LaunchMethod = value ? LaunchMethod.Custom : LaunchMethod.Steam;
+                _settings.Save();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Command used when <see cref="UseCustomLaunch"/> is set. "{exe}" is replaced
+    /// with the game executable path.
+    /// </summary>
+    public string CustomLaunchCommand
+    {
+        get => _customLaunchCommand;
+        set
+        {
+            if (SetProperty(ref _customLaunchCommand, value))
+            {
+                _settings.CustomLaunchCommand = value;
+                _settings.Save();
             }
         }
     }
@@ -700,6 +747,8 @@ public class MainViewModel : ViewModelBase
             // AppContext.BaseDirectory works reliably with both regular and single-file builds
             var appDir = AppContext.BaseDirectory;
             var patcherDllPath = Path.Combine(appDir, "KotorPatcher.dll");
+            // The KProxy ships alongside the launcher; staged when deploying via proxy.
+            var proxyDllPath = Path.Combine(appDir, "binkw32.dll");
 
             var applicator = new PatchApplicator(_repository);
             var options = new PatchApplicator.InstallOptions
@@ -707,7 +756,8 @@ public class MainViewModel : ViewModelBase
                 GameExePath = GamePath,
                 PatchIds = checkedPatches.Select(p => p.Id).ToList(),
                 CreateBackup = true,
-                PatcherDllPath = File.Exists(patcherDllPath) ? patcherDllPath : null
+                PatcherDllPath = File.Exists(patcherDllPath) ? patcherDllPath : null,
+                ProxyDllPath = File.Exists(proxyDllPath) ? proxyDllPath : null
             };
 
             // Run on background thread
@@ -792,19 +842,30 @@ public class MainViewModel : ViewModelBase
         {
             SetOperationInProgress(true, "Launching game...");
 
+            var launchConfig = new LaunchConfig
+            {
+                Method = _useCustomLaunch ? LaunchMethod.Custom : LaunchMethod.Steam,
+                CustomCommand = _customLaunchCommand
+            };
+
             // Use KPatchCore's game launcher (handles patch detection and injection automatically)
             var result = await Task.Run(() =>
             {
                 var orchestrator = new PatchOrchestrator(_patchesPath ?? string.Empty);
-                return orchestrator.LaunchGame(GamePath, commandLineArgs: null);
+                return orchestrator.LaunchGame(GamePath, commandLineArgs: null, launchConfig);
             });
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (result.Success)
+                if (result.Success && result.ProcessId.HasValue)
                 {
                     var mode = result.VanillaLaunch ? "no patches" : "with patches";
                     SetOperationInProgress(false, $"Game launched {mode} (PID: {result.ProcessId})");
+                }
+                else if (result.Success)
+                {
+                    // Process-less launch (e.g. through Steam); show its message.
+                    SetOperationInProgress(false, result.Messages.FirstOrDefault() ?? "Game launched");
                 }
                 else
                 {

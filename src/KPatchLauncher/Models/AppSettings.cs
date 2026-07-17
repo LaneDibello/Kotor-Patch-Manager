@@ -1,4 +1,5 @@
 using System.Text.Json;
+using KPatchCore.Launcher;
 
 namespace KPatchLauncher.Models;
 
@@ -31,6 +32,18 @@ public class AppSettings
     /// List of checked patch IDs
     /// </summary>
     public List<string> CheckedPatchIds { get; set; } = new();
+
+    /// <summary>
+    /// How to start the game when patches are deployed via proxy (Steam or a
+    /// custom command). Unused by the injection method.
+    /// </summary>
+    public LaunchMethod LaunchMethod { get; set; } = LaunchMethod.Steam;
+
+    /// <summary>
+    /// Custom launch command used when <see cref="LaunchMethod"/> is Custom.
+    /// The token "{exe}" is replaced with the game executable path.
+    /// </summary>
+    public string CustomLaunchCommand { get; set; } = string.Empty;
 
     /// <summary>
     /// Legacy property for backwards compatibility (TODO: Remove after migration)
