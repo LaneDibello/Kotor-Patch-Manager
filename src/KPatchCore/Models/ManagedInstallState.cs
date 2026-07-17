@@ -51,6 +51,12 @@ public sealed class ManagedInstallState
     public List<string> InstalledPatches { get; init; } = new();
 
     /// <summary>
+    /// Whether the KProxy was staged (the game's binkw32.dll renamed to
+    /// binkw32Hooked.dll and the proxy put in its place).
+    /// </summary>
+    public bool KProxyInstalled { get; init; }
+
+    /// <summary>
     /// When KPM first claimed this install.
     /// </summary>
     public required DateTime CreatedAt { get; init; }

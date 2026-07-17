@@ -186,7 +186,8 @@ public static class PatchRemover
             var managerOwnedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "KotorPatcher.dll",
-                "KPatchLauncher.exe"
+                "KPatchLauncher.exe",
+                "sqlite3.dll"
             };
 
             // Remove each file using safe delete helper
@@ -202,6 +203,14 @@ public static class PatchRemover
                 }
 
                 SafeDeleteFile(gameDir, fileName, removedFiles, messages);
+            }
+
+            // Restore the original binkw32.dll if the KProxy was staged.
+            // No-op when it wasn't.
+            var proxyRestore = KProxyInstaller.Uninstall(gameDir);
+            if (proxyRestore.Messages.Count > 0)
+            {
+                messages.Add($"  {proxyRestore.Messages.First()}");
             }
 
             // Step 4: Verify clean state
