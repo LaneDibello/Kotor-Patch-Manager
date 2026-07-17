@@ -97,6 +97,8 @@ inline void* memberFuncAddr(MemFn fn) {
 // Type alias for functions returning via x87 FPU ST(0)
 typedef float float10;
 
+#ifndef __GNUC__
+
 // Template wrapper for calling x87 FPU functions with no additional parameters
 template<typename FuncPtr>
 inline float CallFPUFunction(FuncPtr funcPtr, void* thisPtr) {
@@ -166,6 +168,21 @@ inline float CallFPUFunction(FuncPtr funcPtr, void* thisPtr, Arg1 arg1, Arg2 arg
 	}
 	return result;
 }
+
+#else
+
+// GCC/MinGW cannot parse MSVC's Intel __asm blocks. It does not need them: on
+// i686 a function that returns `float` already returns it in ST(0), which is
+// exactly what the MSVC thunks above read out by hand with `fstp dword ptr`. So
+// a correctly-typed __thiscall call is ABI-identical, and one variadic template
+// covers every arity the overloads above did.
+template<typename FuncPtr, typename... Args>
+inline float CallFPUFunction(FuncPtr funcPtr, void* thisPtr, Args... args) {
+	auto fn = reinterpret_cast<float(__thiscall*)(void*, Args...)>(funcPtr);
+	return fn(thisPtr, args...);
+}
+
+#endif
 
 typedef enum ResourceType {
     NONE = -1,

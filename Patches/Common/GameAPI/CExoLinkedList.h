@@ -1,6 +1,7 @@
 #pragma once
 #include "../Common.h"
 #include "GameAPIObject.h"
+#include "GameVersion.h"
 #include <type_traits>
 
 // CExoLinkedListNode structure definition
