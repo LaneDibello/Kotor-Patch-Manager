@@ -62,10 +62,26 @@ def find_compiler() -> str | None:
     return shutil.which(CXX)
 
 
-def dlltool_for(cxx: str) -> str:
-    """Map the g++ cross-compiler name to its matching dlltool."""
-    guess = re.sub(r"(g\+\+|gcc|c\+\+|clang\+\+)$", "dlltool", cxx)
-    return shutil.which(guess) or "dlltool"
+def dlltool_for(compiler: str) -> str:
+    """Find the dlltool that matches the C++ cross-compiler.
+
+    Prefers `compiler -print-prog-name=dlltool`, which the compiler answers with its
+    own tool regardless of cross prefix, version suffix, or install path. Falls back
+    to swapping the compiler's name suffix. Exits (via fail) if neither resolves,
+    rather than silently returning a bare "dlltool" that will not exist.
+    """
+    probe = subprocess.run([compiler, "-print-prog-name=dlltool"],
+                           capture_output=True, text=True)
+    printed = probe.stdout.strip()
+    # gcc/clang print an absolute path when they resolve the tool, else bare "dlltool".
+    if printed and printed != "dlltool" and Path(printed).exists():
+        return printed
+    guess = re.sub(r"(g\+\+|gcc|c\+\+|clang\+\+)$", "dlltool", compiler)
+    found = shutil.which(guess)
+    if found:
+        return found
+    fail(f"ERROR: could not find dlltool for {compiler}.",
+         "Install the matching binutils (e.g. mingw32-binutils on Fedora).")
 
 
 def generate_exports_def(patch_dir: Path, cpp_files: list[Path], name: str) -> Path:
