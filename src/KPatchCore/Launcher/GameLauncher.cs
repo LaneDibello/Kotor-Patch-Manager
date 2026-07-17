@@ -18,7 +18,7 @@ public static class GameLauncher
     /// <param name="gameExePath">Path to game executable</param>
     /// <param name="commandLineArgs">Optional command line arguments</param>
     /// <returns>Launch result with process information</returns>
-    public static LaunchResult LaunchGame(string gameExePath, string? commandLineArgs = null)
+    public static LaunchResult LaunchGame(string gameExePath, string? commandLineArgs = null, LaunchConfig? launchConfig = null)
     {
         // Validate game path
         if (string.IsNullOrWhiteSpace(gameExePath) || !File.Exists(gameExePath))
@@ -54,7 +54,7 @@ public static class GameLauncher
         var versionResult = GameDetector.DetectVersion(gameExePath, allowManagedInstallState: true);
         var distribution = versionResult.Data?.Distribution ?? Distribution.Other;
 
-        return LaunchWithInjection(gameExePath, patcherDllPath, distribution, commandLineArgs);
+        return LaunchWithInjection(gameExePath, patcherDllPath, distribution, commandLineArgs, launchConfig);
     }
 
     /// <summary>
@@ -69,7 +69,8 @@ public static class GameLauncher
         string gameExePath,
         string dllPath,
         Distribution distribution,
-        string? commandLineArgs = null)
+        string? commandLineArgs = null,
+        LaunchConfig? launchConfig = null)
     {
         // Validate inputs
         if (string.IsNullOrWhiteSpace(gameExePath) || !File.Exists(gameExePath))
@@ -83,22 +84,25 @@ public static class GameLauncher
         }
 
         // Delegate to the platform-specific injector
-        return CreateInjector().LaunchWithInjection(gameExePath, dllPath, commandLineArgs, distribution);
+        return CreateInjector(launchConfig).LaunchWithInjection(gameExePath, dllPath, commandLineArgs, distribution);
     }
 
     /// <summary>
-    /// Selects the injection strategy for the current platform.
+    /// Selects the launch strategy for the configured deployment method.
     /// </summary>
-    private static IGameInjector CreateInjector()
+    private static IGameInjector CreateInjector(LaunchConfig? launchConfig)
     {
+        // Proxy method: the game loads the patcher itself via the staged proxy,
+        // so we just start it (Steam or a custom command).
+        if (DeploymentPolicy.ForCurrentPlatform() == DeploymentMethod.Proxy)
+        {
+            return new ProxyGameLauncher(launchConfig ?? new LaunchConfig());
+        }
+
+        // Injection only works on Windows (it uses the Win32 API).
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             return new WindowsGameInjector();
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return new LinuxGameInjector();
         }
 
         return new UnsupportedGameInjector();
