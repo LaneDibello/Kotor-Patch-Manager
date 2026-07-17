@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using Avalonia;
+using KPatchCore.Applicators;
 using KPatchCore.Detectors;
 using KPatchCore.Launcher;
+using KPatchCore.Managers;
 using KPatchCore.Models;
 
 namespace KPatchLauncher;
@@ -57,11 +59,64 @@ class Program
             .WithInterFont()
             .LogToTrace();
 
+    private static int RunApplyCli(string[] args)
+    {
+        if (args.Length < 3)
+        {
+            Console.WriteLine("Usage: KPatchLauncher.exe <game_executable.exe> --patches <patches_directory> [patch_id]...");
+            return 1;
+        }
+
+        var gameExePath = args[0];
+        var orchestrator = new PatchOrchestrator(args[2]);
+        var availablePatches = orchestrator.GetAvailablePatches();
+        var patchIds = args.Skip(3).ToList();
+        if (patchIds.Count == 0)
+        {
+            patchIds.AddRange(availablePatches.Keys);
+        }
+
+        var missingPatchId = patchIds.FirstOrDefault(id => !availablePatches.ContainsKey(id));
+        if (patchIds.Count == 0 || missingPatchId != null)
+        {
+            Console.WriteLine(missingPatchId == null
+                ? "ERROR: No .kpatch files were found in the patches directory."
+                : $"ERROR: Patch ID not found: {missingPatchId}");
+            return 1;
+        }
+
+        var removalResult = PatchRemover.RemoveAllPatches(gameExePath, removeManagedState: false);
+        if (!removalResult.Success)
+        {
+            Console.WriteLine($"ERROR: {removalResult.Error}");
+            return 1;
+        }
+
+        var patcherDllPath = Path.Combine(AppContext.BaseDirectory, PatcherDllName);
+        var result = orchestrator.InstallPatches(
+            gameExePath,
+            patchIds,
+            patcherDllPath: File.Exists(patcherDllPath) ? patcherDllPath : null);
+        if (!result.Success)
+        {
+            Console.WriteLine($"ERROR: {result.Error}");
+            return 1;
+        }
+
+        Console.WriteLine($"Applied {result.InstalledPatches.Count} patch(es) successfully.");
+        return RunCli(new[] { gameExePath });
+    }
+
     /// <summary>
     /// Run CLI mode (game launcher)
     /// </summary>
     private static int RunCli(string[] args)
     {
+        if (args.Length > 1 && args[1].Equals("--patches", StringComparison.OrdinalIgnoreCase))
+        {
+            return RunApplyCli(args);
+        }
+
         Console.WriteLine("KPatch Launcher v1.0");
         Console.WriteLine("====================");
         Console.WriteLine();
