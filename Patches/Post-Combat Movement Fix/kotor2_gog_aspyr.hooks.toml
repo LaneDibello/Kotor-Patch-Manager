@@ -1,0 +1,26 @@
+# KOTOR 2 uses the same cancellation state machine as KOTOR 1, but this
+# unoptimized executable stores raw forward/back input in EBP-based locals.
+[metadata]
+target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"]
+
+[[hooks]]
+address = 0x0045BDA8
+type = "replace"
+original_bytes = [
+    0x8B, 0x8D, 0xA0, 0xF9, 0xFF, 0xFF,
+    0x8B, 0x91, 0xA0, 0x02, 0x00, 0x00,
+    0x8B, 0x85, 0xA0, 0xF9, 0xFF, 0xFF,
+    0x8B, 0x88, 0xA0, 0x02, 0x00, 0x00,
+    0x8B, 0x12,
+    0x8B, 0x42, 0x1C,
+    0xFF, 0xD0
+]
+replacement_bytes = [
+    0xD9, 0x45, 0xB8, # fld dword ptr [ebp-48h] - raw forward/backward input
+    0xD9, 0xE1,       # fabs
+    0xD9, 0x45, 0xB0, # fld dword ptr [ebp-50h] - the opposite direction
+    0xD9, 0xE1,       # fabs
+    0xDB, 0xF1,       # fcomi st(0), st(1)
+    0xDA, 0xC1,       # fcmovb st(0), st(1) - keep the larger magnitude
+    0xDD, 0xD9        # fstp st(1) - return one value in st(0)
+]
