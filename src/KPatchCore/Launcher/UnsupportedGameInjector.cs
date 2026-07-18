@@ -6,9 +6,9 @@ namespace KPatchCore.Launcher;
 /// Anything that isn't Windows or Linux. No launch strategy here, so say so
 /// plainly rather than let a Win32 call blow up. Applying patches still works.
 /// </summary>
-internal sealed class UnsupportedGameInjector : IGameInjector
+internal sealed class UnsupportedGameInjector : IGameLauncher
 {
-    public LaunchResult LaunchWithInjection(
+    public LaunchResult Launch(
         string gameExePath,
         string dllPath,
         string? commandLineArgs,

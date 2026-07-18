@@ -11,7 +11,7 @@ namespace KPatchCore.Launcher;
 /// Used wherever the deployment method is proxy (Linux today, or Windows if wired
 /// onto it via <see cref="DeploymentPolicy"/>).
 /// </summary>
-internal sealed class ProxyGameLauncher : IGameInjector
+internal sealed class ProxyGameLauncher : IGameLauncher
 {
     private readonly LaunchConfig _config;
 
@@ -20,7 +20,7 @@ internal sealed class ProxyGameLauncher : IGameInjector
         _config = config;
     }
 
-    public LaunchResult LaunchWithInjection(
+    public LaunchResult Launch(
         string gameExePath,
         string dllPath,
         string? commandLineArgs,

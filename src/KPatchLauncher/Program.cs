@@ -146,7 +146,7 @@ class Program
             Console.WriteLine();
 
             // Launch with DLL injection (method depends on distribution)
-            var result = GameLauncher.LaunchWithInjection(
+            var result = GameLauncher.Launch(
                 gameExePath,
                 patcherDllPath,
                 distribution: distribution,

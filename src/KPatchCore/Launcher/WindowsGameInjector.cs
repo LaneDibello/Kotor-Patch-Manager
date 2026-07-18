@@ -7,9 +7,9 @@ namespace KPatchCore.Launcher;
 /// work lives in <see cref="ProcessInjector"/> (suspended-create for GOG, delayed
 /// injection for Steam).
 /// </summary>
-internal sealed class WindowsGameInjector : IGameInjector
+internal sealed class WindowsGameInjector : IGameLauncher
 {
-    public LaunchResult LaunchWithInjection(
+    public LaunchResult Launch(
         string gameExePath,
         string dllPath,
         string? commandLineArgs,
