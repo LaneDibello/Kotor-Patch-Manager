@@ -1,0 +1,5 @@
+LIBRARY K1SecurityDemolitionsXP
+EXPORTS
+    AwardSecurityUnlockXP
+    AwardMineDisarmXP
+    AwardMineRecoverXP

@@ -49,8 +49,10 @@ command -v i686-w64-mingw32-g++ >/dev/null 2>&1 || {
 read -rp "Enter version (#.#.# format): " VERSION
 [ -n "$VERSION" ] || VERSION="test-build"
 
+# Absolute paths: the per-component build-mingw.sh scripts cd into their own dir
+# before compiling, so any output path handed to them must be absolute.
 RELEASE_NAME="KotorPatchManager-linux-v$VERSION"
-RELEASE_DIR="releases/$RELEASE_NAME"
+RELEASE_DIR="$ROOT/releases/$RELEASE_NAME"
 BIN="$RELEASE_DIR/bin"
 
 # Clean
