@@ -11,6 +11,54 @@ namespace KotorPatcher {
     static bool g_initialized = false;
     static Wrappers::WrapperGeneratorBase* g_wrapperGenerator = nullptr;
 
+    // KOTOR1 on Steam ships behind SteamStub DRM: its .text is encrypted on disk and
+    // only decrypted in memory by the stub, which runs after our proxy has already
+    // loaded us. At DllMain time a hook site therefore still reads as ciphertext and
+    // every VerifyBytes would fail. When we detect that, the apply is handed to a worker
+    // that waits for decryption instead of giving up. GOG/retail and the non-stubbed
+    // Steam builds decrypt nothing, so their hook sites read correctly at init and this
+    // path is never taken.
+    static const DWORD kDecryptPollIntervalMs = 15;
+    static const DWORD kDecryptTimeoutMs = 30000;
+
+    // First patch that carries a code hook, or nullptr if every patch is DLL_ONLY. Its
+    // original bytes double as the "is the code readable yet" sentinel: they only match
+    // once any on-disk encryption has been undone in memory.
+    static const PatchInfo* FindHookSentinel() {
+        for (const auto& patch : g_patches) {
+            if (patch.type != HookType::DLL_ONLY && !patch.originalBytes.empty()) {
+                return &patch;
+            }
+        }
+        return nullptr;
+    }
+
+    static bool HookSiteReadable(const PatchInfo* sentinel) {
+        return sentinel != nullptr &&
+            Trampoline::VerifyBytes(sentinel->hookAddress,
+                sentinel->originalBytes.data(), sentinel->originalBytes.size());
+    }
+
+    // Runs off the loader path when the code is still encrypted at init. Polls the
+    // sentinel until the stub has decrypted .text, then applies normally. The patched
+    // functions are gameplay/menu code that runs long after startup, so applying a
+    // moment into the game (rather than before its entry point) is safe in practice.
+    static DWORD WINAPI DeferredApplyThread(LPVOID) {
+        const PatchInfo* sentinel = FindHookSentinel();
+        DWORD start = GetTickCount();
+        while (!HookSiteReadable(sentinel)) {
+            // DWORD subtraction stays correct across a GetTickCount wrap.
+            if (GetTickCount() - start >= kDecryptTimeoutMs) {
+                OutputDebugStringA("[KotorPatcher] Timed out waiting for code decryption; game left unpatched\n");
+                return 1;
+            }
+            Sleep(kDecryptPollIntervalMs);
+        }
+        OutputDebugStringA("[KotorPatcher] Code decrypted; applying deferred patches\n");
+        ApplyPatches();
+        return 0;
+    }
+
     bool InitializePatcher() {
         if (g_initialized) return true;
 
@@ -64,6 +112,22 @@ namespace KotorPatcher {
             }
         } else {
             OutputDebugStringA("[KotorPatcher] WARNING: No version SHA found in config\n");
+        }
+
+        // If the hook sites are still encrypted (SteamStub), wait for the stub to
+        // decrypt them on a worker thread instead of failing every VerifyBytes now.
+        const PatchInfo* sentinel = FindHookSentinel();
+        if (sentinel != nullptr && !HookSiteReadable(sentinel)) {
+            OutputDebugStringA("[KotorPatcher] Hook site still encrypted (SteamStub?); deferring apply\n");
+            HANDLE hThread = CreateThread(nullptr, 0, DeferredApplyThread, nullptr, 0, nullptr);
+            if (hThread) {
+                CloseHandle(hThread);
+                g_initialized = true;
+                return true;
+            }
+            // No worker available: fall through to a synchronous apply. VerifyBytes
+            // still fails safe if the code really is encrypted.
+            OutputDebugStringA("[KotorPatcher] WARNING: CreateThread failed; applying synchronously\n");
         }
 
         // Apply patches
