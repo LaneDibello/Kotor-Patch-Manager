@@ -4,6 +4,15 @@
 * text=auto
 
 ###############################################################################
+# Files executed by a Unix shell must keep LF endings even on a Windows
+# checkout. With only "* text=auto", these get CRLF on Windows, and the CR
+# becomes part of the "#!/usr/bin/env bash" interpreter name under WSL/Linux
+# ("env: 'bash\r': No such file or directory"). Pin them to LF.
+###############################################################################
+*.sh  text eol=lf
+*.py  text eol=lf
+
+###############################################################################
 # Set default behavior for command prompt diff.
 #
 # This is need for earlier builds of msysgit that does not have it on by

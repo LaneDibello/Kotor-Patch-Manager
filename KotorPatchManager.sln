@@ -20,6 +20,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Patches", "Patches", "{B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}"
 	ProjectSection(SolutionItems) = preProject
 		Patches\create-patch.bat = Patches\create-patch.bat
+	
+		Patches\create-patch.py = Patches\create-patch.py
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{E2EC2BBE-C9B1-45ED-9045-9B9684B93CA7}"
@@ -29,6 +31,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{E2EC2B
 		Patches\Common\VirtualFunctionCall.h = Patches\Common\VirtualFunctionCall.h
 	
 		Patches\Common\VTableOverride.h = Patches\Common\VTableOverride.h
+	
+		Patches\Common\Platform.h = Patches\Common\Platform.h
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AdditionalConsoleCommands", "AdditionalConsoleCommands", "{F96014DA-1F4F-4367-810D-860A753FD9F9}"
@@ -92,6 +96,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.gitignore = .gitignore
 		publish.bat = publish.bat
 		README.md = README.md
+	
+		build-mingw.sh = build-mingw.sh
+		publish.sh = publish.sh
+	
+		publish-patches.ps1 = publish-patches.ps1
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AddressDatabases", "AddressDatabases", "{9149723B-2F97-4142-90A2-03AB43A3D68D}"
@@ -229,6 +238,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GameAPI", "GameAPI", "{D9D8
 	
 		Patches\Common\GameAPI\CGuiInGame.cpp = Patches\Common\GameAPI\CGuiInGame.cpp
 		Patches\Common\GameAPI\CGuiInGame.h = Patches\Common\GameAPI\CGuiInGame.h
+	
+		Patches\Common\GameAPI\Camera.cpp = Patches\Common\GameAPI\Camera.cpp
+		Patches\Common\GameAPI\Camera.h = Patches\Common\GameAPI\Camera.h
+		Patches\Common\GameAPI\CSWGuiScene.cpp = Patches\Common\GameAPI\CSWGuiScene.cpp
+		Patches\Common\GameAPI\CSWGuiScene.h = Patches\Common\GameAPI\CSWGuiScene.h
+		Patches\Common\GameAPI\Gob.cpp = Patches\Common\GameAPI\Gob.cpp
+		Patches\Common\GameAPI\Gob.h = Patches\Common\GameAPI\Gob.h
+		Patches\Common\GameAPI\Scene.cpp = Patches\Common\GameAPI\Scene.cpp
+		Patches\Common\GameAPI\Scene.h = Patches\Common\GameAPI\Scene.h
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DialogueRepliesPast9", "DialogueRepliesPast9", "{84C74D0E-81A6-4841-B942-9BCA59C01C27}"
@@ -284,6 +302,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "additional", "additional", 
 		Patches\K1GUITests\additional\test1.gui = Patches\K1GUITests\additional\test1.gui
 	
 		Patches\ShaderOverride\additional\README.md = Patches\ShaderOverride\additional\README.md
+	
+		Patches\K1GUITests\additional\monke.tga = Patches\K1GUITests\additional\monke.tga
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShipBuildFalse", "ShipBuildFalse", "{EE5E99F9-1328-4558-9FEB-488A38AA6AEC}"
@@ -447,6 +467,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1SecurityDemolitionsXP", "
 		Patches\K1SecurityDemolitionsXP\hooks.toml = Patches\K1SecurityDemolitionsXP\hooks.toml
 		Patches\K1SecurityDemolitionsXP\K1SecurityDemolitionsXP.cpp = Patches\K1SecurityDemolitionsXP\K1SecurityDemolitionsXP.cpp
 		Patches\K1SecurityDemolitionsXP\manifest.toml = Patches\K1SecurityDemolitionsXP\manifest.toml
+	
+		Patches\K1SecurityDemolitionsXP\exports.def = Patches\K1SecurityDemolitionsXP\exports.def
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1SecuritySpikes", "K1SecuritySpikes", "{46320615-FA00-417B-BEBC-A8F9CFC089E0}"
@@ -454,6 +476,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1SecuritySpikes", "K1Secur
 		Patches\K1SecuritySpikes\hooks.toml = Patches\K1SecuritySpikes\hooks.toml
 		Patches\K1SecuritySpikes\K1SecuritySpikes.cpp = Patches\K1SecuritySpikes\K1SecuritySpikes.cpp
 		Patches\K1SecuritySpikes\manifest.toml = Patches\K1SecuritySpikes\manifest.toml
+	
+		Patches\K1SecuritySpikes\exports.def = Patches\K1SecuritySpikes\exports.def
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2FinesseMeleeFix", "K2FinesseMeleeFix", "{FC036E7F-1E5F-418D-9350-3AD4AF55FD03}"
@@ -465,6 +489,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2FinesseMeleeFix", "K2Fine
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Max Lights", "Max Lights", "{726BFED0-8F79-495E-B329-DB53F7229B0D}"
 	ProjectSection(SolutionItems) = preProject
+		Patches\Max Lights\kotor2-gog-aspyr.hooks.toml = Patches\Max Lights\kotor2-gog-aspyr.hooks.toml
+		Patches\Max Lights\kotor2-steam-aspyr.hooks.toml = Patches\Max Lights\kotor2-steam-aspyr.hooks.toml
+		Patches\Max Lights\manifest.toml = Patches\Max Lights\manifest.toml
+	
+		Patches\Max Lights\kotor2-gog-aspyr.hooks.toml = Patches\Max Lights\kotor2-gog-aspyr.hooks.toml
+		Patches\Max Lights\kotor2-steam-aspyr.hooks.toml = Patches\Max Lights\kotor2-steam-aspyr.hooks.toml
+		Patches\Max Lights\manifest.toml = Patches\Max Lights\manifest.toml
+	
 		Patches\Max Lights\kotor2-gog-aspyr.hooks.toml = Patches\Max Lights\kotor2-gog-aspyr.hooks.toml
 		Patches\Max Lights\kotor2-steam-aspyr.hooks.toml = Patches\Max Lights\kotor2-steam-aspyr.hooks.toml
 		Patches\Max Lights\manifest.toml = Patches\Max Lights\manifest.toml
@@ -484,6 +516,28 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "StoreNoConfirmThreshold", "
 		Patches\StoreNoConfirmThreshold\kotor2-gog-aspyr.hooks.toml = Patches\StoreNoConfirmThreshold\kotor2-gog-aspyr.hooks.toml
 		Patches\StoreNoConfirmThreshold\kotor2-steam-aspyr.hooks.toml = Patches\StoreNoConfirmThreshold\kotor2-steam-aspyr.hooks.toml
 		Patches\StoreNoConfirmThreshold\manifest.toml = Patches\StoreNoConfirmThreshold\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Post-Combat Movement Fix", "Post-Combat Movement Fix", "{7F77AB04-598D-4E0E-A4EC-016214AC7FCC}"
+	ProjectSection(SolutionItems) = preProject
+		Patches\Post-Combat Movement Fix\kotor1_103.hooks.toml = Patches\Post-Combat Movement Fix\kotor1_103.hooks.toml
+		Patches\Post-Combat Movement Fix\kotor2_gog_aspyr.hooks.toml = Patches\Post-Combat Movement Fix\kotor2_gog_aspyr.hooks.toml
+		Patches\Post-Combat Movement Fix\manifest.toml = Patches\Post-Combat Movement Fix\manifest.toml
+	
+		Patches\Post-Combat Movement Fix\kotor1_103.hooks.toml = Patches\Post-Combat Movement Fix\kotor1_103.hooks.toml
+		Patches\Post-Combat Movement Fix\kotor2_gog_aspyr.hooks.toml = Patches\Post-Combat Movement Fix\kotor2_gog_aspyr.hooks.toml
+		Patches\Post-Combat Movement Fix\manifest.toml = Patches\Post-Combat Movement Fix\manifest.toml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{0B421AA0-B168-42EB-AD2A-1579E542CA43}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "KProxy", "KProxy", "{D9E3FBA5-8846-4188-9414-606C1192D137}"
+	ProjectSection(SolutionItems) = preProject
+		src\KProxy\bink_forwards.def = src\KProxy\bink_forwards.def
+		src\KProxy\build-mingw.sh = src\KProxy\build-mingw.sh
+		src\KProxy\generate-def.sh = src\KProxy\generate-def.sh
+		src\KProxy\kproxy.cpp = src\KProxy\kproxy.cpp
+		src\KProxy\README.md = src\KProxy\README.md
 	EndProjectSection
 EndProject
 Global
@@ -589,6 +643,8 @@ Global
 		{726BFED0-8F79-495E-B329-DB53F7229B0D} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{57D786AC-9A34-44C2-B70C-0FBC6DBB51A9} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
 		{255DFDD4-E313-4837-A03F-AFA0AF613DD8} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{7F77AB04-598D-4E0E-A4EC-016214AC7FCC} = {B30A8E1D-F3A8-414F-AF9B-60C8CC3046C3}
+		{D9E3FBA5-8846-4188-9414-606C1192D137} = {0B421AA0-B168-42EB-AD2A-1579E542CA43}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EC8C0764-BD06-422A-B325-D20270F5D772}
