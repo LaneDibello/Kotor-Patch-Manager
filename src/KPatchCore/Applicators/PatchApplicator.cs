@@ -534,6 +534,7 @@ public class PatchApplicator
             messages.Add("Step 7/8: Installing patcher DLL and dependencies...");
 
             // Copy KotorPatcher.dll to game directory if path provided
+            var destPath = Path.Combine(gameDir, "KotorPatcher.dll");
             if (!string.IsNullOrEmpty(options.PatcherDllPath))
             {
                 if (!File.Exists(options.PatcherDllPath))
@@ -548,24 +549,62 @@ public class PatchApplicator
                     };
                 }
 
-                var destPath = Path.Combine(gameDir, "KotorPatcher.dll");
-                File.Copy(options.PatcherDllPath, destPath, overwrite: true);
-                messages.Add($"  ✓ Copied KotorPatcher.dll to game directory");
+                // If DLL already present, skip copy step
+                if (PathHelpers.SamePath(options.PatcherDllPath, destPath))
+                {
+                    messages.Add($"  ✓ KotorPatcher.dll already in place (Patch Manager runs from the game directory)");
+                }
+                else
+                {
+                    try
+                    {
+                        File.Copy(options.PatcherDllPath, destPath, overwrite: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (backup != null)
+                        {
+                            BackupManager.RestoreBackup(backup);
+                        }
+
+                        return new InstallResult
+                        {
+                            Success = false,
+                            Error = $"Failed to copy KotorPatcher.dll to game directory: {ex.Message}",
+                            DetectedVersion = gameVersion,
+                            Backup = backup,
+                            Messages = messages
+                        };
+                    }
+
+                    messages.Add($"  ✓ Copied KotorPatcher.dll to game directory");
+                }
 
                 // Copy sqlite3.dll (should be in same directory as KotorPatcher.dll)
                 var patcherDir = Path.GetDirectoryName(options.PatcherDllPath);
                 if (patcherDir != null)
                 {
                     var sqliteDllSource = Path.Combine(patcherDir, "sqlite3.dll");
-                    if (File.Exists(sqliteDllSource))
+                    var sqliteDllDest = Path.Combine(gameDir, "sqlite3.dll");
+                    if (!File.Exists(sqliteDllSource))
                     {
-                        var sqliteDllDest = Path.Combine(gameDir, "sqlite3.dll");
-                        File.Copy(sqliteDllSource, sqliteDllDest, overwrite: true);
-                        messages.Add($"  ✓ Copied sqlite3.dll to game directory");
+                        messages.Add($"  ⚠️ Warning: sqlite3.dll not found at: {sqliteDllSource}");
+                    }
+                    else if (PathHelpers.SamePath(sqliteDllSource, sqliteDllDest))
+                    {
+                        messages.Add($"  ✓ sqlite3.dll already in place (Patch Manager runs from the game directory)");
                     }
                     else
                     {
-                        messages.Add($"  ⚠️ Warning: sqlite3.dll not found at: {sqliteDllSource}");
+                        try
+                        {
+                            File.Copy(sqliteDllSource, sqliteDllDest, overwrite: true);
+                            messages.Add($"  ✓ Copied sqlite3.dll to game directory");
+                        }
+                        catch (Exception ex)
+                        {
+                            messages.Add($"  ⚠️ Warning: failed to copy sqlite3.dll: {ex.Message}");
+                        }
                     }
                 }
             }
@@ -573,6 +612,24 @@ public class PatchApplicator
             {
                 messages.Add($"  ⚠️ Warning: KotorPatcher.dll path not provided");
                 messages.Add($"  ⚠️ Make sure KotorPatcher.dll and sqlite3.dll are in game directory");
+            }
+
+            // Fail loudly if the DLL never made it to the destination
+            if (!File.Exists(destPath))
+            {
+                if (backup != null)
+                {
+                    BackupManager.RestoreBackup(backup);
+                }
+
+                return new InstallResult
+                {
+                    Success = false,
+                    Error = "KotorPatcher.dll is missing from the game directory after installation.",
+                    DetectedVersion = gameVersion,
+                    Backup = backup,
+                    Messages = messages
+                };
             }
 
             var stateResult = InstallStateManager.SaveOrUpdate(

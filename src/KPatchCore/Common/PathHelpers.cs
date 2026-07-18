@@ -67,6 +67,25 @@ public static class PathHelpers
     }
 
     /// <summary>
+    /// Determines whether two paths refer to the same file/directory location.
+    /// Comparison is done on the fully-resolved paths, is case-insensitive
+    /// (matching Windows and Wine filesystem semantics), and ignores a trailing
+    /// directory separator. This is a path-string comparison, not a
+    /// hardlink/symlink identity check.
+    /// Returns false if either path is null or empty.
+    /// </summary>
+    public static bool SamePath(string? a, string? b)
+    {
+        if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
+            return false;
+
+        static string Normalize(string p) =>
+            Path.TrimEndingDirectorySeparator(Path.GetFullPath(p));
+
+        return string.Equals(Normalize(a), Normalize(b), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Converts an absolute path to a relative path from a base directory
     /// </summary>
     public static string GetRelativePath(string basePath, string targetPath)
