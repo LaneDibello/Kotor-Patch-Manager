@@ -17,7 +17,7 @@ See road map [here](docs/Roadmap2026.md)
 *NOTE: The patch manager is still in Beta, there are likely going to be various issues within the current release. Please feel free to create GitHub Issues or contact Lane if anything strange comes up*
 
 ### Using the Release
-If you're just interested in experimenting with the existing patches, then you can just download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases) as a Zip.
+If you're just interested in experimenting with the existing patches, then you can just download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases). Windows users want the `.zip` (`KotorPatchManager-v*.zip`); Linux users want the `.tar.gz` (`KotorPatchManager-linux-v*.tar.gz`).
 
 This Zip file will contain the following:
 - bin
@@ -32,6 +32,8 @@ This Zip file will contain the following:
 - README.txt: A brief contents and quick-start guide
 
 To use, just run the launcher. Set the "Game" path to target your game executable (i.e. `swkotor.exe`). Set the "Patches" path to target the directory with your `.kpatch` files (i.e. `<release>/patches`).
+
+**On Linux:** the layout is the same with a few differences. The launcher is a native executable named `KPatchLauncher` (no `.exe`) — run it with `./KPatchLauncher`. Because a native app can't inject into a Wine/Proton process, `bin` additionally contains `binkw32.dll` (a small proxy) and `sqlite3.dll`, which the manager stages into the game folder so the patches load when the game starts. Point the "Game" path at the game executable inside your Wine/Proton install (i.e. `swkotor.exe`), then use "Launch" to start the game through Steam or a custom command. The `tools` directory also includes `create-patch.py`, the Linux equivalent of `create-patch.bat`.
 
 ### Building from Source
 If you're interested in contributing or making your own patches, you're going to want to clone this repository and build from source.
@@ -50,6 +52,8 @@ To build the `.kpatch` file for any patch, simply open the directory (i.e. `cd P
 ..\create-patch.bat
 ```
 This will build and package the patch into a `.kpatch` file.
+
+**On Linux:** there's no Visual Studio; instead you'll need the .NET SDK, MinGW-w64 (`i686-w64-mingw32-g++`, for the 32-bit DLLs the game loads under Wine), and `python3`. The manager builds natively with `dotnet`, and the `build-mingw.sh` scripts cross-compile `KotorPatcher.dll` and the `binkw32.dll` proxy. Build a patch with `python3 ../create-patch.py` from within its directory (the equivalent of `..\create-patch.bat`).
 
 ## Usage
 Available patches will appear on the left-hand side, with descriptions on the right-hand side. Select the patches you want and select "Apply", to prepare the game for use with those patches. Select "Launch", to run the game with these patches applied.
