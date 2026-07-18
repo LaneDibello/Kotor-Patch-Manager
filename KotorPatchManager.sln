@@ -99,6 +99,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	
 		build-mingw.sh = build-mingw.sh
 		publish.sh = publish.sh
+	
+		publish-patches.ps1 = publish-patches.ps1
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AddressDatabases", "AddressDatabases", "{9149723B-2F97-4142-90A2-03AB43A3D68D}"
@@ -465,6 +467,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1SecurityDemolitionsXP", "
 		Patches\K1SecurityDemolitionsXP\hooks.toml = Patches\K1SecurityDemolitionsXP\hooks.toml
 		Patches\K1SecurityDemolitionsXP\K1SecurityDemolitionsXP.cpp = Patches\K1SecurityDemolitionsXP\K1SecurityDemolitionsXP.cpp
 		Patches\K1SecurityDemolitionsXP\manifest.toml = Patches\K1SecurityDemolitionsXP\manifest.toml
+	
+		Patches\K1SecurityDemolitionsXP\exports.def = Patches\K1SecurityDemolitionsXP\exports.def
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1SecuritySpikes", "K1SecuritySpikes", "{46320615-FA00-417B-BEBC-A8F9CFC089E0}"
@@ -472,6 +476,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K1SecuritySpikes", "K1Secur
 		Patches\K1SecuritySpikes\hooks.toml = Patches\K1SecuritySpikes\hooks.toml
 		Patches\K1SecuritySpikes\K1SecuritySpikes.cpp = Patches\K1SecuritySpikes\K1SecuritySpikes.cpp
 		Patches\K1SecuritySpikes\manifest.toml = Patches\K1SecuritySpikes\manifest.toml
+	
+		Patches\K1SecuritySpikes\exports.def = Patches\K1SecuritySpikes\exports.def
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2FinesseMeleeFix", "K2FinesseMeleeFix", "{FC036E7F-1E5F-418D-9350-3AD4AF55FD03}"
@@ -483,6 +489,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "K2FinesseMeleeFix", "K2Fine
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Max Lights", "Max Lights", "{726BFED0-8F79-495E-B329-DB53F7229B0D}"
 	ProjectSection(SolutionItems) = preProject
+		Patches\Max Lights\kotor2-gog-aspyr.hooks.toml = Patches\Max Lights\kotor2-gog-aspyr.hooks.toml
+		Patches\Max Lights\kotor2-steam-aspyr.hooks.toml = Patches\Max Lights\kotor2-steam-aspyr.hooks.toml
+		Patches\Max Lights\manifest.toml = Patches\Max Lights\manifest.toml
+	
 		Patches\Max Lights\kotor2-gog-aspyr.hooks.toml = Patches\Max Lights\kotor2-gog-aspyr.hooks.toml
 		Patches\Max Lights\kotor2-steam-aspyr.hooks.toml = Patches\Max Lights\kotor2-steam-aspyr.hooks.toml
 		Patches\Max Lights\manifest.toml = Patches\Max Lights\manifest.toml
@@ -510,6 +520,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "StoreNoConfirmThreshold", "
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Post-Combat Movement Fix", "Post-Combat Movement Fix", "{7F77AB04-598D-4E0E-A4EC-016214AC7FCC}"
 	ProjectSection(SolutionItems) = preProject
+		Patches\Post-Combat Movement Fix\kotor1_103.hooks.toml = Patches\Post-Combat Movement Fix\kotor1_103.hooks.toml
+		Patches\Post-Combat Movement Fix\kotor2_gog_aspyr.hooks.toml = Patches\Post-Combat Movement Fix\kotor2_gog_aspyr.hooks.toml
+		Patches\Post-Combat Movement Fix\manifest.toml = Patches\Post-Combat Movement Fix\manifest.toml
+	
 		Patches\Post-Combat Movement Fix\kotor1_103.hooks.toml = Patches\Post-Combat Movement Fix\kotor1_103.hooks.toml
 		Patches\Post-Combat Movement Fix\kotor2_gog_aspyr.hooks.toml = Patches\Post-Combat Movement Fix\kotor2_gog_aspyr.hooks.toml
 		Patches\Post-Combat Movement Fix\manifest.toml = Patches\Post-Combat Movement Fix\manifest.toml
