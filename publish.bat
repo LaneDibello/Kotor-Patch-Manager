@@ -52,46 +52,10 @@ set /p INCLUDE_PATCHES="Include patches? (y/n): "
 if /i "%INCLUDE_PATCHES%"=="y" (
     mkdir "%RELEASE_DIR%\%RELEASE_SUBDIR%" >nul 2>&1
 
-    echo   Scanning "%PATCHES_DIR%" for patches with manifest.toml...
-
-    for /D %%D in ("%PATCHES_DIR%\*") do (
-        if exist "%%~fD\manifest.toml" (
-            echo   Building %%~nxD...
-            pushd "%%~fD"
-
-            set SKIP_PAUSE=1
-            call "..\create-patch.bat" >nul 2>&1
-            set SKIP_PAUSE=
-
-            set "COPIED_ANY="
-            for %%K in ("*.kpatch") do (
-                if exist "%%~fK" (
-                    copy /Y "%%~fK" "%~dp0%RELEASE_DIR%\%RELEASE_SUBDIR%\" >nul
-                    echo     [OK] %%~nxK
-                    set "COPIED_ANY=1"
-                )
-            )
-
-            if not defined COPIED_ANY (
-                echo     [WARN] No .kpatch produced for %%~nxD
-            )
-
-            if exist ".\additional\*" (
-                rem Destination: ...\patches\<PatchName> additional files\
-                set "ADDL_DEST=%~dp0%RELEASE_DIR%\%RELEASE_SUBDIR%\%%~nxD additional files"
-                if not exist "!ADDL_DEST!" mkdir "!ADDL_DEST!" >nul 2>&1
-
-                robocopy ".\additional" "!ADDL_DEST!" /E >nul 2>&1
-                if errorlevel 8 (
-                    echo     [ERR] Failed to copy additional files for %%~nxD
-                ) else (
-                    echo     [OK] Copied additional files for %%~nxD
-                )
-            ) 
-
-            popd
-        )
-    )
+    rem Patches build independently (isolated dirs, no shared PDB), so fan them
+    rem out across parallel jobs. publish-patches.ps1 builds, collects the
+    rem .kpatch files and "additional files" folders, and prints a summary.
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0publish-patches.ps1" -PatchesDir "%~dp0%PATCHES_DIR%" -OutDir "%~dp0%RELEASE_DIR%\%RELEASE_SUBDIR%"
 
 ) else (
     echo   Skipping patches
