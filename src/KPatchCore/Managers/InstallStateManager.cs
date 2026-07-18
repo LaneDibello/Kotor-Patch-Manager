@@ -33,7 +33,8 @@ public static class InstallStateManager
     public static PatchResult<ManagedInstallState> SaveOrUpdate(
         string gameExePath,
         GameVersion originalVersion,
-        IEnumerable<string> installedPatches)
+        IEnumerable<string> installedPatches,
+        bool kproxyInstalled = false)
     {
         if (string.IsNullOrWhiteSpace(gameExePath) || !File.Exists(gameExePath))
         {
@@ -83,6 +84,7 @@ public static class InstallStateManager
                     .Where(id => !string.IsNullOrWhiteSpace(id))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList(),
+                KProxyInstalled = kproxyInstalled,
                 CreatedAt = existing?.CreatedAt ?? DateTime.Now,
                 UpdatedAt = DateTime.Now
             };

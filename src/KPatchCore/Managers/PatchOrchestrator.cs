@@ -158,8 +158,8 @@ public class PatchOrchestrator
     /// <param name="gameExePath">Path to game executable</param>
     /// <param name="commandLineArgs">Optional command line arguments</param>
     /// <returns>Launch result with process information</returns>
-    public LaunchResult LaunchGame(string gameExePath, string? commandLineArgs = null)
+    public LaunchResult LaunchGame(string gameExePath, string? commandLineArgs = null, LaunchConfig? launchConfig = null)
     {
-        return GameLauncher.LaunchGame(gameExePath, commandLineArgs);
+        return GameLauncher.LaunchGame(gameExePath, commandLineArgs, launchConfig);
     }
 }

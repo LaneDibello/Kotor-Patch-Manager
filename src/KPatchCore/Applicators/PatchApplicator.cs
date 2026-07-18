@@ -1,5 +1,6 @@
 using KPatchCore.Common;
 using KPatchCore.Detectors;
+using KPatchCore.Launcher;
 using KPatchCore.Managers;
 using KPatchCore.Models;
 using KPatchCore.Validators;
@@ -37,6 +38,14 @@ public class PatchApplicator
         /// Path to KotorPatcher.dll (if null, assumes it's in same directory as game exe)
         /// </summary>
         public string? PatcherDllPath { get; init; }
+
+        /// <summary>
+        /// Path to the KProxy (binkw32.dll) to stage when deploying via proxy
+        /// so the game loads KotorPatcher under Wine/Proton.
+        /// Ignored on Windows (live injection).
+        /// If null on Linux, DLL-based patches won't load under Wine.
+        /// </summary>
+        public string? ProxyDllPath { get; init; }
     }
 
     /// <summary>
@@ -632,10 +641,50 @@ public class PatchApplicator
                 };
             }
 
+            // Step 7.5: for the proxy deployment method, stage the KProxy so
+            // the game loads KotorPatcher when it starts (injection does not).
+            var proxyInstalled = false;
+            if (DeploymentPolicy.ForCurrentPlatform() == DeploymentMethod.Proxy)
+            {
+                if (string.IsNullOrEmpty(options.ProxyDllPath))
+                {
+                    // Without the proxy staged nothing loads KotorPatcher, so DLL
+                    // (DETOUR) patches won't take effect. Static patches still do.
+                    messages.Add($"  ⚠️ Warning: KProxy (binkw32.dll) not found next to the launcher");
+                    messages.Add($"  ⚠️ DLL patches won't load under Wine; static patches still apply");
+                }
+                else
+                {
+                    var proxyResult = KProxyInstaller.Install(gameDir, options.ProxyDllPath);
+                    if (!proxyResult.Success)
+                    {
+                        // Undo any half-done rename before rolling back the executable.
+                        KProxyInstaller.Uninstall(gameDir);
+                        if (backup != null)
+                        {
+                            BackupManager.RestoreBackup(backup);
+                        }
+
+                        return new InstallResult
+                        {
+                            Success = false,
+                            Error = $"KProxy install failed: {proxyResult.Error}",
+                            DetectedVersion = gameVersion,
+                            Backup = backup,
+                            Messages = messages
+                        };
+                    }
+
+                    proxyInstalled = true;
+                    messages.Add($"  ✓ {proxyResult.Messages.FirstOrDefault()}");
+                }
+            }
+
             var stateResult = InstallStateManager.SaveOrUpdate(
                 options.GameExePath,
                 gameVersion,
-                installOrder);
+                installOrder,
+                proxyInstalled);
             if (stateResult.Success)
             {
                 messages.Add($"  {stateResult.Messages.FirstOrDefault() ?? "Managed install state saved"}");

@@ -161,9 +161,8 @@ namespace KotorPatcher {
             return false;
         }
         g_loadedPatches.push_back(hPatch);
-
         // Get function address
-        void* funcAddr = GetProcAddress(hPatch, patch.functionName.c_str());
+        void* funcAddr = reinterpret_cast<void*>(GetProcAddress(hPatch, patch.functionName.c_str()));
         if (!funcAddr) {
             OutputDebugStringA(("[KotorPatcher] Function not found: " + patch.functionName + "\n").c_str());
             return false;

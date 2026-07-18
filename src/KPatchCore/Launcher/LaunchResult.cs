@@ -68,6 +68,26 @@ public sealed class LaunchResult
     }
 
     /// <summary>
+    /// Creates a successful result for a game started through an external
+    /// launcher (e.g. Steam), where the manager has no handle to the game
+    /// process. Patches load via the staged KProxy, not live injection.
+    /// </summary>
+    /// <param name="message">What was launched and how</param>
+    /// <returns>Successful, process-less launch result</returns>
+    public static LaunchResult Launched(string message)
+    {
+        var result = new LaunchResult
+        {
+            Success = true,
+            GameProcess = null,
+            InjectionPerformed = false,
+            VanillaLaunch = false
+        };
+        result.Messages.Add(message);
+        return result;
+    }
+
+    /// <summary>
     /// Creates a failed launch result
     /// </summary>
     /// <param name="error">Error message</param>

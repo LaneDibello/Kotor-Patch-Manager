@@ -116,7 +116,7 @@
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" Margin="10">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto" Margin="10">
 
         <!-- Game Path -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
@@ -299,8 +299,26 @@
             </Border>
         </Grid>
 
+        <!-- Launch Settings (proxy method only: how the game is started) -->
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    Spacing="10"
+                    Margin="0,10,0,0"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding ShowLaunchSettings}">
+            <CheckBox Content="Custom launch command"
+                      IsChecked="{Binding UseCustomLaunch}"
+                      VerticalAlignment="Center"
+                      ToolTip.Tip="Off: launch through Steam. On: run your own command (Lutris, Heroic, Wine...)."/>
+            <TextBox Text="{Binding CustomLaunchCommand}"
+                     Watermark="e.g. wine &quot;{exe}&quot;   ({exe} = game path)"
+                     IsEnabled="{Binding UseCustomLaunch}"
+                     Width="440"
+                     VerticalAlignment="Center"/>
+        </StackPanel>
+
         <!-- Status Bar -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 BorderBrush="{DynamicResource PrimaryBrush}"
                 BorderThickness="0,1,0,0"
                 Padding="5"
@@ -324,7 +342,7 @@
         </Border>
 
         <!-- Progress Bar -->
-        <ProgressBar Grid.Row="4"
+        <ProgressBar Grid.Row="5"
                      IsIndeterminate="{Binding IsOperationInProgress}"
                      Value="{Binding ProgressValue}"
                      Maximum="100"
@@ -336,7 +354,7 @@
                      BorderThickness="1"/>
 
         <!-- Action Buttons -->
-        <StackPanel Grid.Row="5"
+        <StackPanel Grid.Row="6"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Spacing="10">
