@@ -182,9 +182,25 @@ public static class PatchRemover
                 filesToRemove.Add(InstallStateManager.StateFileName);
             }
 
+            var appDir = AppContext.BaseDirectory;
+            var managerOwnedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "KotorPatcher.dll",
+                "KPatchLauncher.exe"
+            };
+
             // Remove each file using safe delete helper
             foreach (var fileName in filesToRemove)
             {
+                if (managerOwnedFiles.Contains(fileName) &&
+                    PathHelpers.SamePath(
+                        Path.Combine(gameDir, fileName),
+                        Path.Combine(appDir, fileName)))
+                {
+                    messages.Add($"  Preserved {fileName} (Patch Manager runs from the game directory)");
+                    continue;
+                }
+
                 SafeDeleteFile(gameDir, fileName, removedFiles, messages);
             }
 
