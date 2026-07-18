@@ -75,6 +75,29 @@ sudo apt install -y g++-mingw-w64-i686 dotnet-sdk-8.0 python3
 - Allow the script to finish
 - You will find `KotorPatchManager-linux-v<version>.tar.gz` in `releases/`
 
+## Patches: build vs. reuse
+
+By default `publish.sh` cross-compiles patches with MinGW. A handful of DETOUR
+patches use MSVC inline assembly (`__asm { ... }`, MASM syntax) that MinGW/GCC
+cannot compile, so they are skipped with a `[WARN]` and left out of the release.
+
+Because `.kpatch` files are self-contained and platform-independent, you can
+instead **reuse** the ones built on Windows (where MSVC handles that inline asm).
+Point `--patches-from` at a Windows release's `patches/` folder:
+
+```bash
+# 1. On Windows: build the complete, MSVC-compiled patch set
+publish.bat        ->  releases/KotorPatchManager-v<version>/patches/
+
+# 2. On Linux: native manager + Windows DLLs, patches reused from step 1
+./publish.sh --patches-from releases/KotorPatchManager-v<version>/patches
+```
+
+In reuse mode the `.kpatch` files are copied verbatim from `<dir>`; the
+`additional files` folders still come from the source tree, so `<dir>` only needs
+the `.kpatch` files. The script errors out early if `<dir>` is missing or has no
+`.kpatch` files. Omit the flag to get the default MinGW build.
+
 ## Notes
 - The manager reads the address databases natively via `Microsoft.Data.Sqlite`
   (its own bundled `e_sqlite3`). The staged `sqlite3.dll` is *only* for the patch

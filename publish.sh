@@ -22,13 +22,45 @@
 #
 # The MinGW compiler flags live in the per-component build-mingw.sh scripts and
 # in create-patch.py; this script just orchestrates them, mirroring publish.bat.
+#
+# Usage:
+#   ./publish.sh                        build patches with MinGW (default)
+#   ./publish.sh --patches-from <dir>   reuse prebuilt .kpatch from <dir> (e.g. a
+#                                       Windows release's patches/ folder) instead
 set -euo pipefail
 
+INVOKED_FROM="$PWD"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
 DOTNET="${DOTNET:-dotnet}"
 RID="linux-x64"
+
+# --- Arguments ----------------------------------------------------------------
+# --patches-from <dir>: reuse prebuilt .kpatch files from <dir> instead of
+# cross-compiling patches with MinGW. .kpatch files are self-contained and
+# platform-independent, so a Windows/MSVC release's patches/ folder (which can
+# build the MSVC-inline-asm patches MinGW can't) is a valid source here.
+PATCHES_FROM=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --patches-from)
+            [ "$#" -ge 2 ] || { echo "  [ERROR] --patches-from needs a directory"; exit 1; }
+            PATCHES_FROM="$2"; shift 2 ;;
+        --patches-from=*)
+            PATCHES_FROM="${1#*=}"; shift ;;
+        -h|--help)
+            echo "Usage: $0 [--patches-from <dir>]"
+            echo
+            echo "  --patches-from <dir>  Reuse prebuilt .kpatch files from <dir> instead of"
+            echo "                        cross-compiling patches with MinGW. Point it at a"
+            echo "                        Windows release's patches/ folder to include patches"
+            echo "                        that only MSVC can build (inline asm)."
+            exit 0 ;;
+        *)
+            echo "  [ERROR] Unknown argument: $1 (see --help)"; exit 1 ;;
+    esac
+done
 
 echo
 echo "==================================================="
@@ -45,6 +77,19 @@ command -v i686-w64-mingw32-g++ >/dev/null 2>&1 || {
     echo "  [ERROR] i686-w64-mingw32-g++ not found. Install mingw-w64 (i686)."
     exit 1
 }
+
+# Resolve and validate --patches-from before any build work, so a bad path or an
+# empty source directory fails fast instead of after a full manager publish.
+if [ -n "$PATCHES_FROM" ]; then
+    case "$PATCHES_FROM" in
+        /*) : ;;                                    # already absolute
+        *)  PATCHES_FROM="$INVOKED_FROM/$PATCHES_FROM" ;;
+    esac
+    [ -d "$PATCHES_FROM" ] || {
+        echo "  [ERROR] --patches-from directory not found: $PATCHES_FROM"; exit 1; }
+    ls "$PATCHES_FROM"/*.kpatch >/dev/null 2>&1 || {
+        echo "  [ERROR] no .kpatch files in: $PATCHES_FROM"; exit 1; }
+fi
 
 read -rp "Enter version (#.#.# format): " VERSION
 [ -n "$VERSION" ] || VERSION="test-build"
@@ -89,8 +134,8 @@ cp -f "$ROOT"/AddressDatabases/*.db "$BIN/AddressDatabases/"
 
 echo "  [OK] Manager published"
 
-# --- [3/5] Build patches ------------------------------------------------------
-echo "[3/5] Building patches..."
+# --- [3/5] Patches ------------------------------------------------------------
+echo "[3/5] Patches..."
 PATCHES_SRC="$ROOT/Patches"
 PATCHES_OUT_NAME="patches"
 PATCHES_OUT="$RELEASE_DIR/$PATCHES_OUT_NAME"
@@ -98,22 +143,36 @@ PATCHES_OUT="$RELEASE_DIR/$PATCHES_OUT_NAME"
 read -rp "Include patches? (y/n): " INCLUDE_PATCHES
 if [[ "$INCLUDE_PATCHES" =~ ^[Yy]$ ]]; then
     mkdir -p "$PATCHES_OUT"
-    echo "  Scanning $PATCHES_SRC for patches with manifest.toml..."
 
+    if [ -n "$PATCHES_FROM" ]; then
+        # Reuse mode: copy the prebuilt, self-contained .kpatch files verbatim.
+        echo "  Reusing prebuilt patches from $PATCHES_FROM"
+        for kp in "$PATCHES_FROM"/*.kpatch; do
+            cp -f "$kp" "$PATCHES_OUT/"
+            echo "    [OK] $(basename "$kp")"
+        done
+    else
+        # Build mode: cross-compile each patch with MinGW via create-patch.py,
+        # which runs from inside the patch dir and writes the .kpatch to -o.
+        echo "  Scanning $PATCHES_SRC for patches with manifest.toml..."
+        for dir in "$PATCHES_SRC"/*/; do
+            [ -f "$dir/manifest.toml" ] || continue
+            name="$(basename "$dir")"
+            echo "  Building $name..."
+            if ( cd "$dir" && python3 "$PATCHES_SRC/create-patch.py" -o "$PATCHES_OUT" ) >/dev/null 2>&1; then
+                echo "    [OK] $name.kpatch"
+            else
+                echo "    [WARN] No .kpatch produced for $name"
+            fi
+        done
+    fi
+
+    # "additional files" are platform-independent data in the source tree, so ship
+    # them from there in both modes (mirroring publish.bat). This also means reuse
+    # mode does not depend on the source dir carrying the "additional files" folders.
     for dir in "$PATCHES_SRC"/*/; do
         [ -f "$dir/manifest.toml" ] || continue
         name="$(basename "$dir")"
-        echo "  Building $name..."
-
-        # create-patch.py runs from inside the patch dir and writes the .kpatch
-        # straight into the collection folder via -o.
-        if ( cd "$dir" && python3 "$PATCHES_SRC/create-patch.py" -o "$PATCHES_OUT" ) >/dev/null 2>&1; then
-            echo "    [OK] $name.kpatch"
-        else
-            echo "    [WARN] No .kpatch produced for $name"
-        fi
-
-        # Ship any loose "additional files" alongside the patch, mirroring publish.bat.
         if [ -d "$dir/additional" ] && [ -n "$(ls -A "$dir/additional" 2>/dev/null)" ]; then
             addl_dest="$PATCHES_OUT/$name additional files"
             mkdir -p "$addl_dest"
