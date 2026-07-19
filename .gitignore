@@ -45,6 +45,7 @@ bld/
 [Ll]og/
 [Ll]ogs/
 *.dll
+*.so
 *.pdb
 *.lib
 *.exp
