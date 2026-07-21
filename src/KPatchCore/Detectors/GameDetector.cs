@@ -78,6 +78,18 @@ public static class GameDetector
             Hash = "6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"
         },
 
+        // KOTOR 2 - Steam Aspyr native Linux build (ELF, build-id b0ac5acb)
+        ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"] = new GameVersion
+        {
+            Platform = Platform.Linux,
+            Distribution = Distribution.Steam,
+            Version = "2 1.0.2 (Aspyr Linux)",
+            Architecture = Architecture.x86,
+            Title = GameTitle.KOTOR2,
+            FileSize = 0x8A9534,
+            Hash = "ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"
+        },
+
         // KOTOR 2 - Legacy 1.0
         ["92D7800687A0119A1A81527DB875673228C891A3EA241EE130F22567BF34A501"] = new GameVersion
         {
