@@ -107,7 +107,7 @@ public static class PathHelpers
             return false;
 
         // Check for common KOTOR files
-        var exeNames = new[] { "swkotor.exe", "swkotor2.exe", "KOTOR.exe", "KOTOR2.exe" };
+        var exeNames = new[] { "swkotor.exe", "swkotor2.exe", "KOTOR.exe", "KOTOR2.exe", "KOTOR2" };
         return exeNames.Any(exe => File.Exists(Path.Combine(path, exe)));
     }
 
@@ -120,7 +120,7 @@ public static class PathHelpers
         if (!Directory.Exists(directory))
             return null;
 
-        var exeNames = new[] { "swkotor.exe", "swkotor2.exe", "KOTOR.exe", "KOTOR2.exe" };
+        var exeNames = new[] { "swkotor.exe", "swkotor2.exe", "KOTOR.exe", "KOTOR2.exe", "KOTOR2" };
 
         foreach (var exeName in exeNames)
         {

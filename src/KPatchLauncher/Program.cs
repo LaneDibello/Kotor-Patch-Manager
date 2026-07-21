@@ -253,14 +253,15 @@ class Program
         if (args.Length > 0)
         {
             var specifiedPath = args[0];
-            if (File.Exists(specifiedPath) && Path.GetExtension(specifiedPath).ToLower() == ".exe")
+            var ext = Path.GetExtension(specifiedPath).ToLowerInvariant();
+            if (File.Exists(specifiedPath) && (ext == ".exe" || (!OperatingSystem.IsWindows() && ext.Length == 0)))
             {
                 return Path.GetFullPath(specifiedPath);
             }
         }
 
         // Look for common KOTOR executable names in launcher directory
-        var commonNames = new[] { "swkotor.exe", "swkotor2.exe", "KOTOR.exe", "KOTOR2.exe" };
+        var commonNames = new[] { "swkotor.exe", "swkotor2.exe", "KOTOR.exe", "KOTOR2.exe", "KOTOR2" };
 
         foreach (var name in commonNames)
         {
