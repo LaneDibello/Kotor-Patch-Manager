@@ -61,8 +61,11 @@ namespace KotorPatcher {
 
         void* WrapperGenerator_x86_Win32::GenerateDetourWrapper(const WrapperConfig& config) {
             // Estimate wrapper size
-            // Base: ~100 bytes, +10 per excluded register
+            // Base: ~100 bytes, +10 per excluded register, +10 for consumed-exit conditional jump
             size_t estimatedSize = 128 + (config.excludeFromRestore.size() * 10);
+            if (config.consumedExitAddress != 0) {
+                estimatedSize += 16;
+            }
 
             BYTE* wrapperMem = static_cast<BYTE*>(AllocateExecutableMemory(estimatedSize));
             if (!wrapperMem) {
@@ -210,40 +213,77 @@ namespace KotorPatcher {
                 }
             }
 
-            // ===== RETURN TO ORIGINAL CODE =====
-
-            if (config.skipOriginalBytes) {
-                // Skip executing original bytes - jump directly back to continue execution
-                // This is used when fully replacing behavior rather than augmenting it
-                void* returnAddress = reinterpret_cast<void*>(
-                    config.hookAddress + static_cast<DWORD>(config.originalBytes.size())
-                );
-                EmitByte(code, 0xE9);  // JMP rel32
-                DWORD returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
-                EmitDword(code, returnOffset);
-
-                char debugMsg[256];
-                sprintf_s(debugMsg, "[Wrapper] Skipping original bytes, jumping directly to 0x%08X\n",
-                    reinterpret_cast<DWORD>(returnAddress));
-                OutputDebugStringA(debugMsg);
-            } else {
-                // Execute the original bytes (instructions we overwrote with JMP)
-                // These were specified in the patch config to align with instruction boundaries
+            // ===== EXECUTE STOLEN ORIGINAL BYTES =====
+            // Run the original instructions BEFORE the conditional consumed-exit
+            // jump so both paths leave the stack and registers in the same state
+            // — equivalent to the cut bytes having executed natively in-place.
+            // The consumed_exit_address contract assumes this state, since the
+            // caller chose the target by inspecting where execution would
+            // naturally land *after* the cut.
+            if (!config.skipOriginalBytes) {
                 if (config.originalBytes.empty()) {
                     OutputDebugStringA("[Wrapper] ERROR: No original bytes provided for DETOUR hook\n");
                     return nullptr;
                 }
-
-                // Emit the original bytes to execute the overwritten instructions
                 EmitBytes(code, config.originalBytes.data(), config.originalBytes.size());
+            }
 
-                // Jump back to hookAddress + original_bytes_size to continue normal execution
+            // ===== CONDITIONAL CONSUMED-EVENT EXIT =====
+            // If the hook config specifies a consumed_exit_address, emit:
+            //   PUSHFD                    ; preserve cut-bytes' EFLAGS state
+            //   TEST EAX, EAX             ; clobbers ZF/SF/PF/CF/OF
+            //   JZ +6                     ; skip POPFD + JMP rel32, fall through
+            //   POPFD                     ; consumed path: restore EFLAGS
+            //   JMP rel32 consumed_exit   ; handler returned non-zero -> consumed
+            //   POPFD                     ; fall-through path: restore EFLAGS
+            //
+            // PUSHFD/POPFD wraps the TEST so that the cut bytes' flag state
+            // (e.g. a CMP whose ZF the target's downstream Jcc reads) survives
+            // through to the natural-resume JMP. Without it, a hook whose cut
+            // ends in or directly precedes a flag-consuming Jcc would be
+            // silently misrouted, since TEST EAX,EAX overwrites those flags.
+            //
+            // Caller is responsible for excluding "eax" from POPAD restoration
+            // so the handler's return value reaches the TEST.
+            if (config.consumedExitAddress != 0) {
+                EmitByte(code, 0x9C);  // PUSHFD — save cut bytes' EFLAGS
+                EmitByte(code, 0x85);  // TEST r/m32, r32
+                EmitByte(code, 0xC0);  // ModRM: EAX, EAX
+                EmitByte(code, 0x74);  // JZ rel8
+                EmitByte(code, 0x06);  // skip POPFD (1) + JMP rel32 (5) = 6 bytes
+                EmitByte(code, 0x9D);  // POPFD — restore EFLAGS for consumed path
+                EmitByte(code, 0xE9);  // JMP rel32
+                DWORD consumedOffset = CalculateRelativeOffset(
+                    code - 1,
+                    reinterpret_cast<void*>(config.consumedExitAddress));
+                EmitDword(code, consumedOffset);
+                EmitByte(code, 0x9D);  // POPFD — restore EFLAGS for fall-through
+
+                char debugMsg[256];
+                sprintf_s(debugMsg, "[Wrapper] Conditional consumed-exit -> 0x%08X emitted\n",
+                    config.consumedExitAddress);
+                OutputDebugStringA(debugMsg);
+            }
+
+            // ===== JUMP BACK TO NATURAL FALL-THROUGH =====
+            // hookAddress + originalBytes.size() is the resume point for the
+            // non-consumed path. With cut bytes already emitted above, the
+            // stack/register state at the target matches what the engine would
+            // see after natively executing the cut at the hook site.
+            {
                 void* returnAddress = reinterpret_cast<void*>(
                     config.hookAddress + static_cast<DWORD>(config.originalBytes.size())
                 );
                 EmitByte(code, 0xE9);  // JMP rel32
                 DWORD returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
                 EmitDword(code, returnOffset);
+
+                if (config.skipOriginalBytes) {
+                    char debugMsg[256];
+                    sprintf_s(debugMsg, "[Wrapper] Skipping original bytes, jumping directly to 0x%08X\n",
+                        reinterpret_cast<DWORD>(returnAddress));
+                    OutputDebugStringA(debugMsg);
+                }
             }
 
             // Flush instruction cache

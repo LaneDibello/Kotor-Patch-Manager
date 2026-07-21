@@ -265,6 +265,7 @@ namespace KotorPatcher {
         wrapperConfig.preserveFlags = patch.preserveFlags;
         wrapperConfig.excludeFromRestore = patch.excludeFromRestore;
         wrapperConfig.skipOriginalBytes = patch.skipOriginalBytes;
+        wrapperConfig.consumedExitAddress = patch.consumedExitAddress;
         wrapperConfig.originalFunction = patch.originalFunction;
 
         char skipMsg[128];
