@@ -1,7 +1,8 @@
 #pragma once
-#include <windows.h>
+#include <cstdint>
 #include <vector>
 #include <string>
+#include "platform.h"
 #include "wrapper_context.h"
 
 // Abstract interface for platform-specific wrapper generators
@@ -16,12 +17,12 @@ namespace KotorPatcher {
         struct WrapperConfig {
 
             void* patchFunction;
-            DWORD hookAddress;
+            uint32_t hookAddress;
 
             // Original bytes that were overwritten by the hook (for DETOUR type)
             // These will be executed in the wrapper before returning to original code
             // Must be >= 5 bytes and align with instruction boundaries
-            std::vector<BYTE> originalBytes;
+            std::vector<uint8_t> originalBytes;
 
             // Hook type determines wrapper behavior
             enum class HookType {
@@ -53,7 +54,7 @@ namespace KotorPatcher {
                 if (!preserveRegisters) return false;
 
                 for (const auto& excluded : excludeFromRestore) {
-                    if (_stricmp(excluded.c_str(), regName.c_str()) == 0) {
+                    if (StrICmp(excluded.c_str(), regName.c_str()) == 0) {
                         return false;
                     }
                 }

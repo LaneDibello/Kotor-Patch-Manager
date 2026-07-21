@@ -1,16 +1,19 @@
 #pragma once
+#include <cstdint>
 #include "wrapper_base.h"
 
-// x86 32-bit Windows wrapper generator
-// Generates runtime code to save/restore CPU state and call patch functions
+// x86 32-bit wrapper generator.
+// Emits runtime code to save/restore CPU state and call patch functions. The
+// bytes are identical on Windows and Linux; only executable-memory allocation
+// and cache flushing differ, and those go through the platform seam.
 
 namespace KotorPatcher {
     namespace Wrappers {
 
-        class WrapperGenerator_x86_Win32 : public WrapperGeneratorBase {
+        class WrapperGenerator_x86 : public WrapperGeneratorBase {
         public:
-            WrapperGenerator_x86_Win32();
-            ~WrapperGenerator_x86_Win32() override;
+            WrapperGenerator_x86();
+            ~WrapperGenerator_x86() override;
 
             // Generate wrapper stub for given configuration
             void* GenerateWrapper(const WrapperConfig& config) override;
@@ -20,7 +23,7 @@ namespace KotorPatcher {
 
             // Platform identifier
             const char* GetPlatformName() const override {
-                return "x86_Win32";
+                return "x86";
             }
 
         private:
@@ -38,15 +41,15 @@ namespace KotorPatcher {
             void* GenerateDetourWrapper(const WrapperConfig& config);
 
             // Helper: Emit x86 machine code bytes
-            void EmitBytes(BYTE*& code, const BYTE* bytes, size_t count);
-            void EmitByte(BYTE*& code, BYTE value);
-            void EmitDword(BYTE*& code, DWORD value);
+            void EmitBytes(uint8_t*& code, const uint8_t* bytes, size_t count);
+            void EmitByte(uint8_t*& code, uint8_t value);
+            void EmitDword(uint8_t*& code, uint32_t value);
 
             // Helper: Calculate relative offset for JMP/CALL
-            DWORD CalculateRelativeOffset(void* from, void* to);
+            uint32_t CalculateRelativeOffset(void* from, void* to);
 
             // Helper: Extract parameter from source and push onto stack
-            void ExtractAndPushParameter(BYTE*& code, const ParameterInfo& param, int savedStateOffset, int pushcCunt);
+            void ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateOffset, int pushCount);
         };
 
     } // namespace Wrappers

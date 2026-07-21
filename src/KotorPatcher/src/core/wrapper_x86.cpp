@@ -1,76 +1,73 @@
-#include "wrapper_x86_win32.h"
+#include "wrapper_x86.h"
 #include "patcher.h"
-#include <cstring>
+#include "platform.h"
+
 #include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 
 namespace KotorPatcher {
     namespace Wrappers {
 
-        WrapperGenerator_x86_Win32::WrapperGenerator_x86_Win32() {
+        WrapperGenerator_x86::WrapperGenerator_x86() {
         }
 
-        WrapperGenerator_x86_Win32::~WrapperGenerator_x86_Win32() {
+        WrapperGenerator_x86::~WrapperGenerator_x86() {
             FreeAllWrappers();
         }
 
-        void* WrapperGenerator_x86_Win32::AllocateExecutableMemory(size_t size) {
-            void* mem = VirtualAlloc(
-                nullptr,
-                size,
-                MEM_COMMIT | MEM_RESERVE,
-                PAGE_EXECUTE_READWRITE
-            );
-
+        void* WrapperGenerator_x86::AllocateExecutableMemory(size_t size) {
+            void* mem = Platform::AllocExec(size);
             if (mem) {
                 m_allocatedWrappers.push_back({ mem, size });
             }
-
             return mem;
         }
 
-        void WrapperGenerator_x86_Win32::FreeAllWrappers() {
+        void WrapperGenerator_x86::FreeAllWrappers() {
             for (const auto& wrapper : m_allocatedWrappers) {
-                VirtualFree(wrapper.address, 0, MEM_RELEASE);
+                Platform::FreeExec(wrapper.address, wrapper.size);
             }
             m_allocatedWrappers.clear();
         }
 
-        void WrapperGenerator_x86_Win32::EmitBytes(BYTE*& code, const BYTE* bytes, size_t count) {
-            memcpy(code, bytes, count);
+        void WrapperGenerator_x86::EmitBytes(uint8_t*& code, const uint8_t* bytes, size_t count) {
+            std::memcpy(code, bytes, count);
             code += count;
         }
 
-        void WrapperGenerator_x86_Win32::EmitByte(BYTE*& code, BYTE value) {
+        void WrapperGenerator_x86::EmitByte(uint8_t*& code, uint8_t value) {
             *code++ = value;
         }
 
-        void WrapperGenerator_x86_Win32::EmitDword(BYTE*& code, DWORD value) {
-            *reinterpret_cast<DWORD*>(code) = value;
+        void WrapperGenerator_x86::EmitDword(uint8_t*& code, uint32_t value) {
+            std::memcpy(code, &value, 4);
             code += 4;
         }
 
-        DWORD WrapperGenerator_x86_Win32::CalculateRelativeOffset(void* from, void* to) {
+        uint32_t WrapperGenerator_x86::CalculateRelativeOffset(void* from, void* to) {
             // For relative JMP/CALL: offset = target - (source + 5)
             // The +5 accounts for the instruction size (1 byte opcode + 4 byte offset)
-            return reinterpret_cast<DWORD>(to) - (reinterpret_cast<DWORD>(from) + 5);
+            return reinterpret_cast<uint32_t>(to) - (reinterpret_cast<uint32_t>(from) + 5);
         }
 
-        void* WrapperGenerator_x86_Win32::GenerateWrapper(const WrapperConfig& config) {
+        void* WrapperGenerator_x86::GenerateWrapper(const WrapperConfig& config) {
             return GenerateDetourWrapper(config);
         }
 
-        void* WrapperGenerator_x86_Win32::GenerateDetourWrapper(const WrapperConfig& config) {
+        void* WrapperGenerator_x86::GenerateDetourWrapper(const WrapperConfig& config) {
             // Estimate wrapper size
             // Base: ~100 bytes, +10 per excluded register
             size_t estimatedSize = 128 + (config.excludeFromRestore.size() * 10);
 
-            BYTE* wrapperMem = static_cast<BYTE*>(AllocateExecutableMemory(estimatedSize));
+            uint8_t* wrapperMem = static_cast<uint8_t*>(AllocateExecutableMemory(estimatedSize));
             if (!wrapperMem) {
-                OutputDebugStringA("[Wrapper] Failed to allocate wrapper memory\n");
+                Platform::Log("[Wrapper] Failed to allocate wrapper memory\n");
                 return nullptr;
             }
 
-            BYTE* code = wrapperMem;  // Current write position
+            uint8_t* code = wrapperMem;  // Current write position
 
             // ===== PROLOGUE: Save CPU State =====
 
@@ -136,7 +133,7 @@ namespace KotorPatcher {
             EmitByte(code, 0xE8);  // CALL rel32
             // Note: code now points one byte AFTER the 0xE8 opcode
             // CalculateRelativeOffset needs the address of the opcode itself
-            DWORD callOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
+            uint32_t callOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
             EmitDword(code, callOffset);
 
             // ===== CLEAN UP PARAMETERS =====
@@ -146,7 +143,7 @@ namespace KotorPatcher {
                 if (paramBytes <= 127) {
                     EmitByte(code, 0x83);  // ADD ESP, imm8
                     EmitByte(code, 0xC4);
-                    EmitByte(code, static_cast<BYTE>(paramBytes));
+                    EmitByte(code, static_cast<uint8_t>(paramBytes));
                 } else {
                     EmitByte(code, 0x81);  // ADD ESP, imm32
                     EmitByte(code, 0xC4);
@@ -178,7 +175,7 @@ namespace KotorPatcher {
 
                     // We need to manually pop each register
                     const char* regOrder[] = { "edi", "esi", "ebp", "esp", "ebx", "edx", "ecx", "eax" };
-                    const BYTE popOpcodes[] = { 0x5F, 0x5E, 0x5D, 0x5C, 0x5B, 0x5A, 0x59, 0x58 };
+                    const uint8_t popOpcodes[] = { 0x5F, 0x5E, 0x5D, 0x5C, 0x5B, 0x5A, 0x59, 0x58 };
 
                     for (int i = 0; i < 8; i++) {
                         if (config.ShouldRestoreRegister(regOrder[i])) {
@@ -199,21 +196,21 @@ namespace KotorPatcher {
                 // Skip executing original bytes - jump directly back to continue execution
                 // This is used when fully replacing behavior rather than augmenting it
                 void* returnAddress = reinterpret_cast<void*>(
-                    config.hookAddress + static_cast<DWORD>(config.originalBytes.size())
+                    config.hookAddress + static_cast<uint32_t>(config.originalBytes.size())
                 );
                 EmitByte(code, 0xE9);  // JMP rel32
-                DWORD returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
+                uint32_t returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
                 EmitDword(code, returnOffset);
 
                 char debugMsg[256];
-                sprintf_s(debugMsg, "[Wrapper] Skipping original bytes, jumping directly to 0x%08X\n",
-                    reinterpret_cast<DWORD>(returnAddress));
-                OutputDebugStringA(debugMsg);
+                snprintf(debugMsg, sizeof(debugMsg), "[Wrapper] Skipping original bytes, jumping directly to 0x%08X\n",
+                    reinterpret_cast<uint32_t>(returnAddress));
+                Platform::Log(debugMsg);
             } else {
                 // Execute the original bytes (instructions we overwrote with JMP)
                 // These were specified in the patch config to align with instruction boundaries
                 if (config.originalBytes.empty()) {
-                    OutputDebugStringA("[Wrapper] ERROR: No original bytes provided for DETOUR hook\n");
+                    Platform::Log("[Wrapper] ERROR: No original bytes provided for DETOUR hook\n");
                     return nullptr;
                 }
 
@@ -222,36 +219,34 @@ namespace KotorPatcher {
 
                 // Jump back to hookAddress + original_bytes_size to continue normal execution
                 void* returnAddress = reinterpret_cast<void*>(
-                    config.hookAddress + static_cast<DWORD>(config.originalBytes.size())
+                    config.hookAddress + static_cast<uint32_t>(config.originalBytes.size())
                 );
                 EmitByte(code, 0xE9);  // JMP rel32
-                DWORD returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
+                uint32_t returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
                 EmitDword(code, returnOffset);
             }
 
             // Flush instruction cache
-            FlushInstructionCache(GetCurrentProcess(), wrapperMem, code - wrapperMem);
+            Platform::FlushICache(wrapperMem, static_cast<size_t>(code - wrapperMem));
 
             char debugMsg[256];
-            sprintf_s(debugMsg, "[Wrapper] Generated DETOUR wrapper at 0x%08X (%d bytes)\n",
-                reinterpret_cast<DWORD>(wrapperMem), static_cast<int>(code - wrapperMem));
-            OutputDebugStringA(debugMsg);
+            snprintf(debugMsg, sizeof(debugMsg), "[Wrapper] Generated DETOUR wrapper at 0x%08X (%d bytes)\n",
+                reinterpret_cast<uint32_t>(wrapperMem), static_cast<int>(code - wrapperMem));
+            Platform::Log(debugMsg);
 
             return wrapperMem;
         }
 
         // ===== Parameter Extraction =====
 
-        void WrapperGenerator_x86_Win32::ExtractAndPushParameter(BYTE*& code, const ParameterInfo& param, int savedStateSize, int pushCount = 0) {
+        void WrapperGenerator_x86::ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize, int pushCount) {
             // Stack layout constants (relative to EBX, which points to saved state)
             // EBX points to where ESP was after PUSHAD/PUSHFD
             //
             // Saved state structure at [EBX]:
-            const int OFFSET_EFLAGS = 0;   // [EBX+0]  = EFLAGS (if preserved)
             const int OFFSET_EDI    = 4;   // [EBX+4]  = EDI
             const int OFFSET_ESI    = 8;   // [EBX+8]  = ESI
             const int OFFSET_EBP    = 12;  // [EBX+12] = EBP
-            const int OFFSET_ESP    = 16;  // [EBX+16] = (original ESP value saved by PUSHAD)
             const int OFFSET_EBX    = 20;  // [EBX+20] = EBX
             const int OFFSET_EDX    = 24;  // [EBX+24] = EDX
             const int OFFSET_ECX    = 28;  // [EBX+28] = ECX
@@ -327,7 +322,7 @@ namespace KotorPatcher {
                 try {
                     userOffset = std::stoi(source.substr(4));
                 } catch (...) {
-                    OutputDebugStringA(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
+                    Platform::Log(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
                     return;
                 }
 
@@ -350,7 +345,7 @@ namespace KotorPatcher {
                     EmitByte(code, 0x8D);  // LEA r32, m
                     EmitByte(code, 0x4C);  // ModRM: ECX, [ESP + disp8]
                     EmitByte(code, 0x24);  // SIB: [ESP]
-                    EmitByte(code, static_cast<BYTE>(actualOffset));
+                    EmitByte(code, static_cast<uint8_t>(actualOffset));
                 } else {
                     // LEA ECX, [ESP + imm32]
                     EmitByte(code, 0x8D);  // LEA r32, m
@@ -361,14 +356,14 @@ namespace KotorPatcher {
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             else {
-                OutputDebugStringA(("[Wrapper] Unsupported parameter source: " + source + "\n").c_str());
+                Platform::Log(("[Wrapper] Unsupported parameter source: " + source + "\n").c_str());
             }
         }
 
         // ===== Factory Function =====
 
         // Global instance
-        static WrapperGenerator_x86_Win32 g_wrapperGenerator;
+        static WrapperGenerator_x86 g_wrapperGenerator;
 
         WrapperGeneratorBase* GetWrapperGenerator() {
             return &g_wrapperGenerator;

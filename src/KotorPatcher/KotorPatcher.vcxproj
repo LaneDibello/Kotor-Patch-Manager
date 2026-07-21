@@ -156,19 +156,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\config_reader.cpp" />
+    <ClCompile Include="src\core\config_reader.cpp" />
+    <ClCompile Include="src\core\patcher.cpp" />
+    <ClCompile Include="src\core\trampoline.cpp" />
+    <ClCompile Include="src\core\wrapper_x86.cpp" />
+    <ClCompile Include="src\platform_win32.cpp" />
     <ClCompile Include="src\dllmain.cpp" />
-    <ClCompile Include="src\patcher.cpp" />
-    <ClCompile Include="src\trampoline.cpp" />
-    <ClCompile Include="src\wrappers\wrapper_x86_win32.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\config_reader.h" />
     <ClInclude Include="include\patcher.h" />
+    <ClInclude Include="include\platform.h" />
     <ClInclude Include="include\trampoline.h" />
     <ClInclude Include="include\wrappers\wrapper_base.h" />
     <ClInclude Include="include\wrappers\wrapper_context.h" />
-    <ClInclude Include="include\wrappers\wrapper_x86_win32.h" />
+    <ClInclude Include="include\wrappers\wrapper_x86.h" />
   </ItemGroup>
   <ItemGroup>
     <!-- Copy SQLite DLL to output directory -->

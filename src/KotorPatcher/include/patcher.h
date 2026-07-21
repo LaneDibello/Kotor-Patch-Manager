@@ -1,7 +1,8 @@
 #pragma once
-#include <windows.h>
+#include <cstdint>
 #include <string>
 #include <vector>
+#include "platform.h"
 
 namespace KotorPatcher {
     // Initialization and cleanup
@@ -40,12 +41,12 @@ namespace KotorPatcher {
         // Basic patch information
         std::string dllPath;           // Path to patch DLL (not used for SIMPLE)
         std::string functionName;      // Exported function name in DLL (not used for SIMPLE)
-        DWORD hookAddress;             // Address in game code to hook
-        std::vector<BYTE> originalBytes;  // Original bytes (for verification and execution)
+        uint32_t hookAddress;          // Address in game code to hook
+        std::vector<uint8_t> originalBytes;  // Original bytes (for verification and execution)
                                            // DETOUR: Must be >= 5 bytes, executed in wrapper
                                            // SIMPLE: Any length, verified before replacement
                                            // REPLACE: Must be >= 5 bytes, used for verification only
-        std::vector<BYTE> replacementBytes;  // Replacement bytes
+        std::vector<uint8_t> replacementBytes;  // Replacement bytes
                                                // SIMPLE: Must be same length as originalBytes
                                                // REPLACE: Can be any length, executed then JMP back
 
@@ -75,7 +76,7 @@ namespace KotorPatcher {
             if (!preserveRegisters) return false;
 
             for (const auto& excluded : excludeFromRestore) {
-                if (_stricmp(excluded.c_str(), regName.c_str()) == 0) {
+                if (StrICmp(excluded.c_str(), regName.c_str()) == 0) {
                     return false;
                 }
             }

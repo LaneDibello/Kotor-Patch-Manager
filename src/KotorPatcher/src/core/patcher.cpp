@@ -1,25 +1,37 @@
 #include "patcher.h"
 #include "config_reader.h"
+#include "platform.h"
 #include "trampoline.h"
 #include "wrapper_base.h"
-#include <fstream>
+
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <thread>
+#include <vector>
 
 namespace KotorPatcher {
-    static std::vector<HMODULE> g_loadedPatches;
+    static std::vector<void*> g_loadedPatches;
     static std::vector<PatchInfo> g_patches;
-    static std::vector<void*> g_allocatedCodeBuffers;  // Track allocated buffers for REPLACE hooks
+
+    // REPLACE hooks allocate a code block that must be released at cleanup, and
+    // FreeExec needs the length, so the size is tracked alongside the pointer.
+    struct CodeBuffer { void* addr; std::size_t size; };
+    static std::vector<CodeBuffer> g_allocatedCodeBuffers;
+
     static bool g_initialized = false;
     static Wrappers::WrapperGeneratorBase* g_wrapperGenerator = nullptr;
 
     // KOTOR1 on Steam ships behind SteamStub DRM: its .text is encrypted on disk and
     // only decrypted in memory by the stub, which runs after our proxy has already
-    // loaded us. At DllMain time a hook site therefore still reads as ciphertext and
+    // loaded us. At load time a hook site therefore still reads as ciphertext and
     // every VerifyBytes would fail. When we detect that, the apply is handed to a worker
-    // that waits for decryption instead of giving up. GOG/retail and the non-stubbed
-    // Steam builds decrypt nothing, so their hook sites read correctly at init and this
-    // path is never taken.
-    static const DWORD kDecryptPollIntervalMs = 15;
-    static const DWORD kDecryptTimeoutMs = 30000;
+    // that waits for decryption instead of giving up. GOG/retail, the non-stubbed
+    // Steam builds, and the native Linux ELF decrypt nothing, so their hook sites read
+    // correctly at init and this path is never taken.
+    static constexpr long kDecryptPollIntervalMs = 15;
+    static constexpr long kDecryptTimeoutMs = 30000;
 
     // First patch that carries a code hook, or nullptr if every patch is DLL_ONLY. Its
     // original bytes double as the "is the code readable yet" sentinel: they only match
@@ -43,20 +55,20 @@ namespace KotorPatcher {
     // sentinel until the stub has decrypted .text, then applies normally. The patched
     // functions are gameplay/menu code that runs long after startup, so applying a
     // moment into the game (rather than before its entry point) is safe in practice.
-    static DWORD WINAPI DeferredApplyThread(LPVOID) {
+    static void DeferredApply() {
         const PatchInfo* sentinel = FindHookSentinel();
-        DWORD start = GetTickCount();
+        auto start = std::chrono::steady_clock::now();
         while (!HookSiteReadable(sentinel)) {
-            // DWORD subtraction stays correct across a GetTickCount wrap.
-            if (GetTickCount() - start >= kDecryptTimeoutMs) {
-                OutputDebugStringA("[KotorPatcher] Timed out waiting for code decryption; game left unpatched\n");
-                return 1;
+            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - start).count();
+            if (elapsedMs >= kDecryptTimeoutMs) {
+                Platform::Log("[KotorPatcher] Timed out waiting for code decryption; game left unpatched\n");
+                return;
             }
-            Sleep(kDecryptPollIntervalMs);
+            std::this_thread::sleep_for(std::chrono::milliseconds(kDecryptPollIntervalMs));
         }
-        OutputDebugStringA("[KotorPatcher] Code decrypted; applying deferred patches\n");
+        Platform::Log("[KotorPatcher] Code decrypted; applying deferred patches\n");
         ApplyPatches();
-        return 0;
     }
 
     bool InitializePatcher() {
@@ -65,69 +77,64 @@ namespace KotorPatcher {
         // Initialize wrapper generator
         g_wrapperGenerator = Wrappers::GetWrapperGenerator();
         if (!g_wrapperGenerator) {
-            OutputDebugStringA("[KotorPatcher] Failed to get wrapper generator\n");
+            Platform::Log("[KotorPatcher] Failed to get wrapper generator\n");
             return false;
         }
 
         char platformMsg[128];
-        sprintf_s(platformMsg, "[KotorPatcher] Using wrapper generator: %s\n",
+        snprintf(platformMsg, sizeof(platformMsg), "[KotorPatcher] Using wrapper generator: %s\n",
             g_wrapperGenerator->GetPlatformName());
-        OutputDebugStringA(platformMsg);
+        Platform::Log(platformMsg);
 
-        // Get DLL directory
-        char dllPath[MAX_PATH];
-        HMODULE hModule = GetModuleHandleA("KotorPatcher.dll");
-        if (!hModule || GetModuleFileNameA(hModule, dllPath, MAX_PATH) == 0) {
+        // Get the directory holding this patcher module; the config sits beside it.
+        std::string moduleDir = Platform::SelfModuleDir();
+        if (moduleDir.empty()) {
+            Platform::Log("[KotorPatcher] Failed to resolve module directory\n");
             return false;
         }
 
-        std::string dllDir(dllPath);
-        size_t lastSlash = dllDir.find_last_of("\\/");
-        if (lastSlash != std::string::npos) {
-            dllDir = dllDir.substr(0, lastSlash);
-        }
-
-        // Load configuration
-        std::string configPath = dllDir + "\\patch_config.toml";
+        // moduleDir is a '\' path on Windows, but Win32 file I/O canonicalizes '/'
+        // to '\', so appending a '/' separator opens the config on both platforms.
+        std::string configPath = moduleDir + "/patch_config.toml";
         char configMsg[512];
-        sprintf_s(configMsg, "[KotorPatcher] Loading config from: %s\n", configPath.c_str());
-        OutputDebugStringA(configMsg);
+        snprintf(configMsg, sizeof(configMsg), "[KotorPatcher] Loading config from: %s\n", configPath.c_str());
+        Platform::Log(configMsg);
 
         std::string versionSha;
         if (!Config::ParseConfig(configPath, g_patches, versionSha)) {
-            OutputDebugStringA("[KotorPatcher] ERROR: Failed to parse config\n");
+            Platform::Log("[KotorPatcher] ERROR: Failed to parse config\n");
             return false;
         }
 
-        sprintf_s(configMsg, "[KotorPatcher] Loaded %zu patches from config\n", g_patches.size());
-        OutputDebugStringA(configMsg);
+        snprintf(configMsg, sizeof(configMsg), "[KotorPatcher] Loaded %zu patches from config\n", g_patches.size());
+        Platform::Log(configMsg);
 
         // Set environment variable for patch DLLs to read
         if (!versionSha.empty()) {
-            if (SetEnvironmentVariableA("KOTOR_VERSION_SHA", versionSha.c_str())) {
-                sprintf_s(configMsg, "[KotorPatcher] Set KOTOR_VERSION_SHA = %s...\n", versionSha.substr(0, 16).c_str());
-                OutputDebugStringA(configMsg);
+            if (Platform::SetEnv("KOTOR_VERSION_SHA", versionSha.c_str())) {
+                snprintf(configMsg, sizeof(configMsg), "[KotorPatcher] Set KOTOR_VERSION_SHA = %s...\n", versionSha.substr(0, 16).c_str());
+                Platform::Log(configMsg);
             } else {
-                OutputDebugStringA("[KotorPatcher] WARNING: Failed to set KOTOR_VERSION_SHA environment variable\n");
+                Platform::Log("[KotorPatcher] WARNING: Failed to set KOTOR_VERSION_SHA environment variable\n");
             }
         } else {
-            OutputDebugStringA("[KotorPatcher] WARNING: No version SHA found in config\n");
+            Platform::Log("[KotorPatcher] WARNING: No version SHA found in config\n");
         }
 
         // If the hook sites are still encrypted (SteamStub), wait for the stub to
         // decrypt them on a worker thread instead of failing every VerifyBytes now.
         const PatchInfo* sentinel = FindHookSentinel();
         if (sentinel != nullptr && !HookSiteReadable(sentinel)) {
-            OutputDebugStringA("[KotorPatcher] Hook site still encrypted (SteamStub?); deferring apply\n");
-            HANDLE hThread = CreateThread(nullptr, 0, DeferredApplyThread, nullptr, 0, nullptr);
-            if (hThread) {
-                CloseHandle(hThread);
+            Platform::Log("[KotorPatcher] Hook site still encrypted (SteamStub?); deferring apply\n");
+            try {
+                std::thread(DeferredApply).detach();
                 g_initialized = true;
                 return true;
+            } catch (...) {
+                // No worker available: fall through to a synchronous apply. VerifyBytes
+                // still fails safe if the code really is encrypted.
+                Platform::Log("[KotorPatcher] WARNING: could not spawn worker; applying synchronously\n");
             }
-            // No worker available: fall through to a synchronous apply. VerifyBytes
-            // still fails safe if the code really is encrypted.
-            OutputDebugStringA("[KotorPatcher] WARNING: CreateThread failed; applying synchronously\n");
         }
 
         // Apply patches
@@ -146,16 +153,14 @@ namespace KotorPatcher {
         }
 
         // Free allocated code buffers from REPLACE hooks
-        for (void* buffer : g_allocatedCodeBuffers) {
-            if (buffer) {
-                VirtualFree(buffer, 0, MEM_RELEASE);
-            }
+        for (const auto& buffer : g_allocatedCodeBuffers) {
+            Platform::FreeExec(buffer.addr, buffer.size);
         }
         g_allocatedCodeBuffers.clear();
 
         // Unload patch DLLs
-        for (HMODULE h : g_loadedPatches) {
-            if (h) FreeLibrary(h);
+        for (void* h : g_loadedPatches) {
+            Platform::UnloadModule(h);
         }
         g_loadedPatches.clear();
         g_patches.clear();
@@ -178,32 +183,17 @@ namespace KotorPatcher {
     bool ApplyPatch(const PatchInfo& patch) {
         // Handle DLL_ONLY patches (load DLL, no hooks)
         if (patch.type == HookType::DLL_ONLY) {
-            HMODULE hPatch = LoadLibraryA(patch.dllPath.c_str());
+            void* hPatch = Platform::LoadModule(patch.dllPath.c_str());
             if (!hPatch) {
-                DWORD errorCode = GetLastError();
-
-                // Retrieve the system error message for the last-error code
-                LPSTR messageBuffer = nullptr;
-                size_t size = FormatMessageA(
-                    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NULL, errorCode,
-                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                    (LPSTR)&messageBuffer, 0, NULL);
-
-                std::string errorMsg = "[KotorPatcher] Failed to load DLL-only patch: " + patch.dllPath +
-                    "\nError " + std::to_string(errorCode) + ": " +
-                    (messageBuffer ? messageBuffer : "Unknown error");
-
-                OutputDebugStringA(errorMsg.c_str());
-
-                if (messageBuffer) LocalFree(messageBuffer);
+                Platform::Log(("[KotorPatcher] Failed to load DLL-only patch: " + patch.dllPath +
+                    " (" + Platform::LastLoadError() + ")\n").c_str());
                 return false;
             }
             g_loadedPatches.push_back(hPatch);
 
             char successMsg[256];
-            sprintf_s(successMsg, "[KotorPatcher] Loaded DLL-only patch: %s\n", patch.dllPath.c_str());
-            OutputDebugStringA(successMsg);
+            snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Loaded DLL-only patch: %s\n", patch.dllPath.c_str());
+            Platform::Log(successMsg);
             return true;
         }
 
@@ -219,31 +209,30 @@ namespace KotorPatcher {
 
         // DETOUR hook - load DLL and create wrapper
         // Load patch DLL
-        HMODULE hPatch = LoadLibraryA(patch.dllPath.c_str());
+        void* hPatch = Platform::LoadModule(patch.dllPath.c_str());
         if (!hPatch) {
-            OutputDebugStringA(("[KotorPatcher] Failed to load: " + patch.dllPath + "\n").c_str());
+            Platform::Log(("[KotorPatcher] Failed to load: " + patch.dllPath +
+                " (" + Platform::LastLoadError() + ")\n").c_str());
             return false;
         }
         g_loadedPatches.push_back(hPatch);
         // Get function address
-        void* funcAddr = reinterpret_cast<void*>(GetProcAddress(hPatch, patch.functionName.c_str()));
+        void* funcAddr = Platform::GetSymbol(hPatch, patch.functionName.c_str());
         if (!funcAddr) {
-            OutputDebugStringA(("[KotorPatcher] Function not found: " + patch.functionName + "\n").c_str());
+            Platform::Log(("[KotorPatcher] Function not found: " + patch.functionName + "\n").c_str());
             return false;
         }
 
         char addrMsg[256];
-        sprintf_s(addrMsg, "[KotorPatcher] GetProcAddress returned: 0x%08X\n", (uintptr_t)funcAddr);
-        OutputDebugStringA(addrMsg);
-
-        sprintf_s(addrMsg, "[KotorPatcher] Function at %X\n", funcAddr);
-        OutputDebugStringA(addrMsg);
+        snprintf(addrMsg, sizeof(addrMsg), "[KotorPatcher] Symbol resolved: %s at 0x%08X\n",
+            patch.functionName.c_str(), reinterpret_cast<uint32_t>(funcAddr));
+        Platform::Log(addrMsg);
 
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
             char errorMsg[256];
-            sprintf_s(errorMsg, "[KotorPatcher] Original bytes mismatch at hookAddress %X - wrong game version?\n", patch.hookAddress);
-            OutputDebugStringA(errorMsg);
+            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08X - wrong game version?\n", patch.hookAddress);
+            Platform::Log(errorMsg);
             return false;
         }
 
@@ -255,8 +244,8 @@ namespace KotorPatcher {
         wrapperConfig.parameters = patch.parameters;
 
         char debugMsg[256];
-        sprintf_s(debugMsg, "[KotorPatcher] Got %d original bytes\n", wrapperConfig.originalBytes.size());
-        OutputDebugStringA(debugMsg);
+        snprintf(debugMsg, sizeof(debugMsg), "[KotorPatcher] Got %zu original bytes\n", wrapperConfig.originalBytes.size());
+        Platform::Log(debugMsg);
 
         // Map our HookType to WrapperConfig::HookType
         wrapperConfig.type = Wrappers::WrapperConfig::HookType::DETOUR;
@@ -268,13 +257,13 @@ namespace KotorPatcher {
         wrapperConfig.originalFunction = patch.originalFunction;
 
         char skipMsg[128];
-        sprintf_s(skipMsg, "[KotorPatcher] skipOriginalBytes = %s\n",
+        snprintf(skipMsg, sizeof(skipMsg), "[KotorPatcher] skipOriginalBytes = %s\n",
             patch.skipOriginalBytes ? "true" : "false");
-        OutputDebugStringA(skipMsg);
+        Platform::Log(skipMsg);
 
         void* wrapper = g_wrapperGenerator->GenerateWrapper(wrapperConfig);
         if (!wrapper) {
-            OutputDebugStringA("[KotorPatcher] Failed to generate wrapper\n");
+            Platform::Log("[KotorPatcher] Failed to generate wrapper\n");
             return false;
         }
 
@@ -282,22 +271,21 @@ namespace KotorPatcher {
 
         // Write trampoline to target (either wrapper or direct function)
         if (!Trampoline::WriteJump(patch.hookAddress, targetAddress)) {
-            OutputDebugStringA("[KotorPatcher] Failed to write trampoline\n");
+            Platform::Log("[KotorPatcher] Failed to write trampoline\n");
             return false;
         }
 
         // Clear out the remaining bytes with NOPs
         if (!Trampoline::WriteNoOps(patch.hookAddress + 5, patch.originalBytes.size() - 5)) {
-            OutputDebugStringA("[KotorPatcher] Failed to write No-Ops after trampoline\n");
+            Platform::Log("[KotorPatcher] Failed to write No-Ops after trampoline\n");
             return false;
         }
 
-
         char successMsg[256];
-        sprintf_s(successMsg, "[KotorPatcher] Applied DETOUR hook at 0x%08X -> %s\n",
+        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied DETOUR hook at 0x%08X -> %s\n",
             patch.hookAddress,
             patch.functionName.c_str());
-        OutputDebugStringA(successMsg);
+        Platform::Log(successMsg);
 
         return true;
     }
@@ -307,33 +295,23 @@ namespace KotorPatcher {
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
             char errorMsg[256];
-            sprintf_s(errorMsg, "[KotorPatcher] Original bytes mismatch at hookAddress %X - wrong game version?\n", patch.hookAddress);
-            OutputDebugStringA(errorMsg);
+            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08X - wrong game version?\n", patch.hookAddress);
+            Platform::Log(errorMsg);
             return false;
         }
 
-        // Make memory writable
-        DWORD oldProtect;
-        if (!VirtualProtect(reinterpret_cast<void*>(patch.hookAddress), patch.replacementBytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect)) {
-            OutputDebugStringA("[KotorPatcher] Failed to make memory writable for SIMPLE hook\n");
+        // Overwrite the site with the replacement bytes (same length as originals).
+        if (!Platform::WriteCode(reinterpret_cast<void*>(patch.hookAddress),
+                patch.replacementBytes.data(), patch.replacementBytes.size())) {
+            Platform::Log("[KotorPatcher] Failed to write bytes for SIMPLE hook\n");
             return false;
         }
-
-        // Write replacement bytes
-        memcpy(reinterpret_cast<void*>(patch.hookAddress), patch.replacementBytes.data(), patch.replacementBytes.size());
-
-        // Restore original protection
-        DWORD dummy;
-        VirtualProtect(reinterpret_cast<void*>(patch.hookAddress), patch.replacementBytes.size(), oldProtect, &dummy);
-
-        // Flush instruction cache
-        FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(patch.hookAddress), patch.replacementBytes.size());
 
         char successMsg[256];
-        sprintf_s(successMsg, "[KotorPatcher] Applied SIMPLE hook at 0x%08X (%d bytes replaced)\n",
+        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied SIMPLE hook at 0x%08X (%zu bytes replaced)\n",
             patch.hookAddress,
-            static_cast<int>(patch.replacementBytes.size()));
-        OutputDebugStringA(successMsg);
+            patch.replacementBytes.size());
+        Platform::Log(successMsg);
 
         return true;
     }
@@ -343,59 +321,59 @@ namespace KotorPatcher {
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
             char errorMsg[256];
-            sprintf_s(errorMsg, "[KotorPatcher] Original bytes mismatch at hookAddress %X - wrong game version?\n", patch.hookAddress);
-            OutputDebugStringA(errorMsg);
+            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08X - wrong game version?\n", patch.hookAddress);
+            Platform::Log(errorMsg);
             return false;
         }
 
         // Calculate buffer size: replacement_bytes + 5-byte return JMP
-        size_t bufferSize = patch.replacementBytes.size() + 5;
+        std::size_t bufferSize = patch.replacementBytes.size() + 5;
 
         // Allocate executable memory for replacement code + return JMP
-        void* codeBuf = VirtualAlloc(nullptr, bufferSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        void* codeBuf = Platform::AllocExec(bufferSize);
         if (!codeBuf) {
-            OutputDebugStringA("[KotorPatcher] Failed to allocate memory for REPLACE hook\n");
+            Platform::Log("[KotorPatcher] Failed to allocate memory for REPLACE hook\n");
             return false;
         }
 
         // Track allocated buffer for cleanup
-        g_allocatedCodeBuffers.push_back(codeBuf);
+        g_allocatedCodeBuffers.push_back({ codeBuf, bufferSize });
 
-        // Write replacement bytes to allocated memory
-        memcpy(codeBuf, patch.replacementBytes.data(), patch.replacementBytes.size());
+        // Write replacement bytes to allocated memory (already writable+executable)
+        std::memcpy(codeBuf, patch.replacementBytes.data(), patch.replacementBytes.size());
 
         // Calculate return address (after original bytes)
         void* returnAddr = reinterpret_cast<void*>(patch.hookAddress + patch.originalBytes.size());
 
         // Write JMP back to game code at end of replacement bytes
-        BYTE* returnJmp = static_cast<BYTE*>(codeBuf) + patch.replacementBytes.size();
+        uint8_t* returnJmp = static_cast<uint8_t*>(codeBuf) + patch.replacementBytes.size();
         *returnJmp = 0xE9;  // JMP opcode
-        DWORD offset = reinterpret_cast<DWORD>(returnAddr) - (reinterpret_cast<DWORD>(returnJmp) + 5);
-        memcpy(returnJmp + 1, &offset, 4);
+        uint32_t offset = reinterpret_cast<uint32_t>(returnAddr) - (reinterpret_cast<uint32_t>(returnJmp) + 5);
+        std::memcpy(returnJmp + 1, &offset, 4);
 
         // Flush instruction cache for code buffer
-        FlushInstructionCache(GetCurrentProcess(), codeBuf, bufferSize);
+        Platform::FlushICache(codeBuf, bufferSize);
 
         // Write JMP at hook address to code buffer
         if (!Trampoline::WriteJump(patch.hookAddress, codeBuf)) {
-            OutputDebugStringA("[KotorPatcher] Failed to write REPLACE hook JMP\n");
+            Platform::Log("[KotorPatcher] Failed to write REPLACE hook JMP\n");
             return false;
         }
 
         // Write NOPs for remaining bytes (if original_bytes > 5)
         if (patch.originalBytes.size() > 5) {
             if (!Trampoline::WriteNoOps(patch.hookAddress + 5, patch.originalBytes.size() - 5)) {
-                OutputDebugStringA("[KotorPatcher] Failed to write NOPs for REPLACE hook\n");
+                Platform::Log("[KotorPatcher] Failed to write NOPs for REPLACE hook\n");
                 return false;
             }
         }
 
         char successMsg[256];
-        sprintf_s(successMsg, "[KotorPatcher] Applied REPLACE hook at 0x%08X (%d bytes code, %d bytes replaced)\n",
+        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied REPLACE hook at 0x%08X (%zu bytes code, %zu bytes replaced)\n",
             patch.hookAddress,
-            static_cast<int>(patch.replacementBytes.size()),
-            static_cast<int>(patch.originalBytes.size()));
-        OutputDebugStringA(successMsg);
+            patch.replacementBytes.size(),
+            patch.originalBytes.size());
+        Platform::Log(successMsg);
 
         return true;
     }
