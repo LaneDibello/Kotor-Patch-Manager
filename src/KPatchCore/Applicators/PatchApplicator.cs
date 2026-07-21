@@ -340,27 +340,12 @@ public class PatchApplicator
                 }
             }
 
-            // Apply all static hooks
+            // Apply all static hooks. StaticHookApplicator maps the addresses for the executable's
+            // format, so this works on a native Linux ELF as well as a Windows PE. Order matters: this
+            // runs before the DT_NEEDED injection (Step 4.6), which is address-preserving, so the .text
+            // bytes patched here survive that rewrite.
             if (allStaticHooks.Count > 0)
             {
-                // STATIC hooks aren't supported on the native Linux ELF yet.
-                if (deployment == DeploymentMethod.ElfNeeded)
-                {
-                    if (backup != null)
-                    {
-                        BackupManager.RestoreBackup(backup);
-                    }
-
-                    return new InstallResult
-                    {
-                        Success = false,
-                        Error = "STATIC hooks are not yet supported on the native Linux ELF.",
-                        DetectedVersion = gameVersion,
-                        Backup = backup,
-                        Messages = messages
-                    };
-                }
-
                 var applyResult = StaticHookApplicator.ApplyStaticHooks(
                     options.GameExePath,
                     allStaticHooks);

@@ -33,36 +33,22 @@ public static class StaticHookApplicator
             return PatchResult.Ok("No static hooks to apply");
         }
 
-        // Parse PE headers once for all hooks
-        var peResult = PeHeaderParser.ParsePeHeaders(exePath);
-        if (!peResult.Success || peResult.Data == null)
+        // Open the executable once. The image maps virtual addresses to file offsets for whichever
+        // format this is (Windows PE or native Linux ELF), so the apply loop stays format-agnostic.
+        var imageResult = ExecutableImage.Open(exePath);
+        if (!imageResult.Success || imageResult.Data == null)
         {
-            return PatchResult.Fail($"Failed to parse PE headers: {peResult.Error}");
+            return PatchResult.Fail($"Failed to read executable: {imageResult.Error}");
         }
 
-        var peInfo = peResult.Data;
+        var image = imageResult.Data;
         var errors = new List<string>();
         var appliedCount = 0;
 
         foreach (var hook in staticHooks)
         {
-            // Convert virtual address to file offset
-            var offsetResult = PeHeaderParser.VirtualAddressToFileOffset(peInfo, hook.Address);
-            if (!offsetResult.Success)
-            {
-                errors.Add($"Hook at 0x{hook.Address:X8}: {offsetResult.Error}");
-                continue;
-            }
-
-            var fileOffset = offsetResult.Data!;
-
             // Read current bytes at location
-            var readResult = PeHeaderParser.ReadBytesAtVirtualAddress(
-                exePath,
-                peInfo,
-                hook.Address,
-                hook.OriginalBytes.Length);
-
+            var readResult = image.ReadAtVirtualAddress(hook.Address, hook.OriginalBytes.Length);
             if (!readResult.Success || readResult.Data == null)
             {
                 errors.Add($"Hook at 0x{hook.Address:X8}: Failed to read bytes: {readResult.Error}");
@@ -88,12 +74,7 @@ public static class StaticHookApplicator
             }
 
             // Write replacement bytes
-            var writeResult = PeHeaderParser.WriteBytesToVirtualAddress(
-                exePath,
-                peInfo,
-                hook.Address,
-                hook.ReplacementBytes!);
-
+            var writeResult = image.WriteAtVirtualAddress(hook.Address, hook.ReplacementBytes!);
             if (!writeResult.Success)
             {
                 errors.Add($"Hook at 0x{hook.Address:X8}: Failed to write bytes: {writeResult.Error}");
