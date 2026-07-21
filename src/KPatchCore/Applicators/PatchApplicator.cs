@@ -46,6 +46,12 @@ public class PatchApplicator
         /// If null on Linux, DLL-based patches won't load under Wine.
         /// </summary>
         public string? ProxyDllPath { get; init; }
+
+        /// <summary>
+        /// Path to KotorPatcher.so to stage in the game directory when the detected game
+        /// is a native Linux ELF (DeploymentMethod.ElfNeeded). Ignored otherwise.
+        /// </summary>
+        public string? PatcherSoPath { get; init; }
     }
 
     /// <summary>
@@ -93,6 +99,15 @@ public class PatchApplicator
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
     }
+
+    /// <summary>The patcher runtime module to stage for a deployment method.</summary>
+    private readonly record struct PatcherModule(string FileName, string? SourcePath, bool NeedsSqlite);
+
+    /// <summary>Selects the patcher module (and whether sqlite3.dll ships with it) for a deployment.</summary>
+    private static PatcherModule ResolvePatcherModule(DeploymentMethod deployment, InstallOptions options) =>
+        deployment == DeploymentMethod.ElfNeeded
+            ? new PatcherModule("KotorPatcher.so", options.PatcherSoPath, NeedsSqlite: false)
+            : new PatcherModule("KotorPatcher.dll", options.PatcherDllPath, NeedsSqlite: true);
 
     /// <summary>
     /// Installs patches to a game
@@ -273,6 +288,9 @@ public class PatchApplicator
             var installOrder = orderResult.Data;
             messages.Add($"  Install order: {string.Join(" -> ", installOrder)}");
 
+            // Choose how the patcher is loaded for the detected game.
+            var deployment = DeploymentPolicy.ForGame(gameVersion);
+
             // Step 4: Create backup
             if (options.CreateBackup)
             {
@@ -322,6 +340,24 @@ public class PatchApplicator
             // Apply all static hooks
             if (allStaticHooks.Count > 0)
             {
+                // STATIC hooks aren't supported on the native Linux ELF yet.
+                if (deployment == DeploymentMethod.ElfNeeded)
+                {
+                    if (backup != null)
+                    {
+                        BackupManager.RestoreBackup(backup);
+                    }
+
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = "STATIC hooks are not yet supported on the native Linux ELF.",
+                        DetectedVersion = gameVersion,
+                        Backup = backup,
+                        Messages = messages
+                    };
+                }
+
                 var applyResult = StaticHookApplicator.ApplyStaticHooks(
                     options.GameExePath,
                     allStaticHooks);
@@ -353,6 +389,31 @@ public class PatchApplicator
             else
             {
                 messages.Add("  No static hooks to apply");
+            }
+
+            // Step 4.6: on a native Linux ELF, add KotorPatcher.so to the game's DT_NEEDED list.
+            if (deployment == DeploymentMethod.ElfNeeded)
+            {
+                messages.Add("Step 4.6/8: Adding KotorPatcher.so to the game's DT_NEEDED...");
+                var injectResult = ElfInjector.AddNeeded(options.GameExePath, "KotorPatcher.so");
+                if (!injectResult.Success)
+                {
+                    if (backup != null)
+                    {
+                        BackupManager.RestoreBackup(backup);
+                    }
+
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = $"Failed to add KotorPatcher.so to the game ELF: {injectResult.Error}",
+                        DetectedVersion = gameVersion,
+                        Backup = backup,
+                        Messages = messages
+                    };
+                }
+
+                messages.Add($"  {injectResult.Messages.FirstOrDefault() ?? "DT_NEEDED updated"}");
             }
 
             // Step 5: Extract patch DLLs (for DETOUR hooks and DLL-only patches)
@@ -542,32 +603,32 @@ public class PatchApplicator
             // Step 7: Copy patcher DLL and SQLite
             messages.Add("Step 7/8: Installing patcher DLL and dependencies...");
 
-            // Copy KotorPatcher.dll to game directory if path provided
-            var destPath = Path.Combine(gameDir, "KotorPatcher.dll");
-            if (!string.IsNullOrEmpty(options.PatcherDllPath))
+            var (moduleName, moduleSource, needsSqlite) = ResolvePatcherModule(deployment, options);
+            var destPath = Path.Combine(gameDir, moduleName);
+            if (!string.IsNullOrEmpty(moduleSource))
             {
-                if (!File.Exists(options.PatcherDllPath))
+                if (!File.Exists(moduleSource))
                 {
                     return new InstallResult
                     {
                         Success = false,
-                        Error = $"KotorPatcher.dll not found at: {options.PatcherDllPath}",
+                        Error = $"{moduleName} not found at: {moduleSource}",
                         DetectedVersion = gameVersion,
                         Backup = backup,
                         Messages = messages
                     };
                 }
 
-                // If DLL already present, skip copy step
-                if (PathHelpers.SamePath(options.PatcherDllPath, destPath))
+                // If the module is already present, skip the copy step
+                if (PathHelpers.SamePath(moduleSource, destPath))
                 {
-                    messages.Add($"  ✓ KotorPatcher.dll already in place (Patch Manager runs from the game directory)");
+                    messages.Add($"  ✓ {moduleName} already in place (Patch Manager runs from the game directory)");
                 }
                 else
                 {
                     try
                     {
-                        File.Copy(options.PatcherDllPath, destPath, overwrite: true);
+                        File.Copy(moduleSource, destPath, overwrite: true);
                     }
                     catch (Exception ex)
                     {
@@ -579,18 +640,18 @@ public class PatchApplicator
                         return new InstallResult
                         {
                             Success = false,
-                            Error = $"Failed to copy KotorPatcher.dll to game directory: {ex.Message}",
+                            Error = $"Failed to copy {moduleName} to game directory: {ex.Message}",
                             DetectedVersion = gameVersion,
                             Backup = backup,
                             Messages = messages
                         };
                     }
 
-                    messages.Add($"  ✓ Copied KotorPatcher.dll to game directory");
+                    messages.Add($"  ✓ Copied {moduleName} to game directory");
                 }
 
-                // Copy sqlite3.dll (should be in same directory as KotorPatcher.dll)
-                var patcherDir = Path.GetDirectoryName(options.PatcherDllPath);
+                // Stage sqlite3.dll for the DLL deployment only.
+                var patcherDir = needsSqlite ? Path.GetDirectoryName(moduleSource) : null;
                 if (patcherDir != null)
                 {
                     var sqliteDllSource = Path.Combine(patcherDir, "sqlite3.dll");
@@ -619,11 +680,11 @@ public class PatchApplicator
             }
             else
             {
-                messages.Add($"  ⚠️ Warning: KotorPatcher.dll path not provided");
-                messages.Add($"  ⚠️ Make sure KotorPatcher.dll and sqlite3.dll are in game directory");
+                messages.Add($"  ⚠️ Warning: {moduleName} path not provided");
+                messages.Add($"  ⚠️ Make sure {moduleName} is in the game directory");
             }
 
-            // Fail loudly if the DLL never made it to the destination
+            // Fail loudly if the module never made it to the destination
             if (!File.Exists(destPath))
             {
                 if (backup != null)
@@ -634,7 +695,7 @@ public class PatchApplicator
                 return new InstallResult
                 {
                     Success = false,
-                    Error = "KotorPatcher.dll is missing from the game directory after installation.",
+                    Error = $"{moduleName} is missing from the game directory after installation.",
                     DetectedVersion = gameVersion,
                     Backup = backup,
                     Messages = messages
@@ -644,7 +705,7 @@ public class PatchApplicator
             // Step 7.5: for the proxy deployment method, stage the KProxy so
             // the game loads KotorPatcher when it starts (injection does not).
             var proxyInstalled = false;
-            if (DeploymentPolicy.ForCurrentPlatform() == DeploymentMethod.Proxy)
+            if (deployment == DeploymentMethod.Proxy)
             {
                 if (string.IsNullOrEmpty(options.ProxyDllPath))
                 {
@@ -684,7 +745,8 @@ public class PatchApplicator
                 options.GameExePath,
                 gameVersion,
                 installOrder,
-                proxyInstalled);
+                proxyInstalled,
+                elfNeededInstalled: deployment == DeploymentMethod.ElfNeeded);
             if (stateResult.Success)
             {
                 messages.Add($"  {stateResult.Messages.FirstOrDefault() ?? "Managed install state saved"}");
