@@ -40,21 +40,25 @@ public static class GameLauncher
             return LaunchVanilla(gameExePath, commandLineArgs);
         }
 
-        // Patches installed - launch the patched game with the patcher loaded
-        var patcherDllPath = Path.Combine(gameDir, "KotorPatcher.dll");
+        // Patches are installed. Detect the game to pick the deployment method (which decides the
+        // patcher module the game loads) and the distribution (which decides the launch strategy).
+        var versionResult = GameDetector.DetectVersion(gameExePath, allowManagedInstallState: true);
+        var gameVersion = versionResult.Data;
+        var distribution = gameVersion?.Distribution ?? Distribution.Other;
+        var deployment = gameVersion != null
+            ? DeploymentPolicy.ForGame(gameVersion)
+            : DeploymentPolicy.ForCurrentPlatform();
 
-        if (!File.Exists(patcherDllPath))
+        var moduleName = DeploymentPolicy.PatcherModuleFileName(deployment);
+        var patcherModulePath = Path.Combine(gameDir, moduleName);
+        if (!File.Exists(patcherModulePath))
         {
             return LaunchResult.Fail(
-                $"Patches are installed (patch_config.toml found) but KotorPatcher.dll is missing. " +
-                $"Expected location: {patcherDllPath}");
+                $"Patches are installed (patch_config.toml found) but {moduleName} is missing. " +
+                $"Expected location: {patcherModulePath}");
         }
 
-        // Detect game version to determine distribution
-        var versionResult = GameDetector.DetectVersion(gameExePath, allowManagedInstallState: true);
-        var distribution = versionResult.Data?.Distribution ?? Distribution.Other;
-
-        return Launch(gameExePath, patcherDllPath, distribution, commandLineArgs, launchConfig);
+        return Launch(gameExePath, patcherModulePath, distribution, commandLineArgs, launchConfig);
     }
 
     /// <summary>
