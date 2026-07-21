@@ -1,0 +1,4 @@
+[submodule "external/LibObjectFile"]
+	path = external/LibObjectFile
+	url = https://github.com/ProjectSynchro/LibObjectFile.git
+	branch = kpm-support
