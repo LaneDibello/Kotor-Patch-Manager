@@ -26,13 +26,28 @@ namespace Platform {
             long ps = sysconf(_SC_PAGESIZE);
             return ps > 0 ? static_cast<std::size_t>(ps) : 4096;
         }
+
+        // Opens the diagnostics log once for the process, only when KPATCH_LOG names a
+        // file. Steam redirects stderr away, so KPATCH_LOG=<path> in the launch options
+        // is how a run gets captured. With it unset there is no log file, matching the
+        // Windows backend, which leaves nothing on disk. Truncated per launch.
+        std::FILE* OpenLogFile() {
+            const char* path = std::getenv("KPATCH_LOG");
+            return path ? std::fopen(path, "w") : nullptr;
+        }
     }
 
     void Log(const char* message) {
-        // Windows routes diagnostics to the debugger; the Linux analogue is stderr.
-        // A log-to-file channel returns with the Steam delivery, where stderr is
-        // swallowed.
+        // Windows logs via OutputDebugString and leaves nothing on disk; stderr is the
+        // Linux analogue. A file is opt-in through KPATCH_LOG (OpenLogFile), since Steam
+        // redirects stderr away and would otherwise hide every line.
         std::fputs(message, stderr);
+
+        static std::FILE* logFile = OpenLogFile();
+        if (logFile) {
+            std::fputs(message, logFile);
+            std::fflush(logFile);
+        }
     }
 
     void* AllocExec(std::size_t size) {
