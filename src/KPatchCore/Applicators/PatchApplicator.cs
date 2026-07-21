@@ -104,10 +104,13 @@ public class PatchApplicator
     private readonly record struct PatcherModule(string FileName, string? SourcePath, bool NeedsSqlite);
 
     /// <summary>Selects the patcher module (and whether sqlite3.dll ships with it) for a deployment.</summary>
-    private static PatcherModule ResolvePatcherModule(DeploymentMethod deployment, InstallOptions options) =>
-        deployment == DeploymentMethod.ElfNeeded
-            ? new PatcherModule("KotorPatcher.so", options.PatcherSoPath, NeedsSqlite: false)
-            : new PatcherModule("KotorPatcher.dll", options.PatcherDllPath, NeedsSqlite: true);
+    private static PatcherModule ResolvePatcherModule(DeploymentMethod deployment, InstallOptions options)
+    {
+        var fileName = DeploymentPolicy.PatcherModuleFileName(deployment);
+        return deployment == DeploymentMethod.ElfNeeded
+            ? new PatcherModule(fileName, options.PatcherSoPath, NeedsSqlite: false)
+            : new PatcherModule(fileName, options.PatcherDllPath, NeedsSqlite: true);
+    }
 
     /// <summary>
     /// Installs patches to a game

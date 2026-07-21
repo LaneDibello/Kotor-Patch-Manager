@@ -58,4 +58,16 @@ public static class DeploymentPolicy
             ? DeploymentMethod.ElfNeeded
             : ForCurrentPlatform();
     }
+
+    /// <summary>
+    /// The patcher runtime module the game loads for a deployment method: the native ELF
+    /// maps KotorPatcher.so via DT_NEEDED, every other method loads KotorPatcher.dll. This
+    /// is the single source of the .so-vs-.dll choice, shared by install staging and launch.
+    /// </summary>
+    public static string PatcherModuleFileName(DeploymentMethod deployment)
+    {
+        return deployment == DeploymentMethod.ElfNeeded
+            ? "KotorPatcher.so"
+            : "KotorPatcher.dll";
+    }
 }
