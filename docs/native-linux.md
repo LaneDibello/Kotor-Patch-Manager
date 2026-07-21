@@ -64,8 +64,11 @@ The engine reads only `patch_config.toml`, so `KotorPatcher.so` links no SQLite.
 The `addresses.db` is consumed by the manager at apply time and by a patch's own
 GameAPI at runtime, not by the engine.
 
-STATIC hooks are not yet supported on the native ELF. An install that selects a
-STATIC hook fails clearly rather than half-applying.
+STATIC hooks (install-time byte patches to the executable) are applied directly
+to the ELF, mapping each hook's virtual address to a file offset through the
+PT_LOAD program headers. They run before the `DT_NEEDED` injection, which is
+address-preserving, so the patched bytes survive that rewrite. `Patches/EnableCheats`
+is the reference native-Linux static patch.
 
 ## Launch
 
@@ -103,7 +106,6 @@ game still launches (the loader still needs it); it is inert without
 
 ## Current limitations
 
-- STATIC hooks are not yet supported on the native ELF.
 - DETOUR hooks need a Linux-built patch module. Released `.kpatch` archives ship
-  a Windows `windows_x86.dll` only, so SIMPLE and REPLACE hooks (which need no
-  patch binary) are what work today without a separate Linux patch build.
+  a Windows `windows_x86.dll` only, so SIMPLE, REPLACE, and STATIC hooks (which
+  need no patch binary) are what work today without a separate Linux patch build.

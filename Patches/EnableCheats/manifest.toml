@@ -1,0 +1,13 @@
+[patch]
+id = "enable-cheats"
+name = "Enable Cheats"
+version = "1.0.0"
+author = "Synchro"
+description = "Test patch. Enables the KOTOR II cheat console without editing swkotor2.ini. It was authored to validate KPM's install-time (STATIC) byte-patching pipeline end to end. Note: the console accepts commands and the cheats take effect, but its on-screen prompt is invisible. That is a separate, known KOTOR II Aspyr rendering issue, not a fault in this patch."
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor2_steam_aspyr_linux = "ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"
