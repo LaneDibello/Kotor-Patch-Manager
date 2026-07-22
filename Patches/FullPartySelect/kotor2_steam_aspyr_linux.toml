@@ -1,0 +1,16 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# Native Linux translation of FullPartySelect.
+#
+# CSWGuiPartySelection::OnPanelAdded():          0x082E776E
+# Patched call site (VA):                        0x082E795A
+# Patched call site (ELF file offset):           0x0029F95A
+# CSWGuiPartySelection::UpdateVisibleCharacters: 0x082E7EB4
+#
+# This NOPs the same OnPanelAdded() call that the Windows GOG/Steam patch removes.
+[[hooks]]
+address = 0x082E795A
+type = "simple"
+original_bytes = [0xE8, 0x55, 0x05, 0x00, 0x00]
+replacement_bytes = [0x90, 0x90, 0x90, 0x90, 0x90]
