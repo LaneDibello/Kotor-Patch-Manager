@@ -291,9 +291,15 @@ public class MainViewModel : ViewModelBase
                 SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory()),
                 FileTypeFilter = new[]
                 {
-                    new FilePickerFileType("Executable Files")
+                    new FilePickerFileType("Game Executables")
                     {
-                        Patterns = new[] { "*.exe" }
+                        // swkotor.exe / swkotor2.exe on Windows and under Wine/Proton; the
+                        // native Linux KOTOR II build is an extensionless "KOTOR2" ELF.
+                        Patterns = new[] { "*.exe", "KOTOR2" }
+                    },
+                    new FilePickerFileType("All Files")
+                    {
+                        Patterns = new[] { "*" }
                     }
                 }
             });
