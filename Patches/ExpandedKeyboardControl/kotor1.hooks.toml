@@ -1,0 +1,98 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+]
+
+# Capture raw keyboard input before KOTOR applies its key bindings.
+[[hooks]]
+address = 0x005E271E
+type = "detour"
+function = "CaptureActionBarInputK1"
+original_bytes = [0x8B, 0x84, 0x24, 0xE4, 0x00, 0x00, 0x00]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "eax"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "edx"
+type = "int"
+
+# Dispatch queued Inventory menu input on KOTOR 1's game thread.
+[[hooks]]
+address = 0x006227E0
+type = "detour"
+function = "DispatchMenuInputK1"
+original_bytes = [0x6A, 0xFF, 0x68, 0xE9, 0x89, 0x72, 0x00]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+# Cancel movie playback when KOTOR 1's movie window receives Delete.
+[[hooks]]
+address = 0x004051C3
+type = "detour"
+function = "CancelMovieOnDeleteK1"
+original_bytes = [0x8B, 0xC6, 0x83, 0xE8, 0x1C]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "uint"
+
+[[hooks.parameters]]
+source = "edi"
+type = "uint"
+
+# Process captured keyboard input during the gameplay HUD update.
+[[hooks]]
+address = 0x00686BA0
+type = "detour"
+function = "UpdateActionBarControlsK1"
+original_bytes = [0x53, 0x56, 0x57, 0x8B, 0xF1]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+# Clear cached HUD state when KOTOR destroys the gameplay interface.
+[[hooks]]
+address = 0x0068B170
+type = "detour"
+function = "ClearActionBarControlsK1"
+original_bytes = [0x6A, 0xFF, 0x68, 0xB0, 0xF7, 0x72, 0x00]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+# Clear keyboard focus when the mouse moves over an action button.
+[[hooks]]
+address = 0x0040C1F6
+type = "detour"
+function = "CancelActionBarKeyboardFocusOnMouseMoveK1"
+original_bytes = [0x89, 0x1E, 0x89, 0x7E, 0x04]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "ebx"
+type = "int"
+
+[[hooks.parameters]]
+source = "edi"
+type = "int"

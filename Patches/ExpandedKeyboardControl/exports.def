@@ -1,0 +1,14 @@
+LIBRARY ExpandedKeyboardControl
+EXPORTS
+    CaptureActionBarInputK1
+    CaptureActionBarInputK2
+    CancelMovieOnDeleteK1
+    CancelActionBarKeyboardFocusOnMouseMoveK1
+    CancelActionBarKeyboardFocusOnMouseMoveK2
+    ClearActionBarControlsK1
+    ClearActionBarControlsK2
+    DispatchContextCancelK2
+    DispatchMenuInputK1
+    MapMovieDeleteToEscapeK2
+    UpdateActionBarControlsK1
+    UpdateActionBarControlsK2

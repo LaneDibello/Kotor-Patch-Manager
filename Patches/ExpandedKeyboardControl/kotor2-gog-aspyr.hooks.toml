@@ -1,0 +1,84 @@
+[metadata]
+target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"]
+
+# Capture raw keyboard input before KOTOR applies its key bindings.
+[[hooks]]
+address = 0x00613863
+type = "detour"
+function = "CaptureActionBarInputK2"
+original_bytes = [0x89, 0x85, 0xBC, 0xFE, 0xFF, 0xFF]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "eax"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer"
+
+# Translate Delete to Escape before KOTOR 2's movie window handles the message.
+[[hooks]]
+address = 0x0091F696
+type = "detour"
+function = "MapMovieDeleteToEscapeK2"
+original_bytes = [0x8B, 0x45, 0x0C, 0x89, 0x45, 0xCC]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer"
+
+# Dispatch queued Delete and controller-style GUI actions.
+[[hooks]]
+address = 0x00459080
+type = "detour"
+function = "DispatchContextCancelK2"
+original_bytes = [0x55, 0x8B, 0xEC, 0x6A, 0xFF]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+# Process captured keyboard input during the gameplay HUD update.
+[[hooks]]
+address = 0x0051CB70
+type = "detour"
+function = "UpdateActionBarControlsK2"
+original_bytes = [0x55, 0x8B, 0xEC, 0x6A, 0xFF]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+# Clear cached HUD state when KOTOR destroys the gameplay interface.
+[[hooks]]
+address = 0x0051BEC0
+type = "detour"
+function = "ClearActionBarControlsK2"
+original_bytes = [0x55, 0x8B, 0xEC, 0x51, 0x89, 0x4D, 0xFC]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+# Clear keyboard focus when the mouse moves over an action button.
+[[hooks]]
+address = 0x00614E6C
+type = "detour"
+function = "CancelActionBarKeyboardFocusOnMouseMoveK2"
+original_bytes = [0xB8, 0x01, 0x00, 0x00, 0x00]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "edx"
+type = "pointer"
