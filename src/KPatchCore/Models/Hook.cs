@@ -147,6 +147,19 @@ public sealed class Hook
                     return false;
                 }
             }
+
+            // consumed_exit_address reads the handler's return value from EAX
+            // (the wrapper's consume check is TEST EAX,EAX). If EAX isn't
+            // excluded from restore, the wrapper restores it before that check
+            // and the consume decision runs on a stale value. Enforce the
+            // pairing so this can't silently misbehave at runtime.
+            if (ConsumedExitAddress is > 0 &&
+                !ExcludeFromRestore.Exists(r => string.Equals(r, "eax", StringComparison.OrdinalIgnoreCase)))
+            {
+                error = "consumed_exit_address requires \"eax\" in exclude_from_restore " +
+                        "(the handler's return value is read from EAX by the wrapper's consume check)";
+                return false;
+            }
         }
         else if (Type == HookType.Simple)
         {

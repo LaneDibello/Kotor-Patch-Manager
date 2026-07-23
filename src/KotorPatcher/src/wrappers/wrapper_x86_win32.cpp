@@ -61,7 +61,8 @@ namespace KotorPatcher {
 
         void* WrapperGenerator_x86_Win32::GenerateDetourWrapper(const WrapperConfig& config) {
             // Estimate wrapper size
-            // Base: ~100 bytes, +10 per excluded register, +10 for consumed-exit conditional jump
+            // Base: ~100 bytes, +10 per excluded register, +16 for the
+            // consumed-exit conditional (12 bytes emitted, padded to 16)
             size_t estimatedSize = 128 + (config.excludeFromRestore.size() * 10);
             if (config.consumedExitAddress != 0) {
                 estimatedSize += 16;
