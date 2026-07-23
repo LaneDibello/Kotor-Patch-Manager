@@ -179,15 +179,32 @@ namespace KotorPatcher {
                     // We need to manually pop each register
                     const char* regOrder[] = { "edi", "esi", "ebp", "esp", "ebx", "edx", "ecx", "eax" };
                     const BYTE popOpcodes[] = { 0x5F, 0x5E, 0x5D, 0x5C, 0x5B, 0x5A, 0x59, 0x58 };
+                    constexpr int kEspSlot = 3;
 
                     for (int i = 0; i < 8; i++) {
-                        if (config.ShouldRestoreRegister(regOrder[i])) {
+                        // Hardware POPAD never restores ESP — it just advances
+                        // past the saved-ESP slot. Emitting `POP ESP` (0x5C)
+                        // here would write ESP from the saved value, jumping
+                        // past the remaining EBX/EDX/ECX/EAX slots and reading
+                        // them from random stack memory. Always skip the ESP
+                        // slot regardless of exclude_from_restore.
+                        if (i != kEspSlot && config.ShouldRestoreRegister(regOrder[i])) {
                             EmitByte(code, popOpcodes[i]);  // POP reg
                         } else {
-                            // Skip this register (pop to nowhere)
-                            EmitByte(code, 0x83);  // ADD ESP, 4
-                            EmitByte(code, 0xC4);
-                            EmitByte(code, 0x04);
+                            // Skip this register (matches POPAD's ESP semantics
+                            // for the ESP slot, or honors the user's exclusion
+                            // for other slots).
+                            //
+                            // Use LEA ESP, [ESP+4] instead of ADD ESP, 4: ADD
+                            // sets EFLAGS (ZF/SF/CF/OF) from the result, which
+                            // would clobber flag state the restored context or
+                            // downstream target code depends on. LEA is the
+                            // standard flag-preserving stack adjustment.
+                            // 4 bytes vs 3 — a minor size cost for correctness.
+                            EmitByte(code, 0x8D);  // LEA r32, m
+                            EmitByte(code, 0x64);  // ModRM: ESP, [ESP+disp8] (SIB follows)
+                            EmitByte(code, 0x24);  // SIB: [ESP]
+                            EmitByte(code, 0x04);  // disp8 = 4
                         }
                     }
                 }
