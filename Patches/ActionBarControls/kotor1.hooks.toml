@@ -1,0 +1,55 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+]
+
+# Capture raw keyboard input before KOTOR applies its key bindings.
+[[hooks]]
+address = 0x005E271E
+type = "detour"
+function = "CaptureActionBarInputK1"
+original_bytes = [0x8B, 0x84, 0x24, 0xE4, 0x00, 0x00, 0x00]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "eax"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "edx"
+type = "int"
+
+# Process captured keyboard input during the gameplay HUD update.
+[[hooks]]
+address = 0x00686BA0
+type = "detour"
+function = "UpdateActionBarControlsK1"
+original_bytes = [0x53, 0x56, 0x57, 0x8B, 0xF1]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+# Clear keyboard focus when the mouse moves over an action button.
+[[hooks]]
+address = 0x0040C1F6
+type = "detour"
+function = "CancelActionBarKeyboardFocusOnMouseMoveK1"
+original_bytes = [0x89, 0x1E, 0x89, 0x7E, 0x04]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "ebx"
+type = "int"
+
+[[hooks.parameters]]
+source = "edi"
+type = "int"

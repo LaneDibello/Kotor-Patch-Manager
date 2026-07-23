@@ -1,0 +1,9 @@
+LIBRARY ActionBarControls
+EXPORTS
+    CaptureActionBarInputK1
+    CaptureActionBarInputK2
+    CancelActionBarKeyboardFocusOnMouseMoveK1
+    CancelActionBarKeyboardFocusOnMouseMoveK2
+    ClearActionBarControlsK2
+    UpdateActionBarControlsK1
+    UpdateActionBarControlsK2
