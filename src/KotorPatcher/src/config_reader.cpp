@@ -311,6 +311,27 @@ namespace KotorPatcher {
                         OutputDebugStringA(debugMsg);
                     }
 
+                    // === Parse Consumed Exit Address (Optional) ===
+                    // Mirrors the hook 'address' field: accept a hex string
+                    // "0x401234" or an integer (ConfigGenerator emits an integer).
+                    auto consumedExitStr = hookTable->at_path("consumed_exit_address").value<std::string>();
+                    auto consumedExitInt = hookTable->at_path("consumed_exit_address").value<int64_t>();
+
+                    if (consumedExitStr) {
+                        if (!ParseHexAddress(*consumedExitStr, patch.consumedExitAddress)) {
+                            OutputDebugStringA(("[Config] Invalid consumed_exit_address: " + *consumedExitStr + "\n").c_str());
+                        }
+                    }
+                    else if (consumedExitInt) {
+                        patch.consumedExitAddress = static_cast<DWORD>(*consumedExitInt);
+                    }
+                    if (patch.consumedExitAddress != 0) {
+                        char debugMsg[256];
+                        sprintf_s(debugMsg, "[Config] Parsed consumed_exit_address = 0x%08X for hook at 0x%08X\n",
+                            patch.consumedExitAddress, patch.hookAddress);
+                        OutputDebugStringA(debugMsg);
+                    }
+
                     // Parse parameters (optional, for DETOUR hooks)
                     auto parametersArray = hookTable->at_path("parameters").as_array();
                     if (parametersArray) {

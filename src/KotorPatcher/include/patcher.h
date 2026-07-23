@@ -67,6 +67,13 @@ namespace KotorPatcher {
         // Set to true when fully replacing behavior instead of augmenting it
         bool skipOriginalBytes = false;
 
+        // When non-zero, the wrapper jumps to this address (instead of resuming
+        // at hookAddress + originalBytes.size()) whenever the handler returns
+        // a non-zero int. Lets a hook selectively consume engine events.
+        // Caller must include "eax" in excludeFromRestore so the handler's
+        // return value survives the wrapper. Default 0 = feature disabled.
+        DWORD consumedExitAddress = 0;
+
         // Original function pointer (future: for detour trampolines)
         void* originalFunction = nullptr;
 

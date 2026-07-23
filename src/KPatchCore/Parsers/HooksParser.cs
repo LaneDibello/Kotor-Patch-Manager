@@ -144,6 +144,12 @@ public static class HooksParser
                 var excludeFromRestore = TryGetStringArray(hookTable, "exclude_from_restore") ?? new List<string>();
                 var skipOriginalBytes = TryGetBool(hookTable, "skip_original_bytes") ?? false;
 
+                uint? consumedExitAddress = null;
+                if (TryGetUInt(hookTable, "consumed_exit_address", out var consumedExit) && consumedExit != 0)
+                {
+                    consumedExitAddress = consumedExit;
+                }
+
                 // Parse parameters (optional, for Detour hooks)
                 var parametersResult = ParseParameters(hookTable, i);
                 if (!parametersResult.Success)
@@ -163,6 +169,7 @@ public static class HooksParser
                     PreserveFlags = preserveFlags,
                     ExcludeFromRestore = excludeFromRestore,
                     SkipOriginalBytes = skipOriginalBytes,
+                    ConsumedExitAddress = consumedExitAddress,
                     Parameters = parameters
                 };
 

@@ -45,6 +45,14 @@ namespace KotorPatcher {
             // instead of augmenting it
             bool skipOriginalBytes = false;
 
+            // When non-zero, the wrapper emits a conditional jump after the
+            // register-restore epilogue: if the handler returned non-zero in
+            // EAX, control transfers to this address; otherwise the wrapper
+            // falls through to the existing original-bytes / skipOriginalBytes
+            // path. Caller must add "eax" to excludeFromRestore so the
+            // handler's return value reaches the test. Default 0 = disabled.
+            DWORD consumedExitAddress = 0;
+
             // Original function pointer (future use)
             void* originalFunction = nullptr;
 

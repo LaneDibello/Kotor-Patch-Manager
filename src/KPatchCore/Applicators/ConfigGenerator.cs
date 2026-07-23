@@ -125,6 +125,13 @@ public static class ConfigGenerator
                         hookTable["skip_original_bytes"] = true;
                     }
 
+                    // Add consumed_exit_address only when set — keeps existing
+                    // hooks unaffected and the runtime treats absence as "feature off".
+                    if (hook.ConsumedExitAddress.HasValue)
+                    {
+                        hookTable["consumed_exit_address"] = (long)hook.ConsumedExitAddress.Value;
+                    }
+
                     // Add parameters if any (for INLINE hooks)
                     if (hook.Parameters.Count > 0)
                     {
