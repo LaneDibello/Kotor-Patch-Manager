@@ -1,0 +1,28 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# Native Linux Aspyr byte-translation specification.
+# This preserves KPM hook syntax for readability; current KPM PE mapping
+# does not make this file directly applicable to an ELF executable.
+# Patch: StoreNoConfirmThreshold
+# Purpose: Makes both buy and sell paths jump directly to the existing transaction blocks, bypassing the expensive-item confirmation UI.
+# Source ELF SHA-256: ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3
+# Expected SHA-256 after this patch alone: F7D0A5F8F0D5D14163C96A064C60BEF4F8F868F3638C483088BF9BCD58A4A732
+# Confidence: high
+# ELF mapping for these allocated addresses: file offset = VA - 0x08048000.
+
+# Hook 1: VA 0x08305C6C; file offset 0x002BDC6C; length 6 bytes.
+# Sell: jbe 0x08305DFD -> unconditional jmp.
+[[hooks]]
+address = 0x08305C6C
+type = "simple"
+original_bytes = [0x0F, 0x86, 0x8B, 0x01, 0x00, 0x00]
+replacement_bytes = [0xE9, 0x8C, 0x01, 0x00, 0x00, 0x90]
+
+# Hook 2: VA 0x0830612C; file offset 0x002BE12C; length 6 bytes.
+# Buy: jbe 0x083062CF -> unconditional jmp.
+[[hooks]]
+address = 0x0830612C
+type = "simple"
+original_bytes = [0x0F, 0x86, 0x9D, 0x01, 0x00, 0x00]
+replacement_bytes = [0xE9, 0x9E, 0x01, 0x00, 0x00, 0x90]
