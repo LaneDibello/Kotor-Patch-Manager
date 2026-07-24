@@ -1,0 +1,20 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# Native Linux Aspyr byte-translation specification.
+# This preserves KPM hook syntax for readability; current KPM PE mapping
+# does not make this file directly applicable to an ELF executable.
+# Patch: K2AspyrMusicFix
+# Purpose: Removes the extra scalar volume multiplication in CExoStreamingSoundSourceInternal::SetVolume().
+# Source ELF SHA-256: ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3
+# Expected SHA-256 after this patch alone: 527720A39ABA8B8C107651A2BBF6FF941B07A43734ADCC3FCD55CF43456482FF
+# Confidence: high
+# ELF mapping for these allocated addresses: file offset = VA - 0x08048000.
+
+# Hook 1: VA 0x08458111; file offset 0x00410111; length 4 bytes.
+# NOPs mulss xmm0, dword ptr [eax].
+[[hooks]]
+address = 0x08458111
+type = "simple"
+original_bytes = [0xF3, 0x0F, 0x59, 0x00]
+replacement_bytes = [0x90, 0x90, 0x90, 0x90]
