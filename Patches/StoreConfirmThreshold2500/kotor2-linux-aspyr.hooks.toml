@@ -1,0 +1,44 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# Native Linux Aspyr byte-translation specification.
+# This preserves KPM hook syntax for readability; current KPM PE mapping
+# does not make this file directly applicable to an ELF executable.
+# Patch: StoreConfirmThreshold2500
+# Purpose: Sets both store confirmation thresholds to a fixed 2500 credits.
+# Source ELF SHA-256: ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3
+# Expected SHA-256 after this patch alone: 1FCA4020DBEC93348D59DC04F0BE0BF7A3E4C6234ADFEF9162F13D36234E16BE
+# Confidence: high
+# ELF mapping for these allocated addresses: file offset = VA - 0x08048000.
+
+# Hook 1: VA 0x0830594B; file offset 0x002BD94B; length 5 bytes.
+# Sell: threshold immediate 250 -> 2500.
+[[hooks]]
+address = 0x0830594B
+type = "simple"
+original_bytes = [0xBD, 0xFA, 0x00, 0x00, 0x00]
+replacement_bytes = [0xBD, 0xC4, 0x09, 0x00, 0x00]
+
+# Hook 2: VA 0x08305973; file offset 0x002BD973; length 2 bytes.
+# Sell: bypass level-dependent threshold calculation.
+[[hooks]]
+address = 0x08305973
+type = "simple"
+original_bytes = [0x77, 0x1C]
+replacement_bytes = [0xEB, 0x1C]
+
+# Hook 3: VA 0x083060FB; file offset 0x002BE0FB; length 5 bytes.
+# Buy: threshold immediate 50 -> 2500.
+[[hooks]]
+address = 0x083060FB
+type = "simple"
+original_bytes = [0xBD, 0x32, 0x00, 0x00, 0x00]
+replacement_bytes = [0xBD, 0xC4, 0x09, 0x00, 0x00]
+
+# Hook 4: VA 0x08306100; file offset 0x002BE100; length 2 bytes.
+# Buy: bypass level-dependent threshold calculation.
+[[hooks]]
+address = 0x08306100
+type = "simple"
+original_bytes = [0x74, 0x1C]
+replacement_bytes = [0xEB, 0x1C]

@@ -1,0 +1,20 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# Native Linux Aspyr byte-translation specification.
+# This preserves KPM hook syntax for readability; current KPM PE mapping
+# does not make this file directly applicable to an ELF executable.
+# Patch: K2FinesseMeleeFix
+# Purpose: Prevents lightsabers without Finesse: Lightsabers from falling through to the melee-finesse feat check.
+# Source ELF SHA-256: ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3
+# Expected SHA-256 after this patch alone: 42169E37D05F1342ECED436A8B9DD7D404CF4A994EC02FF25DB9B5933F4EC973
+# Confidence: high
+# ELF mapping for these allocated addresses: file offset = VA - 0x08048000.
+
+# Hook 1: VA 0x084F031A; file offset 0x004A831A; length 9 bytes.
+# Builds a strict 0/1 result from HasFeat(0xC1), then jumps to the shared return path.
+[[hooks]]
+address = 0x084F031A
+type = "simple"
+original_bytes = [0x85, 0xC0, 0xBE, 0x01, 0x00, 0x00, 0x00, 0x75, 0x45]
+replacement_bytes = [0x83, 0xF8, 0x01, 0x19, 0xF6, 0x46, 0xEB, 0x46, 0x90]
