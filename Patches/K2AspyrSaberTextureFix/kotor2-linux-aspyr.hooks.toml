@@ -1,0 +1,20 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# Native Linux Aspyr byte-translation specification.
+# This preserves KPM hook syntax for readability; current KPM PE mapping
+# does not make this file directly applicable to an ELF executable.
+# Patch: K2AspyrSaberTextureFix
+# Purpose: Leaves GL_COLOR_ARRAY cleanup intact while suppressing the subsequent GL_TEXTURE_COORD_ARRAY disable in GLRender::RenderObjectsVTC().
+# Source ELF SHA-256: ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3
+# Expected SHA-256 after this patch alone: C0E25F3A2C5C52CAAE3971EB03856B5CD13B92C90E8B1C64C0D401A2EEBE9060
+# Confidence: high
+# ELF mapping for these allocated addresses: file offset = VA - 0x08048000.
+
+# Hook 1: VA 0x0837F35F; file offset 0x0033735F; length 12 bytes.
+# NOPs mov [esp], GL_TEXTURE_COORD_ARRAY; call glDisableClientState.
+[[hooks]]
+address = 0x0837F35F
+type = "simple"
+original_bytes = [0xC7, 0x04, 0x24, 0x78, 0x80, 0x00, 0x00, 0xE8, 0x85, 0x32, 0xCD, 0xFF]
+replacement_bytes = [0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90]
