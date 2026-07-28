@@ -291,9 +291,15 @@ public class MainViewModel : ViewModelBase
                 SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory()),
                 FileTypeFilter = new[]
                 {
-                    new FilePickerFileType("Executable Files")
+                    new FilePickerFileType("Game Executables")
                     {
-                        Patterns = new[] { "*.exe" }
+                        // swkotor.exe / swkotor2.exe on Windows and under Wine/Proton; the
+                        // native Linux KOTOR II build is an extensionless "KOTOR2" ELF.
+                        Patterns = new[] { "*.exe", "KOTOR2" }
+                    },
+                    new FilePickerFileType("All Files")
+                    {
+                        Patterns = new[] { "*" }
                     }
                 }
             });
@@ -747,6 +753,8 @@ public class MainViewModel : ViewModelBase
             // AppContext.BaseDirectory works reliably with both regular and single-file builds
             var appDir = AppContext.BaseDirectory;
             var patcherDllPath = Path.Combine(appDir, "KotorPatcher.dll");
+            // The native Linux engine, staged when patching the native ELF.
+            var patcherSoPath = Path.Combine(appDir, "KotorPatcher.so");
             // The KProxy ships alongside the launcher; staged when deploying via proxy.
             var proxyDllPath = Path.Combine(appDir, "binkw32.dll");
 
@@ -757,6 +765,7 @@ public class MainViewModel : ViewModelBase
                 PatchIds = checkedPatches.Select(p => p.Id).ToList(),
                 CreateBackup = true,
                 PatcherDllPath = File.Exists(patcherDllPath) ? patcherDllPath : null,
+                PatcherSoPath = File.Exists(patcherSoPath) ? patcherSoPath : null,
                 ProxyDllPath = File.Exists(proxyDllPath) ? proxyDllPath : null
             };
 

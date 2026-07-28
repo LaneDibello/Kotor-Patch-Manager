@@ -13,6 +13,7 @@ internal static class SteamLauncher
     {
         ["swkotor.exe"] = "32370",    // Knights of the Old Republic
         ["swkotor2.exe"] = "208580",  // Knights of the Old Republic II
+        ["KOTOR2"] = "208580",        // KOTOR II native Linux ELF (same Steam app, Linux depot)
     };
 
     /// <summary>

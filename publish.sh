@@ -4,20 +4,25 @@
 # =============================================================================
 #
 # The Linux twin of publish.bat. It produces a native linux-x64 build of the
-# manager and stages beside it the three *Windows* artifacts that get copied
-# into the game folder (which runs under Wine/Proton):
+# manager and stages beside it the artifacts that get copied into the game
+# folder. Which ones apply depends on the install the user points it at:
 #
 #   KotorPatcher.dll  <- the runtime patcher      (i686, MinGW cross-compiled)
 #   binkw32.dll       <- the KProxy Bink shim      (i686, MinGW cross-compiled)
 #   sqlite3.dll       <- imported by patch DLLs     (copied from lib/)
+#   KotorPatcher.so   <- the runtime patcher      (i386 ELF, built natively)
 #
-# On Linux the manager can't inject into a Wine process, so KProxy takes the
-# place of the game's binkw32.dll and loads KotorPatcher when the game starts
-# (see src/KProxy/README.md and DeploymentPolicy.cs).
+# The first three are Windows binaries because they run inside a game process
+# under Wine/Proton, where the manager can't inject: KProxy takes the place of
+# the game's binkw32.dll and loads KotorPatcher when the game starts (see
+# src/KProxy/README.md and DeploymentPolicy.cs). KotorPatcher.so is for KOTOR II's
+# native Linux build, which loads it via DT_NEEDED (see docs/NATIVE_LINUX.md).
 #
 # Requirements (run this on Linux, or WSL):
 #   - dotnet SDK on PATH        (override with DOTNET=/path/to/dotnet)
 #   - i686-w64-mingw32-g++      (MinGW-w64, for the Windows DLLs and DETOUR patches)
+#   - g++ with 32-bit dev libs  (for KotorPatcher.so; glibc-devel.i686 and
+#                                libstdc++-devel.i686 on Fedora, *-multilib on Debian)
 #   - python3                   (create-patch.py, for building patches)
 #
 # The MinGW compiler flags live in the per-component build-mingw.sh scripts and
@@ -77,6 +82,15 @@ command -v i686-w64-mingw32-g++ >/dev/null 2>&1 || {
     echo "  [ERROR] i686-w64-mingw32-g++ not found. Install mingw-w64 (i686)."
     exit 1
 }
+# KotorPatcher.so needs a working 32-bit native toolchain, which a plain `command -v g++`
+# does not prove: a host g++ without the 32-bit dev libraries only fails at link time.
+# Compile a throwaway to confirm -m32 links before committing to a release build.
+printf 'int main(){return 0;}\n' | g++ -m32 -x c++ - -o /dev/null >/dev/null 2>&1 || {
+    echo "  [ERROR] g++ cannot build 32-bit binaries (needed for KotorPatcher.so)."
+    echo "          Install the 32-bit dev libraries: glibc-devel.i686 and"
+    echo "          libstdc++-devel.i686 on Fedora, gcc-multilib and g++-multilib on Debian."
+    exit 1
+}
 
 # Resolve and validate --patches-from before any build work, so a bad path or an
 # empty source directory fails fast instead of after a full manager publish.
@@ -104,14 +118,18 @@ BIN="$RELEASE_DIR/bin"
 rm -rf "$RELEASE_DIR"
 mkdir -p "$BIN" "$RELEASE_DIR/tools"
 
-# --- [1/5] Build the Windows DLLs (patcher + KProxy) and stage sqlite3 ---------
-echo "[1/5] Building Windows DLLs (MinGW)..."
+# --- [1/5] Build the game-side runtime artifacts ------------------------------
+# The Windows DLLs cover the game under Wine/Proton; KotorPatcher.so covers KOTOR
+# II's native Linux build, which loads it via DT_NEEDED instead of a proxy.
+echo "[1/5] Building runtime artifacts..."
 "$ROOT/src/KotorPatcher/build-mingw.sh" "$BIN/KotorPatcher.dll" >/dev/null
 echo "  [OK] KotorPatcher.dll"
 "$ROOT/src/KProxy/build-mingw.sh" "$BIN/binkw32.dll" >/dev/null
 echo "  [OK] binkw32.dll (KProxy)"
 cp "$ROOT/lib/sqlite3.dll" "$BIN/sqlite3.dll"
 echo "  [OK] sqlite3.dll"
+make -C "$ROOT/src/KotorPatcher" --no-print-directory so SO_OUT="$BIN/KotorPatcher.so" >/dev/null
+echo "  [OK] KotorPatcher.so (native Linux)"
 
 # --- [2/5] Publish the native manager -----------------------------------------
 # Self-contained folder build (not single-file): the Avalonia GUI pulls in native

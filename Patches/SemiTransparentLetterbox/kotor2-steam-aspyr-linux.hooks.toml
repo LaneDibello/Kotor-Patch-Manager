@@ -1,0 +1,33 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# Semi-Transparent Letterbox for KOTOR II native Linux (Aspyr).
+#
+# Mirrors the Windows Aspyr patch: it forces the letterbox bar alpha to 0.5f on
+# every CSWGuiDialogLetterbox instance. CGuiInGame owns three of them (dialogue,
+# cinematic, and a full-screen fade), and they share this class's code, so both
+# hooks land on all three - the same blanket behaviour the Windows patch has. The
+# real global screen fade is a separate CSWGuiFade object, so it stays opaque.
+#
+# CSWGuiPanel::Draw renders each letterbox using [this+0x4c] as the alpha. Two
+# paths set it, so both are capped at the 0.5f constant the class already holds
+# (0x0874b9f4), instead of the 1.0f at 0x0873aea4:
+#
+#   Constructor 0x08289908  MOVSS XMM0,[EAX*4+0x08766524] (loads 1.0f) -> load 0.5f
+#     covers letterboxes shown without a fade (e.g. the cinematic bars).
+#   Draw        0x08289e08  MINSS XMM2,[0x0873aea4] (cap alpha at 1.0f)  -> cap at 0.5f
+#     covers letterboxes that fade their alpha in (e.g. the in-game dialogue bars).
+
+[[hooks]]
+address = 0x08289908
+type = "simple"
+# MOVSS XMM0, [EAX*4 + 0x08766524] (1.0f)  ->  MOVSS XMM0, [0x0874b9f4] (0.5f); NOP
+original_bytes = [0xF3, 0x0F, 0x10, 0x04, 0x85, 0x24, 0x65, 0x76, 0x08]
+replacement_bytes = [0xF3, 0x0F, 0x10, 0x05, 0xF4, 0xB9, 0x74, 0x08, 0x90]
+
+[[hooks]]
+address = 0x08289e08
+type = "simple"
+# MINSS XMM2, [0x0873aea4] (1.0f)  ->  MINSS XMM2, [0x0874b9f4] (0.5f)
+original_bytes = [0xF3, 0x0F, 0x5D, 0x15, 0xA4, 0xAE, 0x73, 0x08]
+replacement_bytes = [0xF3, 0x0F, 0x5D, 0x15, 0xF4, 0xB9, 0x74, 0x08]

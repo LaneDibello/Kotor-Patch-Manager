@@ -34,7 +34,8 @@ public static class InstallStateManager
         string gameExePath,
         GameVersion originalVersion,
         IEnumerable<string> installedPatches,
-        bool kproxyInstalled = false)
+        bool kproxyInstalled = false,
+        bool elfNeededInstalled = false)
     {
         if (string.IsNullOrWhiteSpace(gameExePath) || !File.Exists(gameExePath))
         {
@@ -85,6 +86,7 @@ public static class InstallStateManager
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList(),
                 KProxyInstalled = kproxyInstalled,
+                ElfNeededInstalled = elfNeededInstalled,
                 CreatedAt = existing?.CreatedAt ?? DateTime.Now,
                 UpdatedAt = DateTime.Now
             };

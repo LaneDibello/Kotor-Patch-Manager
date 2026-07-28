@@ -1,8 +1,11 @@
 # KProxy
 
-KProxy is a small `binkw32.dll` proxy that loads `KotorPatcher.dll` on Linux,
-where the manager can't inject it the way it does on Windows. This can also be
-used on Windows, but the manager's injection method is the only wired way to do it.
+KProxy is a small `binkw32.dll` proxy that loads `KotorPatcher.dll` when the
+Windows game runs under Wine/Proton on Linux, where the manager can't inject it
+the way it does on Windows. This can also be used on Windows, but the manager's
+injection method is the only wired way to do it. KOTOR II's native Linux build is
+a different path entirely and does not involve KProxy: it loads `KotorPatcher.so`
+through DT_NEEDED (see `docs/NATIVE_LINUX.md`).
 
 ## Why
 

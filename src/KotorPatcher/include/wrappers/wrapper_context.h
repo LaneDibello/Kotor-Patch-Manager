@@ -1,6 +1,6 @@
 #pragma once
-#include <windows.h>
 #include <cstdint>
+#include "platform.h"
 
 // Platform-independent context structure passed to patch functions
 // Contains saved CPU state that patches can inspect and modify
@@ -12,23 +12,23 @@ namespace KotorPatcher {
         // Layout matches PUSHAD instruction order for efficient assembly generation
         struct PatchContext_x86 {
             // General-purpose registers (in PUSHAD order)
-            DWORD edi;
-            DWORD esi;
-            DWORD ebp;
-            DWORD esp_at_pushad;  // ESP value at time of PUSHAD
-            DWORD ebx;
-            DWORD edx;
-            DWORD ecx;
-            DWORD eax;
+            uint32_t edi;
+            uint32_t esi;
+            uint32_t ebp;
+            uint32_t esp_at_pushad;  // ESP value at time of PUSHAD
+            uint32_t ebx;
+            uint32_t edx;
+            uint32_t ecx;
+            uint32_t eax;
 
             // Flags register
-            DWORD eflags;
+            uint32_t eflags;
 
             // Original stack pointer (before wrapper modified it)
-            DWORD original_esp;
+            uint32_t original_esp;
 
             // Return address (where game called the hooked function)
-            DWORD return_address;
+            uint32_t return_address;
 
             // Pointer to original function (for detour trampolines)
             // Will be nullptr for simple hooks
@@ -38,55 +38,55 @@ namespace KotorPatcher {
 
             // Get function parameter by index (0-based)
             // Assumes __stdcall or __cdecl convention
-            DWORD GetParameter(int index) const {
+            uint32_t GetParameter(int index) const {
                 // Parameters are above return address on stack
                 // Stack layout: [...params...][return_addr][saved_state]
-                const DWORD* stack = reinterpret_cast<const DWORD*>(original_esp);
+                const uint32_t* stack = reinterpret_cast<const uint32_t*>(original_esp);
                 return stack[index + 1];  // +1 to skip return address
             }
 
             // Set function return value (modifies EAX)
-            void SetReturnValue(DWORD value) {
+            void SetReturnValue(uint32_t value) {
                 eax = value;
             }
 
             // Get current return value
-            DWORD GetReturnValue() const {
+            uint32_t GetReturnValue() const {
                 return eax;
             }
 
             // Set specific register values
-            void SetRegister(const char* name, DWORD value) {
-                if (_stricmp(name, "eax") == 0) eax = value;
-                else if (_stricmp(name, "ebx") == 0) ebx = value;
-                else if (_stricmp(name, "ecx") == 0) ecx = value;
-                else if (_stricmp(name, "edx") == 0) edx = value;
-                else if (_stricmp(name, "esi") == 0) esi = value;
-                else if (_stricmp(name, "edi") == 0) edi = value;
-                else if (_stricmp(name, "ebp") == 0) ebp = value;
-                else if (_stricmp(name, "esp") == 0) esp_at_pushad = value;
+            void SetRegister(const char* name, uint32_t value) {
+                if (StrICmp(name, "eax") == 0) eax = value;
+                else if (StrICmp(name, "ebx") == 0) ebx = value;
+                else if (StrICmp(name, "ecx") == 0) ecx = value;
+                else if (StrICmp(name, "edx") == 0) edx = value;
+                else if (StrICmp(name, "esi") == 0) esi = value;
+                else if (StrICmp(name, "edi") == 0) edi = value;
+                else if (StrICmp(name, "ebp") == 0) ebp = value;
+                else if (StrICmp(name, "esp") == 0) esp_at_pushad = value;
             }
 
             // Get specific register value
-            DWORD GetRegister(const char* name) const {
-                if (_stricmp(name, "eax") == 0) return eax;
-                else if (_stricmp(name, "ebx") == 0) return ebx;
-                else if (_stricmp(name, "ecx") == 0) return ecx;
-                else if (_stricmp(name, "edx") == 0) return edx;
-                else if (_stricmp(name, "esi") == 0) return esi;
-                else if (_stricmp(name, "edi") == 0) return edi;
-                else if (_stricmp(name, "ebp") == 0) return ebp;
-                else if (_stricmp(name, "esp") == 0) return esp_at_pushad;
+            uint32_t GetRegister(const char* name) const {
+                if (StrICmp(name, "eax") == 0) return eax;
+                else if (StrICmp(name, "ebx") == 0) return ebx;
+                else if (StrICmp(name, "ecx") == 0) return ecx;
+                else if (StrICmp(name, "edx") == 0) return edx;
+                else if (StrICmp(name, "esi") == 0) return esi;
+                else if (StrICmp(name, "edi") == 0) return edi;
+                else if (StrICmp(name, "ebp") == 0) return ebp;
+                else if (StrICmp(name, "esp") == 0) return esp_at_pushad;
                 return 0;
             }
 
             // Check if a CPU flag is set
-            bool IsFlagSet(DWORD flag_mask) const {
+            bool IsFlagSet(uint32_t flag_mask) const {
                 return (eflags & flag_mask) != 0;
             }
 
             // Set/clear a CPU flag
-            void SetFlag(DWORD flag_mask, bool value) {
+            void SetFlag(uint32_t flag_mask, bool value) {
                 if (value) {
                     eflags |= flag_mask;
                 } else {
@@ -96,13 +96,13 @@ namespace KotorPatcher {
         };
 
         // Common EFLAGS bit masks
-        constexpr DWORD FLAG_CARRY      = 0x0001;
-        constexpr DWORD FLAG_PARITY     = 0x0004;
-        constexpr DWORD FLAG_ADJUST     = 0x0010;
-        constexpr DWORD FLAG_ZERO       = 0x0040;
-        constexpr DWORD FLAG_SIGN       = 0x0080;
-        constexpr DWORD FLAG_DIRECTION  = 0x0400;
-        constexpr DWORD FLAG_OVERFLOW   = 0x0800;
+        constexpr uint32_t FLAG_CARRY      = 0x0001;
+        constexpr uint32_t FLAG_PARITY     = 0x0004;
+        constexpr uint32_t FLAG_ADJUST     = 0x0010;
+        constexpr uint32_t FLAG_ZERO       = 0x0040;
+        constexpr uint32_t FLAG_SIGN       = 0x0080;
+        constexpr uint32_t FLAG_DIRECTION  = 0x0400;
+        constexpr uint32_t FLAG_OVERFLOW   = 0x0800;
 
         // Type alias for current platform
         // On x86 Windows, this is PatchContext_x86

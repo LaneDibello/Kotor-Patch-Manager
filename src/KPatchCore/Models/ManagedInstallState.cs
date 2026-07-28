@@ -57,6 +57,11 @@ public sealed class ManagedInstallState
     public bool KProxyInstalled { get; init; }
 
     /// <summary>
+    /// Whether KotorPatcher.so was added to the native Linux game ELF's DT_NEEDED list.
+    /// </summary>
+    public bool ElfNeededInstalled { get; init; }
+
+    /// <summary>
     /// When KPM first claimed this install.
     /// </summary>
     public required DateTime CreatedAt { get; init; }

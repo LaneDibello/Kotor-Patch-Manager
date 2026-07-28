@@ -1,5 +1,6 @@
 #pragma once
-#include <windows.h>
+#include <cstddef>
+#include <cstdint>
 
 // Trampoline Module: Memory patching for runtime code injection
 //
@@ -13,25 +14,23 @@
 //   - Allow patches to call original code before/after their logic
 //   - Support mid-function hooks safely
 //   - See README.md for implementation plan
+//
+// The unprotect/write/reprotect and instruction-cache handling live behind
+// Platform::WriteCode, so this module is pure x86 byte layout.
 
 namespace KotorPatcher {
     namespace Trampoline {
-        // Write a 5-byte relative JMP instruction
-        bool WriteJump(DWORD address, void* target);
+        // Write a 5-byte relative JMP at `address` targeting `target`.
+        bool WriteJump(uint32_t address, void* target);
 
-        // Write a 5-byte CALL instruction
-        bool WriteCall(DWORD address, void* target);
+        // Write a 5-byte relative CALL at `address` targeting `target`.
+        bool WriteCall(uint32_t address, void* target);
 
-        // Verify original bytes at address before patching
-        bool VerifyBytes(DWORD address, const BYTE* expected, size_t length);
+        // Compare `length` bytes at `address` against `expected`. Used as the
+        // wrong-game-version guard before any patch is applied.
+        bool VerifyBytes(uint32_t address, const uint8_t* expected, std::size_t length);
 
-        // Make memory region writable (and store old protection)
-        bool UnprotectMemory(DWORD address, size_t size, DWORD* oldProtect);
-
-        // Restore original memory protection
-        bool ProtectMemory(DWORD address, size_t size, DWORD oldProtect);
-
-        // Write No-Ops
-        bool WriteNoOps(DWORD startAddress, size_t length);
+        // Overwrite `length` bytes at `startAddress` with NOPs (0x90).
+        bool WriteNoOps(uint32_t startAddress, std::size_t length);
     }
 }
