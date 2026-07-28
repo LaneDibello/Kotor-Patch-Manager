@@ -23,9 +23,11 @@ The library uses a **PatchResult** pattern instead of exceptions for expected fa
 
 ### Applicators
 
-**PatchApplicator**: Orchestrates the full installation pipeline. Validates inputs, detects game version, loads and validates patches, checks dependencies/conflicts/version compatibility, creates backup, applies STATIC hooks to executable file, extracts patch DLLs, generates patch_config.toml, deploys KotorPatcher.dll.
+**PatchApplicator**: Orchestrates the full installation pipeline. Validates inputs, detects game version, loads and validates patches, checks dependencies/conflicts/version compatibility, creates backup, applies STATIC hooks to executable file, extracts patch DLLs, generates patch_config.toml, deploys the patcher module. Which module is deployed and how it loads comes from DeploymentPolicy: KotorPatcher.dll (injected on Windows, or loaded by the staged KProxy under Wine/Proton), or KotorPatcher.so added to the native Linux ELF's DT_NEEDED list.
 
-**StaticHookApplicator**: Applies STATIC hooks directly to the game executable at install-time. Parses PE headers, converts virtual addresses to file offsets, verifies original bytes, writes replacement bytes. Used for patches that modify PE headers or other structures that must be patched before the executable loads.
+**StaticHookApplicator**: Applies STATIC hooks directly to the game executable at install-time. Converts virtual addresses to file offsets through ExecutableImage, verifies original bytes, writes replacement bytes. Format-agnostic, so the same hooks apply to a Windows PE and a native Linux ELF. Used for patches that must be in place before the executable loads.
+
+**ElfInjector**: Adds the patcher module to a native Linux ELF's DT_NEEDED list so the dynamic loader maps it at startup, the counterpart to injection/KProxy on Windows. The edit is address-preserving, so hook addresses stay valid. Idempotent, and writes through a temp file so a failed write leaves no corrupt executable. See docs/native-linux.md.
 
 **ConfigGenerator**: Generates patch_config.toml for the runtime patcher. Converts PatchConfig objects to TOML format with patches array, hooks definitions, and target version SHA. Filters out STATIC hooks as they are already applied to the file.
 
@@ -42,6 +44,8 @@ The library uses a **PatchResult** pattern instead of exceptions for expected fa
 **ExecutableParser**: Parses basic PE executable metadata (architecture, file size). Used for initial game detection.
 
 **PeHeaderParser**: Parses PE (Portable Executable) headers including DOS header, PE signature, COFF header, optional header, and section headers. Converts virtual addresses to file offsets for STATIC hook application. Provides methods to read and write bytes at virtual addresses in the executable file.
+
+**ExecutableImage**: Read/write access to an executable's bytes by virtual address, hiding the on-disk format so STATIC hooks work the same on a Windows PE and a native Linux ELF. Sniffs the file magic and opens the matching implementation: PeExecutableImage (over PeHeaderParser, mapping through the section table) or ElfExecutableImage (over LibObjectFile, mapping through the PT_LOAD program headers). Both do size-preserving byte edits, so neither triggers a layout rewrite.
 
 ### Validators
 
@@ -135,15 +139,17 @@ Defines parameter extraction for DETOUR hooks:
 
 **PatchOrchestrator.InstallPatches()**: Main installation entry point. Takes InstallOptions with game path, patch IDs, backup preference. Returns InstallResult with success status, installed patches, backup info, game version, config path.
 
-**PatchApplicator.InstallPatches()**: Executes 8-step installation process:
+**PatchApplicator.InstallPatches()**: Executes the installation process:
 1. Validate inputs (game exe exists)
 2. Detect game version (SHA-256 hash)
 3. Load and validate patches (dependencies, conflicts, version compatibility, hook conflicts)
 4. Create backup (optional but recommended)
 5. Apply STATIC hooks directly to executable file
-6. Extract patch DLLs to patches/ directory
-7. Generate patch_config.toml with version-specific runtime hooks (DETOUR/SIMPLE/REPLACE)
-8. Deploy KotorPatcher.dll to game directory
+6. On a native Linux ELF, add KotorPatcher.so to the game's DT_NEEDED list (skipped on the PE paths, where injection or KProxy loads the patcher instead). This runs after the STATIC hooks and is address-preserving, so the patched bytes survive it
+7. Extract patch DLLs to patches/ directory
+8. Generate patch_config.toml with version-specific runtime hooks (DETOUR/SIMPLE/REPLACE)
+9. Copy the address database for the detected version to the game directory
+10. Deploy the patcher module (KotorPatcher.dll or KotorPatcher.so) to the game directory
 
 ### Patch Discovery
 
@@ -218,7 +224,11 @@ All operations return PatchResult or PatchResult&lt;T&gt; instead of throwing ex
 
 ## Dependencies
 
-Uses **Tomlyn** library for TOML parsing and serialization. Requires .NET 8.0.
+Requires .NET 8.0. NuGet packages:
+
+- **Tomlyn**: TOML parsing and serialization (manifests, hooks, patch_config.toml).
+- **Microsoft.Data.Sqlite**: reads the per-version address databases.
+- **LibObjectFile**: ELF reading and the address-preserving DT_NEEDED edit used by the native Linux path.
 
 ## Technical Constraints
 

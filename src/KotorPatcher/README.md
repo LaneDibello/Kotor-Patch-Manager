@@ -1,34 +1,42 @@
-# KotorPatcher Runtime DLL
+# KotorPatcher Runtime Module
 
-KotorPatcher is the runtime DLL that gets injected into the KotOR game process to apply patches dynamically. It reads patch configurations, loads patch DLLs, and modifies game code in-memory using various hooking techniques.
+KotorPatcher is the runtime module that loads into the KotOR game process to apply patches dynamically. It reads patch configurations, loads patch binaries, and modifies game code in-memory using various hooking techniques.
+
+One source tree builds both targets: `KotorPatcher.dll` for the Windows game (whether run natively or under Wine/Proton), and `KotorPatcher.so` for KOTOR II's native Linux build. The engine under `src/core` is shared, and everything OS-specific sits behind the platform seam in `include/platform.h`. See `docs/native-linux.md` for how the `.so` gets loaded.
 
 ## Architecture Overview
 
 The patcher operates in three phases:
 
-1. **Initialization** (DLL_PROCESS_ATTACH): Parse `patch_config.toml`, load patch DLLs, apply hooks
+1. **Initialization** (DLL_PROCESS_ATTACH on Windows, library constructor on Linux): Parse `patch_config.toml`, load patch binaries, apply hooks
 2. **Runtime**: Patches execute as the game runs, intercepting and modifying game behavior
-3. **Cleanup** (DLL_PROCESS_DETACH): Unload patch DLLs and free allocated memory
+3. **Cleanup** (DLL_PROCESS_DETACH on Windows, library destructor on Linux): Unload patch binaries and free allocated memory
 
 ## Project Structure
 
 ### Core Components
 
-**dllmain.cpp**: DLL entry point that handles initialization and cleanup lifecycle events.
+Headers live under `include/`, the shared engine under `src/core/`, and the entry points and platform backends directly under `src/`.
 
-**patcher.h / patcher.cpp**: Core patching engine containing hook application logic, patch DLL loading, and configuration management. Defines the `PatchInfo` structure that represents a single hook configuration.
+**src/dllmain.cpp**: Windows DLL entry point that handles initialization and cleanup lifecycle events.
 
-**config_reader.h / config_reader.cpp**: TOML parser that reads `patch_config.toml` and converts it into `PatchInfo` structures. Uses the tomlplusplus library for parsing.
+**src/soentry.cpp**: Linux entry point. Constructor and destructor attributes stand in for DLL_PROCESS_ATTACH/DETACH, handing off to the same shared engine.
 
-**trampoline.h / trampoline.cpp**: Low-level memory patching utilities for writing JMP/CALL instructions, verifying bytes, managing memory protection, and writing NOP instructions.
+**platform.h / src/platform_win32.cpp / src/platform_posix.cpp**: The platform seam. Declares the OS operations the engine needs (memory allocation and protection, module loading, symbol lookup, logging) with one backend per OS, so `src/core` contains no `#ifdef`s.
+
+**patcher.h / src/core/patcher.cpp**: Core patching engine containing hook application logic, patch binary loading, and configuration management. Defines the `PatchInfo` structure that represents a single hook configuration.
+
+**config_reader.h / src/core/config_reader.cpp**: TOML parser that reads `patch_config.toml` and converts it into `PatchInfo` structures. Uses the tomlplusplus library for parsing.
+
+**trampoline.h / src/core/trampoline.cpp**: Low-level memory patching utilities for writing JMP/CALL instructions, verifying bytes, managing memory protection, and writing NOP instructions.
 
 ### Wrapper System
 
 The wrapper system generates runtime x86 assembly code to intercept game functions, preserve CPU state, extract parameters, and call patch functions.
 
-**wrapper_base.h**: Abstract base class defining the wrapper generator interface. Provides platform-agnostic API for creating hook wrappers.
+**wrappers/wrapper_base.h**: Abstract base class defining the wrapper generator interface. Provides platform-agnostic API for creating hook wrappers.
 
-**wrapper_x86_win32.h / wrapper_x86_win32.cpp**: x86 32-bit Windows implementation of the wrapper generator. Emits machine code at runtime to save/restore registers, extract parameters from CPU state, and manage the transition between game code and patch code.
+**wrappers/wrapper_x86.h / src/core/wrapper_x86.cpp**: x86 32-bit implementation of the wrapper generator. Emits machine code at runtime to save/restore registers, extract parameters from CPU state, and manage the transition between game code and patch code. The emitted code is the same on both targets since every supported game build is 32-bit x86; only the memory allocation behind it differs, which the platform seam handles.
 
 **wrapper_context.h**: Defines `PatchContext` structure containing saved CPU state (registers, flags, stack pointer). Provides helper methods for accessing parameters and modifying return values.
 
@@ -219,7 +227,7 @@ Register exclusion allows patches to modify specific registers (e.g., changing E
 
 ## Debug Logging
 
-KotorPatcher uses OutputDebugStringA() throughout to log initialization, patch application, and errors. All log messages are prefixed with component names:
+KotorPatcher logs initialization, patch application, and errors through the platform seam's log operation: `OutputDebugStringA()` on Windows, stderr on Linux. Neither writes to disk by default. All log messages are prefixed with component names:
 
 - `[KotorPatcher]`: Main patcher operations
 - `[Config]`: Configuration parsing
@@ -228,7 +236,7 @@ KotorPatcher uses OutputDebugStringA() throughout to log initialization, patch a
 
 ## Viewing Debug Logs
 
-Use Sysinternals DebugView to capture debug output:
+On Windows, use Sysinternals DebugView to capture debug output:
 
 1. Download DebugView from Microsoft Sysinternals
 2. Run as Administrator
@@ -236,25 +244,33 @@ Use Sysinternals DebugView to capture debug output:
 4. Filter for "KotorPatcher" to see only patcher messages
 5. Use Ctrl+X to clear the log buffer
 
+On Linux, the log goes to stderr, which Steam redirects away. Set `KPATCH_LOG` to a
+file path to capture a run, for example `KPATCH_LOG=/tmp/kp.log %command%` in the
+Steam launch options. The file is truncated per launch.
+
 Debug logs show patch loading, hook application, wrapper generation, and any errors encountered during runtime.
 
 ## Memory Management
 
-**Wrapper stubs**: Allocated via VirtualAlloc with PAGE_EXECUTE_READWRITE, tracked in m_allocatedWrappers, freed on cleanup.
+Allocation and module loading go through the platform seam: VirtualAlloc/LoadLibraryA on Windows, mmap/dlopen on Linux.
 
-**REPLACE code buffers**: Allocated via VirtualAlloc, tracked in g_allocatedCodeBuffers, freed on cleanup.
+**Wrapper stubs**: Allocated as readable, writable and executable, tracked in m_allocatedWrappers, freed on cleanup.
 
-**Patch DLLs**: Loaded via LoadLibraryA, tracked in g_loadedPatches, unloaded via FreeLibrary on cleanup.
+**REPLACE code buffers**: Allocated the same way, tracked in g_allocatedCodeBuffers, freed on cleanup.
+
+**Patch binaries**: Loaded by name, tracked in g_loadedPatches, unloaded on cleanup.
 
 All allocations are cleaned up in CleanupPatcher() to prevent memory leaks.
 
 ## Environment Variables
 
-KotorPatcher sets the `KOTOR_VERSION_SHA` environment variable based on target_version_sha from patch_config.toml. This allows patch DLLs to query the game version and adjust behavior accordingly.
+KotorPatcher sets the `KOTOR_VERSION_SHA` environment variable based on target_version_sha from patch_config.toml. This allows patch binaries to query the game version and adjust behavior accordingly.
+
+KotorPatcher reads `KPATCH_LOG` on Linux. When set to a file path, log output is written there in addition to stderr. Unset, nothing is written to disk.
 
 ## Technical Constraints
 
-**Platform**: x86 32-bit Windows only (KotOR is a 32-bit game).
+**Platform**: x86 32-bit only (KotOR is a 32-bit game). Both targets are 32-bit x86: the Windows PE game and KOTOR II's native Linux build.
 
 **Calling convention**: Patch functions must use __cdecl convention (caller cleans stack).
 
@@ -262,7 +278,7 @@ KotorPatcher sets the `KOTOR_VERSION_SHA` environment variable based on target_v
 
 **Instruction boundaries**: Original bytes must align with x86 instruction boundaries (minimum 5 bytes for DETOUR/REPLACE to fit JMP instruction).
 
-**Memory protection**: All memory patching temporarily changes protection to PAGE_EXECUTE_READWRITE, then restores original protection.
+**Memory protection**: All memory patching temporarily makes the target writable and executable, then restores the original protection (VirtualProtect on Windows, mprotect on Linux).
 
 **Hot-patch stubs**: Automatically detects and skips Visual Studio hot-patch stubs (0xCC byte before function entry).
 

@@ -24,10 +24,9 @@ For the native ELF the manager adds `KotorPatcher.so` to the game
 executable's `DT_NEEDED` list. The dynamic loader then maps it at startup,
 before the game's entry point runs, no matter who launches the game (Steam, a
 shortcut, the manager). No injector and no proxy are involved. This is the
-address-preserving edit performed by `ElfInjector` on top of the LibObjectFile
-fork: `.dynamic` and `.dynstr` are relocated into a fresh `PT_LOAD` built from a
-spare `PT_NOTE`, so every existing code address, symbol, and relocation stays
-valid.
+address-preserving edit performed by `ElfInjector` on top of LibObjectFile: `.dynamic` and `.dynstr` are relocated into a fresh
+`PT_LOAD` built from a spare `PT_NOTE`, so every existing code address, symbol,
+and relocation stays valid.
 
 The ELF is `ET_EXEC` with a fixed load base (no ASLR slide), which is what lets
 the patcher use the absolute addresses from `patch_config.toml` verbatim.
