@@ -16,7 +16,7 @@
 # under Wine/Proton, where the manager can't inject: KProxy takes the place of
 # the game's binkw32.dll and loads KotorPatcher when the game starts (see
 # src/KProxy/README.md and DeploymentPolicy.cs). KotorPatcher.so is for KOTOR II's
-# native Linux build, which loads it via DT_NEEDED (see docs/native-linux.md).
+# native Linux build, which loads it via DT_NEEDED (see docs/NATIVE_LINUX.md).
 #
 # Requirements (run this on Linux, or WSL):
 #   - dotnet SDK on PATH        (override with DOTNET=/path/to/dotnet)

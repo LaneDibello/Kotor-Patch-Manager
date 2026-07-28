@@ -17,7 +17,7 @@ on Linux). See `src/KProxy/README.md` and `DeploymentPolicy.cs`.
 The Linux release stages one extra artifact, `KotorPatcher.so`, for KOTOR II's
 native Linux build. That game is an i386 ELF rather than a PE, so it takes a
 native module loaded via `DT_NEEDED` instead of a proxy. See
-`docs/native-linux.md`.
+`docs/NATIVE_LINUX.md`.
 
 ---
 

@@ -27,7 +27,7 @@ The library uses a **PatchResult** pattern instead of exceptions for expected fa
 
 **StaticHookApplicator**: Applies STATIC hooks directly to the game executable at install-time. Converts virtual addresses to file offsets through ExecutableImage, verifies original bytes, writes replacement bytes. Format-agnostic, so the same hooks apply to a Windows PE and a native Linux ELF. Used for patches that must be in place before the executable loads.
 
-**ElfInjector**: Adds the patcher module to a native Linux ELF's DT_NEEDED list so the dynamic loader maps it at startup, the counterpart to injection/KProxy on Windows. The edit is address-preserving, so hook addresses stay valid. Idempotent, and writes through a temp file so a failed write leaves no corrupt executable. See docs/native-linux.md.
+**ElfInjector**: Adds the patcher module to a native Linux ELF's DT_NEEDED list so the dynamic loader maps it at startup, the counterpart to injection/KProxy on Windows. The edit is address-preserving, so hook addresses stay valid. Idempotent, and writes through a temp file so a failed write leaves no corrupt executable. See docs/NATIVE_LINUX.md.
 
 **ConfigGenerator**: Generates patch_config.toml for the runtime patcher. Converts PatchConfig objects to TOML format with patches array, hooks definitions, and target version SHA. Filters out STATIC hooks as they are already applied to the file.
 

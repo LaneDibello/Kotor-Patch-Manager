@@ -2,7 +2,7 @@
 
 KotorPatcher is the runtime module that loads into the KotOR game process to apply patches dynamically. It reads patch configurations, loads patch binaries, and modifies game code in-memory using various hooking techniques.
 
-One source tree builds both targets: `KotorPatcher.dll` for the Windows game (whether run natively or under Wine/Proton), and `KotorPatcher.so` for KOTOR II's native Linux build. The engine under `src/core` is shared, and everything OS-specific sits behind the platform seam in `include/platform.h`. See `docs/native-linux.md` for how the `.so` gets loaded.
+One source tree builds both targets: `KotorPatcher.dll` for the Windows game (whether run natively or under Wine/Proton), and `KotorPatcher.so` for KOTOR II's native Linux build. The engine under `src/core` is shared, and everything OS-specific sits behind the platform seam in `include/platform.h`. See `docs/NATIVE_LINUX.md` for how the `.so` gets loaded.
 
 ## Architecture Overview
 
