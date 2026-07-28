@@ -14,6 +14,11 @@ in-process DLLs are still Windows PE files. The difference is only how the manag
 itself is built and how the patcher gets loaded (injection on Windows, the KProxy
 on Linux). See `src/KProxy/README.md` and `DeploymentPolicy.cs`.
 
+The Linux release stages one extra artifact, `KotorPatcher.so`, for KOTOR II's
+native Linux build. That game is an i386 ELF rather than a PE, so it takes a
+native module loaded via `DT_NEEDED` instead of a proxy. See
+`docs/native-linux.md`.
+
 ---
 
 # Windows Release
@@ -46,6 +51,9 @@ on Linux). See `src/KProxy/README.md` and `DeploymentPolicy.cs`.
 - KotorPatcher.dll, binkw32.dll (KProxy), sqlite3.dll — the Windows DLLs staged
   beside the manager; the manager copies them into the game folder at install time,
   where they run under Wine/Proton alongside the game
+- KotorPatcher.so — the native i386 patcher, staged beside the manager for KOTOR
+  II's native Linux build; the manager copies it into the game folder and adds it
+  to the executable's `DT_NEEDED` list at install time
 - AddressDatabases/ (the `.db` files, beside the manager)
 - create-patch.py + create-patch.bat (for users to create patches)
 - Example patches (.kpatch files) - optional
@@ -61,11 +69,14 @@ injection.
 - .NET SDK on `PATH` (override with `DOTNET=/path/to/dotnet`)
 - `i686-w64-mingw32-g++` (MinGW-w64, i686) — cross-compiles the Windows DLLs and
   DETOUR patch DLLs
+- `g++` with 32-bit dev libraries — builds `KotorPatcher.so`. The script verifies
+  `g++ -m32` can actually link before starting, since a host `g++` without the
+  32-bit packages only fails partway through the build
 - `python3` — runs `create-patch.py`
 
 On Debian/Ubuntu:
 ```bash
-sudo apt install -y g++-mingw-w64-i686 dotnet-sdk-8.0 python3
+sudo apt install -y g++-mingw-w64-i686 g++-multilib dotnet-sdk-8.0 python3
 ```
 
 ## Steps
