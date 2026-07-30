@@ -82,6 +82,20 @@ command -v i686-w64-mingw32-g++ >/dev/null 2>&1 || {
     echo "  [ERROR] i686-w64-mingw32-g++ not found. Install mingw-w64 (i686)."
     exit 1
 }
+# std::thread / std::this_thread (the patcher's deferred-apply path) exist only in
+# MinGW's posix threading model. The Debian/Ubuntu default is win32, where <thread>
+# compiles but defines nothing and the DLL build fails deep in compilation. The build
+# prefers the posix variant when present (see the Makefile and KProxy build-mingw.sh),
+# so check that same compiler here and fail fast with a fix on a win32-only host.
+MINGW_CXX="$(command -v i686-w64-mingw32-g++-posix 2>/dev/null || echo i686-w64-mingw32-g++)"
+printf '#include <thread>\n#include <chrono>\nvoid f(){ std::thread t; std::this_thread::sleep_for(std::chrono::milliseconds(1)); }\n' \
+    | "$MINGW_CXX" -std=c++17 -fsyntax-only -x c++ - >/dev/null 2>&1 || {
+    echo "  [ERROR] MinGW ($MINGW_CXX) lacks std::thread (win32 threading model)."
+    echo "          Install and select the posix variant, which provides it:"
+    echo "            sudo apt install g++-mingw-w64-i686-posix"
+    echo "            sudo update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix"
+    exit 1
+}
 # KotorPatcher.so needs a working 32-bit native toolchain, which a plain `command -v g++`
 # does not prove: a host g++ without the 32-bit dev libraries only fails at link time.
 # Compile a throwaway to confirm -m32 links before committing to a release build.

@@ -32,6 +32,17 @@ if exist "bin\Release\KotorPatcher.dll" (
     echo   [ERROR] KotorPatcher.dll not found in bin\Release\
 )
 
+REM Stage sqlite3.dll beside KotorPatcher.dll. GameAPI-based patch DLLs import
+REM sqlite3.dll to read addresses.db at runtime; the applicator copies it from
+REM here into the game directory at install time. Without it those patches fail
+REM to load in the game (Windows ships winsqlite3.dll, not sqlite3.dll).
+if exist "lib\sqlite3.dll" (
+    copy /Y "lib\sqlite3.dll" "%RELEASE_DIR%\bin\" >nul
+    echo   [OK] sqlite3.dll staged
+) else (
+    echo   [ERROR] lib\sqlite3.dll not found - GameAPI patches will fail at runtime
+)
+
 REM Build launcher
 echo [2/5] Building KPatchLauncher...
 cd src\KPatchLauncher
@@ -76,6 +87,8 @@ set "README_FILE=%RELEASE_DIR%\README.txt"
   echo.
   echo Contents:
   echo   bin/KPatchLauncher.exe - Main application
+  echo   bin/KotorPatcher.dll   - Runtime patcher (injected into the game)
+  echo   bin/sqlite3.dll        - Address database access for GameAPI patch DLLs
   echo   tools/create-patch.bat - Patch creation tool
   echo   patches/ - pre-built patches I've been developing with this project
   echo.

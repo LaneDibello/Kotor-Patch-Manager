@@ -152,7 +152,12 @@ if !BUILD_DLL! EQU 1 (
         echo   Including GameAPI library files...
     )
 
-    cl /LD /O2 /MD /W3 /EHsc /std:c++17 /I"..\Common" /I"..\..\lib" !CPP_FILES! !COMMON_FILES! /link /DEF:exports.def /LIBPATH:"..\..\lib" sqlite3.lib /OUT:windows_x86.dll >build.log 2>&1
+    REM /MT (static CRT), not /MD: statically link the Visual C++ runtime into the
+    REM DLL so it does not import vcruntime140.dll / msvcp140.dll (the VC++ Redist,
+    REM not guaranteed on a user's machine or in a Wine/Proton prefix). This matches
+    REM the MinGW build in create-patch.py (-static -static-libgcc -static-libstdc++)
+    REM and keeps patch DLLs self-contained -- sqlite3.dll stays the only bundled dep.
+    cl /LD /O2 /MT /W3 /EHsc /std:c++17 /I"..\Common" /I"..\..\lib" !CPP_FILES! !COMMON_FILES! /link /DEF:exports.def /LIBPATH:"..\..\lib" sqlite3.lib /OUT:windows_x86.dll >build.log 2>&1
 
     if !ERRORLEVEL! NEQ 0 (
         echo.

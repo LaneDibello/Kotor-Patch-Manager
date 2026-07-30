@@ -7,12 +7,17 @@ collide.
 - **Windows** — `publish.bat`, produces `KotorPatchManager-v<version>.zip`
 - **Linux** — `publish.sh`, produces `KotorPatchManager-linux-v<version>.tar.gz`
 
-Both stage the *same* three Windows DLLs (`KotorPatcher.dll`, `binkw32.dll`,
-`sqlite3.dll`) beside the manager. Those are always Windows binaries because they
-run inside the game process — on Linux the game runs under Wine/Proton, so its
-in-process DLLs are still Windows PE files. The difference is only how the manager
-itself is built and how the patcher gets loaded (injection on Windows, the KProxy
-on Linux). See `src/KProxy/README.md` and `DeploymentPolicy.cs`.
+Both stage Windows DLLs beside the manager, which the applicator copies into the
+game folder at install time. Those are always Windows binaries because they run
+inside the game process — on Linux the game runs under Wine/Proton, so its
+in-process DLLs are still Windows PE files. Both stage `KotorPatcher.dll` (the
+runtime patcher) and `sqlite3.dll` (imported by GameAPI-based patch DLLs to read
+`addresses.db` at runtime — Windows ships `winsqlite3.dll`, not `sqlite3.dll`, so
+it must be bundled). The Linux release additionally stages `binkw32.dll` (the
+KProxy), because on Linux the manager can't inject and loads the patcher via the
+proxy instead; the Windows release injects and does not need it. The difference is
+only how the manager itself is built and how the patcher gets loaded (injection on
+Windows, the KProxy on Linux). See `src/KProxy/README.md` and `DeploymentPolicy.cs`.
 
 The Linux release stages one extra artifact, `KotorPatcher.so`, for KOTOR II's
 native Linux build. That game is an i386 ELF rather than a PE, so it takes a
@@ -27,6 +32,8 @@ native module loaded via `DT_NEEDED` instead of a proxy. See
 
 **Contains**:
 - KPatchLauncher.exe (single self-contained executable)
+- KotorPatcher.dll (runtime patcher, staged beside the launcher)
+- sqlite3.dll (address-database access for GameAPI patch DLLs, staged beside the launcher)
 - create-patch.bat (for users to create patches)
 - Example patches (.kpatch files) - optional
 - README.txt
