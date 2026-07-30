@@ -11,7 +11,13 @@
 # sqlite is not linked: the runtime calls no sqlite symbol (only the per-patch
 # DLLs use it, through their own GameAPI build).
 
-CXX_WIN   := i686-w64-mingw32-g++
+# MinGW-w64 ships two threading models. std::thread / std::this_thread (used by the
+# deferred-apply path in the patcher) exist only in the posix model; the win32 model
+# -- the Debian/Ubuntu default -- includes <thread> fine but defines nothing, so the
+# build fails deep in compilation. Prefer the posix variant when the distro provides
+# it as a separate binary (Debian/Ubuntu); fall back to the plain name where the
+# default is already posix (Fedora). Override with CXX_WIN=... in the environment.
+CXX_WIN   ?= $(shell command -v i686-w64-mingw32-g++-posix 2>/dev/null || echo i686-w64-mingw32-g++)
 CXX_LINUX := g++
 
 BUILD    := build
@@ -43,20 +49,37 @@ LINUX_SRCS := $(CORE_SRCS) src/platform_posix.cpp src/soentry.cpp
 WIN_OBJS   := $(patsubst src/%.cpp,$(BUILD)/win/%.o,$(WIN_SRCS))
 LINUX_OBJS := $(patsubst src/%.cpp,$(BUILD)/linux/%.o,$(LINUX_SRCS))
 
-# Overridable so the release scripts can link straight to an absolute output path.
-DLL_OUT ?= $(BUILD)/KotorPatcher.dll
-SO_OUT  ?= $(BUILD)/KotorPatcher.so
+# Always build to these fixed, space-free in-tree paths. The final destinations
+# (DLL_OUT/SO_OUT) may be absolute paths under a directory containing spaces -- the
+# release tree lives under ".../KotOR Patch Manager/" -- and Make cannot use such a
+# path as a target: it splits target and prerequisite lists on whitespace, so a
+# spaced path silently becomes several bogus targets. Build here, then copy to the
+# requested destination in the recipe below, where the shell (not Make) handles the
+# spaces via quoting.
+BUILD_DLL := $(BUILD)/KotorPatcher.dll
+BUILD_SO  := $(BUILD)/KotorPatcher.so
+
+# Optional final destination for each artifact. When set, the dll/so target copies
+# the built binary there (the release scripts use this to drop it into the release
+# tree); when empty, the binary is left at its BUILD_* path. Overridable in the env.
+DLL_OUT ?=
+SO_OUT  ?=
 
 .PHONY: all dll so clean
 all: dll so
-dll: $(DLL_OUT)
-so:  $(SO_OUT)
 
-$(DLL_OUT): $(WIN_OBJS)
+# The copy is skipped when DLL_OUT/SO_OUT is empty or already points at the built
+# file (-ef: same file), so `make dll DLL_OUT=<build path>` can't cp a file onto itself.
+dll: $(BUILD_DLL)
+	@if [ -n "$(DLL_OUT)" ] && [ ! "$(DLL_OUT)" -ef "$(BUILD_DLL)" ]; then cp -f "$(BUILD_DLL)" "$(DLL_OUT)"; fi
+so: $(BUILD_SO)
+	@if [ -n "$(SO_OUT)" ] && [ ! "$(SO_OUT)" -ef "$(BUILD_SO)" ]; then cp -f "$(BUILD_SO)" "$(SO_OUT)"; fi
+
+$(BUILD_DLL): $(WIN_OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX_WIN) $(WIN_CXXFLAGS) -o $@ $^ $(WIN_LDFLAGS)
 
-$(SO_OUT): $(LINUX_OBJS)
+$(BUILD_SO): $(LINUX_OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX_LINUX) $(LINUX_CXXFLAGS) -o $@ $^ $(LINUX_LDFLAGS)
 
