@@ -1,0 +1,38 @@
+[metadata]
+target_versions = [
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+]
+
+# DestroyGrassPolys (0x004A8460).
+# free() at 0x006FB7B2 guards NULL explicitly, so zeroing the argument is a safe
+# no-op. The push is left on the stack for the caller's existing 'add esp, 8'.
+# The call is absolute (mov eax,imm32 / call eax) so the block is relocatable.
+[[hooks]]
+address = 0x004A847C
+type = "replace"
+original_bytes = [
+    0x8B, 0x56, 0x3C, 0x52, 0xE8, 0x0B, 0x1F, 0x25,
+    0x00
+]
+replacement_bytes = [
+    0x8B, 0x56, 0x3C, 0x3B, 0x56, 0x38, 0x75, 0x02,
+    0x33, 0xD2, 0x52, 0xB8, 0x90, 0xA3, 0x6F, 0x00,
+    0xFF, 0xD0
+]
+
+# ~CAurTriangleBin (0x004A8350) -- identical sequence, eax instead of edx.
+# Flagged by Lane on review: if the double free is real, the destructor needs the
+# same treatment. ecx is dead here (this was moved to esi at 0x004A8368).
+[[hooks]]
+address = 0x004A8380
+type = "replace"
+original_bytes = [
+    0x8B, 0x46, 0x3C, 0x50, 0xE8, 0x07, 0x20, 0x25,
+    0x00
+]
+replacement_bytes = [
+    0x8B, 0x46, 0x3C, 0x3B, 0x46, 0x38, 0x75, 0x02,
+    0x33, 0xC0, 0x50, 0xB9, 0x90, 0xA3, 0x6F, 0x00,
+    0xFF, 0xD1
+]

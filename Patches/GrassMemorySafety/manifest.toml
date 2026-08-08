@@ -1,0 +1,14 @@
+[patch]
+id = "grass-memory-safety"
+name = "Grass Buffer Double Free"
+version = "1.0.0"
+author = "VexFlint"
+description = "CreateArrays stores one allocation in two fields (0x38 and 0x3c); DestroyGrassPolys and ~CAurTriangleBin both free each of them. The 0x3c field is only ever assigned 0 or the 0x38 pointer, never its own allocation, so the first free is either free(NULL) or a double free of the same block. Frees the alias only when it genuinely differs, so nothing leaks if 0x3c ever holds an independent allocation."
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
