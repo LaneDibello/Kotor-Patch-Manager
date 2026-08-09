@@ -1,0 +1,14 @@
+[patch]
+id = "texture-bucket-safety"
+name = "Texture Bucket Memory Safety"
+version = "1.0.0"
+author = "VexFlint"
+description = "Bounds-checks the three 5000-entry texture bucket arrays (meshBuckets, fadeBuckets, capBuckets), which are indexed by driver-assigned GL texture names. ClearBuckets used maxTexID+1 as an iteration count without clamping (crash 0x0046BF22), and AddPartToMeshBuckets indexed and wrote through the arrays with no range check (crash 0x0046BEAE). Out-of-range parts skip the bucket insert but still reach meshShadowBucket, and are unreachable by the renderer anyway since DoMeshBuckets iterates the clamped AurTextureGetOrdering list."
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"

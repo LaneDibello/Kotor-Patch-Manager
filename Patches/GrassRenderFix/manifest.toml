@@ -1,0 +1,14 @@
+[patch]
+id = "grass-render-fix"
+name = "Grass Rendering Fix"
+version = "1.0.0"
+author = "VexFlint"
+description = "Fixes grass rendering as stretched geometry across the sky. RenderGrassPolys has three draw paths; the two taken when aurATIFragmentShadersBumpMapAvailable() returns false pass &field_0x40 -- a field only ever assigned 0 -- to glVertexPointer instead of the allocated blade buffer at field_0x38, so OpenGL reads object fields as vertex coordinates. Also restores GL state the same function leaks: one path returns with three client-state arrays still enabled, and material/texture state is never restored, which breaks lighting on later draws and across module reloads."
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"

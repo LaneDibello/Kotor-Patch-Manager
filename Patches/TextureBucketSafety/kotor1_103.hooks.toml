@@ -1,0 +1,42 @@
+[metadata]
+target_versions = [
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+]
+
+# AurTextureGetMaxTexID (0x0041FEB0) -- saturate the return value.
+# Its only caller is ClearBuckets, which uses it as an iteration count over three
+# 5000-entry arrays. Saturating rather than masking: an AND would wrap a legitimate
+# max of e.g. 4500 down to 404 and leave stale buckets uncleared.
+# Returns on both paths, so it never reaches the automatic jump-back.
+[[hooks]]
+address = 0x0041FEB5
+type = "replace"
+original_bytes = [
+    0xC3, 0x90, 0x90, 0x90, 0x90
+]
+replacement_bytes = [
+    0x3D, 0x88, 0x13, 0x00, 0x00, 0x72, 0x05, 0xB8,
+    0x87, 0x13, 0x00, 0x00, 0xC3
+]
+
+# AddPartToMeshBuckets (0x0046BDF0) -- range-check the texture ID.
+# meshBuckets ends at 0x827F40, which is exactly backgroundBucket, so an overrun
+# lands on the skybox list first. The function has two halves: the texID-indexed
+# bucket insert (unsafe) and an unconditional meshShadowBucket append at 0x0046BEB1
+# (always safe). The bail path rejoins at 0x0046BEB1 so shadow casting is preserved.
+# push imm32 / ret rather than a rel32 jump, so the block is position-independent.
+[[hooks]]
+address = 0x0046BE64
+type = "replace"
+original_bytes = [
+    0x8D, 0x34, 0x40, 0x8B, 0x04, 0xB5, 0xE8, 0x94,
+    0x81, 0x00
+]
+replacement_bytes = [
+    0x3D, 0x88, 0x13, 0x00, 0x00, 0x72, 0x13, 0xA1,
+    0xBC, 0xBF, 0x7F, 0x00, 0x8B, 0x0D, 0xB8, 0xBF,
+    0x7F, 0x00, 0x3B, 0xC8, 0x68, 0xB1, 0xBE, 0x46,
+    0x00, 0xC3, 0x8D, 0x34, 0x40, 0x8B, 0x04, 0xB5,
+    0xE8, 0x94, 0x81, 0x00
+]
