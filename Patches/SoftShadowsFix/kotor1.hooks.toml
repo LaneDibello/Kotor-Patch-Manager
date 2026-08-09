@@ -1,0 +1,48 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+]
+# KOTOR 1 / swkotor.exe
+# ATI soft shadow capability unlock.
+#
+# AurSoftShadowsAvailable (0x0045F7B0) is the NVIDIA route and works today. Neither
+# hook touches it.
+#
+# The other route, AurATISoftShadowsAvailable (0x0045F7E0), tests
+# ATI_FRAGMENT_SHADER_BIT and WGL_ARB_RENDER_TO_TEXTURE_BIT, but only past a lock flag
+# at 0x007BB860. That flag is set solely by AurATIUnlockSoftShadowsForHotFix
+# (0x0044EF90), itself called only from CClientOptions::LoadOptions when the ini holds
+# AllowSoftShadows=1. Without that key the flag stays 0 (BSS tail, no file
+# initializer) and the real capability test never runs.
+#
+# These hooks clear the two consumer checks rather than the flag, which keeps the
+# unlock function and its hardcoded write to 0x0078E420 out of it. Hardware lacking
+# the two extensions still reports false.
+
+[[hooks]]
+# AurATISoftShadowsAvailable + 7. jnz -> jmp, so the flag test never returns early.
+#   0045F7E0  A1 60 B8 7B 00    mov  eax, [0x007BB860]
+#   0045F7E5  85 C0             test eax, eax
+#   0045F7E7  75 03             jnz  0x0045F7EC     <- patched
+#   0045F7E9  33 C0             xor  eax, eax       (dead)
+#   0045F7EB  C3                ret                 (dead)
+#   0045F7EC  A1 24 E5 78 00    mov  eax, [0x0078E524]
+address = 0x0045F7E7
+type = "simple"
+original_bytes = [0x75, 0x03]
+replacement_bytes = [0xEB, 0x03]
+
+[[hooks]]
+# ATI branch in AurCheckSoftShadowsAvailable (0x0045FA20). jz -> nops so the branch is
+# never skipped. The next instruction reloads ecx, so the stale flag left in the
+# register is never read.
+#   0045FA64  8B 0D 60 B8 7B 00 mov  ecx, [0x007BB860]
+#   0045FA6A  85 C9             test ecx, ecx
+#   0045FA6C  74 36             jz   0x0045FAA4     <- patched
+#   0045FA6E  8B 0D 24 E5 78 00 mov  ecx, [0x0078E524]
+address = 0x0045FA6C
+type = "simple"
+original_bytes = [0x74, 0x36]
+replacement_bytes = [0x90, 0x90]
