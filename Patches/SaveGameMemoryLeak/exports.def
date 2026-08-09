@@ -1,0 +1,3 @@
+LIBRARY SaveGameMemoryLeak 
+EXPORTS 
+    FreeSaveBuffer 
