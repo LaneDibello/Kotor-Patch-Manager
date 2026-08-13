@@ -1,0 +1,16 @@
+!!ARBfp1.0
+ATTRIB v = fragment.color.primary;
+ATTRIB f = fragment.color.secondary;
+ATTRIB T = fragment.texcoord[0];
+ATTRIB Y = fragment.texcoord[1];
+
+TEMP d, l, k;
+
+TEX d, T, texture[0], 2D;
+TEX l, Y, texture[1], 2D;
+ADD k.rgb, v, l;
+MUL d.rgb, d, k;
+LRP d.rgb, f.x, state.fog.color, d;
+MOV result.color, d;
+
+END

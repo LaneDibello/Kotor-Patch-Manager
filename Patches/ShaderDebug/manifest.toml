@@ -1,0 +1,13 @@
+[patch]
+id = "shader-debug"
+name = "Shader Debug"
+version = "1.1"
+author = "J"
+description = "Debugs ARB shaders with hash-named dumps, editable overrides, and an in-game overlay."
+
+requires = []
+
+conflicts = ["shader-swap"]
+
+[patch.supported_versions]
+kotor2_gog_aspyr = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"

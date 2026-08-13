@@ -1,0 +1,1 @@
+# DLL-only provider patch. ShaderSwap owns the OpenGL hook.

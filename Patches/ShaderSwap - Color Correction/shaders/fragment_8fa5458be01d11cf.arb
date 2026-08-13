@@ -1,0 +1,16 @@
+!!ARBfp1.0
+ATTRIB T0 = fragment.texcoord[0];
+PARAM ex = program.env[1];
+TEMP r0;
+
+TEX r0, T0, texture[0], RECT;
+MUL r0.r, r0.r, .90;
+MUL r0.g, r0.g, .85;
+MUL r0.b, r0.b, .90;
+POW r0.r, r0.r, ex.r;
+POW r0.g, r0.g, ex.r;
+POW r0.b, r0.b, ex.r;
+
+MOV result.color.rgb, r0;
+MOV result.color.a, 1.0;
+END
