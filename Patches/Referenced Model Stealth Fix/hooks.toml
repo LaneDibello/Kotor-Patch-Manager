@@ -1,0 +1,16 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+]
+
+[[hooks]]
+address = 0x00478260
+type = "detour"
+function = "InheritReferencedModelStealthTexture"
+original_bytes = [0x6A, 0xFF, 0x64, 0xA1, 0x00, 0x00, 0x00, 0x00]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
