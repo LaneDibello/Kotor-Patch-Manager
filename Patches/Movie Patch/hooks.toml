@@ -1,0 +1,63 @@
+# Keep Bink movies in the current game window. ChangeResolutionForMovie still
+# saves the active mode and updates its nesting counter, then follows the
+# existing no-mode-switch cleanup path without disabling AA or rebuilding GL.
+[[hooks]]
+address = 0x00403D2C
+type = "simple"
+original_bytes = [0x0F, 0x84, 0x8E, 0x00, 0x00, 0x00]
+replacement_bytes = [0xE9, 0x8F, 0x00, 0x00, 0x00, 0x90]
+
+# Initialize the configured video mode instead of forcing the 640x480 startup
+# movie mode. This uses the game's normal validated resolution-loading path.
+[[hooks]]
+address = 0x005F904E
+type = "simple"
+original_bytes = [0xB8, 0x01, 0x00, 0x00, 0x00]
+replacement_bytes = [0x31, 0xC0, 0x90, 0x90, 0x90]
+
+# Fullscreen startup normally defers AA initialization until the movie player
+# restores the pre-movie resolution. Since movies no longer switch modes, use
+# the existing ReInitAurora block once after the configured AA value is loaded.
+[[hooks]]
+address = 0x005F929A
+type = "simple"
+original_bytes = [
+    0x8B, 0x44, 0x24, 0x18,
+    0x85, 0xC0,
+    0x74, 0x08,
+    0x8B, 0x44, 0x24, 0x10,
+    0x85, 0xC0,
+    0x75, 0x37
+]
+replacement_bytes = [
+    0xE9, 0x0B, 0x00, 0x00, 0x00,
+    0x90, 0x90, 0x90, 0x90, 0x90,
+    0x90, 0x90, 0x90, 0x90, 0x90, 0x90
+]
+
+# Resume the game window after the movie tears down so mouse and keyboard input keep working.
+[[hooks]]
+address = 0x00404C10
+type = "detour"
+function = "postMovieCleanup"
+original_bytes = [0x89, 0x7E, 0x24, 0x5F, 0x5E]
+exclude_from_restore = []
+
+# Replace the final Bink offset call with aspect-preserving scale and centering.
+[[hooks]]
+address = 0x00405855
+type = "detour"
+function = "applyMovieAspectScale"
+original_bytes = [
+    0x8B, 0x8E, 0x88, 0x00, 0x00, 0x00,
+    0x8B, 0x96, 0x84, 0x00, 0x00, 0x00,
+    0x8B, 0x46, 0x4C,
+    0x51, 0x52, 0x50,
+    0xFF, 0x15, 0x80, 0xD4, 0x73, 0x00
+]
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
