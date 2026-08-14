@@ -1,24 +1,24 @@
 #include "clientCreatures.h"
 
-int __stdcall ExecuteCommandIsRunning(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandIsRunning(DWORD routine, int paramCount)
 {
 	debugLog("[PATCH] Running IsRunning");
 
 	int outcome = 0;
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	DWORD creature;
 	if (!vm->StackPopObject(&creature)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CServerExoApp* server = CServerExoApp::GetInstance();
 	if (!server) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
@@ -34,33 +34,33 @@ int __stdcall ExecuteCommandIsRunning(DWORD routine, int paramCount)
 	if (!vm->StackPushInteger(outcome)) {
 		delete server;
 		delete vm;
-		return -2000;
+		return COMMAND_RETURN_ERROR;
 	}
 
 	delete server;
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandIsStealthed(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandIsStealthed(DWORD routine, int paramCount)
 {
 	debugLog("[PATCH] Running IsStealthed");
 
 	int outcome = 0;
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	DWORD creature;
 	if (!vm->StackPopObject(&creature)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CServerExoApp* server = CServerExoApp::GetInstance();
 	if (!server) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
@@ -76,10 +76,10 @@ int __stdcall ExecuteCommandIsStealthed(DWORD routine, int paramCount)
 	if (!vm->StackPushInteger(outcome)) {
 		delete server;
 		delete vm;
-		return -2000;
+		return COMMAND_RETURN_ERROR;
 	}
 
 	delete server;
 	delete vm;
-	return 0;
+	return SUCCESS;
 }

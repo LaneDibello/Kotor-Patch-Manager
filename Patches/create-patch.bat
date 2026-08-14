@@ -61,9 +61,14 @@ REM ============================================================================
 echo.
 echo [2/5] Detecting patch type...
 
-REM Count .cpp files
+REM Count .cpp files, including any in immediate subdirectories. Patches may
+REM group their sources into folders (e.g. ScriptExtender\Extensions), so a
+REM root-only glob would misreport such a patch as SIMPLE.
 set CPP_COUNT=0
 for %%F in (*.cpp) do set /a CPP_COUNT+=1
+for /d %%D in (*) do (
+    for %%F in ("%%D\*.cpp") do set /a CPP_COUNT+=1
+)
 
 if !CPP_COUNT! EQU 0 (
     echo   Patch type: SIMPLE ^(no C++ files detected^)
@@ -134,12 +139,25 @@ if !BUILD_DLL! EQU 1 (
             )
             del temp_exports.txt >nul 2>&1
         )
+        for /d %%D in (*) do (
+            for %%F in ("%%D\*.cpp") do (
+                findstr /R /C:"extern.*__cdecl" "%%F" > temp_exports.txt
+                for /f "tokens=5 delims=( " %%G in (temp_exports.txt) do (
+                    echo     %%G >> exports.def
+                    echo   Added export: %%G
+                )
+                del temp_exports.txt >nul 2>&1
+            )
+        )
     )
 
     REM Compile all .cpp files into one DLL
     echo   Compiling DLL from !CPP_COUNT! source file^(s^)...
     set CPP_FILES=
-    for %%F in (*.cpp) do set CPP_FILES=!CPP_FILES! %%F
+    for %%F in (*.cpp) do set CPP_FILES=!CPP_FILES! "%%F"
+    for /d %%D in (*) do (
+        for %%F in ("%%D\*.cpp") do set CPP_FILES=!CPP_FILES! "%%F"
+    )
 
     REM Add Common directory files if they exist (including subdirectories)
     set COMMON_FILES=

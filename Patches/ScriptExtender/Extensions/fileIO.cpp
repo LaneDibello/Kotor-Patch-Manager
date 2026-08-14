@@ -1,6 +1,6 @@
 #include "fileIO.h"
 
-int __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
+VirtualMachineReturnTypes __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
 		debugLog("[PATCH] Wrong number of params found in ExecuteCommandOpenFile. Expected 2, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
@@ -8,22 +8,22 @@ int __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 			vm->StackPushInteger(0);
 			delete vm;
 		}
-		return 0;
+		return SUCCESS;
 	}
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	CExoString filename;
 	if (!vm->StackPopString(&filename)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CExoString mode;
 	if (!vm->StackPopString(&mode)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	debugLog("[PATCH] Opening file '%s' with mode '%s'", filename.GetCStr(), mode.GetCStr());
@@ -35,15 +35,15 @@ int __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 		debugLog("[PATCH] Failed to Open File '%s', with mode '%s, and error %i'", filename.GetCStr(), mode.GetCStr(), err);
 		vm->StackPushInteger(0);
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	vm->StackPushInteger((int)f);
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
+VirtualMachineReturnTypes __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
 		debugLog("[PATCH] Wrong number of params found in ExecuteCommandCloseFile. Expected 1, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
@@ -51,16 +51,16 @@ int __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
 			vm->StackPushInteger(0);
 			delete vm;
 		}
-		return 0;
+		return SUCCESS;
 	}
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int file;
 	if (!vm->StackPopInteger(&file)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	FILE* f = (FILE*)file;
@@ -69,17 +69,17 @@ int __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
 		debugLog("[PATCH] Failed to Close File Stream at '%p'", f);
 		vm->StackPushInteger(0);
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	debugLog("[PATCH] Closing file with handle '%p'", f);
 
 	vm->StackPushInteger(1);
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
+VirtualMachineReturnTypes __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
 		debugLog("[PATCH] Wrong number of params found in ExecuteCommandReadTextFile. Expected 2, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
@@ -87,16 +87,16 @@ int __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 			vm->StackPushInteger(0);
 			delete vm;
 		}
-		return 0;
+		return SUCCESS;
 	}
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int file;
 	if (!vm->StackPopInteger(&file)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	FILE* f = (FILE*)file;
@@ -104,7 +104,7 @@ int __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 	int charCount;
 	if (!vm->StackPopInteger(&charCount)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	char buffer[4096];
@@ -114,14 +114,14 @@ int __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 
 	if (!vm->StackPushString(&output)) {
 		delete vm;
-		return -2000;
+		return COMMAND_RETURN_ERROR;
 	}
 
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
+VirtualMachineReturnTypes __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
 		debugLog("[PATCH] Wrong number of params found in ExecuteCommandWriteTextFile. Expected 2, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
@@ -129,16 +129,16 @@ int __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
 			vm->StackPushInteger(0);
 			delete vm;
 		}
-		return 0;
+		return SUCCESS;
 	}
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int file;
 	if (!vm->StackPopInteger(&file)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	FILE* f = (FILE*)file;
@@ -146,21 +146,21 @@ int __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
 	CExoString text;
 	if (!vm->StackPopString(&text)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	int charsWritten = (int)fwrite((const void*)text.GetCStr(), 1, text.GetLength(), f);
 
 	if (!vm->StackPushInteger(charsWritten)) {
 		delete vm;
-		return -2000;
+		return COMMAND_RETURN_ERROR;
 	}
 
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
+VirtualMachineReturnTypes __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
 		debugLog("[PATCH] Wrong number of params found in ExecuteCommandPeakCharFile. Expected 1, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
@@ -169,16 +169,16 @@ int __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
 			vm->StackPushString(&empty);
 			delete vm;
 		}
-		return 0;
+		return SUCCESS;
 	}
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int file;
 	if (!vm->StackPopInteger(&file)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	FILE* f = (FILE*)file;
@@ -189,7 +189,7 @@ int __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
 		CExoString empty("", 0);
 		vm->StackPushString(&empty);
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	ungetc(c, f);
@@ -199,14 +199,14 @@ int __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
 
 	if (!vm->StackPushString(&result)) {
 		delete vm;
-		return -2000;
+		return COMMAND_RETURN_ERROR;
 	}
 
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
+VirtualMachineReturnTypes __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
 	if (paramCount != 3) {
 		debugLog("[PATCH] Wrong number of params found in ExecuteCommandSeekFile. Expected 3, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
@@ -214,16 +214,16 @@ int __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
 			vm->StackPushInteger(0);
 			delete vm;
 		}
-		return 0;
+		return SUCCESS;
 	}
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int file;
 	if (!vm->StackPopInteger(&file)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	FILE* f = (FILE*)file;
@@ -231,13 +231,13 @@ int __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
 	int offset;
 	if (!vm->StackPopInteger(&offset)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	int origin;
 	if (!vm->StackPopInteger(&origin)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 	// Origin values: SEEK_SET = 0, SEEK_CUR = 1, SEEK_END = 2
 
@@ -247,15 +247,15 @@ int __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
 		debugLog("[PATCH] SeekFile: fseek failed on file handle '%p', offset %d, origin %d", f, offset, origin);
 		vm->StackPushInteger(0);
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	vm->StackPushInteger(1);
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandTellFile(DWORD routine, int paramCount) {
+VirtualMachineReturnTypes __stdcall ExecuteCommandTellFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
 		debugLog("[PATCH] Wrong number of params found in ExecuteCommandTellFile. Expected 1, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
@@ -263,16 +263,16 @@ int __stdcall ExecuteCommandTellFile(DWORD routine, int paramCount) {
 			vm->StackPushInteger(-1);
 			delete vm;
 		}
-		return 0;
+		return SUCCESS;
 	}
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int file;
 	if (!vm->StackPopInteger(&file)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	FILE* f = (FILE*)file;
@@ -285,9 +285,9 @@ int __stdcall ExecuteCommandTellFile(DWORD routine, int paramCount) {
 
 	if (!vm->StackPushInteger((int)position)) {
 		delete vm;
-		return -2000;
+		return COMMAND_RETURN_ERROR;
 	}
 
 	delete vm;
-	return 0;
+	return SUCCESS;
 }

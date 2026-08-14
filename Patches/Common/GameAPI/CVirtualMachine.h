@@ -5,6 +5,25 @@
 #include "CExoString.h"
 #include "GameAPIObject.h"
 
+enum VirtualMachineReturnTypes : int {
+    COMMAND_NOT_FOUND = -2002,
+    COMMAND_PARAM_ERROR = -2001,
+    COMMAND_RETURN_ERROR = -2000,
+    INVALID_COMPARISON_TYPE = -109,
+    MISSING_COMMAND_IMPLEMENTER = -108,
+    INSTRUCTION_POINTER_OUT_OF_RANGE = -107,
+    ZERO_DIVISION_ERROR = -105,
+    UNKNOWN_INSTRUCTION = -101,
+    STACK_POP_ERROR = -100,
+    STACK_PUSH_ERROR = -99,
+    INVALID_INSTRUCTION_TYPE = -97,
+    SCRIPT_IS_WRONG_FORMAT = -96,
+    CANNOT_READ_SCRIPT_FILE = -95,
+    TOO_MANY_SCRIPTS = -94,
+    TOO_MANY_INSTRUCTIONS = -93,
+    SUCCESS = 0
+};
+
 class CVirtualMachine : public GameAPIObject {
 public:
     static CVirtualMachine* GetInstance();

@@ -1,32 +1,31 @@
 #include "twoDA.h"
 #include "Common.h"
-#include "GameAPI/CVirtualMachine.h"
 #include "GameAPI/CExoString.h"
 #include "GameAPI/C2DA.h"
 
-int __stdcall ExecuteCommandGet2DAString(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandGet2DAString(DWORD routine, int paramCount)
 {
     debugLog("[PATCH] Running Get2DAString\n");
 
     CVirtualMachine* vm = CVirtualMachine::GetInstance();
-    if (!vm) return -2001;
+    if (!vm) return COMMAND_PARAM_ERROR;
 
     CExoString s2daName;
     if (!vm->StackPopString(&s2daName)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     int row;
     if (!vm->StackPopInteger(&row)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     CExoString column;
     if (!vm->StackPopString(&column)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     char* nameStr = s2daName.GetCStr();
@@ -34,10 +33,10 @@ int __stdcall ExecuteCommandGet2DAString(DWORD routine, int paramCount)
         CExoString emptyResult("");
         if (!vm->StackPushString(&emptyResult)) {
             delete vm;
-            return -2000;
+            return COMMAND_RETURN_ERROR;
         }
         delete vm;
-        return 0;
+        return SUCCESS;
     }
 
     C2DA twoDA(nameStr);
@@ -45,10 +44,10 @@ int __stdcall ExecuteCommandGet2DAString(DWORD routine, int paramCount)
         CExoString emptyResult("");
         if (!vm->StackPushString(&emptyResult)) {
             delete vm;
-            return -2000;
+            return COMMAND_RETURN_ERROR;
         }
         delete vm;
-        return 0;
+        return SUCCESS;
     }
 
     CExoString result;
@@ -58,64 +57,64 @@ int __stdcall ExecuteCommandGet2DAString(DWORD routine, int paramCount)
         CExoString emptyResult("");
         if (!vm->StackPushString(&emptyResult)) {
             delete vm;
-            return -2000;
+            return COMMAND_RETURN_ERROR;
         }
         delete vm;
-        return 0;
+        return SUCCESS;
     }
 
     if (!vm->StackPushString(&result)) {
         delete vm;
-        return -2000;
+        return COMMAND_RETURN_ERROR;
     }
 
     delete vm;
-    return 0;
+    return SUCCESS;
 }
 
-int __stdcall ExecuteCommandGet2DAInt(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandGet2DAInt(DWORD routine, int paramCount)
 {
     debugLog("[PATCH] Running Get2DAInt\n");
 
     CVirtualMachine* vm = CVirtualMachine::GetInstance();
-    if (!vm) return -2001;
+    if (!vm) return COMMAND_PARAM_ERROR;
 
     CExoString s2daName;
     if (!vm->StackPopString(&s2daName)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     int row;
     if (!vm->StackPopInteger(&row)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     CExoString column;
     if (!vm->StackPopString(&column)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     char* nameStr = s2daName.GetCStr();
     if (!nameStr) {
         if (!vm->StackPushInteger(0)) {
             delete vm;
-            return -2000;
+            return COMMAND_RETURN_ERROR;
         }
         delete vm;
-        return 0;
+        return SUCCESS;
     }
 
     C2DA twoDA(nameStr);
     if (!twoDA.GetPtr()) {
         if (!vm->StackPushInteger(0)) {
             delete vm;
-            return -2000;
+            return COMMAND_RETURN_ERROR;
         }
         delete vm;
-        return 0;
+        return SUCCESS;
     }
 
     int result = 0;
@@ -124,64 +123,64 @@ int __stdcall ExecuteCommandGet2DAInt(DWORD routine, int paramCount)
     if (!success) {
         if (!vm->StackPushInteger(0)) {
             delete vm;
-            return -2000;
+            return COMMAND_RETURN_ERROR;
         }
         delete vm;
-        return 0;
+        return SUCCESS;
     }
 
     if (!vm->StackPushInteger(result)) {
         delete vm;
-        return -2000;
+        return COMMAND_RETURN_ERROR;
     }
 
     delete vm;
-    return 0;
+    return SUCCESS;
 }
 
-int __stdcall ExecuteCommandGet2DAFloat(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandGet2DAFloat(DWORD routine, int paramCount)
 {
     debugLog("[PATCH] Running Get2DAFloat\n");
 
     CVirtualMachine* vm = CVirtualMachine::GetInstance();
-    if (!vm) return -2001;
+    if (!vm) return COMMAND_PARAM_ERROR;
 
     CExoString s2daName;
     if (!vm->StackPopString(&s2daName)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     int row;
     if (!vm->StackPopInteger(&row)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     CExoString column;
     if (!vm->StackPopString(&column)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     char* nameStr = s2daName.GetCStr();
     if (!nameStr) {
         if (!vm->StackPushFloat(0.0f)) {
             delete vm;
-            return -2000;
+            return COMMAND_RETURN_ERROR;
         }
         delete vm;
-        return 0;
+        return SUCCESS;
     }
 
     C2DA twoDA(nameStr);
     if (!twoDA.GetPtr()) {
         if (!vm->StackPushFloat(0.0f)) {
             delete vm;
-            return -2000;
+            return COMMAND_RETURN_ERROR;
         }
         delete vm;
-        return 0;
+        return SUCCESS;
     }
 
     float result = 0.0f;
@@ -190,17 +189,17 @@ int __stdcall ExecuteCommandGet2DAFloat(DWORD routine, int paramCount)
     if (!success) {
         if (!vm->StackPushFloat(0.0f)) {
             delete vm;
-            return -2000;
+            return COMMAND_RETURN_ERROR;
         }
         delete vm;
-        return 0;
+        return SUCCESS;
     }
 
     if (!vm->StackPushFloat(result)) {
         delete vm;
-        return -2000;
+        return COMMAND_RETURN_ERROR;
     }
 
     delete vm;
-    return 0;
+    return SUCCESS;
 }

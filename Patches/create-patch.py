@@ -48,6 +48,15 @@ def find_hooks(patch_dir: Path) -> list[Path]:
     return sorted(patch_dir.glob("*hooks.toml"))
 
 
+def find_sources(patch_dir: Path) -> list[Path]:
+    """Every .cpp belonging to the patch: the root plus immediate subdirectories.
+
+    Patches may group their sources into a folder (e.g. ScriptExtender/Extensions),
+    so a root-only glob would silently drop them from the build. Matches the
+    subdirectory sweep create-patch.bat does."""
+    return sorted([*patch_dir.glob("*.cpp"), *patch_dir.glob("*/*.cpp")])
+
+
 def find_prebuilt_dll(patch_dir: Path) -> Path | None:
     # The DLL may sit loose in the patch dir or already under binaries/.
     for candidate in (patch_dir / "windows_x86.dll",
@@ -115,7 +124,7 @@ def compile_dll(patch_dir: Path, name: str, compiler: str) -> Path:
         fail("ERROR: cannot find ../Common and ../../lib next to the patch.",
              "The MinGW build expects the standard Patches/ layout.")
 
-    cpp_files = sorted(patch_dir.glob("*.cpp"))
+    cpp_files = find_sources(patch_dir)
     sources = [*cpp_files,
                *sorted(common_dir.glob("*.cpp")),
                *sorted((common_dir / "GameAPI").glob("*.cpp"))]
@@ -165,7 +174,7 @@ def build(patch_dir: Path, name: str, out_dir: Path | None = None) -> None:
     # Step 2: detect patch type
     print()
     print("[2/5] Detecting patch type...")
-    cpp_files = list(patch_dir.glob("*.cpp"))
+    cpp_files = find_sources(patch_dir)
     is_detour = bool(cpp_files)
     if is_detour:
         print(f"  Patch type: DETOUR ({len(cpp_files)} C++ file(s) detected)")
