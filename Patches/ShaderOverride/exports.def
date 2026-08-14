@@ -1,3 +1,0 @@
-LIBRARY ShaderOverride 
-EXPORTS 
-    ShaderOverride_NoOp 
