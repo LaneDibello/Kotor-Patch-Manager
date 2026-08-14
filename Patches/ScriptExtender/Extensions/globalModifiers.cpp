@@ -1,19 +1,19 @@
 #include "globalModifiers.h"
 
-int __stdcall ExecuteCommandAdjustGlobalNumber(DWORD routine, int paramCount) {
+VirtualMachineReturnTypes __stdcall ExecuteCommandAdjustGlobalNumber(DWORD routine, int paramCount) {
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
     CExoString indentifier;
     if (!vm->StackPopString(&indentifier)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     int amount;
     if (!vm->StackPopInteger(&amount)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     CServerExoApp* server = CServerExoApp::GetInstance();
@@ -40,12 +40,12 @@ int __stdcall ExecuteCommandAdjustGlobalNumber(DWORD routine, int paramCount) {
 
     if (value > 127 || value < -128) {
         delete vm;
-        return -2000;
+        return COMMAND_RETURN_ERROR;
     }
 
     setValueNumber(globalVars, indentifier.GetPtr(), value);
 
     delete vm;
 
-    return 0;
+    return SUCCESS;
 }

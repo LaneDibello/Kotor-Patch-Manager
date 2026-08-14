@@ -1,37 +1,37 @@
 #include "creatureStats.h"
 
-int __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 {
 	debugLog("[PATCH] Running GetFeatAcquired");
 
 	int outcome = 0;
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int feat;
 	if (!vm->StackPopInteger(&feat)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	DWORD creature;
 	if (!vm->StackPopObject(&creature)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CServerExoApp* server = CServerExoApp::GetInstance();
 	if (!server) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	void* objectArrayPtr = server->GetObjectArray();
 	if (!objectArrayPtr) {
 		delete server;
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CGameObjectArray objectArray(objectArrayPtr);
@@ -44,7 +44,7 @@ int __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 		vm->StackPushInteger(outcome);
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	CSWSCreature serverCreatureWrapper(serverCreature);
@@ -53,7 +53,7 @@ int __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 		vm->StackPushInteger(outcome);
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	outcome = stats->HasFeat((WORD)feat);
@@ -62,40 +62,40 @@ int __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 		delete stats;
 		delete server;
 		delete vm;
-		return -2000;
+		return COMMAND_RETURN_ERROR;
 	}
 
 	delete stats;
 	delete server;
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount)
 {
 	debugLog("[PATCH] Running GetSpellAcquired");
 
 	int outcome = 0;
 
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int spell;
 	if (!vm->StackPopInteger(&spell)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	DWORD creature;
 	if (!vm->StackPopObject(&creature)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CServerExoApp* server = CServerExoApp::GetInstance();
 	if (!server) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
@@ -114,35 +114,35 @@ int __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount)
 	if (!vm->StackPushInteger(outcome)) {
 		delete server;
 		delete vm;
-		return -2000;
+		return COMMAND_RETURN_ERROR;
 	}
 
 	delete server;
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
 {
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int ability;
 	if (!vm->StackPopInteger(&ability)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	DWORD creature;
 	if (!vm->StackPopObject(&creature)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CServerExoApp* server = CServerExoApp::GetInstance();
 	if (!server) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
@@ -150,7 +150,7 @@ int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
 	if (!serverCreature) {
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
@@ -158,7 +158,7 @@ int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
 		delete serverCreature;
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	if (routine == GrantFeatIndex) {
@@ -179,43 +179,43 @@ int __stdcall ExecuteCommandGrantAbility(DWORD routine, int paramCount)
 	delete serverCreature;
 	delete server;
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCount)
 {
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	DWORD object;
 	if (!vm->StackPopObject(&object)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	int attribute;
 	if (!vm->StackPopInteger(&attribute)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	int amount;
 	if (!vm->StackPopInteger(&amount)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CServerExoApp* server = CServerExoApp::GetInstance();
 	if (!server) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(object);
 	if (!serverCreature) {
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
@@ -223,7 +223,7 @@ int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCou
 		delete serverCreature;
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	BYTE baseCurrent = 0;
@@ -272,50 +272,50 @@ int __stdcall ExecuteCommandAdjustCreatureAttributes(DWORD routine, int paramCou
 	delete serverCreature;
 	delete server;
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
 {
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	DWORD object;
 	if (!vm->StackPopObject(&object)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	int skill;
 	if (!vm->StackPopInteger(&skill)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	int amount;
 	if (!vm->StackPopInteger(&amount)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CServerExoApp* server = CServerExoApp::GetInstance();
 	if (!server) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(object);
 	if (!serverCreature) {
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
 	if (!stats) {
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	BYTE baseCurrent = stats->GetSkillRank((BYTE)skill, NULL, 1);
@@ -323,30 +323,30 @@ int __stdcall ExecuteCommandAdjustCreatureSkills(DWORD routine, int paramCount)
 
 	delete server;
 	delete vm;
-	return 0;
+	return SUCCESS;
 }
 
-int __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount)
 {
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
-	if (!vm) return -2001;
+	if (!vm) return COMMAND_PARAM_ERROR;
 
 	int skill;
 	if (!vm->StackPopInteger(&skill)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	DWORD object;
 	if (!vm->StackPopObject(&object)) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CServerExoApp* server = CServerExoApp::GetInstance();
 	if (!server) {
 		delete vm;
-		return -2001;
+		return COMMAND_PARAM_ERROR;
 	}
 
 	CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(object);
@@ -355,7 +355,7 @@ int __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount)
 		vm->StackPushInteger(-1);
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
@@ -363,7 +363,7 @@ int __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount)
 		vm->StackPushInteger(-1);
 		delete server;
 		delete vm;
-		return 0;
+		return SUCCESS;
 	}
 
 	BYTE skillBase = stats->GetSkillRank((BYTE)skill, NULL, 1);
@@ -371,10 +371,10 @@ int __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount)
 	if (!vm->StackPushInteger(skillBase)) {
 		delete server;
 		delete vm;
-		return -2000;
+		return COMMAND_RETURN_ERROR;
 	}
 
 	delete server;
 	delete vm;
-	return 0;
+	return SUCCESS;
 }

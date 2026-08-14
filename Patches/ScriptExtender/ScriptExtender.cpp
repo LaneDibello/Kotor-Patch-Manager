@@ -9,7 +9,7 @@
 #include "Extensions/globalModifiers.h"
 
 const int TestScriptExtensionIndex = 772;
-int __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
+VirtualMachineReturnTypes __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
     debugLog("[PATCH] Called Test routine %d, with %i parameters", routine, paramCount);
 
     if (paramCount != 3) {
@@ -19,16 +19,16 @@ int __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
             vm->StackPushInteger(0);
             delete vm;
         }
-        return 0;
+        return COMMAND_NOT_FOUND;
     }
 
     CVirtualMachine* vm = CVirtualMachine::GetInstance();
-    if (!vm) return -2001;
+    if (!vm) return COMMAND_PARAM_ERROR;
 
     int testInt;
     if (!vm->StackPopInteger(&testInt)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     debugLog("[PATCH] Test Int %i", testInt);
@@ -36,7 +36,7 @@ int __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
     float testFloat;
     if (!vm->StackPopFloat(&testFloat)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     debugLog("[PATCH] Test Float %f", testFloat);
@@ -44,18 +44,18 @@ int __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
     CExoString testString;
     if (!vm->StackPopString(&testString)) {
         delete vm;
-        return -2001;
+        return COMMAND_PARAM_ERROR;
     }
 
     debugLog("[PATCH] Test string \"%s\"", testString.GetCStr());
 
     if (!vm->StackPushInteger(1)) {
         delete vm;
-        return -2000;
+        return COMMAND_RETURN_ERROR;
     }
 
     delete vm;
-    return 0;
+    return SUCCESS;
 }
 
 extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)

@@ -6,4 +6,4 @@
 
 const int IncrementGlobalNumberIndex = 792;
 const int DecrementGlobalNumberIndex = 793;
-int __stdcall ExecuteCommandAdjustGlobalNumber(DWORD routine, int paramCount);
+VirtualMachineReturnTypes __stdcall ExecuteCommandAdjustGlobalNumber(DWORD routine, int paramCount);
