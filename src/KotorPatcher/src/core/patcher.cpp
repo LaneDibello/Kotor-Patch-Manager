@@ -33,32 +33,32 @@ namespace KotorPatcher {
     static constexpr long kDecryptPollIntervalMs = 15;
     static constexpr long kDecryptTimeoutMs = 30000;
 
-    // First patch that carries a code hook, or nullptr if every patch is DLL_ONLY. Its
-    // original bytes double as the "is the code readable yet" sentinel: they only match
-    // once any on-disk encryption has been undone in memory.
-    static const PatchInfo* FindHookSentinel() {
+    // Original bytes double as the "is the code readable yet" test: they only match once
+    // any on-disk encryption has been undone in memory. Every hook site is checked, not
+    // just the first. The stub leaves .rdata as plaintext, so a patch hooking a string
+    // there reads as ready at load time and would otherwise mask the still-encrypted
+    // .text sites of every other patch. A config of only DLL_ONLY patches has nothing
+    // to test and reads as ready.
+    static bool AllHookSitesReadable() {
         for (const auto& patch : g_patches) {
-            if (patch.type != HookType::DLL_ONLY && !patch.originalBytes.empty()) {
-                return &patch;
+            if (patch.type == HookType::DLL_ONLY || patch.originalBytes.empty()) {
+                continue;
+            }
+            if (!Trampoline::VerifyBytes(patch.hookAddress,
+                    patch.originalBytes.data(), patch.originalBytes.size())) {
+                return false;
             }
         }
-        return nullptr;
+        return true;
     }
 
-    static bool HookSiteReadable(const PatchInfo* sentinel) {
-        return sentinel != nullptr &&
-            Trampoline::VerifyBytes(sentinel->hookAddress,
-                sentinel->originalBytes.data(), sentinel->originalBytes.size());
-    }
-
-    // Runs off the loader path when the code is still encrypted at init. Polls the
-    // sentinel until the stub has decrypted .text, then applies normally. The patched
-    // functions are gameplay/menu code that runs long after startup, so applying a
-    // moment into the game (rather than before its entry point) is safe in practice.
+    // Runs off the loader path when the code is still encrypted at init. Polls until the
+    // stub has decrypted .text, then applies normally. The patched functions are
+    // gameplay/menu code that runs long after startup, so applying a moment into the game
+    // (rather than before its entry point) is safe in practice.
     static void DeferredApply() {
-        const PatchInfo* sentinel = FindHookSentinel();
         auto start = std::chrono::steady_clock::now();
-        while (!HookSiteReadable(sentinel)) {
+        while (!AllHookSitesReadable()) {
             auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now() - start).count();
             if (elapsedMs >= kDecryptTimeoutMs) {
@@ -121,10 +121,9 @@ namespace KotorPatcher {
             Platform::Log("[KotorPatcher] WARNING: No version SHA found in config\n");
         }
 
-        // If the hook sites are still encrypted (SteamStub), wait for the stub to
-        // decrypt them on a worker thread instead of failing every VerifyBytes now.
-        const PatchInfo* sentinel = FindHookSentinel();
-        if (sentinel != nullptr && !HookSiteReadable(sentinel)) {
+        // If any hook site is still encrypted (SteamStub), wait for the stub to decrypt
+        // on a worker thread instead of failing every VerifyBytes now.
+        if (!AllHookSitesReadable()) {
             Platform::Log("[KotorPatcher] Hook site still encrypted (SteamStub?); deferring apply\n");
             try {
                 std::thread(DeferredApply).detach();
