@@ -1,0 +1,23 @@
+!!ARBfp1.0
+ATTRIB T0 = fragment.texcoord[0];
+ATTRIB T1 = fragment.texcoord[1];
+TEMP r0, r1, r2, centered, edge, output;
+PARAM c[2] = { program.env[0..1] };
+TEX r0, T0, texture[0], 2D;
+TEX r1, T1, texture[1], RECT;
+MUL r2.xyz, r0, c[0];
+MAD r0.xyz, r1, c[1], r2;
+
+# T0 is normalized, so this mask is resolution-independent. Keep the middle
+# 50% untouched and fade the vanilla effect in across the outer 25% per side.
+ADD centered.x, T0.x, -0.5;
+ADD centered.y, T0.y, -0.5;
+ABS centered.x, centered.x;
+ABS centered.y, centered.y;
+MAX edge.x, centered.x, centered.y;
+MAD_SAT edge.x, edge.x, 4.0, -1.0;
+
+LRP output.xyz, edge.x, r0, r1;
+MOV output.w, c[0];
+MOV result.color, output;
+END

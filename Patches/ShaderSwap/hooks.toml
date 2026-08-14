@@ -1,0 +1,2 @@
+# ShaderSwap is a DLL-only patch. It hooks wglGetProcAddress and receives embedded
+# replacements registered by dependent provider DLLs.
