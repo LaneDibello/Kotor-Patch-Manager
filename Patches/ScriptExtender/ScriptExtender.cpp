@@ -2,11 +2,11 @@
 #include "GameAPI/GameVersion.h"
 #include "GameAPI/CVirtualMachine.h"
 #include "GameAPI/CExoString.h"
-#include "fileIO.h"
-#include "creatureStats.h"
-#include "clientCreatures.h"
-#include "twoDA.h"
-#include "globalModifiers.h"
+#include "Extensions/fileIO.h"
+#include "Extensions/creatureStats.h"
+#include "Extensions/clientCreatures.h"
+#include "Extensions/twoDA.h"
+#include "Extensions/globalModifiers.h"
 
 const int TestScriptExtensionIndex = 772;
 int __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
@@ -92,13 +92,11 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[DecrementGlobalNumberIndex] = (DWORD)&ExecuteCommandAdjustGlobalNumber;
 }
 
-// DLL Entry Point
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     switch (fdwReason)
     {
     case DLL_PROCESS_ATTACH:
-        // Initialize GameVersion system (reads from KOTOR_VERSION_SHA env var and addresses.toml)
         if (!GameVersion::Initialize()) {
             debugLog("[ScriptExtender] ERROR: GameVersion::Initialize() failed");
             return FALSE;
