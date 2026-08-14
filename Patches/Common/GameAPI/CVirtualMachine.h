@@ -5,9 +5,6 @@
 #include "CExoString.h"
 #include "GameAPIObject.h"
 
-// Status codes the engine's script VM expects back from a command implementer.
-// Anything non-zero aborts the running script; the negative values mirror the
-// codes the stock command table returns.
 enum VirtualMachineReturnTypes : int {
     COMMAND_NOT_FOUND = -2002,
     COMMAND_PARAM_ERROR = -2001,
