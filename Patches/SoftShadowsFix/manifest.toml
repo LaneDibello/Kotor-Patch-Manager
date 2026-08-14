@@ -1,0 +1,26 @@
+[patch]
+id = "soft-shadows-fix"
+name = "KOTOR 1 Soft Shadows Fix"
+version = "1.0.0"
+author = "Synchro"
+description = """
+Enables the Soft Shadows option on non-NVIDIA graphics.
+
+KOTOR 1 only offers soft shadows on NVIDIA hardware and keeps the feature locked off \
+everywhere else unless an undocumented ini setting is present. This patch removes the \
+lock so the option works from the graphics menu.
+
+Your driver still has to expose the two OpenGL features this shadow mode needs, \
+GL_ATI_fragment_shader and WGL_ARB_render_texture, so the patch only makes a \
+difference where both are available: certain AMD driver series on Windows, and Mesa \
+on Linux under Proton/WINE, which provides them for AMD and Intel GPUs alike. Anywhere \
+else the game keeps behaving exactly as it does now."""
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+kotor1_steam_103 = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
+kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
