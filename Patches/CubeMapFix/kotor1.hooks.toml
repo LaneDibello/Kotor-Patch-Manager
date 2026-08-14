@@ -1,0 +1,34 @@
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+]
+# KOTOR 1
+# Cube map extension name fix.
+#
+# InitExtensions (0x00436490) tests the driver's GL_EXTENSIONS string for
+# "GL_EXT_texture_cube_map". Intel's Windows driver only exposes the ARB spelling, so
+# EXT_TEXTURE_CUBE_MAP_BIT (0x02) never gets set, AurCubeMapAvailable (0x0045F8B0)
+# reports false, and env-mapped surfaces fall back to GL_SPHERE_MAP texgen.
+#
+# Searching for the ARB name instead is safe: both names are 23 bytes, the literal has
+# a single xref (InitExtensions at 0x004365AA), and ARB, EXT and core 1.3 share
+# identical enums with no entry points. EXT was derived from ARB, so drivers that work
+# today advertise both.
+#
+# AurCubeMapAvailable also needs ARB_MULTITEXTURE_BIT (0x10). The runtime check is
+# existingExtensions & 0x12 == 0x12.
+
+[[hooks]]
+# "GL_EXT_texture_cube_map" -> "GL_ARB_texture_cube_map"
+address = 0x00740968
+type = "simple"
+original_bytes = [
+    0x47, 0x4C, 0x5F, 0x45, 0x58, 0x54, 0x5F, 0x74, 0x65, 0x78, 0x74, 0x75,
+    0x72, 0x65, 0x5F, 0x63, 0x75, 0x62, 0x65, 0x5F, 0x6D, 0x61, 0x70,
+]
+replacement_bytes = [
+    0x47, 0x4C, 0x5F, 0x41, 0x52, 0x42, 0x5F, 0x74, 0x65, 0x78, 0x74, 0x75,
+    0x72, 0x65, 0x5F, 0x63, 0x75, 0x62, 0x65, 0x5F, 0x6D, 0x61, 0x70,
+]
