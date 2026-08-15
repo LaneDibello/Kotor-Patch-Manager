@@ -5,7 +5,7 @@
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandGet2DAString(DWORD routine, int paramCount)
 {
-    debugLog("[PATCH] Running Get2DAString\n");
+    debugLog("[ScriptExtender] Running Get2DAString\n");
 
     CVirtualMachine* vm = CVirtualMachine::GetInstance();
     if (!vm) return COMMAND_PARAM_ERROR;
@@ -74,7 +74,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandGet2DAString(DWORD routine, in
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandGet2DAInt(DWORD routine, int paramCount)
 {
-    debugLog("[PATCH] Running Get2DAInt\n");
+    debugLog("[ScriptExtender] Running Get2DAInt\n");
 
     CVirtualMachine* vm = CVirtualMachine::GetInstance();
     if (!vm) return COMMAND_PARAM_ERROR;
@@ -140,7 +140,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandGet2DAInt(DWORD routine, int p
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandGet2DAFloat(DWORD routine, int paramCount)
 {
-    debugLog("[PATCH] Running Get2DAFloat\n");
+    debugLog("[ScriptExtender] Running Get2DAFloat\n");
 
     CVirtualMachine* vm = CVirtualMachine::GetInstance();
     if (!vm) return COMMAND_PARAM_ERROR;

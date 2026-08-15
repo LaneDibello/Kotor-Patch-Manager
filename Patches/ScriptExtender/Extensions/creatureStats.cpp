@@ -2,7 +2,7 @@
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 {
-	debugLog("[PATCH] Running GetFeatAcquired");
+	debugLog("[ScriptExtender] Running GetFeatAcquired");
 
 	int outcome = 0;
 
@@ -73,7 +73,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandGetFeatAcquired(DWORD routine,
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandGetSpellAcquired(DWORD routine, int paramCount)
 {
-	debugLog("[PATCH] Running GetSpellAcquired");
+	debugLog("[ScriptExtender] Running GetSpellAcquired");
 
 	int outcome = 0;
 
