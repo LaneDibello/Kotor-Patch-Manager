@@ -2,7 +2,7 @@
 PARAM mvpMatrix[4] = { state.matrix.mvp };
 PARAM fogParams = state.fog.params;
 TEMP vTemp;
-TEMP vReg0, vReg1, vReg2, vReg3;
+TEMP vReg0, vReg1, vReg2, vReg3, vReg4;
 TEMP vReg10;
 TEMP vNormalWorld;
 TEMP fogTemp;
@@ -26,8 +26,19 @@ ADD fogTemp.x, -fogParams.y, vReg0.x;
 SLT fogTemp.y, 0.0, state.fog.color;
 MUL fogTemp.z, fogTemp.x, fogParams.w;
 MUL result.color.secondary.x, fogTemp.z, fogTemp.y;
+DP3   vReg0.x, vNormalWorld, -vReg10;
+MUL   vReg1, vReg0.x, vNormalWorld;
+MUL   vReg2, vReg1, program.env[16].y;
+ADD   vReg3, vReg10, vReg2;
+DP3   vReg3.w, vReg3, vReg3;
+RSQ   vReg3.w, vReg3.w;
+MUL   vReg3, vReg3, vReg3.w;
+DP3   vReg4.x, program.env[92], vReg3;
+DP3   vReg4.y, program.env[91], vReg3;
+DP3   vReg4.z, program.env[90], vReg3;
+MOV   vReg4.w, program.env[16].w;
 MOV   result.texcoord[0], vertex.texcoord[0];
-MOV   result.texcoord[1], vertex.texcoord[1];
+MOV   result.texcoord[1], vReg4;
 MOV   result.texcoord[2], vertex.texcoord[2];
 MOV   result.texcoord[3], vertex.texcoord[3];
 MOV result.color, program.env[15].wwwz;
@@ -171,3 +182,4 @@ ADD vFinalColour, vFinalColour, program.env[93];
 MOV vFinalColour.w, program.env[94];
 MOV result.color, vFinalColour;
 END
+

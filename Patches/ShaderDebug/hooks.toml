@@ -1,4 +1,5 @@
 # DLL-only patch.
-# The runtime DLL waits for the game to initialize OpenGL, then swaps the
-# game's glProgramStringARB function pointer for a wrapper that dumps and
-# optionally loads hash-named shader overrides from disk.
+# The runtime DLL detours OpenGL extension resolution, then detours the resolved
+# glProgramStringARB and glBindProgramARB driver entry points so shader calls
+# made through the game or other patch DLLs are tracked, dumped, and can load
+# hash-named overrides from disk.

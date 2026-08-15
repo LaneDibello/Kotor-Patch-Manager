@@ -5,17 +5,26 @@
 #include <cstring>
 
 #include "ShaderSwapProvider.h"
+#include "X86InlineDetour.h"
 
 namespace {
     using GlProgramStringArbFn = void (WINAPI*)(unsigned int target, unsigned int format, int len, const void* source);
     using WglGetProcAddressFn = PROC (WINAPI*)(LPCSTR name);
 
-    constexpr unsigned int kVertexProgramArb = 0x8620;
-    constexpr unsigned int kFragmentProgramArb = 0x8804;
     constexpr unsigned int kProgramFormatAsciiArb = 0x8875;
+
+    enum class HookMode {
+        Uninitialized,
+        Detoured,
+        WrapperFallback,
+    };
 
     WglGetProcAddressFn g_originalWglGetProcAddress = nullptr;
     GlProgramStringArbFn g_originalGlProgramStringArb = nullptr;
+    x86hook::InlineDetour g_wglGetProcAddressDetour;
+    x86hook::InlineDetour g_programStringDetour;
+    HookMode g_programStringHookMode = HookMode::Uninitialized;
+    SRWLOCK g_detourLock = SRWLOCK_INIT;
 
     struct ShaderSwapProvider {
         const ShaderSwapReplacement* replacements;
@@ -78,6 +87,33 @@ namespace {
         g_originalGlProgramStringArb(target, format, len, source);
     }
 
+    PROC ResolveProgramStringEntry(PROC resolved) {
+        if (!resolved) {
+            return nullptr;
+        }
+
+        AcquireSRWLockExclusive(&g_detourLock);
+        PROC result = resolved;
+        if (g_programStringHookMode == HookMode::Uninitialized) {
+            if (g_programStringDetour.Install(
+                    reinterpret_cast<void*>(resolved),
+                    reinterpret_cast<void*>(&HookedGlProgramStringArb))) {
+                g_originalGlProgramStringArb =
+                    reinterpret_cast<GlProgramStringArbFn>(g_programStringDetour.Original());
+                g_programStringHookMode = HookMode::Detoured;
+            } else {
+                g_originalGlProgramStringArb = reinterpret_cast<GlProgramStringArbFn>(resolved);
+                g_programStringHookMode = HookMode::WrapperFallback;
+                result = reinterpret_cast<PROC>(&HookedGlProgramStringArb);
+            }
+        } else if (g_programStringHookMode == HookMode::WrapperFallback &&
+                   reinterpret_cast<PROC>(g_originalGlProgramStringArb) == resolved) {
+            result = reinterpret_cast<PROC>(&HookedGlProgramStringArb);
+        }
+        ReleaseSRWLockExclusive(&g_detourLock);
+        return result;
+    }
+
     PROC WINAPI HookedWglGetProcAddress(LPCSTR name) {
         if (!g_originalWglGetProcAddress) {
             return nullptr;
@@ -85,73 +121,30 @@ namespace {
 
         PROC resolved = g_originalWglGetProcAddress(name);
         if (name && (std::strcmp(name, "glProgramStringARB") == 0 || std::strcmp(name, "glProgramString") == 0)) {
-            g_originalGlProgramStringArb = reinterpret_cast<GlProgramStringArbFn>(resolved);
-            return reinterpret_cast<PROC>(&HookedGlProgramStringArb);
+            return ResolveProgramStringEntry(resolved);
         }
         return resolved;
     }
 
-    bool PatchMainModuleImport(const char* importedModule, const char* functionName, void* replacement, void** original) {
-        HMODULE module = GetModuleHandleA(nullptr);
-        if (!module) {
-            return false;
-        }
-
-        auto* base = reinterpret_cast<unsigned char*>(module);
-        auto* dosHeader = reinterpret_cast<IMAGE_DOS_HEADER*>(base);
-        auto* ntHeaders = reinterpret_cast<IMAGE_NT_HEADERS*>(base + dosHeader->e_lfanew);
-        const auto& importDirectory = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
-        if (!importDirectory.VirtualAddress) {
-            return false;
-        }
-
-        auto* descriptor = reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(base + importDirectory.VirtualAddress);
-        for (; descriptor->Name; ++descriptor) {
-            const char* moduleName = reinterpret_cast<const char*>(base + descriptor->Name);
-            if (_stricmp(moduleName, importedModule) != 0) {
-                continue;
-            }
-
-            auto* thunk = reinterpret_cast<IMAGE_THUNK_DATA*>(base + descriptor->FirstThunk);
-            auto* originalThunk = reinterpret_cast<IMAGE_THUNK_DATA*>(base + descriptor->OriginalFirstThunk);
-            for (; originalThunk->u1.AddressOfData; ++originalThunk, ++thunk) {
-                if (IMAGE_SNAP_BY_ORDINAL(originalThunk->u1.Ordinal)) {
-                    continue;
-                }
-
-                auto* imported = reinterpret_cast<IMAGE_IMPORT_BY_NAME*>(base + originalThunk->u1.AddressOfData);
-                if (std::strcmp(reinterpret_cast<const char*>(imported->Name), functionName) != 0) {
-                    continue;
-                }
-
-                DWORD oldProtection = 0;
-                if (!VirtualProtect(&thunk->u1.Function, sizeof(thunk->u1.Function), PAGE_READWRITE, &oldProtection)) {
-                    return false;
-                }
-                *original = reinterpret_cast<void*>(thunk->u1.Function);
-                thunk->u1.Function = reinterpret_cast<ULONG_PTR>(replacement);
-                DWORD ignored = 0;
-                VirtualProtect(&thunk->u1.Function, sizeof(thunk->u1.Function), oldProtection, &ignored);
-                return true;
-            }
-        }
-        return false;
-    }
-
     DWORD WINAPI InstallHook(LPVOID) {
-        for (int attempt = 0; attempt < 240 && !GetModuleHandleA("opengl32.dll"); ++attempt) {
-            Sleep(250);
+        HMODULE openGl = nullptr;
+        for (int attempt = 0; attempt < 240 && !openGl; ++attempt) {
+            openGl = GetModuleHandleA("opengl32.dll");
+            if (!openGl) {
+                Sleep(250);
+            }
         }
-
-        if (!GetModuleHandleA("opengl32.dll")) {
+        if (!openGl) {
             return 0;
         }
 
-        PatchMainModuleImport(
-            "opengl32.dll",
-            "wglGetProcAddress",
-            reinterpret_cast<void*>(&HookedWglGetProcAddress),
-            reinterpret_cast<void**>(&g_originalWglGetProcAddress));
+        void* wglGetProcAddress = reinterpret_cast<void*>(GetProcAddress(openGl, "wglGetProcAddress"));
+        if (!g_wglGetProcAddressDetour.Install(
+                wglGetProcAddress, reinterpret_cast<void*>(&HookedWglGetProcAddress))) {
+            return 0;
+        }
+        g_originalWglGetProcAddress =
+            reinterpret_cast<WglGetProcAddressFn>(g_wglGetProcAddressDetour.Original());
         return 0;
     }
 }

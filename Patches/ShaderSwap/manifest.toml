@@ -1,9 +1,9 @@
 [patch]
 id = "shader-swap"
 name = "ShaderSwap"
-version = "1.4"
+version = "1.6"
 author = "J"
-description = "Shared runtime that replaces ARB shaders embedded in dependent ShaderSwap provider DLLs."
+description = "Shared runtime that replaces ARB shaders embedded in dependent ShaderSwap patches."
 
 requires = []
 
