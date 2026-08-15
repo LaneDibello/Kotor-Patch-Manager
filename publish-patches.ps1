@@ -4,12 +4,18 @@
 
 .DESCRIPTION
   The parallel counterpart to the serial for-loop that publish.bat used to run.
-  Each patch directory (one containing a manifest.toml) is fully isolated -- its
-  own working directory, its own intermediates (obj/def/kpatch), and no shared
-  PDB -- so create-patch.bat is safe to run concurrently across patches. This
-  fans the builds out across background jobs, throttled to the CPU count, then
-  copies the produced .kpatch files (and any "additional" folders) into the
-  release and prints a pass/fail summary.
+  Each patch directory (one containing a manifest.toml) keeps its own working
+  directory, intermediates (obj/def/kpatch), and no shared PDB, so the per-patch
+  half of create-patch.bat runs safely side by side. This fans the builds out
+  across background jobs, throttled to the CPU count, then copies the produced
+  .kpatch files (and any "additional" folders) into the release and prints a
+  pass/fail summary.
+
+  The one thing DETOUR patches do share is the cached Common/GameAPI static
+  library, which create-patch.bat builds on first use. Several jobs building it
+  at once would write the same object files and the same archive concurrently,
+  so one DETOUR patch is built serially first to seed that cache. After that the
+  remaining jobs only read it, and the fan-out is safe again.
 
   PowerShell 5.1 compatible on purpose: it uses Start-Job because
   ForEach-Object -Parallel does not exist before PowerShell 7.
@@ -70,9 +76,51 @@ $work = {
     }
 }
 
+# A patch is DETOUR (needs the shared Common library) if it has any .cpp in its
+# root or an immediate subdirectory. This mirrors how create-patch.bat decides.
+function Test-IsDetourPatch {
+    param([string]$Dir)
+    if (Get-ChildItem -LiteralPath $Dir -Filter '*.cpp' -File -ErrorAction SilentlyContinue) {
+        return $true
+    }
+    foreach ($sub in Get-ChildItem -LiteralPath $Dir -Directory -ErrorAction SilentlyContinue) {
+        if (Get-ChildItem -LiteralPath $sub.FullName -Filter '*.cpp' -File -ErrorAction SilentlyContinue) {
+            return $true
+        }
+    }
+    return $false
+}
+
+$byName = @{}
+
+# Seed the shared Common/GameAPI library with one serial build before fanning
+# out, so the parallel jobs find it already cached and only ever read it. When
+# the cache is already warm this costs one ordinary patch build.
+$seed = $patches | Where-Object { Test-IsDetourPatch $_.FullName } | Select-Object -First 1
+if ($seed) {
+    Write-Host ("  Seeding shared Common library via {0}..." -f $seed.Name)
+    $seedResult = & $work $seed.FullName $createPatchBat $seed.Name
+    if ($seedResult) { $byName[$seedResult.Name] = $seedResult }
+
+    # Every DETOUR patch links this library, so if it cannot be built there is no
+    # point starting dozens of jobs that will each fail the same way -- and they
+    # would race rebuilding it, burying the real error in sharing violations.
+    if (-not $seedResult -or $seedResult.Code -ne 0) {
+        Write-Host ''
+        Write-Host '  ERROR: the shared Common/GameAPI library failed to build.'
+        Write-Host '         Every DETOUR patch depends on it, so the build is stopping here.'
+        if ($seedResult -and $seedResult.Output) {
+            ($seedResult.Output -split "`r?`n" | Where-Object { $_ } | Select-Object -Last 15) |
+                ForEach-Object { Write-Host "         $_" }
+        }
+        throw 'Shared Common library build failed.'
+    }
+}
+
 # Start-Job has no native throttle, so gate new starts on the running count.
 $jobs = New-Object System.Collections.Generic.List[object]
 foreach ($p in $patches) {
+    if ($seed -and $p.FullName -eq $seed.FullName) { continue }
     while (@($jobs | Where-Object { $_.State -eq 'Running' }).Count -ge $ThrottleLimit) {
         Start-Sleep -Milliseconds 150
     }
@@ -81,7 +129,6 @@ foreach ($p in $patches) {
 $null = $jobs | Wait-Job
 
 # Gather each job's result object, keyed by patch name.
-$byName = @{}
 foreach ($j in $jobs) {
     $r = Receive-Job $j
     Remove-Job $j

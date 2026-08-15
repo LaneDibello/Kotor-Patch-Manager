@@ -39,8 +39,7 @@ if not exist "manifest.toml" (
     echo ERROR: manifest.toml not found!
     echo Please create a manifest.toml file in this directory.
     echo See templates/manifest.template.toml for an example.
-    pause
-    exit /b 1
+    goto :fail
 )
 echo   [OK] manifest.toml found
 
@@ -50,8 +49,7 @@ for %%F in (*hooks.toml) do set HOOKS_FOUND=1
 if !HOOKS_FOUND! EQU 0 (
     echo ERROR: No hooks files found ^(*hooks.toml^)!
     echo Please create at least one hooks file in this directory.
-    pause
-    exit /b 1
+    goto :fail
 )
 echo   [OK] hooks file^(s^) found
 
@@ -116,8 +114,7 @@ if !BUILD_DLL! EQU 1 (
         echo Or set VCVARSALL environment variable to point to vcvars32.bat
         echo.
         echo Expected path: !VCVARSALL!
-        pause
-        exit /b 1
+        goto :fail
     )
 
     REM Set up Visual Studio environment
@@ -198,11 +195,19 @@ if !BUILD_DLL! EQU 1 (
     REM and header carrying its size and last-write time (see common-cache-key.ps1
     REM for why that is generated in PowerShell rather than with `dir` here).
     REM Editing, adding, or deleting any of them changes a line and rebuilds.
-    > "!CACHE!\sources.new" echo !FLAGS!
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0common-cache-key.ps1" -CommonDir "..\Common" >> "!CACHE!\sources.new"
+    REM
+    REM The freshly computed key goes in this patch's own build directory, not in
+    REM the shared cache directory. publish-patches.ps1 builds patches in parallel,
+    REM and a single shared scratch file would let one job truncate the key another
+    REM job was about to compare -- which reads as a cache miss, so every job would
+    REM then try to rebuild the shared library at once and collide on its objects.
+    if not exist "build" mkdir "build" >nul 2>&1
+    set KEYFILE=build\common-cache.key
+    > "!KEYFILE!" echo !FLAGS!
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0common-cache-key.ps1" -CommonDir "..\Common" >> "!KEYFILE!"
     if !ERRORLEVEL! NEQ 0 (
         echo   WARNING: could not compute the Common cache key; rebuilding the library.
-        del /q "!CACHE!\sources.new" >nul 2>&1
+        del /q "!KEYFILE!" >nul 2>&1
     )
 
     REM Rebuild unless the library, the previous stamp, and a freshly computed key
@@ -211,8 +216,8 @@ if !BUILD_DLL! EQU 1 (
     set REBUILD_COMMON=1
     if exist "!CACHE!\Common.lib" (
         if exist "!CACHE!\sources.stamp" (
-            if exist "!CACHE!\sources.new" (
-                fc /b "!CACHE!\sources.new" "!CACHE!\sources.stamp" >nul 2>&1
+            if exist "!KEYFILE!" (
+                fc /b "!KEYFILE!" "!CACHE!\sources.stamp" >nul 2>&1
                 if !ERRORLEVEL! EQU 0 set REBUILD_COMMON=0
             )
         )
@@ -233,8 +238,7 @@ if !BUILD_DLL! EQU 1 (
             echo ERROR: Common library compilation failed!
             echo Check build.log for details.
             type build.log
-            pause
-            exit /b 1
+            goto :fail
         )
 
         REM The path is relative and space-free, so lib.exe expands the wildcard
@@ -244,22 +248,20 @@ if !BUILD_DLL! EQU 1 (
             echo.
             echo ERROR: Common library archiving failed!
             type build.log
-            pause
-            exit /b 1
+            goto :fail
         )
 
         REM Stamp last, so a failed or interrupted build leaves the cache marked
         REM stale rather than marked valid with a half-built library. If the key
         REM could not be computed at all, drop the stamp so the next build rebuilds
         REM instead of trusting a stamp that describes an older tree.
-        if exist "!CACHE!\sources.new" (
-            move /y "!CACHE!\sources.new" "!CACHE!\sources.stamp" >nul
+        if exist "!KEYFILE!" (
+            copy /y "!KEYFILE!" "!CACHE!\sources.stamp" >nul
         ) else (
             del /q "!CACHE!\sources.stamp" >nul 2>&1
         )
         echo   [OK] Common/GameAPI library built and cached
     ) else (
-        del /q "!CACHE!\sources.new" >nul 2>&1
         echo   Using cached Common/GameAPI library
     )
 
@@ -279,8 +281,7 @@ if !BUILD_DLL! EQU 1 (
         echo ERROR: DLL compilation failed!
         echo Check build.log for details.
         type build.log
-        pause
-        exit /b 1
+        goto :fail
     )
 
     echo   [OK] DLL compiled successfully: windows_x86.dll
@@ -336,8 +337,7 @@ if !BUILD_DLL! EQU 1 (
     ) else (
         echo   ERROR: windows_x86.dll not found after build!
         rmdir /s /q "temp_package"
-        pause
-        exit /b 1
+        goto :fail
     )
 )
 
@@ -353,8 +353,7 @@ if exist "!PATCH_NAME!.zip" (
 ) else (
     echo   ERROR: Failed to create ZIP archive
     rmdir /s /q "temp_package"
-    pause
-    exit /b 1
+    goto :fail
 )
 
 REM Clean up temp directory
@@ -378,8 +377,7 @@ if exist "!PATCH_NAME!.kpatch" (
     echo.
 ) else (
     echo   ERROR: Package verification failed
-    pause
-    exit /b 1
+    goto :fail
 )
 
 REM Clean up build artifacts. build\ holds this patch's objects and import library;
@@ -391,4 +389,21 @@ if exist "build" rmdir /s /q "build" >nul 2>&1
 del *.obj *.lib *.exp build.log >nul 2>&1
 
 if not defined SKIP_PAUSE pause
+exit /b 0
 
+REM =============================================================================
+REM Failure exit
+REM =============================================================================
+REM Every error path above jumps here instead of running "exit /b 1" in place.
+REM An "exit /b 1" inside a parenthesized block does end the script, but the exit
+REM code does not survive back out to "cmd /c create-patch.bat", which then
+REM reported success -- so a failed build looked like a passing one to any caller,
+REM including publish-patches.ps1. Reached from top level, after the block
+REM structure has been left via goto, the code propagates correctly.
+REM
+REM The pause also lives here rather than at each error site, so that a scripted
+REM build (SKIP_PAUSE set) fails straight through instead of blocking forever on
+REM a "Press any key" that nobody is there to press.
+:fail
+if not defined SKIP_PAUSE pause
+exit /b 1
