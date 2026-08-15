@@ -1,5 +1,13 @@
 #include "trig.h"
 
+
+static const double kPi = 3.14159265358979323846;
+static const double kDegToRad = kPi / 180.0;
+static const double kRadToDeg = 180.0 / kPi;
+
+
+static const double kTrigEpsilon = 1e-6;
+
 VirtualMachineReturnTypes __stdcall ExecuteCommandTrig(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
 		debugLog("[ScriptExtender] Wrong number of Params for ExecuteCommandTrig, expected 1, got %d", paramCount);
@@ -9,26 +17,40 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandTrig(DWORD routine, int paramC
 	CVirtualMachine* vm = CVirtualMachine::GetInstance();
 	if (!vm) return COMMAND_PARAM_ERROR;
 
-	float input;
-	if (!vm->StackPopFloat(&input)) {
+	float fValue;
+	if (!vm->StackPopFloat(&fValue)) {
 		delete vm;
 		return COMMAND_PARAM_ERROR;
 	}
 
-	float output;
+	double radians = (double)fValue * kDegToRad;
+	double numerator = 0.0;
+	double denominator = 1.0;
+
 	switch (routine) {
 	case secIndex:
-		output = (float)(1 / cos((double)input));
+		numerator = 1.0;
+		denominator = cos(radians);
 		break;
 	case cscIndex:
-		output = (float)(1 / sin((double)input));
+		numerator = 1.0;
+		denominator = sin(radians);
 		break;
 	case cotIndex:
-		output = (float)(cos((double)input) / sin((double)input));
+		numerator = cos(radians);
+		denominator = sin(radians);
 		break;
 	default:
 		delete vm;
 		return COMMAND_NOT_FOUND;
+	}
+
+	float output = 0.0f;
+	if (fabs(denominator) <= kTrigEpsilon) {
+		debugLog("[ScriptExtender] Trig routine %d is undefined at %f degrees, returning 0.0", routine, fValue);
+	}
+	else {
+		output = (float)(numerator / denominator);
 	}
 
 	if (!vm->StackPushFloat(output)) {
@@ -55,7 +77,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandRadToDeg(DWORD routine, int pa
 		return COMMAND_PARAM_ERROR;
 	}
 
-	float degrees = radians * (180 / M_PI);
+	float degrees = (float)((double)radians * kRadToDeg);
 
 	if (!vm->StackPushFloat(degrees)) {
 		delete vm;
@@ -81,7 +103,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandDegToRad(DWORD routine, int pa
 		return COMMAND_PARAM_ERROR;
 	}
 
-	float radians = degrees * (M_PI / 180);
+	float radians = (float)((double)degrees * kDegToRad);
 
 	if (!vm->StackPushFloat(radians)) {
 		delete vm;

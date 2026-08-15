@@ -5311,10 +5311,22 @@ void IncrementGlobalNumber( string sIdentifier, int nAmount );
 void DecrementGlobalNumber( string sIdentifier, int nAmount );
 
 // 794. Math operation: secant of fValue
+// fValue is in degrees, matching cos/sin/tan.
+// * Returns zero where secant is undefined, i.e. at 90.0 + 180.0 * n degrees
 float sec(float fValue);
 
 // 795. Math operation: cosecant of fValue
+// fValue is in degrees, matching cos/sin/tan.
+// * Returns zero where cosecant is undefined, i.e. at 180.0 * n degrees
 float csc(float fValue);
 
 // 796. Math operation: cotangent of fValue
+// fValue is in degrees, matching cos/sin/tan.
+// * Returns zero where cotangent is undefined, i.e. at 180.0 * n degrees
 float cot(float fValue);
+
+// 797. Math operation: convert fRadians to degrees
+float RadToDeg(float fRadians);
+
+// 798. Math operation: convert fDegrees to radians
+float DegToRad(float fDegrees);

@@ -1,7 +1,6 @@
 #pragma once
 #include "Common.h"
 #include "GameAPI/CVirtualMachine.h"
-#define _USE_MATH_DEFINES
 #include <math.h>
 
 const int secIndex = 794;
