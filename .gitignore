@@ -396,3 +396,13 @@ Patches/K2AspyrFogReflectionFix/create-patch.bat
 *ActiveParty*
 *K1K2*
 
+
+# Patch build artifacts.
+# Patches/build holds the cached Common.lib (and its objects) shared by every
+# DETOUR patch build. It is not checked in: a static library is tied to the MSVC
+# toolset that produced it, it is megabytes of binary churn, and the MinGW build
+# needs a different archive anyway. A fresh clone rebuilds it once (~4s).
+Patches/build/
+Patches/*/build/
+Patches/*/windows_x86.dll
+Patches/*/build.log

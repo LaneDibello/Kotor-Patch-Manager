@@ -151,23 +151,11 @@ if !BUILD_DLL! EQU 1 (
         )
     )
 
-    REM Compile all .cpp files into one DLL
-    echo   Compiling DLL from !CPP_COUNT! source file^(s^)...
+    REM Collect this patch's own sources (root plus immediate subdirectories).
     set CPP_FILES=
     for %%F in (*.cpp) do set CPP_FILES=!CPP_FILES! "%%F"
     for /d %%D in (*) do (
         for %%F in ("%%D\*.cpp") do set CPP_FILES=!CPP_FILES! "%%F"
-    )
-
-    REM Add Common directory files if they exist (including subdirectories)
-    set COMMON_FILES=
-    if exist "..\Common\*.cpp" (
-        for %%F in (..\Common\*.cpp) do set COMMON_FILES=!COMMON_FILES! "%%F"
-        echo   Including Common library files...
-    )
-    if exist "..\Common\GameAPI\*.cpp" (
-        for %%F in (..\Common\GameAPI\*.cpp) do set COMMON_FILES=!COMMON_FILES! "%%F"
-        echo   Including GameAPI library files...
     )
 
     REM /MT (static CRT), not /MD: statically link the Visual C++ runtime into the
@@ -175,7 +163,116 @@ if !BUILD_DLL! EQU 1 (
     REM not guaranteed on a user's machine or in a Wine/Proton prefix). This matches
     REM the MinGW build in create-patch.py (-static -static-libgcc -static-libstdc++)
     REM and keeps patch DLLs self-contained -- sqlite3.dll stays the only bundled dep.
-    cl /LD /O2 /MT /W3 /EHsc /std:c++17 /I"..\Common" /I"..\..\lib" !CPP_FILES! !COMMON_FILES! /link /DEF:exports.def /LIBPATH:"..\..\lib" sqlite3.lib /OUT:windows_x86.dll >build.log 2>&1
+    set FLAGS=/O2 /MT /W3 /EHsc /std:c++17 /I"..\Common" /I"..\..\lib"
+
+    REM Start a fresh log. A failed build leaves build.log behind (the cleanup at
+    REM the end only runs on success), and the steps below append to it, so without
+    REM this a later run would show the previous run's errors mixed in with its own.
+    del build.log >nul 2>&1
+
+    REM =========================================================================
+    REM Shared Common/GameAPI static library (cached)
+    REM =========================================================================
+    REM Every DETOUR patch used to recompile all ~48 Common/GameAPI translation
+    REM units, which dominated build time (26.6s of a 30.4s ScriptExtender build)
+    REM even for a patch that touches none of the GUI classes. Compile them once
+    REM into Common.lib and cache it instead. Linking against a static library
+    REM preserves the "only pay for what you use" property automatically: the
+    REM linker pulls a member object in only to resolve an undefined symbol, so a
+    REM patch that references no GUI classes links no GUI code. The resulting DLL
+    REM is unchanged -- this is purely a compile-time saving.
+    REM
+    REM The cache is keyed by MSVC toolset version, because a static library is
+    REM only guaranteed to link against objects from the same toolset.
+    REM
+    REM It lives in Patches\build, deliberately NOT inside Patches\Common: the cache
+    REM key is computed by walking the Common tree, so a cache stored under Common
+    REM would contain its own Common.lib and object files, whose timestamps change
+    REM on every rebuild. That is a permanent cache miss, and a silent one.
+    set TOOLSET=!VCToolsVersion!
+    if not defined TOOLSET set TOOLSET=unknown
+    set CACHE=..\build\common\msvc-!TOOLSET!-x86
+    if not exist "!CACHE!\obj" mkdir "!CACHE!\obj" >nul 2>&1
+
+    REM Staleness check: the compile flags, followed by one line per Common source
+    REM and header carrying its size and last-write time (see common-cache-key.ps1
+    REM for why that is generated in PowerShell rather than with `dir` here).
+    REM Editing, adding, or deleting any of them changes a line and rebuilds.
+    > "!CACHE!\sources.new" echo !FLAGS!
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0common-cache-key.ps1" -CommonDir "..\Common" >> "!CACHE!\sources.new"
+    if !ERRORLEVEL! NEQ 0 (
+        echo   WARNING: could not compute the Common cache key; rebuilding the library.
+        del /q "!CACHE!\sources.new" >nul 2>&1
+    )
+
+    REM Rebuild unless the library, the previous stamp, and a freshly computed key
+    REM all exist and agree. Every failure mode above lands on "rebuild", so a
+    REM missing or unreadable key costs time, never correctness.
+    set REBUILD_COMMON=1
+    if exist "!CACHE!\Common.lib" (
+        if exist "!CACHE!\sources.stamp" (
+            if exist "!CACHE!\sources.new" (
+                fc /b "!CACHE!\sources.new" "!CACHE!\sources.stamp" >nul 2>&1
+                if !ERRORLEVEL! EQU 0 set REBUILD_COMMON=0
+            )
+        )
+    )
+
+    if !REBUILD_COMMON! EQU 1 (
+        echo   Building Common/GameAPI library ^(cache miss^)...
+
+        REM /MP compiles the translation units in parallel, which is the single
+        REM biggest win here. It requires /Fo to name a directory: object files are
+        REM named after the source basename, so without a private output directory
+        REM Common\GameAPI\Camera.obj and a patch's own Camera.obj would collide --
+        REM silently overwriting each other in a serial build, and racing under /MP.
+        del /q "!CACHE!\obj\*.obj" >nul 2>&1
+        cl /c /nologo /MP !FLAGS! /Fo"!CACHE!\obj\\" ..\Common\*.cpp ..\Common\GameAPI\*.cpp >build.log 2>&1
+        if !ERRORLEVEL! NEQ 0 (
+            echo.
+            echo ERROR: Common library compilation failed!
+            echo Check build.log for details.
+            type build.log
+            pause
+            exit /b 1
+        )
+
+        REM The path is relative and space-free, so lib.exe expands the wildcard
+        REM itself; quoting it would defeat that.
+        lib /nologo /OUT:"!CACHE!\Common.lib" !CACHE!\obj\*.obj >>build.log 2>&1
+        if !ERRORLEVEL! NEQ 0 (
+            echo.
+            echo ERROR: Common library archiving failed!
+            type build.log
+            pause
+            exit /b 1
+        )
+
+        REM Stamp last, so a failed or interrupted build leaves the cache marked
+        REM stale rather than marked valid with a half-built library. If the key
+        REM could not be computed at all, drop the stamp so the next build rebuilds
+        REM instead of trusting a stamp that describes an older tree.
+        if exist "!CACHE!\sources.new" (
+            move /y "!CACHE!\sources.new" "!CACHE!\sources.stamp" >nul
+        ) else (
+            del /q "!CACHE!\sources.stamp" >nul 2>&1
+        )
+        echo   [OK] Common/GameAPI library built and cached
+    ) else (
+        del /q "!CACHE!\sources.new" >nul 2>&1
+        echo   Using cached Common/GameAPI library
+    )
+
+    REM =========================================================================
+    REM Compile this patch and link it against the cached library
+    REM =========================================================================
+    echo   Compiling DLL from !CPP_COUNT! source file^(s^)...
+    if not exist "build\obj" mkdir "build\obj" >nul 2>&1
+    del /q "build\obj\*.obj" >nul 2>&1
+
+    REM /IMPLIB redirects the import library (and its .exp) into build\ so they do
+    REM not land beside the patch sources and get swept up by the cleanup below.
+    cl /LD /nologo /MP !FLAGS! /Fo"build\obj\\" !CPP_FILES! /link /DEF:exports.def /LIBPATH:"..\..\lib" sqlite3.lib "!CACHE!\Common.lib" /IMPLIB:"build\windows_x86.lib" /OUT:windows_x86.dll >>build.log 2>&1
 
     if !ERRORLEVEL! NEQ 0 (
         echo.
@@ -285,8 +382,12 @@ if exist "!PATCH_NAME!.kpatch" (
     exit /b 1
 )
 
-REM Clean up build artifacts
+REM Clean up build artifacts. build\ holds this patch's objects and import library;
+REM the loose del also clears artifacts left in the patch root by older builds of
+REM this script, which compiled straight into the source directory. The cached
+REM Common library under Patches\build is deliberately kept -- that is the point.
 echo Cleaning up build artifacts...
+if exist "build" rmdir /s /q "build" >nul 2>&1
 del *.obj *.lib *.exp build.log >nul 2>&1
 
 if not defined SKIP_PAUSE pause
