@@ -1,11 +1,8 @@
 #include "trig.h"
 
-
 static const double kPi = 3.14159265358979323846;
 static const double kDegToRad = kPi / 180.0;
 static const double kRadToDeg = 180.0 / kPi;
-
-
 static const double kTrigEpsilon = 1e-6;
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandTrig(DWORD routine, int paramCount) {
