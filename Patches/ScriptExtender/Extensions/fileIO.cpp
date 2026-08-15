@@ -2,7 +2,7 @@
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandOpenFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
-		debugLog("[PATCH] Wrong number of params found in ExecuteCommandOpenFile. Expected 2, got %i", paramCount);
+		debugLog("[ScriptExtender] Wrong number of params found in ExecuteCommandOpenFile. Expected 2, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
 		if (vm) {
 			vm->StackPushInteger(0);
@@ -26,13 +26,13 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandOpenFile(DWORD routine, int pa
 		return COMMAND_PARAM_ERROR;
 	}
 
-	debugLog("[PATCH] Opening file '%s' with mode '%s'", filename.GetCStr(), mode.GetCStr());
+	debugLog("[ScriptExtender] Opening file '%s' with mode '%s'", filename.GetCStr(), mode.GetCStr());
 
 	FILE* f;
 	errno_t err = fopen_s(&f, filename.GetCStr(), mode.GetCStr());
 
 	if (err) {
-		debugLog("[PATCH] Failed to Open File '%s', with mode '%s, and error %i'", filename.GetCStr(), mode.GetCStr(), err);
+		debugLog("[ScriptExtender] Failed to Open File '%s', with mode '%s, and error %i'", filename.GetCStr(), mode.GetCStr(), err);
 		vm->StackPushInteger(0);
 		delete vm;
 		return SUCCESS;
@@ -45,7 +45,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandOpenFile(DWORD routine, int pa
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandCloseFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
-		debugLog("[PATCH] Wrong number of params found in ExecuteCommandCloseFile. Expected 1, got %i", paramCount);
+		debugLog("[ScriptExtender] Wrong number of params found in ExecuteCommandCloseFile. Expected 1, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
 		if (vm) {
 			vm->StackPushInteger(0);
@@ -66,13 +66,13 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandCloseFile(DWORD routine, int p
 	FILE* f = (FILE*)file;
 
 	if (fclose(f)) {
-		debugLog("[PATCH] Failed to Close File Stream at '%p'", f);
+		debugLog("[ScriptExtender] Failed to Close File Stream at '%p'", f);
 		vm->StackPushInteger(0);
 		delete vm;
 		return SUCCESS;
 	}
 
-	debugLog("[PATCH] Closing file with handle '%p'", f);
+	debugLog("[ScriptExtender] Closing file with handle '%p'", f);
 
 	vm->StackPushInteger(1);
 	delete vm;
@@ -81,7 +81,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandCloseFile(DWORD routine, int p
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandReadTextFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
-		debugLog("[PATCH] Wrong number of params found in ExecuteCommandReadTextFile. Expected 2, got %i", paramCount);
+		debugLog("[ScriptExtender] Wrong number of params found in ExecuteCommandReadTextFile. Expected 2, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
 		if (vm) {
 			vm->StackPushInteger(0);
@@ -123,7 +123,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandReadTextFile(DWORD routine, in
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandWriteTextFile(DWORD routine, int paramCount) {
 	if (paramCount != 2) {
-		debugLog("[PATCH] Wrong number of params found in ExecuteCommandWriteTextFile. Expected 2, got %i", paramCount);
+		debugLog("[ScriptExtender] Wrong number of params found in ExecuteCommandWriteTextFile. Expected 2, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
 		if (vm) {
 			vm->StackPushInteger(0);
@@ -162,7 +162,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandWriteTextFile(DWORD routine, i
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandPeakCharFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
-		debugLog("[PATCH] Wrong number of params found in ExecuteCommandPeakCharFile. Expected 1, got %i", paramCount);
+		debugLog("[ScriptExtender] Wrong number of params found in ExecuteCommandPeakCharFile. Expected 1, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
 		if (vm) {
 			CExoString empty("", 0);
@@ -185,7 +185,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandPeakCharFile(DWORD routine, in
 
 	int c = fgetc(f);
 	if (c == EOF) {
-		debugLog("[PATCH] PeakCharFile: EOF or error reading from file handle '%p'", f);
+		debugLog("[ScriptExtender] PeakCharFile: EOF or error reading from file handle '%p'", f);
 		CExoString empty("", 0);
 		vm->StackPushString(&empty);
 		delete vm;
@@ -208,7 +208,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandPeakCharFile(DWORD routine, in
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandSeekFile(DWORD routine, int paramCount) {
 	if (paramCount != 3) {
-		debugLog("[PATCH] Wrong number of params found in ExecuteCommandSeekFile. Expected 3, got %i", paramCount);
+		debugLog("[ScriptExtender] Wrong number of params found in ExecuteCommandSeekFile. Expected 3, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
 		if (vm) {
 			vm->StackPushInteger(0);
@@ -244,7 +244,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandSeekFile(DWORD routine, int pa
 	int result = fseek(f, offset, origin);
 
 	if (result != 0) {
-		debugLog("[PATCH] SeekFile: fseek failed on file handle '%p', offset %d, origin %d", f, offset, origin);
+		debugLog("[ScriptExtender] SeekFile: fseek failed on file handle '%p', offset %d, origin %d", f, offset, origin);
 		vm->StackPushInteger(0);
 		delete vm;
 		return SUCCESS;
@@ -257,7 +257,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandSeekFile(DWORD routine, int pa
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandTellFile(DWORD routine, int paramCount) {
 	if (paramCount != 1) {
-		debugLog("[PATCH] Wrong number of params found in ExecuteCommandTellFile. Expected 1, got %i", paramCount);
+		debugLog("[ScriptExtender] Wrong number of params found in ExecuteCommandTellFile. Expected 1, got %i", paramCount);
 		CVirtualMachine* vm = CVirtualMachine::GetInstance();
 		if (vm) {
 			vm->StackPushInteger(-1);
@@ -280,7 +280,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandTellFile(DWORD routine, int pa
 	long position = ftell(f);
 
 	if (position == -1L) {
-		debugLog("[PATCH] TellFile: ftell failed on file handle '%p'", f);
+		debugLog("[ScriptExtender] TellFile: ftell failed on file handle '%p'", f);
 	}
 
 	if (!vm->StackPushInteger((int)position)) {

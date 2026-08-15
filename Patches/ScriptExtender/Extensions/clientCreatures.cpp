@@ -2,7 +2,7 @@
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandIsRunning(DWORD routine, int paramCount)
 {
-	debugLog("[PATCH] Running IsRunning");
+	debugLog("[ScriptExtender] Running IsRunning");
 
 	int outcome = 0;
 
@@ -44,7 +44,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandIsRunning(DWORD routine, int p
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandIsStealthed(DWORD routine, int paramCount)
 {
-	debugLog("[PATCH] Running IsStealthed");
+	debugLog("[ScriptExtender] Running IsStealthed");
 
 	int outcome = 0;
 
