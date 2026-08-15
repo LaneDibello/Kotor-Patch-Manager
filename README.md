@@ -158,6 +158,13 @@ You can contact Lane on Discord @lane_d
 Related [DeadlyStream thread](https://deadlystream.com/topic/11948-kotor-1-gog-reverse-engineering/)
 My [YouTube Channel](https://www.youtube.com/@lane_m)
 
+## License
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for the full text.
+
+Third-party components keep their own licenses: `tomlplusplus` is MIT, and the bundled SQLite is public domain.
+
+This project is an unofficial fan work. It is not affiliated with, authorized by, or endorsed by BioWare, Obsidian Entertainment, LucasArts, Aspyr, or Disney. Star Wars: Knights of the Old Republic and all related trademarks are the property of their respective owners. No original game assets or executables are distributed here; you must own a copy of the game.
+
 ## Acknowledgements
 Special thanks to the KotOR modding community for providing feedback and ideation for various features here.
 
