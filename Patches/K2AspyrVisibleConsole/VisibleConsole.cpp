@@ -1,189 +1,122 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <gl/GL.h>
+#include <cstring>
 
 #pragma comment(lib, "opengl32.lib")
-#pragma comment(lib, "gdi32.lib")
 
 namespace {
+constexpr uintptr_t kConsoleGlyphsAddress = 0x009F5508;
 constexpr int kFirstGlyph = 32;
-constexpr int kGlyphCount = 96;
-constexpr int kCharCellWidth = 12;
-constexpr int kCharCellHeight = 20;
-constexpr int kMaxTextLength = 512;
+constexpr int kGlyphCount = 95;
+constexpr int kGlyphWidth = 8;
+constexpr int kGlyphHeight = 13;
+constexpr int kGlyphAdvance = 10;
+constexpr int kLineAdvance = 14;
 
-struct FontState {
-    HGLRC context = nullptr;
-    GLuint listBase = 0;
-};
+GLuint gFontListBase = 0;
 
-FontState g_font;
-
-void DeleteFontLists()
+bool EnsureConsoleFont()
 {
-    if (g_font.listBase != 0) {
-        glDeleteLists(g_font.listBase, kGlyphCount);
-    }
-    g_font = {};
-}
-
-bool EnsureFont()
-{
-    HGLRC context = wglGetCurrentContext();
-    HDC dc = wglGetCurrentDC();
-    if (context == nullptr || dc == nullptr) {
-        return false;
-    }
-
-    if (g_font.listBase != 0 && g_font.context == context) {
+    if (gFontListBase != 0 && glIsList(gFontListBase + kFirstGlyph) == GL_TRUE) {
         return true;
     }
 
-    DeleteFontLists();
-
-    HFONT font = CreateFontA(
-        18, 10, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET,
-        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
-        FIXED_PITCH | FF_MODERN, "Terminal");
-    if (font == nullptr) {
-        font = CreateFontA(
-            18, 10, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET,
-            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, NONANTIALIASED_QUALITY,
-            FIXED_PITCH | FF_MODERN, "Fixedsys");
-    }
-    if (font == nullptr) {
-        font = static_cast<HFONT>(GetStockObject(SYSTEM_FIXED_FONT));
-    }
-
-    HGDIOBJ oldFont = SelectObject(dc, font);
-    GLuint listBase = glGenLists(kGlyphCount);
-    if (listBase == 0) {
-        SelectObject(dc, oldFont);
-        if (font != GetStockObject(SYSTEM_FIXED_FONT)) {
-            DeleteObject(font);
-        }
+    gFontListBase = glGenLists(128);
+    if (gFontListBase == 0) {
         return false;
     }
 
-    if (!wglUseFontBitmapsA(dc, kFirstGlyph, kGlyphCount, listBase)) {
-        glDeleteLists(listBase, kGlyphCount);
-        SelectObject(dc, oldFont);
-        if (font != GetStockObject(SYSTEM_FIXED_FONT)) {
-            DeleteObject(font);
-        }
-        return false;
+    GLint unpackAlignment = 4;
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &unpackAlignment);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+    const auto* glyphs = reinterpret_cast<const GLubyte*>(kConsoleGlyphsAddress);
+    for (int index = 0; index < kGlyphCount; ++index) {
+        glNewList(gFontListBase + kFirstGlyph + index, GL_COMPILE);
+        glBitmap(
+            kGlyphWidth,
+            kGlyphHeight,
+            0.0f,
+            2.0f,
+            static_cast<GLfloat>(kGlyphAdvance),
+            0.0f,
+            glyphs + index * kGlyphHeight);
+        glEndList();
     }
 
-    SelectObject(dc, oldFont);
-    if (font != GetStockObject(SYSTEM_FIXED_FONT)) {
-        DeleteObject(font);
-    }
-
-    g_font.context = context;
-    g_font.listBase = listBase;
+    glPixelStorei(GL_UNPACK_ALIGNMENT, unpackAlignment);
     return true;
 }
-
-int StringLength(const char* text)
-{
-    int length = 0;
-    while (text[length] != '\0' && length < kMaxTextLength) {
-        ++length;
-    }
-    return length;
 }
 
-void DrawTextLine(const char* text, int column, int line)
+void DrawConsoleBitmapText(const char* text, int column, int row)
 {
-    if (text == nullptr || text[0] == '\0' || !EnsureFont()) {
+    if (text == nullptr || text[0] == '\0') {
         return;
     }
 
     GLint viewport[4] = {};
     glGetIntegerv(GL_VIEWPORT, viewport);
-    int width = viewport[2];
-    int height = viewport[3];
-    if (width <= 0 || height <= 0) {
+    if (viewport[2] < 300 || viewport[3] < 100 || !EnsureConsoleFont()) {
         return;
     }
 
-    char buffer[kMaxTextLength + 1] = {};
-    int length = StringLength(text);
-    for (int i = 0; i < length; ++i) {
-        unsigned char ch = static_cast<unsigned char>(text[i]);
-        buffer[i] = (ch < kFirstGlyph || ch >= kFirstGlyph + kGlyphCount)
-            ? ' '
-            : static_cast<char>(ch);
-    }
-    buffer[length] = '\0';
-
-    int rows = height / kCharCellHeight;
-    int columns = width / kCharCellWidth;
-    if (rows <= 0 || columns <= 0) {
-        return;
-    }
-
-    if (line >= rows) {
-        line = rows - 1;
-    }
-    if (line < 0) {
-        line += rows;
-        if (line < 0) {
-            line = 0;
-        }
-    }
-
+    const int columns = viewport[2] / kGlyphAdvance;
+    const int rows = viewport[3] / kLineAdvance;
     if (column < 0) {
-        column = column + 1 + (columns - length);
-    }
-    if (column + length > columns) {
-        column = columns - length;
+        column += columns - static_cast<int>(std::strlen(text)) + 1;
     }
     if (column < 0) {
         column = 0;
+    } else if (column >= columns) {
+        column = columns - 1;
+    }
+    if (row < 0) {
+        row += rows;
+    }
+    if (row < 0) {
+        row = 0;
+    } else if (row >= rows) {
+        row = rows - 1;
     }
 
-    int rasterLine = rows - line - 1;
-    float x = static_cast<float>(column) / static_cast<float>(columns);
-    float y = static_cast<float>(rasterLine) / static_cast<float>(rows);
-
-    glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT | GL_LIST_BIT | GL_TRANSFORM_BIT);
+    glPushAttrib(GL_CURRENT_BIT | GL_DEPTH_BUFFER_BIT | GL_ENABLE_BIT |
+                 GL_LIGHTING_BIT | GL_LIST_BIT | GL_TEXTURE_BIT);
     glDisable(GL_TEXTURE_2D);
-    glDisable(GL_DEPTH_TEST);
     glDisable(GL_LIGHTING);
+    glDisable(GL_DEPTH_TEST);
 
+    GLint previousMatrixMode = GL_MODELVIEW;
+    glGetIntegerv(GL_MATRIX_MODE, &previousMatrixMode);
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
-    glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
+    glOrtho(0.0, 1.0, -1.0, 1.0, 0.0, 10.0);
 
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    GLfloat color[4] = {};
-    glGetFloatv(GL_CURRENT_COLOR, color);
-    if (color[3] <= 0.01f) {
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    }
-
-    glRasterPos2f(x, y);
-    glListBase(g_font.listBase - kFirstGlyph);
-    glCallLists(length, GL_UNSIGNED_BYTE, buffer);
+    glRasterPos2f(
+        static_cast<GLfloat>(column) / static_cast<GLfloat>(columns),
+        1.0f - (2.0f * static_cast<GLfloat>(
+            row * kLineAdvance + kGlyphHeight - 2) / static_cast<GLfloat>(viewport[3])));
+    glListBase(gFontListBase);
+    glCallLists(
+        static_cast<GLsizei>(std::strlen(text)),
+        GL_UNSIGNED_BYTE,
+        reinterpret_cast<const GLubyte*>(text));
 
     glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
+    glMatrixMode(previousMatrixMode);
     glPopAttrib();
 }
-}
 
-extern "C" void __cdecl DrawVisibleConsoleText(const char** textSlot, const int* columnSlot, const int* lineSlot)
+extern "C" void __cdecl DrawConsoleBitmapTextHook(
+    const char* const* textSlot,
+    const int* columnSlot,
+    const int* rowSlot)
 {
-    if (textSlot == nullptr || columnSlot == nullptr || lineSlot == nullptr) {
+    if (textSlot == nullptr || columnSlot == nullptr || rowSlot == nullptr) {
         return;
     }
 
-    DrawTextLine(*textSlot, *columnSlot, *lineSlot);
+    DrawConsoleBitmapText(*textSlot, *columnSlot, *rowSlot);
 }
