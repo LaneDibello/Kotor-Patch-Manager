@@ -46,8 +46,8 @@ type = "pointer"
 source = "ebp"
 type = "int"
 [[hooks.parameters]]
-source = "esp+76"
-type = "int"
+source = "esp+76" # Address of the checked-success stack slot.
+type = "pointer"
 
 [[hooks]]
 address = 0x00519214
@@ -60,8 +60,8 @@ exclude_from_restore = []
 source = "edi"
 type = "pointer"
 [[hooks.parameters]]
-source = "esp+20"
-type = "int"
+source = "esp+20" # Address of the recovery-DC stack slot.
+type = "pointer"
 [[hooks.parameters]]
-source = "esp+40"
-type = "int"
+source = "esp+40" # Address of the no-check-recovery stack slot.
+type = "pointer"

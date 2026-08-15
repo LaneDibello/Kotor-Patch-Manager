@@ -1,6 +1,3 @@
-// K1SecurityDemolitionsXP.cpp
-// Source-only KotorPatchManager detour patch for KOTOR1 GOG 1.03.
-
 #include <cstdint>
 #include <cstddef>
 
@@ -131,16 +128,16 @@ extern "C" void __cdecl AwardSecurityUnlockXP(void* object, int openLockDc)
     AwardXP(CreatureFromObject(object), openLockDc, 5, 10);
 }
 
-extern "C" void __cdecl AwardMineDisarmXP(void* creature, int disarmDc, int checkedSuccess)
+extern "C" void __cdecl AwardMineDisarmXP(void* creature, int disarmDc, const int* checkedSuccess)
 {
-    if (checkedSuccess > 0) {
+    if (checkedSuccess && *checkedSuccess > 0) {
         AwardXP(creature, disarmDc, 10, 15);
     }
 }
 
-extern "C" void __cdecl AwardMineRecoverXP(void* creature, int recoverDc, int noCheckRecovery)
+extern "C" void __cdecl AwardMineRecoverXP(void* creature, const int* recoverDc, const int* noCheckRecovery)
 {
-    if (noCheckRecovery == 0) {
-        AwardXP(creature, recoverDc, 10, 15);
+    if (recoverDc && noCheckRecovery && *noCheckRecovery == 0) {
+        AwardXP(creature, *recoverDc, 10, 15);
     }
 }
