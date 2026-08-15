@@ -1,7 +1,7 @@
 [patch]
 id = "k1-security-demolitions-xp"
 name = "KOTOR 1 Security and Demolitions XP Rewards"
-version = "1.0.0"
+version = "1.0.1"
 author = "Vriff"
 description = "Adds XP rewards for successful Security unlocks and Demolitions mine disarm/recover actions."
 requires = []
