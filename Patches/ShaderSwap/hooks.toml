@@ -1,2 +1,3 @@
-# ShaderSwap is a DLL-only patch. It hooks wglGetProcAddress and receives embedded
-# replacements registered by dependent provider DLLs.
+# ShaderSwap is a DLL-only patch. It detours OpenGL extension resolution and the
+# resolved glProgramStringARB driver entry point, then applies replacements
+# registered by dependent provider DLLs.

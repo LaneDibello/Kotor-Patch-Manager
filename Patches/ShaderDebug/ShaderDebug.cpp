@@ -1,5 +1,4 @@
 #include <windows.h>
-
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
@@ -9,6 +8,8 @@
 #include <mutex>
 #include <string>
 #include <vector>
+
+#include "X86InlineDetour.h"
 
 typedef unsigned int GLenum;
 typedef int GLsizei;
@@ -86,6 +87,18 @@ namespace {
     GlProgramStringArbFn g_originalProgramStringArb = nullptr;
     GlBindProgramArbFn g_originalBindProgramArb = nullptr;
 
+    enum class HookMode {
+        Uninitialized,
+        Detoured,
+        WrapperFallback,
+    };
+
+    x86hook::InlineDetour g_wglGetProcAddressDetour;
+    x86hook::InlineDetour g_programStringDetour;
+    x86hook::InlineDetour g_bindProgramDetour;
+    HookMode g_programStringHookMode = HookMode::Uninitialized;
+    HookMode g_bindProgramHookMode = HookMode::Uninitialized;
+
     WglGetCurrentContextFn g_wglGetCurrentContext = nullptr;
     WglUseFontBitmapsAFn g_wglUseFontBitmapsA = nullptr;
     GetAsyncKeyStateFn g_getAsyncKeyState = nullptr;
@@ -113,6 +126,7 @@ namespace {
 
     std::mutex g_logMutex;
     std::mutex g_shaderMutex;
+    std::mutex g_detourMutex;
 
     std::map<std::string, ShaderEntry> g_shaders;
     std::vector<std::string> g_shaderOrder;
@@ -634,6 +648,48 @@ namespace {
         g_glPopMatrix();
         g_glPopAttrib();
     }
+    void WINAPI MyGlProgramString(GLenum target, GLenum format, GLsizei len, const void* string);
+    void WINAPI MyGlBindProgram(GLenum target, GLuint program);
+
+    template <typename FunctionType>
+    PROC ResolveDetouredEntry(
+        const char* name,
+        PROC resolved,
+        x86hook::InlineDetour& detour,
+        HookMode& mode,
+        PROC wrapper,
+        FunctionType& original) {
+        if (!resolved) {
+            return nullptr;
+        }
+
+        std::lock_guard<std::mutex> lock(g_detourMutex);
+        if (mode == HookMode::Uninitialized) {
+            if (detour.Install(reinterpret_cast<void*>(resolved), reinterpret_cast<void*>(wrapper))) {
+                original = reinterpret_cast<FunctionType>(detour.Original());
+                mode = HookMode::Detoured;
+                LogMessage(std::string("Resolved ") + name + " -> driver entry point detoured");
+                return resolved;
+            }
+
+            original = reinterpret_cast<FunctionType>(resolved);
+            mode = HookMode::WrapperFallback;
+            LogMessage(std::string("Resolved ") + name + " -> wrapper fallback");
+            return wrapper;
+        }
+
+        if (mode == HookMode::Detoured) {
+            if (detour.Covers(reinterpret_cast<void*>(resolved))) {
+                return resolved;
+            }
+        } else if (reinterpret_cast<PROC>(original) == resolved) {
+            return wrapper;
+        }
+
+        LogMessage(std::string("Resolved ") + name + " -> different entry point left unchanged");
+        return resolved;
+    }
+
     void WINAPI MyGlProgramString(GLenum target, GLenum format, GLsizei len, const void* string) {
         if (!g_originalProgramStringArb) {
             LogMessage("MyGlProgramString invoked before original function was captured");
@@ -704,22 +760,29 @@ namespace {
         }
 
         if (std::strcmp(name, "glProgramString") == 0 || std::strcmp(name, "glProgramStringARB") == 0) {
-            g_originalProgramStringArb = reinterpret_cast<GlProgramStringArbFn>(resolved);
-            LogMessage(std::string("Resolved ") + name + " -> hooked");
-            return reinterpret_cast<PROC>(&MyGlProgramString);
+            return ResolveDetouredEntry(
+                name,
+                resolved,
+                g_programStringDetour,
+                g_programStringHookMode,
+                reinterpret_cast<PROC>(&MyGlProgramString),
+                g_originalProgramStringArb);
         }
 
         if (std::strcmp(name, "glBindProgramARB") == 0 || std::strcmp(name, "glBindProgram") == 0) {
-            g_originalBindProgramArb = reinterpret_cast<GlBindProgramArbFn>(resolved);
-            LogMessage(std::string("Resolved ") + name + " -> hooked");
-            return reinterpret_cast<PROC>(&MyGlBindProgram);
+            return ResolveDetouredEntry(
+                name,
+                resolved,
+                g_bindProgramDetour,
+                g_bindProgramHookMode,
+                reinterpret_cast<PROC>(&MyGlBindProgram),
+                g_originalBindProgramArb);
         }
 
         return resolved;
     }
 
-    bool PatchMainModuleIat(const char* importedModule, const char* functionName, void* replacement, void** originalOut) {
-        HMODULE module = GetModuleHandleA(nullptr);
+    bool PatchModuleIat(HMODULE module, const char* importedModule, const char* functionName, void* replacement, void** originalOut) {
         if (!module) {
             return false;
         }
@@ -770,6 +833,10 @@ namespace {
         return false;
     }
 
+    bool PatchMainModuleIat(const char* importedModule, const char* functionName, void* replacement, void** originalOut) {
+        return PatchModuleIat(GetModuleHandleA(nullptr), importedModule, functionName, replacement, originalOut);
+    }
+
     DWORD WINAPI InstallHookThread(LPVOID) {
         EnsureShaderDirectories();
         LogMessage("InstallHookThread started");
@@ -797,11 +864,14 @@ namespace {
             return 0;
         }
 
-        if (!PatchMainModuleIat("OPENGL32.dll", "wglGetProcAddress", reinterpret_cast<void*>(&MyWglGetProcAddress), reinterpret_cast<void**>(&g_originalWglGetProcAddress)) &&
-            !PatchMainModuleIat("opengl32.dll", "wglGetProcAddress", reinterpret_cast<void*>(&MyWglGetProcAddress), reinterpret_cast<void**>(&g_originalWglGetProcAddress))) {
-            LogMessage("Failed to patch main module IAT for wglGetProcAddress");
+        void* wglGetProcAddress = reinterpret_cast<void*>(GetProcAddress(opengl32, "wglGetProcAddress"));
+        if (!g_wglGetProcAddressDetour.Install(
+                wglGetProcAddress, reinterpret_cast<void*>(&MyWglGetProcAddress))) {
+            LogMessage("Failed to detour opengl32!wglGetProcAddress");
             return 0;
         }
+        g_originalWglGetProcAddress =
+            reinterpret_cast<WglGetProcAddressFn>(g_wglGetProcAddressDetour.Original());
 
         if (!PatchMainModuleIat("GDI32.dll", "SwapBuffers", reinterpret_cast<void*>(&MySwapBuffers), reinterpret_cast<void**>(&g_originalSwapBuffers)) &&
             !PatchMainModuleIat("gdi32.dll", "SwapBuffers", reinterpret_cast<void*>(&MySwapBuffers), reinterpret_cast<void**>(&g_originalSwapBuffers))) {
@@ -810,7 +880,7 @@ namespace {
         }
 
         if (!g_originalWglGetProcAddress) {
-            LogMessage("Original wglGetProcAddress was null after IAT patch");
+            LogMessage("Original wglGetProcAddress was null after export detour");
             return 0;
         }
         if (!g_originalSwapBuffers) {
@@ -818,7 +888,7 @@ namespace {
             return 0;
         }
 
-        LogMessage("Installed IAT hook for wglGetProcAddress");
+        LogMessage("Installed export detour for wglGetProcAddress");
         LogMessage("Installed IAT hook for SwapBuffers");
         return 0;
     }
