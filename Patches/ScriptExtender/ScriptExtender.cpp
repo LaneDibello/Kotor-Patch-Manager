@@ -7,6 +7,7 @@
 #include "Extensions/clientCreatures.h"
 #include "Extensions/twoDA.h"
 #include "Extensions/globalModifiers.h"
+#include "Extensions/trig.h"
 
 const int TestScriptExtensionIndex = 772;
 VirtualMachineReturnTypes __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
@@ -90,6 +91,12 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
 
     commands[IncrementGlobalNumberIndex] = (DWORD)&ExecuteCommandAdjustGlobalNumber;
     commands[DecrementGlobalNumberIndex] = (DWORD)&ExecuteCommandAdjustGlobalNumber;
+
+    commands[secIndex] = (DWORD)&ExecuteCommandTrig;
+    commands[cscIndex] = (DWORD)&ExecuteCommandTrig;
+    commands[cotIndex] = (DWORD)&ExecuteCommandTrig;
+    commands[RadToDegIndex] = (DWORD)&ExecuteCommandRadToDeg;
+    commands[DegToRadIndex] = (DWORD)&ExecuteCommandDegToRad;
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)

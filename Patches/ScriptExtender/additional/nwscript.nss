@@ -5309,3 +5309,12 @@ void IncrementGlobalNumber( string sIdentifier, int nAmount );
 // will fail if the final amount is less than the minimum
 // of -128.
 void DecrementGlobalNumber( string sIdentifier, int nAmount );
+
+// 794. Math operation: secant of fValue
+float sec(float fValue);
+
+// 795. Math operation: cosecant of fValue
+float csc(float fValue);
+
+// 796. Math operation: cotangent of fValue
+float cot(float fValue);
