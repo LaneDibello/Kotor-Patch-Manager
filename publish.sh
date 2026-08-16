@@ -221,6 +221,12 @@ echo "[4/5] Copying tools..."
 cp "$PATCHES_SRC/create-patch.py" "$RELEASE_DIR/tools/"
 cp "$PATCHES_SRC/create-patch.bat" "$RELEASE_DIR/tools/"
 
+# --- LICENSE ------------------------------------------------------------------
+# Ship the MIT license alongside the binaries (mirrors publish.bat).
+echo "  Copying LICENSE..."
+cp "$ROOT/LICENSE" "$RELEASE_DIR/LICENSE.txt"
+echo "  [OK] LICENSE.txt"
+
 # --- [5/5] README -------------------------------------------------------------
 echo "[5/5] Creating README..."
 cat > "$RELEASE_DIR/README.txt" <<EOF
@@ -233,6 +239,7 @@ Contents:
   bin/sqlite3.dll        - Address database access for patch DLLs (Wine side)
   tools/create-patch.py  - Patch creation tool (needs MinGW-w64 for DETOUR patches)
   patches/               - pre-built patches
+  LICENSE.txt            - MIT License
 
 Quick Start:
   1. Run bin/KPatchLauncher

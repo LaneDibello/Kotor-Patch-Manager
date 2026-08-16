@@ -77,6 +77,15 @@ REM Copy create-patch.bat
 echo [4/5] Copying tools...
 copy "Patches\create-patch.bat" "%RELEASE_DIR%\tools\" >nul
 
+REM Copy LICENSE
+echo   Copying LICENSE...
+if exist "LICENSE" (
+    copy /Y "LICENSE" "%RELEASE_DIR%\LICENSE.txt" >nul
+    echo   [OK] LICENSE.txt staged
+) else (
+    echo   [ERROR] LICENSE not found in repository root
+)
+
 REM Create README
 echo [5/5] Creating README...
 
@@ -91,6 +100,7 @@ set "README_FILE=%RELEASE_DIR%\README.txt"
   echo   bin/sqlite3.dll        - Address database access for GameAPI patch DLLs
   echo   tools/create-patch.bat - Patch creation tool
   echo   patches/ - pre-built patches I've been developing with this project
+  echo   LICENSE.txt - MIT License
   echo.
   echo Quick Start:
   echo   1. Run bin/KPatchLauncher.exe
