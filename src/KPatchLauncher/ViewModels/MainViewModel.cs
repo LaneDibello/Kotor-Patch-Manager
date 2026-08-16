@@ -39,12 +39,19 @@ public class MainViewModel : ViewModelBase
     private bool _isUpdatingSelectAllState;
     private bool _isBulkUpdatingPatchChecks;
     private int _patchStatusRequestVersion;
+    private int _patchLoadRequestVersion;
     private bool _useCustomLaunch;
     private string _customLaunchCommand = string.Empty;
 
     public MainViewModel()
     {
         AllPatches = new ObservableCollection<PatchItemViewModel>();
+
+        // Every structural change to AllPatches (load, orphan insert/remove, move-to-top,
+        // manual reorder) has to reach the list control, so mirror them into VisiblePatches.
+        // Compatibility changes are not collection changes, so UpdatePatchCompatibility()
+        // syncs explicitly as well.
+        AllPatches.CollectionChanged += (_, _) => SyncVisiblePatches();
 
         // Load settings. Pending patch selections are intentionally not restored at startup;
         // installed patch state is reloaded from the selected game's patch_config.toml.
@@ -74,10 +81,15 @@ public class MainViewModel : ViewModelBase
 
     public ObservableCollection<PatchItemViewModel> AllPatches { get; }
 
-    public IEnumerable<PatchItemViewModel> VisiblePatches =>
-        AllPatches.Where(p => p.IsCompatible);
+    /// <summary>
+    /// The compatible subset of <see cref="AllPatches"/>, in the same order, as bound by the
+    /// patch list. This is a single long-lived collection that is reconciled in place: the
+    /// list control must never have its ItemsSource swapped for a differently ordered
+    /// snapshot, which leaves recycled rows showing another patch's name and checkbox.
+    /// </summary>
+    public ObservableCollection<PatchItemViewModel> VisiblePatches { get; } = new();
 
-    public bool HasVisiblePatches => VisiblePatches.Any();
+    public bool HasVisiblePatches => VisiblePatches.Count > 0;
 
     public bool? SelectAllPatches
     {
@@ -171,9 +183,9 @@ public class MainViewModel : ViewModelBase
                 else
                 {
                     _repository = null;
-                    AllPatches.Clear();
+                    _patchLoadRequestVersion++;
+                    ClearPatchViewModels();
                     SelectedPatch = null;
-                    OnPropertyChanged(nameof(VisiblePatches));
                     UpdateSelectAllState();
                     UpdatePendingChanges();
                 }
@@ -663,6 +675,59 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Drops every patch view model, detaching the check handlers first so discarded
+    /// view models cannot keep driving this one.
+    /// </summary>
+    private void ClearPatchViewModels()
+    {
+        foreach (var patch in AllPatches)
+        {
+            patch.CheckedChanged -= OnPatchCheckedChanged;
+        }
+
+        AllPatches.Clear();
+    }
+
+    /// <summary>
+    /// Reconciles <see cref="VisiblePatches"/> with the compatible subset of
+    /// <see cref="AllPatches"/> using in-place inserts, moves and removes. Rebuilding the
+    /// collection with Clear/Add instead would push a Reset at the list control and cost
+    /// row identity, so a reorder could leave a row rendering the previous patch.
+    /// </summary>
+    private void SyncVisiblePatches()
+    {
+        var desired = AllPatches.Where(p => p.IsCompatible).ToList();
+        var desiredSet = new HashSet<PatchItemViewModel>(desired);
+
+        for (var i = VisiblePatches.Count - 1; i >= 0; i--)
+        {
+            if (!desiredSet.Contains(VisiblePatches[i]))
+            {
+                VisiblePatches.RemoveAt(i);
+            }
+        }
+
+        // Everything left is also in desired, so each remaining item is at or after its
+        // target index and this walk places them all without disturbing settled rows.
+        for (var i = 0; i < desired.Count; i++)
+        {
+            var patch = desired[i];
+            var current = VisiblePatches.IndexOf(patch);
+
+            if (current < 0)
+            {
+                VisiblePatches.Insert(i, patch);
+            }
+            else if (current != i)
+            {
+                VisiblePatches.Move(current, i);
+            }
+        }
+
+        OnPropertyChanged(nameof(HasVisiblePatches));
+    }
+
     private void ClearPersistedPatchSelection()
     {
         if (_settings.CheckedPatchIds.Count == 0)
@@ -893,10 +958,13 @@ public class MainViewModel : ViewModelBase
 
     private async Task LoadPatchesFromDirectoryAsync(string directory)
     {
+        // Loads overlap whenever Refresh is clicked while one is running, or the startup
+        // load races a directory change. Only the newest load may touch AllPatches;
+        // otherwise each one appends its own copy of every patch.
+        var requestVersion = ++_patchLoadRequestVersion;
+
         try
         {
-            // Clear existing patches on UI thread
-            AllPatches.Clear();
             SetOperationInProgress(true, "Loading patches...");
 
             // Do heavy work on background thread
@@ -912,6 +980,9 @@ public class MainViewModel : ViewModelBase
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 // Back on UI thread for result handling
+                if (requestVersion != _patchLoadRequestVersion)
+                    return;
+
                 if (!scanResult.Success)
                 {
                     SetOperationInProgress(false, $"Error loading patches: {scanResult.Error}");
@@ -925,6 +996,10 @@ public class MainViewModel : ViewModelBase
                     SetOperationInProgress(false, "Error: No patches found");
                     return;
                 }
+
+                // Swap the old view models out here rather than before the scan, so a load
+                // that gets superseded never empties the list it is no longer filling.
+                ClearPatchViewModels();
 
                 var patchViewModels = allPatches.Values.Select(entry => new PatchItemViewModel
                 {
@@ -953,7 +1028,9 @@ public class MainViewModel : ViewModelBase
             });
 
             // Check patch status if we have a game path set
-            if (!string.IsNullOrWhiteSpace(GamePath) && File.Exists(GamePath))
+            if (requestVersion == _patchLoadRequestVersion
+                && !string.IsNullOrWhiteSpace(GamePath)
+                && File.Exists(GamePath))
             {
                 await CheckPatchStatusAsync(GamePath);
             }
@@ -962,6 +1039,9 @@ public class MainViewModel : ViewModelBase
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
+                if (requestVersion != _patchLoadRequestVersion)
+                    return;
+
                 SetOperationInProgress(false, $"Error loading patches: {ex.Message}");
             });
         }
@@ -1135,9 +1215,8 @@ public class MainViewModel : ViewModelBase
             }
         }
 
-        // Notify UI that VisiblePatches may have changed
-        OnPropertyChanged(nameof(VisiblePatches));
-        OnPropertyChanged(nameof(HasVisiblePatches));
+        // IsCompatible changes are not collection changes, so mirror them across by hand
+        SyncVisiblePatches();
         UpdateSelectAllState();
     }
 }
