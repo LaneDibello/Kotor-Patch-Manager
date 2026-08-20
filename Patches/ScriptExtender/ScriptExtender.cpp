@@ -8,13 +8,14 @@
 #include "Extensions/twoDA.h"
 #include "Extensions/globalModifiers.h"
 #include "Extensions/trig.h"
+#include "Extensions/consoleCommand.h"
 
 const int TestScriptExtensionIndex = 772;
 VirtualMachineReturnTypes __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
-    debugLog("[PATCH] Called Test routine %d, with %i parameters", routine, paramCount);
+    debugLog("[ScriptExtender] Called Test routine %d, with %i parameters", routine, paramCount);
 
     if (paramCount != 3) {
-        debugLog("[PATCH] Expected 3 params in the function!");
+        debugLog("[ScriptExtender] Expected 3 params in the function!");
         CVirtualMachine* vm = CVirtualMachine::GetInstance();
         if (vm) {
             vm->StackPushInteger(0);
@@ -32,7 +33,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandTestScriptExtension(DWORD rout
         return COMMAND_PARAM_ERROR;
     }
 
-    debugLog("[PATCH] Test Int %i", testInt);
+    debugLog("[ScriptExtender] Test Int %i", testInt);
 
     float testFloat;
     if (!vm->StackPopFloat(&testFloat)) {
@@ -40,7 +41,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandTestScriptExtension(DWORD rout
         return COMMAND_PARAM_ERROR;
     }
 
-    debugLog("[PATCH] Test Float %f", testFloat);
+    debugLog("[ScriptExtender] Test Float %f", testFloat);
 
     CExoString testString;
     if (!vm->StackPopString(&testString)) {
@@ -48,7 +49,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandTestScriptExtension(DWORD rout
         return COMMAND_PARAM_ERROR;
     }
 
-    debugLog("[PATCH] Test string \"%s\"", testString.GetCStr());
+    debugLog("[ScriptExtender] Test string \"%s\"", testString.GetCStr());
 
     if (!vm->StackPushInteger(1)) {
         delete vm;
@@ -61,7 +62,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandTestScriptExtension(DWORD rout
 
 extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
 {
-    debugLog("[PATCH] Initializing Extension Commands. Commands Array: %p", commands);
+    debugLog("[ScriptExtender] Initializing Extension Commands. Commands Array: %p", commands);
 
     commands[TestScriptExtensionIndex] = (DWORD)&ExecuteCommandTestScriptExtension;
 
@@ -80,7 +81,6 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[AdjustCreatureAttributesIndex] = (DWORD)&ExecuteCommandAdjustCreatureAttributes;
     commands[AdjustCreatureSkillsIndex] = (DWORD)&ExecuteCommandAdjustCreatureSkills;
     commands[GetSkillRankBaseIndex] = (DWORD)&ExecuteCommandGetSkillRankBase;
-    debugLog("[PATCH] GetSkillRankBase at %p", &ExecuteCommandGetSkillRankBase);
 
     commands[IsRunningIndex] = (DWORD)&ExecuteCommandIsRunning;
     commands[IsStealthedIndex] = (DWORD)&ExecuteCommandIsStealthed;
@@ -97,6 +97,8 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[cotIndex] = (DWORD)&ExecuteCommandTrig;
     commands[RadToDegIndex] = (DWORD)&ExecuteCommandRadToDeg;
     commands[DegToRadIndex] = (DWORD)&ExecuteCommandDegToRad;
+
+    commands[RunConsoleCommandIndex] = (DWORD)&ExecuteCommandRunConsoleCommand;
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
