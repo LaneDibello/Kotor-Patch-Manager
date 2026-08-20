@@ -16,6 +16,7 @@ public:
     CSWSCreature* GetCreatureByGameObjectID(DWORD objectId);
     CSWSCreature* GetPlayerCreature();
     void* GetGlobalVariableTable();
+    DWORD ClientToServerObjectId(DWORD clientId);
 
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
@@ -30,12 +31,14 @@ private:
     typedef void* (__thiscall* GetCreatureByGameObjectIDFn)(void* thisPtr, DWORD objectId);
     typedef void* (__thiscall* GetPlayerCreatureFn)(void* thisPtr);
     typedef void* (__thiscall* GetGlobalVariableTableFn)(void* thisPtr);
+    typedef DWORD(__thiscall* ClientToServerObjectIdFn)(void* thisPtr, DWORD clientId);
 
     static GetObjectArrayFn getObjectArray;
     static GetPlayerCreatureIdFn getPlayerCreatureId;
     static GetCreatureByGameObjectIDFn getCreatureByGameObjectID;
     static GetPlayerCreatureFn getPlayerCreature;
     static GetGlobalVariableTableFn getGlobalVariableTable;
+    static ClientToServerObjectIdFn clientToServerObjectId;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;
