@@ -5211,7 +5211,7 @@ string PeakCharFile(int iFileHandle);
 int SeekFile(int iFileHandle, int offset, int origin);
 
 // 779. TellFile
-// Gets the current postion of hte file stream
+// Gets the current position of the file stream
 // returns as an int
 int TellFile(int iFileHandle);
 
@@ -5244,7 +5244,7 @@ void GrantSpell( int nSpell, object oCreature );
 // ABILITY_INTELLIGENCE
 // ABILITY_WISDOM
 // ABILITY_CHARISMA
-// nAmount is the integer vlaue to adjust the stat by (negative values will work).
+// nAmount is the integer value to adjust the stat by (negative values will work).
 void AdjustCreatureAttributes(object oObject, int nAttribute, int nAmount);
 
 // 785. AdjustCreatureSkills
@@ -5298,42 +5298,51 @@ int Get2DAInt(string s2DAName, int nRow, string sColumn);
 // Returns a float value from a 2DA file at the specified row and column.
 float Get2DAFloat(string s2DAName, int nRow, string sColumn);
 
-// 792. Increases the value of the given global number by the given amount.
+// 792. IncrementGlobalNumber 
+// Increases the value of the given global number by the given amount.
 // This function only works with Number type globals, not booleans. It
 // will fail if the final amount is greater than the max
 // of 127.
 void IncrementGlobalNumber( string sIdentifier, int nAmount );
 
-// 793. Decreases the value of the given global number by the given amount.
+// 793. DecrementGlobalNumber
+// Decreases the value of the given global number by the given amount.
 // This function only works with Number type globals, not booleans. It
 // will fail if the final amount is less than the minimum
 // of -128.
 void DecrementGlobalNumber( string sIdentifier, int nAmount );
 
-// 794. Math operation: secant of fValue
+// 794. sec
+// Math operation: secant of fValue
 // fValue is in degrees, matching cos/sin/tan.
 // * Returns zero where secant is undefined, i.e. at 90.0 + 180.0 * n degrees
 float sec(float fValue);
 
-// 795. Math operation: cosecant of fValue
+// 795. csc
+// Math operation: cosecant of fValue
 // fValue is in degrees, matching cos/sin/tan.
 // * Returns zero where cosecant is undefined, i.e. at 180.0 * n degrees
 float csc(float fValue);
 
-// 796. Math operation: cotangent of fValue
+// 796. cot
+// Math operation: cotangent of fValue
 // fValue is in degrees, matching cos/sin/tan.
 // * Returns zero where cotangent is undefined, i.e. at 180.0 * n degrees
 float cot(float fValue);
 
-// 797. Math operation: convert fRadians to degrees
+// 797. RadToDeg
+// Math operation: convert fRadians to degrees
 float RadToDeg(float fRadians);
 
-// 798. Math operation: convert fDegrees to radians
+// 798. DegToRad
+// Math operation: convert fDegrees to radians
 float DegToRad(float fDegrees);
 
-// 799. Runs the cheat console command in sCommand as if it were input
+// 799. RunConsoleCommand
+// Runs the cheat console command in sCommand as if it were input
 // into the cheat console
 string RunConsoleCommand(string sCommand);
 
-// 800. Gets the object last targeted by the player
+// 800. GetPlayerLastTarget
+// Gets the object last targeted by the player
 object GetPlayerLastTarget();
