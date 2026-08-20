@@ -39,12 +39,14 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandAdjustGlobalNumber(DWORD routi
     int value = prev + amount;
 
     if (value > 127 || value < -128) {
+        delete server;
         delete vm;
         return COMMAND_RETURN_ERROR;
     }
 
     setValueNumber(globalVars, indentifier.GetPtr(), value);
 
+    delete server;
     delete vm;
 
     return SUCCESS;

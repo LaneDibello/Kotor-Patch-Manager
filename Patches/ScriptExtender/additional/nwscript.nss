@@ -5330,3 +5330,10 @@ float RadToDeg(float fRadians);
 
 // 798. Math operation: convert fDegrees to radians
 float DegToRad(float fDegrees);
+
+// 799. Runs the cheat console command in sCommand as if it were input
+// into the cheat console
+string RunConsoleCommand(string sCommand);
+
+// 800. Gets the object last targeted by the player
+object GetPlayerLastTarget();
