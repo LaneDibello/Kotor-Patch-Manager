@@ -1,7 +1,7 @@
 [patch]
 id = "k2_aspyr_shader_fixes"
 name = "K2 Aspyr Shader Fixes"
-version = "1.2.1"
+version = "1.2.3"
 author = "J, Vriff"
 description = "Fixes Aspyr KOTOR2 fog, reflections, overbright lightmaps, gamma, saber hilt textures, normalmaps and water."
 
