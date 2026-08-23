@@ -5346,3 +5346,21 @@ string RunConsoleCommand(string sCommand);
 // 800. GetPlayerLastTarget
 // Gets the object last targeted by the player
 object GetPlayerLastTarget();
+
+// 801. ReadIniEntry
+// Reads the value from INI config file sFilename, in sCategory
+// with key sKey.
+// For example:
+// ReadIniEntry("swkotor.ini", "Graphics Options", "AllowWindowedMode")
+// gets the current value of the AllowWindowedMode config
+// Returns empty string if no entry found
+string ReadIniEntry(string sFilename, string sCategory, string sKey);
+
+// 802. WriteIniEntry
+// Writes sValue in the INI config file sFilename, in sCategory
+// with key sKey.
+// For example:
+// WriteIniEntry("1", "swkotor.ini", "Graphics Options", "AllowWindowedMode")
+// enables the AllowWindowedMode setting
+// If the referenced file/category/key doesn't exist, it will be created.
+void WriteIniEntry(string sValue, string sFilename, string sCategory, string sKey);
