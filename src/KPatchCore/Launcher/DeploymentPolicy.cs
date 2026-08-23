@@ -60,6 +60,17 @@ public static class DeploymentPolicy
     }
 
     /// <summary>
+    /// Whether the manager can start the game executable itself. Injection runs it
+    /// directly; the other methods cannot, because the executable is either a Windows
+    /// build that needs Wine or a native build Steam owns. For those the user's
+    /// configured launch method is the only way in, patched or not.
+    /// </summary>
+    public static bool HostStartsGameDirectly(DeploymentMethod deployment)
+    {
+        return deployment == DeploymentMethod.Injection;
+    }
+
+    /// <summary>
     /// The patcher runtime module the game loads for a deployment method: the native ELF
     /// maps KotorPatcher.so via DT_NEEDED, every other method loads KotorPatcher.dll. This
     /// is the single source of the .so-vs-.dll choice, shared by install staging and launch.
