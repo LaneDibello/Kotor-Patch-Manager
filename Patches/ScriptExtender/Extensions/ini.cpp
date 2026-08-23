@@ -23,13 +23,12 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandReadIniEntry(DWORD routine, in
 	}
 
 	CExoIni ini;
-	CExoString outValue;
-	CExoString empty("");
+	CExoString outValue("");
 
 	int result = ini.ReadIniEntry(&outValue, &filename, &category, &key);
 
 	if (result == 0) {
-		outValue = empty;
+		debugLog("[ScriptExtender] Failed to read INI entry:[%s] %s in file: %s", category.GetCStr(), key.GetCStr(), filename.GetCStr());
 	}
 
 	if (!vm->StackPushString(&outValue)) {
@@ -74,7 +73,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandWriteIniEntry(DWORD routine, i
 	int result = ini.WriteIniEntry(&value, &filename, &category, &key);
 
 	if (result == 0) {
-		debugLog("[ScriptExtender] Failed to write INI entry:\n[%s]\n%s=%s\nto file: %s", category.GetCStr(), key.GetCStr(), value.GetCStr(), filename.GetCStr());
+		debugLog("[ScriptExtender] Failed to write INI entry:[%s] %s=%s to file: %s", category.GetCStr(), key.GetCStr(), value.GetCStr(), filename.GetCStr());
 	}
 
 	delete vm;

@@ -8,8 +8,8 @@ class CExoString;
 class CExoIni : public GameAPIObject {
 public:
 	explicit CExoIni(void* objectPtr);
-	CExoInit();
-	~CExoInit();
+	CExoIni();
+	~CExoIni();
 
 	int ReadIniEntry(CExoString* outValue, CExoString* filename, CExoString* category, CExoString* key);
 	int WriteIniEntry(CExoString* value, CExoString* filename, CExoString* category, CExoString* key);

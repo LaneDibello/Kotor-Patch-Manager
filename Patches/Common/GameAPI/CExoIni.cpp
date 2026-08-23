@@ -84,19 +84,19 @@ CExoIni::~CExoIni() {
 }
 
 int CExoIni::ReadIniEntry(CExoString* outValue, CExoString* filename, CExoString* category, CExoString* key) {
-    if (!objectPtr || !readIniEntry) return;
-    readIniEntry(objectPtr,
+    if (!objectPtr || !readIniEntry) return 0;
+    return readIniEntry(objectPtr,
         outValue ? outValue->GetPtr() : nullptr,
         filename ? filename->GetPtr() : nullptr,
         category ? category->GetPtr() : nullptr,
-        key ? key->GetPtr() : nullptr)
+        key ? key->GetPtr() : nullptr);
 }
 
 int CExoIni::WriteIniEntry(CExoString* value, CExoString* filename, CExoString* category, CExoString* key) {
-    if (!objectPtr || !writeIniEntry) return;
-    writeIniEntry(objectPtr,
+    if (!objectPtr || !writeIniEntry) return 0;
+    return writeIniEntry(objectPtr,
         value ? value->GetPtr() : nullptr,
         filename ? filename->GetPtr() : nullptr,
         category ? category->GetPtr() : nullptr,
-        key ? key->GetPtr() : nullptr)
+        key ? key->GetPtr() : nullptr);
 }
