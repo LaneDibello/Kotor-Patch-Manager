@@ -5351,15 +5351,16 @@ object GetPlayerLastTarget();
 // Reads the value from INI config file sFilename, in sCategory
 // with key sKey.
 // For example:
-// ReadIniEntry(".\\swkotor.ini", "Graphics Options", "AllowWindowedMode")
+// ReadIniEntry("swkotor.ini", "Graphics Options", "AllowWindowedMode")
 // gets the current value of the AllowWindowedMode config
 // Returns empty string if no entry found
-string ReadIniEntry(sFilename, sCategory, sKey);
+string ReadIniEntry(string sFilename, string sCategory, string sKey);
 
 // 802. WriteIniEntry
 // Writes sValue in the INI config file sFilename, in sCategory
 // with key sKey.
 // For example:
-// WriteIniEntry("1", ".\\swkotor.ini", "Graphics Options", "AllowWindowedMode")
+// WriteIniEntry("1", "swkotor.ini", "Graphics Options", "AllowWindowedMode")
 // enables the AllowWindowedMode setting
-void WriteIniEntry(sValue, sFilename, sCategory, sKey);
+// If the referenced file/category/key doesn't exist, it will be created.
+void WriteIniEntry(string sValue, string sFilename, string sCategory, string sKey);
