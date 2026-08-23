@@ -10,6 +10,7 @@
 #include "Extensions/trig.h"
 #include "Extensions/consoleCommand.h"
 #include "Extensions/lastTarget.h"
+#include "Extensions/ini.h"
 
 const int TestScriptExtensionIndex = 772;
 VirtualMachineReturnTypes __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
@@ -101,6 +102,9 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
 
     commands[RunConsoleCommandIndex] = (DWORD)&ExecuteCommandRunConsoleCommand;
     commands[GetPlayerLastTargetObjectIndex] = (DWORD)&ExecuteCommandetGetPlayerLastTarget;
+
+    commands[ReadIniEntryIndex] = (DWORD)&ExecuteCommandReadIniEntry;
+    commands[WriteIniEntryIndex] = (DWORD)&ExecuteCommandWriteIniEntry;
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
