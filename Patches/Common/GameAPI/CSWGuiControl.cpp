@@ -13,6 +13,7 @@ bool CSWGuiControl::functionsInitialized = false;
 bool CSWGuiControl::offsetsInitialized = false;
 
 int CSWGuiControl::offsetParentControl = -1;
+int CSWGuiControl::offsetId = -1;
 
 CSWGuiControl::ConstructorFn CSWGuiControl::constructor = nullptr;
 CSWGuiControl::DestructorFn  CSWGuiControl::destructor  = nullptr;
@@ -63,6 +64,7 @@ void CSWGuiControl::InitializeOffsets() {
 
     try {
         offsetParentControl = GameVersion::GetOffset("CSWGuiControl", "parent_control");
+        offsetId = GameVersion::GetOffset("CSWGuiControl", "id");
         classSize = GameVersion::GetClassSize("CSWGuiControl");
 
         offsetsInitialized = true;
@@ -123,6 +125,13 @@ CSWGuiControl* CSWGuiControl::GetParentControl() {
         return nullptr;
     }
     return new CSWGuiControl(parentPtr);
+}
+
+int CSWGuiControl::GetId() {
+    if (!objectPtr || offsetId < 0) {
+        return nullptr;
+    }
+    return getObjectProperty<int>(objectPtr, offsetId);
 }
 
 void CSWGuiControl::AddChildControl(CSWGuiControl* child) {

@@ -41,6 +41,7 @@ public:
 
     // Accessors
     CSWGuiControl* GetParentControl();
+    int GetId();
 
     // Functions
     void AddChildControl(CSWGuiControl* child);
@@ -77,6 +78,7 @@ protected:
     static bool offsetsInitialized;
 
     static int offsetParentControl;
+    static int offsetId;
 
     static ConstructorFn constructor;
     static DestructorFn  destructor;
