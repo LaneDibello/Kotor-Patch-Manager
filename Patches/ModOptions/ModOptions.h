@@ -1,23 +1,27 @@
 #include "Common.h"
-#include "GameAPI/CSWGuiPanel.h"
-#include "GameAPI/CSWGuiManager.h"
-#include "GameAPI/CSWGuiLabel.h"
-#include "GameAPI/CSWGuiButton.h"
-#include "GameAPI/CSWGuiText.h"
-#include "GameAPI/CSWGuiTextParams.h"
+
+#include "GameAPI/Camera.h"
+#include "GameAPI/CExoArrayList.h"
+#include "GameAPI/CExoString.h"
+#include "GameAPI/CResRef.h"
+#include "GameAPI/CSWGui3DSceneView.h"
 #include "GameAPI/CSWGuiBorder.h"
 #include "GameAPI/CSWGuiBorderParams.h"
+#include "GameAPI/CSWGuiButton.h"
+#include "GameAPI/CSWGuiLabel.h"
 #include "GameAPI/CSWGuiListBox.h"
-#include "GameAPI/CResRef.h"
-#include "GameAPI/CExoString.h"
-#include "GameAPI/CExoArrayList.h"
-#include "GameAPI/CSWGui3DSceneView.h"
+#include "GameAPI/CSWGuiManager.h"
+#include "GameAPI/CSWGuiPanel.h"
 #include "GameAPI/CSWGuiScene.h"
+#include "GameAPI/CSWGuiText.h"
+#include "GameAPI/CSWGuiTextParams.h"
 #include "GameAPI/Gob.h"
-#include "GameAPI/Camera.h"
 #include "GameAPI/Scene.h"
-#include <vector>
+
+#include <filesystem>
+#include <map>
 #include <string>
+#include <vector>
 
 class ModOptions : public CSWGuiPanel {
 public:
@@ -29,17 +33,21 @@ public:
 	CSWGuiButton backButton;
 	CSWGuiButton refreshButton;
 
+	std::map<int, std::string> modOptionConfigs;
+
 	// Callbacks
 	void onModOption(void* control) {
 		debugLog("Pressed Button at %X", control);
 		// Should open the Corresponding Mod Options menu
 
 		CSWGuiControl button(control);
-		button.
+		std::string config = modOptionConfigs[button.GetId()];
+
+		// Load the TOML file, and build the Options Menu
 	}
 	void onRefresh(void* control) {
 		debugLog("Pressed Button at %X", control);
-		// Should reload the available mod options
+		populateOptionsListBox()
 	}
 	void onBack(void* control) {
 		debugLog("Pressed Button at %X", control);
@@ -85,7 +93,6 @@ public:
 		backButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&ModOptions::onBack));
 
 		this->OverrideHandleInputEvent(memberFuncAddr(&ModOptions::_HandleInputEvent));
-
 	}
 
 private:
@@ -93,7 +100,12 @@ private:
 		// TODO: Read from the TOMLs in the "Mod Options"
 		// directory for each add a button that will link 
 		// to that custom options menu.
-		std::vector<std::string> optionSets;
+		std::string directory("Mod Options");
+
+		// tomls should be a list of every toml in directory
+		std::vector<std::string> tomls;
+		// optionsNames is the `name` filed from each TOML
+		std::vector<std::string> optionsNames;
 
 		CSWGuiButton proto(optionsListBox.GetProtoItem()->GetPtr());
 		CSWGuiExtent buttonExtent;
@@ -103,18 +115,18 @@ private:
 		buttonExtent.height = proto.GetExtent().height;
 
 		CExoArrayList<CSWGuiControl*> listButtons;
-		for (size_t i = 0; i < optionSets.size(); ++i) {
+		for (size_t i = 0; i < optionsNames.size(); ++i) {
 			CSWGuiButton* button = new CSWGuiButton();
 			button->Initialize(&buttonExtent,
 				proto.GetText()->GetTextParams(),
 				proto.GetBorder1()->GetBorderParams(),
 				proto.GetBorder2()->GetBorderParams());
-			CExoString buttonText(optionSets.at(i).c_str());
+			CExoString buttonText(optionsNames.at(i).c_str());
 			button->GetText()->GetTextParams()->SetText(&buttonText);
 			button->AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&ModOptions::onModOption));
 			listButtons.Add(button);
-			// TODO: Keep track of the button relative to the
-			// underlying mod options menu
+			
+			modOptionConfigs[button->GetId()] = tomls.at(i);
 		}
 		optionsListBox.AddControls(&listButtons, 1, 0, 0);
 		testListBox.SetSelectedControl(0, 0);
@@ -131,7 +143,6 @@ private:
 				break;
 			default:
 				break;
-
 			}
 		}
 

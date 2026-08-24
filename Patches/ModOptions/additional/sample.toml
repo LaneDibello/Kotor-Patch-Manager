@@ -1,0 +1,19 @@
+[menu]
+name = "Sample Mod Menu"
+
+[[options]]
+# One of: `toggle`, `slider`, `list`, `text`
+type = "toggle"
+
+# Having an INI is optional
+# but will be what most options menus do
+ini = "sample.ini"
+category = "Configurations"
+key = "toggleOption"
+
+# Running a function on set is also optional
+# Though some mods might need this
+# I think these functions can be registered
+# externally by other patches at runtime, via
+# some API.
+function = "SampleFunction"
