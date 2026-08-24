@@ -36,10 +36,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     {
     case DLL_PROCESS_ATTACH:
         if (!GameVersion::Initialize()) {
-            OutputDebugStringA("[AdditionalConsoleCommands] ERROR: GameVersion::Initialize() failed\n");
+            OutputDebugStringA("[GUITest] ERROR: GameVersion::Initialize() failed\n");
             return FALSE;
         }
-        OutputDebugStringA("[AdditionalConsoleCommands] GameVersion initialized successfully\n");
+        OutputDebugStringA("[GUITest] GameVersion initialized successfully\n");
         break;
 
     case DLL_PROCESS_DETACH:
