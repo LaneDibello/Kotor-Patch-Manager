@@ -1,3 +1,4 @@
+#pragma once
 #include "Common.h"
 #include "ModOptionsConfig.h"
 
@@ -5,7 +6,6 @@
 #include "GameAPI/CExoArrayList.h"
 #include "GameAPI/CExoString.h"
 #include "GameAPI/CResRef.h"
-#include "GameAPI/CSWGui3DSceneView.h"
 #include "GameAPI/CSWGuiBorder.h"
 #include "GameAPI/CSWGuiBorderParams.h"
 #include "GameAPI/CSWGuiButton.h"
@@ -43,28 +43,10 @@ public:
 		CSWGuiControl button(control);
 		std::string configPath = modOptionConfigs[button.GetId()];
 
-		ModOptionsConfig config = ModOptionsConfig::LoadFromFile(configPath);
-		if (!config.loaded) {
-			debugLog("[ModOptions] %s\n", config.error.c_str());
-			return;
-		}
+		
+		// Create new OptionsMenu with this config
 
-		debugLog("[ModOptions] %s: %u options\n", config.menuName.c_str(), (unsigned)config.options.size());
-
-		// Create new Panel with the below options listed
-
-		for (const ModOption& option : config.options) {
-			switch (option.type) {
-			case ModOptionType::Toggle:
-				break;
-			case ModOptionType::Slider:
-				break;
-			case ModOptionType::List:
-				break;
-			case ModOptionType::Text:
-				break;
-			}
-		}
+		
 	}
 	void onRefresh(void* control) {
 		debugLog("Pressed Button at %X", control);
@@ -131,7 +113,7 @@ private:
 			std::string path = entry.path().string();
 			std::string menuName;
 			if (!ModOptionsConfig::ReadMenuName(path, menuName)) {
-				continue;   // unparseable file; already logged by the parser
+				continue;
 			}
 
 			tomls.push_back(path);
@@ -168,6 +150,7 @@ private:
 			switch (event) {
 			case CSWGuiControl::AButton:
 				// Activate the currently selected button
+				// Might not need to do anything here
 				break;
 			case CSWGuiControl::BButton:
 				// Perform the "Back" behavior
