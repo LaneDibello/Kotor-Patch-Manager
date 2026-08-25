@@ -1,5 +1,6 @@
 [menu]
 name = "Sample Mod Menu"
+description = "Example of what custom mod menus can looks like"
 
 [[options]]
 # One of: `toggle`, `slider`, `list`, `text`

@@ -162,4 +162,10 @@ private:
 
 		HandleInputEvent(event, doPanelEvents);
 	}
+
+	void SetDescription(void* control) {
+		CSWGuiControl hovered(control);
+
+
+	}
 };
