@@ -1,6 +1,7 @@
 #pragma once
 #include "Common.h"
 #include "ModOptionsConfig.h"
+#include "OptionsMenu.h"
 
 #include "GameAPI/Camera.h"
 #include "GameAPI/CExoArrayList.h"
@@ -35,14 +36,11 @@ public:
 	CSWGuiButton backButton;
 	CSWGuiButton refreshButton;
 
-	// Indexed by load order. Owned here; each list button carries its index in
-	// the control's custom_value field.
+	// Index coresponds to an option button's custom_value
 	std::vector<ModOptionsConfig*> modOptionConfigs;
 
 	// Callbacks
 	void onModOption(void* control) {
-		debugLog("Pressed Button at %X", control);
-
 		CSWGuiControl button(control);
 		size_t index = (size_t)button.GetCustomValue();
 		if (index >= modOptionConfigs.size()) {
@@ -53,19 +51,14 @@ public:
 		ModOptionsConfig* config = modOptionConfigs[index];
 		debugLog("[ModOptions] selected `%s` (%s)", config->GetName().c_str(), config->GetSourcePath().c_str());
 
-		// TODO: OptionsMenu is not ready to be pushed yet. Once it is:
-		// guiManager->AddPanel(new OptionsMenu(guiManager, config), 3, 1);
+		guiManager->AddPanel(new OptionsMenu(guiManager, config), 3, 1);
 	}
 	void onRefresh(void* control) {
 		debugLog("Pressed Button at %X", control);
 		populateOptionsListBox();
 	}
 	void onBack(void* control) {
-		debugLog("Pressed Button at %X", control);
-		// Should return to the options menu
-		// Perhaps via using the modal stack
-		// To push a modal to the stack by using flags
-		// that are `& 1` on the AddPanel method
+		_HandleInputEvent(CSWGuiControl::BButton, 1);
 	}
 
 	ModOptions(CSWGuiManager* manager) :
@@ -96,10 +89,9 @@ public:
 
 		populateOptionsListBox();
 
-		// Figure out how to handle the Description ListBox/Label
-		// Looks like `CSWGuiLabel::Initialize` (0xC stack varient)
-		// Is the way to go for getting the protoitem set up. 
-		// See also: CSWGuiOptionsFeedback::SetDescription
+		// Set up description ListBox
+		CSWGuiLabel* descProto = new CSWGuiLabel(descriptionListBox.GetProtoItem()->GetPtr());
+		descriptionLabel.Initialize(descProto->GetExtent(), descProto, 1.0f);
 
 		refreshButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&ModOptions::onRefresh));
 		backButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&ModOptions::onBack));
@@ -119,8 +111,6 @@ private:
 		modOptionConfigs.clear();
 	}
 
-	// Reloads every `Mod Options\*.toml` into modOptionConfigs, replacing whatever
-	// was there. Runs on every populate so Refresh picks up newly added files.
 	void loadModOptionConfigs() {
 		clearModOptionConfigs();
 
@@ -159,7 +149,6 @@ private:
 		buttonExtent.width = optionsListBox.GetViewportWidth() - 2 * optionsListBox.GetPadding();
 		buttonExtent.height = proto.GetExtent().height;
 
-		std::vector<CSWGuiButton*> buttons;
 		CExoArrayList<CSWGuiControl*> listButtons;
 		for (size_t i = 0; i < modOptionConfigs.size(); ++i) {
 			CSWGuiButton* button = new CSWGuiButton();
@@ -170,30 +159,21 @@ private:
 			CExoString buttonText(const_cast<char*>(modOptionConfigs[i]->GetName().c_str()));
 			button->GetText()->GetTextParams()->SetText(&buttonText);
 			button->AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&ModOptions::onModOption));
+			button->AddEvent(CSWGuiControl::HoverEnter, this, memberFuncAddr(&ModOptions::SetDescription));
+			button->SetCustomValue((DWORD)i);
 
-			buttons.push_back(button);
 			listButtons.Add(button);
 		}
 		optionsListBox.AddControls(&listButtons, 1, 0, 0);
-
-		// After AddControls, which is what assigns the controls their ids -- keeps us
-		// clear of anything it writes into each control.
-		for (size_t i = 0; i < buttons.size(); ++i) {
-			buttons[i]->SetCustomValue((DWORD)i);
-		}
-
 		optionsListBox.SetSelectedControl(0, 0);
 	}
 
 	void _HandleInputEvent(int event, int doPanelEvents) {
 		if (doPanelEvents) {
 			switch (event) {
-			case CSWGuiControl::AButton:
-				// Activate the currently selected button
-				// Might not need to do anything here
-				break;
 			case CSWGuiControl::BButton:
-				// Perform the "Back" behavior
+				guiManager->PlayGuiSound(0);
+				guiManager->PopModalPanel();
 				break;
 			default:
 				break;
@@ -206,6 +186,24 @@ private:
 	void SetDescription(void* control) {
 		CSWGuiControl hovered(control);
 
+		size_t index = (size_t)hovered.GetCustomValue();
+		if (index >= modOptionConfigs.size()) {
+			debugLog("[ModOptions] mod option hovered has out-of-range custom value %u", (unsigned)index);
+			return;
+		}
+		ModOptionsConfig* config = modOptionConfigs[index];
 
+		CExoString description(const_cast<char*>(config->GetDescription().c_str()));
+
+		descriptionListBox.ClearItems();
+		CSWGuiExtent lbExtent = descriptionListBox.GetExtent();
+		lbExtent.height = descriptionLabel.GetText()->GetIdealHeight();
+
+		descriptionLabel.SetExtent(lbExtent);
+
+		CSWGuiControl* descPtr = &descriptionLabel;
+
+		descriptionListBox.AddControls(&descPtr, 1, 0, 0, 0);
+		descriptionListBox.SetActiveControl(&descriptionLabel, 0);
 	}
 };

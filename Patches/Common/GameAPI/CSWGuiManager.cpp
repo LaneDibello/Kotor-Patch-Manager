@@ -3,6 +3,8 @@
 #include "GameVersion.h"
 
 CSWGuiManager::AddPanelFn CSWGuiManager::addPanel = nullptr;
+CSWGuiManager::PlayGuiSoundFn CSWGuiManager::playGuiSound = nullptr;
+CSWGuiManager::PopModalPanelFn CSWGuiManager::popModalPanel = nullptr;
 
 bool CSWGuiManager::functionsInitialized = false;
 bool CSWGuiManager::offsetsInitialized = false;
@@ -22,7 +24,9 @@ void CSWGuiManager::InitializeFunctions() {
     }
 
     try {
-        addPanel = reinterpret_cast<AddPanelFn>(GameVersion::GetFunctionAddress("CSWGuiManager", "AddPanel"));
+        addPanel      = reinterpret_cast<AddPanelFn>(GameVersion::GetFunctionAddress("CSWGuiManager", "AddPanel"));
+        playGuiSound  = reinterpret_cast<PlayGuiSoundFn>(GameVersion::GetFunctionAddress("CSWGuiManager", "PlayGuiSound"));
+        popModalPanel = reinterpret_cast<PopModalPanelFn>(GameVersion::GetFunctionAddress("CSWGuiManager", "PopModalPanel"));
 
         functionsInitialized = true;
     }
@@ -126,4 +130,14 @@ CExoArrayList<CSWGuiPanel*>* CSWGuiManager::GetPanels() {
 void CSWGuiManager::AddPanel(CSWGuiPanel* panel, int flags, int playSound) {
     if (!objectPtr || !addPanel) return;
     addPanel(objectPtr, panel ? panel->GetPtr() : nullptr, flags, playSound);
+}
+
+void CSWGuiManager::PlayGuiSound(byte soundId) {
+    if (!objectPtr || !playGuiSound) return;
+    playGuiSound(objectPtr, soundId);
+}
+
+int CSWGuiManager::PopModalPanel() {
+    if (!objectPtr || !popModalPanel) return 0;
+    return popModalPanel(objectPtr);
 }
