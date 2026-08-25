@@ -42,6 +42,10 @@ public:
     // Accessors
     CSWGuiControl* GetParentControl();
     int GetId();
+    // Scratch field the game leaves to the implementer. Controls built at
+    // runtime use it to point back at whatever data they represent.
+    DWORD GetCustomValue();
+    void SetCustomValue(DWORD value);
 
     // Functions
     void AddChildControl(CSWGuiControl* child);
@@ -79,6 +83,7 @@ protected:
 
     static int offsetParentControl;
     static int offsetId;
+    static int offsetCustomValue;
 
     static ConstructorFn constructor;
     static DestructorFn  destructor;
