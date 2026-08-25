@@ -3,6 +3,7 @@ name = "Sample Mod Menu"
 
 [[options]]
 # One of: `toggle`, `slider`, `list`, `text`
+# toggle will supply a value of 0 or 1
 type = "toggle"
 
 # Having an INI is optional
@@ -17,3 +18,35 @@ key = "toggleOption"
 # externally by other patches at runtime, via
 # some API.
 function = "SampleFunction"
+
+# A description is optional, and is shown alongside the option
+description = "Description string for what this option does"
+
+[[options]]
+# slider will provide a positive integer value between min and max
+type = "slider"
+min = 10
+max = 100
+
+ini = "sample.ini"
+category = "Configurations"
+key = "sliderOption"
+description = "How much of the sample effect to apply."
+
+[[options]]
+# list will provide the selected choice as its value
+type = "list"
+choices = ["A", "B", "C"]
+
+ini = "sample.ini"
+category = "Configurations"
+key = "listOption"
+description = "Which sample variant to use."
+
+[[options]]
+type="text"
+
+ini = "sample.ini"
+category = "Configurations"
+key = "textOption"
+description = "Free-form sample text."

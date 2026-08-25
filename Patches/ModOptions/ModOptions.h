@@ -1,4 +1,5 @@
 #include "Common.h"
+#include "ModOptionsConfig.h"
 
 #include "GameAPI/Camera.h"
 #include "GameAPI/CExoArrayList.h"
@@ -38,16 +39,36 @@ public:
 	// Callbacks
 	void onModOption(void* control) {
 		debugLog("Pressed Button at %X", control);
-		// Should open the Corresponding Mod Options menu
 
 		CSWGuiControl button(control);
-		std::string config = modOptionConfigs[button.GetId()];
+		std::string configPath = modOptionConfigs[button.GetId()];
 
-		// Load the TOML file, and build the Options Menu
+		ModOptionsConfig config = ModOptionsConfig::LoadFromFile(configPath);
+		if (!config.loaded) {
+			debugLog("[ModOptions] %s\n", config.error.c_str());
+			return;
+		}
+
+		debugLog("[ModOptions] %s: %u options\n", config.menuName.c_str(), (unsigned)config.options.size());
+
+		// Create new Panel with the below options listed
+
+		for (const ModOption& option : config.options) {
+			switch (option.type) {
+			case ModOptionType::Toggle:
+				break;
+			case ModOptionType::Slider:
+				break;
+			case ModOptionType::List:
+				break;
+			case ModOptionType::Text:
+				break;
+			}
+		}
 	}
 	void onRefresh(void* control) {
 		debugLog("Pressed Button at %X", control);
-		populateOptionsListBox()
+		populateOptionsListBox();
 	}
 	void onBack(void* control) {
 		debugLog("Pressed Button at %X", control);
@@ -97,15 +118,25 @@ public:
 
 private:
 	void populateOptionsListBox() {
-		// TODO: Read from the TOMLs in the "Mod Options"
-		// directory for each add a button that will link 
-		// to that custom options menu.
-		std::string directory("Mod Options");
-
-		// tomls should be a list of every toml in directory
 		std::vector<std::string> tomls;
-		// optionsNames is the `name` filed from each TOML
 		std::vector<std::string> optionsNames;
+
+		std::filesystem::path directory("Mod Options");
+		std::error_code ec;
+		for (const auto& entry : std::filesystem::directory_iterator(directory, ec)) {
+			if (!entry.is_regular_file() || entry.path().extension() != ".toml") {
+				continue;
+			}
+
+			std::string path = entry.path().string();
+			std::string menuName;
+			if (!ModOptionsConfig::ReadMenuName(path, menuName)) {
+				continue;   // unparseable file; already logged by the parser
+			}
+
+			tomls.push_back(path);
+			optionsNames.push_back(menuName);
+		}
 
 		CSWGuiButton proto(optionsListBox.GetProtoItem()->GetPtr());
 		CSWGuiExtent buttonExtent;
@@ -146,6 +177,6 @@ private:
 			}
 		}
 
-		HandleInputEvent(event, param2);
+		HandleInputEvent(event, doPanelEvents);
 	}
 };
