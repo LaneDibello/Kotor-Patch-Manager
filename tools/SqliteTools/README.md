@@ -73,6 +73,39 @@ Optional columns: `notes`
 
 ---
 
+### Import Global Pointers
+
+Imports global pointers from a CSV file into an existing database.
+
+```powershell
+dotnet run -- import-globals --csv "C:\path\to\globals.csv" --database "C:\path\to\database.db"
+```
+
+**With replace mode** (deletes all existing global pointers first):
+```powershell
+dotnet run -- import-globals --csv "C:\path\to\globals.csv" --database "C:\path\to\database.db" --mode replace
+```
+
+**Example:**
+```powershell
+dotnet run -- import-globals --csv "C:\Users\laned\globals.csv" --database "..\..\AddressDatabases\kotor1_0_3.db"
+```
+
+**CSV Format:**
+```csv
+pointer_name,address,notes
+APP_MANAGER_PTR,0x007A39FC,"xref-verified: StartServices (631 xrefs)"
+SCREEN_WIDTH,0x0078D1D4,
+```
+
+Required columns: `pointer_name`, `address`
+Optional columns: `notes`
+
+Addresses can be hex with a `0x` prefix, or plain decimal. A row with an address that
+will not parse, or no name, is skipped with a warning naming the line.
+
+---
+
 ### Migrate Database Schema
 
 Runs schema migrations on a database (e.g., adds new columns for Ghidra import support).

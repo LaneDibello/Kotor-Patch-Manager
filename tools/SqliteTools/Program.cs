@@ -32,6 +32,9 @@ class Program
                 case "import-vtables":
                     new ImportVtablesCommand().Execute(commandArgs);
                     break;
+                case "import-globals":
+                    new ImportGlobalsCommand().Execute(commandArgs);
+                    break;
                 case "migrate":
                     new MigrateSchemaCommand().Execute(commandArgs);
                     break;
@@ -85,6 +88,11 @@ class Program
         Console.WriteLine("      CSV columns: class_name, vtable_address (hex)");
         Console.WriteLine("      Updates only the vtable column; size/notes are preserved");
         Console.WriteLine("      Modes: append (update/insert), replace (clear vtable column first)");
+        Console.WriteLine();
+        Console.WriteLine("  import-globals --csv <file.csv> --database <database.db> [--mode append|replace]");
+        Console.WriteLine("      Import global pointers from CSV into SQLite database");
+        Console.WriteLine("      CSV columns: pointer_name, address (hex or decimal), notes");
+        Console.WriteLine("      Modes: append (update/insert), replace (delete all first)");
         Console.WriteLine();
         Console.WriteLine("  migrate --database <database.db>");
         Console.WriteLine("      Run schema migrations on database");
