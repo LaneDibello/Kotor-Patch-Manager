@@ -20,12 +20,13 @@
 #include "GameAPI/Scene.h"
 
 #include <filesystem>
-#include <map>
 #include <string>
 #include <vector>
 
 class ModOptions : public CSWGuiPanel {
 public:
+	CSWGuiManager* guiManager;
+
 	//Controls
 	CSWGuiLabel titleLabel;
 	CSWGuiListBox optionsListBox;
@@ -34,19 +35,26 @@ public:
 	CSWGuiButton backButton;
 	CSWGuiButton refreshButton;
 
-	std::map<int, std::string> modOptionConfigs;
+	// Indexed by load order. Owned here; each list button carries its index in
+	// the control's custom_value field.
+	std::vector<ModOptionsConfig*> modOptionConfigs;
 
 	// Callbacks
 	void onModOption(void* control) {
 		debugLog("Pressed Button at %X", control);
 
 		CSWGuiControl button(control);
-		std::string configPath = modOptionConfigs[button.GetId()];
+		size_t index = (size_t)button.GetCustomValue();
+		if (index >= modOptionConfigs.size()) {
+			debugLog("[ModOptions] mod option button has out-of-range custom value %u", (unsigned)index);
+			return;
+		}
 
-		
-		// Create new OptionsMenu with this config
+		ModOptionsConfig* config = modOptionConfigs[index];
+		debugLog("[ModOptions] selected `%s` (%s)", config->GetName().c_str(), config->GetSourcePath().c_str());
 
-		
+		// TODO: OptionsMenu is not ready to be pushed yet. Once it is:
+		// guiManager->AddPanel(new OptionsMenu(guiManager, config), 3, 1);
 	}
 	void onRefresh(void* control) {
 		debugLog("Pressed Button at %X", control);
@@ -62,6 +70,7 @@ public:
 
 	ModOptions(CSWGuiManager* manager) :
 		CSWGuiPanel(manager),
+		guiManager(manager),
 		titleLabel(),
 		optionsListBox(),
 		descriptionLabel(),
@@ -98,51 +107,82 @@ public:
 		this->OverrideHandleInputEvent(memberFuncAddr(&ModOptions::_HandleInputEvent));
 	}
 
+	~ModOptions() {
+		clearModOptionConfigs();
+	}
+
 private:
-	void populateOptionsListBox() {
-		std::vector<std::string> tomls;
-		std::vector<std::string> optionsNames;
+	void clearModOptionConfigs() {
+		for (ModOptionsConfig* config : modOptionConfigs) {
+			delete config;
+		}
+		modOptionConfigs.clear();
+	}
+
+	// Reloads every `Mod Options\*.toml` into modOptionConfigs, replacing whatever
+	// was there. Runs on every populate so Refresh picks up newly added files.
+	void loadModOptionConfigs() {
+		clearModOptionConfigs();
 
 		std::filesystem::path directory("Mod Options");
 		std::error_code ec;
-		for (const auto& entry : std::filesystem::directory_iterator(directory, ec)) {
+		std::filesystem::directory_iterator entries(directory, ec);
+		if (ec) {
+			debugLog("[ModOptions] cannot read `%s`: %s", directory.string().c_str(), ec.message().c_str());
+			return;
+		}
+
+		for (const auto& entry : entries) {
 			if (!entry.is_regular_file() || entry.path().extension() != ".toml") {
 				continue;
 			}
 
-			std::string path = entry.path().string();
-			std::string menuName;
-			if (!ModOptionsConfig::ReadMenuName(path, menuName)) {
+			ModOptionsConfig config = ModOptionsConfig::LoadFromFile(entry.path().string());
+			if (!config.loaded) {
 				continue;
 			}
 
-			tomls.push_back(path);
-			optionsNames.push_back(menuName);
+			modOptionConfigs.push_back(new ModOptionsConfig(std::move(config)));
 		}
+
+		debugLog("[ModOptions] loaded %u mod option config(s)", (unsigned)modOptionConfigs.size());
+	}
+	void populateOptionsListBox() {
+		loadModOptionConfigs();
+
+		optionsListBox.ClearItems();
 
 		CSWGuiButton proto(optionsListBox.GetProtoItem()->GetPtr());
 		CSWGuiExtent buttonExtent;
 		buttonExtent.top = 0;
 		buttonExtent.left = 0;
-		buttonExtent.width = testListBox.GetViewportWidth() - 2 * testListBox.GetPadding();
+		buttonExtent.width = optionsListBox.GetViewportWidth() - 2 * optionsListBox.GetPadding();
 		buttonExtent.height = proto.GetExtent().height;
 
+		std::vector<CSWGuiButton*> buttons;
 		CExoArrayList<CSWGuiControl*> listButtons;
-		for (size_t i = 0; i < optionsNames.size(); ++i) {
+		for (size_t i = 0; i < modOptionConfigs.size(); ++i) {
 			CSWGuiButton* button = new CSWGuiButton();
 			button->Initialize(&buttonExtent,
 				proto.GetText()->GetTextParams(),
 				proto.GetBorder1()->GetBorderParams(),
 				proto.GetBorder2()->GetBorderParams());
-			CExoString buttonText(optionsNames.at(i).c_str());
+			CExoString buttonText(const_cast<char*>(modOptionConfigs[i]->GetName().c_str()));
 			button->GetText()->GetTextParams()->SetText(&buttonText);
 			button->AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&ModOptions::onModOption));
+
+			buttons.push_back(button);
 			listButtons.Add(button);
-			
-			modOptionConfigs[button->GetId()] = tomls.at(i);
 		}
 		optionsListBox.AddControls(&listButtons, 1, 0, 0);
-		testListBox.SetSelectedControl(0, 0);
+
+		// After AddControls, which is what assigns the controls their ids -- keeps us
+		// clear of anything it writes into each control.
+		for (size_t i = 0; i < buttons.size(); ++i) {
+			buttons[i]->SetCustomValue((DWORD)i);
+		}
+
+		optionsListBox.SetSelectedControl(0, 0);
 	}
 
 	void _HandleInputEvent(int event, int doPanelEvents) {

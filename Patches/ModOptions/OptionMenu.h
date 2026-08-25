@@ -20,12 +20,14 @@
 #include "GameAPI/Gob.h"
 #include "GameAPI/Scene.h"
 
-#include <map>
 #include <string>
 #include <vector>
 
 class OptionsMenu : public CSWGuiPanel {
 public:
+	// Non-owning; ModOptions owns the config objects.
+	ModOptionsConfig* config;
+
 	CSWGuiLabel titleLabel;
 	CSWGuiListBox optionsListBox;
 	CSWGuiLabel descriptionLabel;
@@ -33,10 +35,9 @@ public:
 	CSWGuiButton backButton;
 	CSWGuiButton defaultButton;
 
-	ModOptionsConfig config;
-
-	OptionsMenu(CSWGuiManager* manager, std::string configPath) :
+	OptionsMenu(CSWGuiManager* manager, ModOptionsConfig* menuConfig) :
 		CSWGuiPanel(manager),
+		config(menuConfig),
 		titleLabel(),
 		optionsListBox(),
 		descriptionLabel(),
@@ -44,12 +45,10 @@ public:
 		backButton(),
 		defaultButton()
 	{
-		ModOptionsConfig config = ModOptionsConfig::LoadFromFile(configPath);
-		if (!config.loaded) {
-			debugLog("[ModOptions] %s\n", config.error.c_str());
+		if (!config || !config->loaded) {
+			debugLog("[ModOptions] OptionsMenu built without a loaded config\n");
 			return;
 		}
-
 
 		CResRef guiResref("modOptionMenu");
 		this->StartLoadFromLayout(&guiResref);
@@ -75,12 +74,11 @@ public:
 private:
 	void populateOptionsListBox() {
 		// Fill out the options with controls from the config
-		if (!config.loaded) {
-			debugLog("[ModOptions] %s\n", config.error.c_str());
+		if (!config || !config->loaded) {
 			return;
 		}
 
-		for (const ModOption& option : config.options) {
+		for (const ModOption& option : config->GetOptions()) {
 			switch (option.type) {
 			case ModOptionType::Toggle:
 				break;

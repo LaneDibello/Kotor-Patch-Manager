@@ -41,7 +41,12 @@ struct ModOption {
 };
 
 struct ModOptionsConfig {
-	std::string menuName;	// falls back to the file stem
+	// The [menu] block.
+	std::string menuName;			// falls back to the file stem
+	std::string menuDescription;	// may be empty
+
+	std::string sourcePath;			// empty for configs parsed from memory
+
 	std::vector<ModOption> options;
 
 	// False only when the file could not be read or parsed at all. A malformed
@@ -49,9 +54,17 @@ struct ModOptionsConfig {
 	bool loaded = false;
 	std::string error;
 
+	const std::string& GetName() const { return menuName; }
+	const std::string& GetDescription() const { return menuDescription; }
+	const std::string& GetSourcePath() const { return sourcePath; }
+	const std::vector<ModOption>& GetOptions() const { return options; }
+	size_t OptionCount() const { return options.size(); }
+	const ModOption* GetOption(size_t index) const {
+		return (index < options.size()) ? &options[index] : nullptr;
+	}
+
 	static ModOptionsConfig LoadFromFile(const std::string& path);
 	static ModOptionsConfig ParseText(const std::string& text, const std::string& sourceName = std::string());
-	static bool ReadMenuName(const std::string& path, std::string& outName);
 };
 
 namespace ModOptionsConfigDetail {
@@ -163,8 +176,10 @@ namespace ModOptionsConfigDetail {
 		config.loaded = true;
 
 		config.menuName = StringOr(root, "name");
+		config.menuDescription = StringOr(root, "description");
 		if (auto menu = root["menu"].as_table()) {
 			config.menuName = StringOr(*menu, "name", config.menuName);
+			config.menuDescription = StringOr(*menu, "description", config.menuDescription);
 		}
 		if (config.menuName.empty()) {
 			config.menuName = FileStem(sourceName);
@@ -210,18 +225,19 @@ namespace ModOptionsConfigDetail {
 
 inline ModOptionsConfig ModOptionsConfig::LoadFromFile(const std::string& path) {
 #if TOML_EXCEPTIONS
+	ModOptionsConfig config;
 	try {
-		return ModOptionsConfigDetail::FromResult(toml::parse_file(path), path);
+		config = ModOptionsConfigDetail::FromResult(toml::parse_file(path), path);
 	}
 	catch (const toml::parse_error& parseError) {
-		ModOptionsConfig config;
 		config.error = path + ": TOML parse error: " + std::string(parseError.description());
 		debugLog("[ModOptions] %s\n", config.error.c_str());
-		return config;
 	}
 #else
-	return ModOptionsConfigDetail::FromResult(toml::parse_file(path), path);
+	ModOptionsConfig config = ModOptionsConfigDetail::FromResult(toml::parse_file(path), path);
 #endif
+	config.sourcePath = path;
+	return config;
 }
 
 inline ModOptionsConfig ModOptionsConfig::ParseText(const std::string& text, const std::string& sourceName) {
@@ -239,13 +255,4 @@ inline ModOptionsConfig ModOptionsConfig::ParseText(const std::string& text, con
 #else
 	return ModOptionsConfigDetail::FromResult(toml::parse(text, source), source);
 #endif
-}
-
-inline bool ModOptionsConfig::ReadMenuName(const std::string& path, std::string& outName) {
-	ModOptionsConfig config = LoadFromFile(path);
-	if (!config.loaded) {
-		return false;
-	}
-	outName = config.menuName;
-	return true;
 }
