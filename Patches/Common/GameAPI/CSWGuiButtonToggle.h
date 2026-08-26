@@ -17,6 +17,7 @@ public:
     void SetToggleEvent(CSWGuiControl::GuiEvent toggleEvent);
     int GetBitFlags();
     void SetBitFlags(int bitFlags);
+    bool GetSelected();
 
     // Functions
     void SetSelected(UINT selected);

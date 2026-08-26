@@ -16,6 +16,7 @@
 #include "GameAPI/CSWGuiManager.h"
 #include "GameAPI/CSWGuiPanel.h"
 #include "GameAPI/CSWGuiScene.h"
+#include "GameAPI/CSWGuiSlider.h"
 #include "GameAPI/CSWGuiText.h"
 #include "GameAPI/CSWGuiTextParams.h"
 #include "GameAPI/Gob.h"
@@ -59,12 +60,17 @@ public:
 		ModOption opt = config->GetOption(index);
 
 		// Get the state of the control
+		std::string value = "";
 		switch (opt.type) {
 		case ModOptionType::Toggle:
 			CSWGuiButtonToggle toggle(control);
-			
+			value = toggle.GetSelected() ? "1" : "0";
 			break;
 		case ModOptionType::Slider:
+			CSWGuiSlider slider(control);
+			char buffer[16];
+			sprintf_s(buffer, 16, "%i", slider.GetCurValue());
+			value = buffer;
 			break;
 		case ModOptionType::List:
 			break;

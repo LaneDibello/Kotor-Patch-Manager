@@ -36,7 +36,7 @@ public:
 	CSWGuiButton backButton;
 	CSWGuiButton refreshButton;
 
-	// Index coresponds to an option button's custom_value
+	// Index corresponds to an option button's custom_value
 	std::vector<ModOptionsConfig*> modOptionConfigs;
 
 	// Callbacks

@@ -148,6 +148,10 @@ void CSWGuiButtonToggle::SetBitFlags(int bitFlags) {
     setObjectProperty<int>(objectPtr, offsetBitFlags, bitFlags);
 }
 
+bool CSWGuiButtonToggle::GetSelected() {
+    return (GetBitFlags() & 1) != 0;
+}
+
 void CSWGuiButtonToggle::SetSelected(UINT selected) {
     if (!objectPtr || !setSelected) return;
     setSelected(objectPtr, selected);
