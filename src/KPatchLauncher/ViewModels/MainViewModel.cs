@@ -194,12 +194,13 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Whether the launch-method controls apply. Only the proxy deployment method
-    /// reads them (Steam or a custom command); the injection method ignores launch
-    /// config, so they stay hidden there.
+    /// Whether the launch-method controls apply. They are read wherever the manager
+    /// cannot start the game itself and the user's choice of Steam or a custom command
+    /// is what actually starts it. Injection runs the executable directly and ignores
+    /// them, so they stay hidden there.
     /// </summary>
     public bool ShowLaunchSettings =>
-        DeploymentPolicy.ForCurrentPlatform() == DeploymentMethod.Proxy;
+        !DeploymentPolicy.HostStartsGameDirectly(DeploymentPolicy.ForCurrentPlatform());
 
     /// <summary>
     /// When true, the game is launched with <see cref="CustomLaunchCommand"/>
