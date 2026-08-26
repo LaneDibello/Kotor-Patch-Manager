@@ -48,8 +48,30 @@ public:
 	}
 
 	void onOption()(void* control) {
+		CSWGuiControl option(control);
+		size_t index = (size_t)option.GetCustomValue();
+		if (index >= config->OptionCount()) {
+			debugLog("[ModOptions] mod option button has out-of-range custom value %u", (unsigned)index);
+			return;
+		}
+
 		// Pull the option from config
+		ModOption opt = config->GetOption(index);
+
 		// Get the state of the control
+		switch (opt.type) {
+		case ModOptionType::Toggle:
+			CSWGuiButtonToggle toggle(control);
+			
+			break;
+		case ModOptionType::Slider:
+			break;
+		case ModOptionType::List:
+			break;
+		case ModOptionType::Text:
+			break;
+		}
+
 		// Do the ini work if necessary
 		// Run the function if it exists
 	}
@@ -93,7 +115,6 @@ public:
 		backButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&OptionsMenu::onBack));
 
 	}
-	// TODO: Implement me
 private:
 	void populateOptionsListBox() {
 		if (!config || !config->loaded) {
@@ -110,15 +131,22 @@ private:
 		optionExtent.height = proto.GetExtent().height;
 
 		CExoArrayList<CSWGuiControl*> listOptions;
-		for (const ModOption& option : config->GetOptions()) {
-			switch (option.type) {
+		std::vector<ModOption> options = config->GetOptions();
+		for (size_t i = 0; i < options.size(); ++i) {
+			switch (options[i].type) {
 			case ModOptionType::Toggle:
 				CSWGuiButtonToggle* toggle = new CSWGuiButtonToggle();
 				toggle->Initialize(&optionExtent,
 					proto.GetText()->GetTextParams(),
 					proto.GetBorder1()->GetBorderParams(),
 					proto.GetBorder2()->GetBorderParams());
-				//todo
+				CExoString toggleText(const_cast<char*>(options[i].name.c_str()));
+				toggle->GetText()->GetTextParams()->SetText(&toggleText);
+				toggle->AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&ModOptions::onModOption));
+				toggle->AddEvent(CSWGuiControl::HoverEnter, this, memberFuncAddr(&ModOptions::SetDescription));
+				toggle->SetCustomValue((DWORD)i);
+
+				listOptions.Add(button);
 				break;
 			case ModOptionType::Slider:
 				break;

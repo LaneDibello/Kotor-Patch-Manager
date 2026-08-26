@@ -1,6 +1,10 @@
 #pragma once
 #include "Common.h"
 
+#include <cctype>
+#include <cstdint>
+#include <cstdlib>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,6 +24,7 @@ enum class ModOptionType {
 };
 
 struct ModOption {
+	std::string name;				// required; the label shown in the UI
 	ModOptionType type = ModOptionType::Toggle;
 	std::string description;
 
@@ -34,6 +39,25 @@ struct ModOption {
 
 	// List only. Never empty for a List option.
 	std::vector<std::string> choices;
+
+	// The `default` field, kept in both a numeric and a string form so callers
+	// can drive a control or write an ini entry without re-parsing. Meaning of
+	// defaultNumber by type:
+	//   Toggle -> 0 or 1
+	//   Slider -> clamped into [min, max]
+	//   List   -> index into `choices`
+	//   Text   -> unused (always 0)
+	int defaultNumber = 0;
+	std::string defaultString;
+
+	const std::string& GetName() const { return name; }
+	const std::string& GetDescription() const { return description; }
+
+	int DefaultAsInt() const { return defaultNumber; }
+	bool DefaultAsBool() const { return defaultNumber != 0; }
+	size_t DefaultChoiceIndex() const { return (size_t)defaultNumber; }
+	// Canonical text form, suitable for writing straight into an ini entry.
+	const std::string& DefaultAsString() const { return defaultString; }
 
 	bool HasIni() const { return !ini.empty() && !category.empty() && !key.empty(); }
 	bool HasFunction() const { return !function.empty(); }
@@ -92,7 +116,144 @@ namespace ModOptionsConfigDetail {
 		return fallback;
 	}
 
+	// Accepts the ini-friendly spellings a `default` might use for a toggle.
+	inline bool ParseBooleanText(const std::string& text, bool& outValue) {
+		std::string lowered;
+		lowered.reserve(text.size());
+		for (char character : text) {
+			lowered.push_back((char)tolower((unsigned char)character));
+		}
+		if (lowered == "1" || lowered == "true" || lowered == "yes" || lowered == "on") { outValue = true; return true; }
+		if (lowered == "0" || lowered == "false" || lowered == "no" || lowered == "off") { outValue = false; return true; }
+		return false;
+	}
+
+	// Requires the type-specific fields (min/max, choices) to already be parsed.
+	// A default that is present but out of range is corrected rather than fatal;
+	// a missing or wrongly typed default skips the option.
+	inline bool ParseDefault(const toml::table& source, size_t index, const std::string& sourceName, ModOption& outOption) {
+		const toml::node* node = source.get("default");
+		if (!node) {
+			debugLog("[ModOptions] %s: option %u has no `default`; skipping\n", sourceName.c_str(), (unsigned)index);
+			return false;
+		}
+
+		switch (outOption.type) {
+		case ModOptionType::Toggle: {
+			bool value = false;
+			if (node->is_boolean()) {
+				value = *node->value<bool>();
+			}
+			else if (auto text = node->value<std::string>()) {
+				if (!ParseBooleanText(*text, value)) {
+					debugLog("[ModOptions] %s: toggle option %u has an unrecognized `default` of `%s`; skipping\n",
+						sourceName.c_str(), (unsigned)index, text->c_str());
+					return false;
+				}
+			}
+			else if (node->is_integer()) {
+				auto number = node->value<int64_t>();
+				if (*number != 0 && *number != 1) {
+					debugLog("[ModOptions] %s: toggle option %u has a `default` of %d, which is not 0 or 1; skipping\n",
+						sourceName.c_str(), (unsigned)index, (int)*number);
+					return false;
+				}
+				value = (*number != 0);
+			}
+			else {
+				debugLog("[ModOptions] %s: toggle option %u has a `default` that is not a boolean; skipping\n",
+					sourceName.c_str(), (unsigned)index);
+				return false;
+			}
+			outOption.defaultNumber = value ? 1 : 0;
+			outOption.defaultString = value ? "1" : "0";
+			return true;
+		}
+		case ModOptionType::Slider: {
+			std::optional<int64_t> number;
+			if (node->is_integer()) {
+				number = node->value<int64_t>();
+			}
+			else if (auto text = node->value<std::string>()) {
+				number = (int64_t)atoi(text->c_str());
+			}
+			if (!number) {
+				debugLog("[ModOptions] %s: slider option %u has a `default` that is not an integer; skipping\n",
+					sourceName.c_str(), (unsigned)index);
+				return false;
+			}
+			int64_t clamped = *number;
+			if (clamped < outOption.min) { clamped = outOption.min; }
+			if (clamped > outOption.max) { clamped = outOption.max; }
+			if (clamped != *number) {
+				debugLog("[ModOptions] %s: slider option %u has a `default` of %d outside [%d, %d]; clamping to %d\n",
+					sourceName.c_str(), (unsigned)index, (int)*number, outOption.min, outOption.max, (int)clamped);
+			}
+			outOption.defaultNumber = (int)clamped;
+			outOption.defaultString = std::to_string(outOption.defaultNumber);
+			return true;
+		}
+		case ModOptionType::List: {
+			if (auto text = node->value<std::string>()) {
+				for (size_t choice = 0; choice < outOption.choices.size(); ++choice) {
+					if (outOption.choices[choice] == *text) {
+						outOption.defaultNumber = (int)choice;
+						outOption.defaultString = *text;
+						return true;
+					}
+				}
+				debugLog("[ModOptions] %s: list option %u has a `default` of `%s`, which is not one of its choices; using `%s`\n",
+					sourceName.c_str(), (unsigned)index, text->c_str(), outOption.choices[0].c_str());
+				outOption.defaultNumber = 0;
+				outOption.defaultString = outOption.choices[0];
+				return true;
+			}
+			if (node->is_integer()) {
+				auto number = node->value<int64_t>();
+				int64_t clamped = *number;
+				if (clamped < 0) { clamped = 0; }
+				if (clamped >= (int64_t)outOption.choices.size()) { clamped = (int64_t)outOption.choices.size() - 1; }
+				if (clamped != *number) {
+					debugLog("[ModOptions] %s: list option %u has a `default` index of %d outside its %u choices; clamping to %d\n",
+						sourceName.c_str(), (unsigned)index, (int)*number, (unsigned)outOption.choices.size(), (int)clamped);
+				}
+				outOption.defaultNumber = (int)clamped;
+				outOption.defaultString = outOption.choices[(size_t)clamped];
+				return true;
+			}
+			debugLog("[ModOptions] %s: list option %u has a `default` that is neither a choice nor an index; skipping\n",
+				sourceName.c_str(), (unsigned)index);
+			return false;
+		}
+		case ModOptionType::Text: {
+			if (auto text = node->value<std::string>()) {
+				outOption.defaultString = *text;
+				return true;
+			}
+			if (node->is_boolean()) {
+				outOption.defaultString = *node->value<bool>() ? "true" : "false";
+				return true;
+			}
+			if (node->is_integer()) {
+				outOption.defaultString = std::to_string((int)*node->value<int64_t>());
+				return true;
+			}
+			debugLog("[ModOptions] %s: text option %u has a `default` that is not a string; skipping\n",
+				sourceName.c_str(), (unsigned)index);
+			return false;
+		}
+		}
+
+		return false;
+	}
+
 	inline bool ParseOption(const toml::table& source, size_t index, const std::string& sourceName, ModOption& outOption) {
+		outOption.name = StringOr(source, "name");
+		if (outOption.name.empty()) {
+			debugLog("[ModOptions] %s: option %u has no `name`; skipping\n", sourceName.c_str(), (unsigned)index);
+			return false;
+		}
+
 		auto typeText = source["type"].value<std::string>();
 		if (!typeText) {
 			debugLog("[ModOptions] %s: option %u has no `type`; skipping\n", sourceName.c_str(), (unsigned)index);
@@ -166,6 +327,11 @@ namespace ModOptionsConfigDetail {
 		}
 		default:
 			break;
+		}
+
+		// Depends on min/max and choices, so it has to come last.
+		if (!ParseDefault(source, index, sourceName, outOption)) {
+			return false;
 		}
 
 		return true;

@@ -3,13 +3,11 @@
 CSWGuiButton* modOptionsButton;
 
 void __fastcall CreateModOptionsGui(void*, void*, void*) {
-    debugLog("Creating Test GUI");
     CSWGuiManager* manager = new CSWGuiManager();
 
     ModOptions* gui = new ModOptions(manager);
 
     manager->AddPanel(gui, 3, 1);
-    debugLog("Test GUI Created");
 }
 
 extern "C" void __cdecl InjectOptionsButton(void* thisPanel) {
