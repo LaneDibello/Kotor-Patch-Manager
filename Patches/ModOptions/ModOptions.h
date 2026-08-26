@@ -54,7 +54,7 @@ public:
 		guiManager->AddPanel(new OptionsMenu(guiManager, config), 3, 1);
 	}
 	void onRefresh(void* control) {
-		debugLog("Pressed Button at %X", control);
+		debugLog("[ModOptions] Refresh Button Pressed");
 		populateOptionsListBox();
 	}
 	void onBack(void* control) {

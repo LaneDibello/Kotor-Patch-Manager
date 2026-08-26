@@ -10,6 +10,7 @@
 #include "GameAPI/CSWGuiBorder.h"
 #include "GameAPI/CSWGuiBorderParams.h"
 #include "GameAPI/CSWGuiButton.h"
+#include "GameAPI/CSWGuiButtonToggle.h"
 #include "GameAPI/CSWGuiLabel.h"
 #include "GameAPI/CSWGuiListBox.h"
 #include "GameAPI/CSWGuiManager.h"
@@ -34,6 +35,24 @@ public:
 	CSWGuiListBox descriptionListBox;
 	CSWGuiButton backButton;
 	CSWGuiButton defaultButton;
+
+	//Callbacks
+	void onBack(void* control) {
+		debugLog("[ModOptions] Back Button Pressed");
+		_HandleInputEvent(CSWGuiControl::BButton, 1);
+	}
+
+	void onDefault(void* control) {
+		debugLog("[ModOptions] Default Button Pressed");
+		// Restore all options to their default states
+	}
+
+	void onOption()(void* control) {
+		// Pull the option from config
+		// Get the state of the control
+		// Do the ini work if necessary
+		// Run the function if it exists
+	}
 
 	OptionsMenu(CSWGuiManager* manager, ModOptionsConfig* menuConfig) :
 		CSWGuiPanel(manager),
@@ -67,20 +86,39 @@ public:
 		populateOptionsListBox();
 
 		//Description Logic
+		CSWGuiLabel* descProto = new CSWGuiLabel(descriptionListBox.GetProtoItem()->GetPtr());
+		descriptionLabel.Initialize(descProto->GetExtent(), descProto, 1.0f);
 
+		defaultButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&OptionsMenu::onDefault));
+		backButton.AddEvent(CSWGuiControl::AButton, this, memberFuncAddr(&OptionsMenu::onBack));
 
 	}
 	// TODO: Implement me
 private:
 	void populateOptionsListBox() {
-		// Fill out the options with controls from the config
 		if (!config || !config->loaded) {
 			return;
 		}
 
+		optionsListBox.ClearItems();
+
+		CSWGuiButton proto(optionsListBox.GetProtoItem()->GetPtr());
+		CSWGuiExtent optionExtent;
+		optionExtent.top = 0;
+		optionExtent.left = 0;
+		optionExtent.width = optionsListBox.GetViewportWidth() - 2 * optionsListBox.GetPadding();
+		optionExtent.height = proto.GetExtent().height;
+
+		CExoArrayList<CSWGuiControl*> listOptions;
 		for (const ModOption& option : config->GetOptions()) {
 			switch (option.type) {
 			case ModOptionType::Toggle:
+				CSWGuiButtonToggle* toggle = new CSWGuiButtonToggle();
+				toggle->Initialize(&optionExtent,
+					proto.GetText()->GetTextParams(),
+					proto.GetBorder1()->GetBorderParams(),
+					proto.GetBorder2()->GetBorderParams());
+				//todo
 				break;
 			case ModOptionType::Slider:
 				break;
@@ -90,5 +128,20 @@ private:
 				break;
 			}
 		}
+	}
+
+	void _HandleInputEvent(int event, int doPanelEvents) {
+		if (doPanelEvents) {
+			switch (event) {
+			case CSWGuiControl::BButton:
+				guiManager->PlayGuiSound(0);
+				guiManager->PopModalPanel();
+				break;
+			default:
+				break;
+			}
+		}
+
+		HandleInputEvent(event, doPanelEvents);
 	}
 };

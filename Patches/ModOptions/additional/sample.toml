@@ -3,9 +3,16 @@ name = "Sample Mod Menu"
 description = "Example of what custom mod menus can looks like"
 
 [[options]]
+# All options needs a name
+# This will be what appears in the UI
+name = "Toggle Option"
+
 # One of: `toggle`, `slider`, `list`, `text`
 # toggle will supply a value of 0 or 1
 type = "toggle"
+
+# All options need a default value
+default = 0
 
 # Having an INI is optional
 # but will be what most options menus do
@@ -24,10 +31,14 @@ function = "SampleFunction"
 description = "Description string for what this option does"
 
 [[options]]
+name = "Slider Option"
+
 # slider will provide a positive integer value between min and max
 type = "slider"
 min = 10
 max = 100
+
+default = 50
 
 ini = "sample.ini"
 category = "Configurations"
@@ -35,9 +46,13 @@ key = "sliderOption"
 description = "How much of the sample effect to apply."
 
 [[options]]
+name = "List Option"
+
 # list will provide the selected choice as its value
 type = "list"
 choices = ["A", "B", "C"]
+
+default = "A"
 
 ini = "sample.ini"
 category = "Configurations"
@@ -45,7 +60,11 @@ key = "listOption"
 description = "Which sample variant to use."
 
 [[options]]
+name = "Text Option"
+
 type="text"
+
+default="sample value"
 
 ini = "sample.ini"
 category = "Configurations"

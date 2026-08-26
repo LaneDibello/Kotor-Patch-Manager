@@ -1,22 +1,22 @@
-## Description handling
-Should cannibalize `CSWGuiOptionsMain::SetDescription`
-
-Need to create an `OnEnterSlot` function that will fire on HoverEnter for all the options. This function will set the current description. This will be done first by setting the text params on the description label. Clear items on the description list box. Set the extent height of the label text using GetIdealHeight. And add the label.
-
-The constructor for the menu also should run initialize against the description label, using the proto item extent, and a float param of 1.0f
-
-## Modal stack
-Adding a new panel with options `3, 1`, should put it on the modal stack. The back button should be able to get away with the default `OnBButtonPressed` result.
-
-## Refreshing Mod Options
-Should just poll the toml files again in case one was added, and rebuild the options menus. 
-
-## Input Event Handling
-For both the ModOptions and OptionsMenu classes.
-
-On `A` button, I think the underlying panel handler should divert the event to the active control which will select the button just fine. 
-
-On `B` button and escape, we should just divert to the back button handler. We may want to add a sound here, or directly pop the modal if that leads to issues
-
 ## Function Handling
-Who even knows man
+We need some way for patches to regsiter functions that can be referenced by this patch.
+
+A few ideas:
+
+- Somehow get this patch in the dependancy path of patches that want to work with this
+- Just have a file this patch creates that other patches can append entries to, that this patch can use as a library to pull up functions
+- Have something in the common lib that all patches can pull from that will establish a re-usable IPC (Inter-Patch Communitication) format for other things like this
+- Have a means for patches to compile a static lib with the functions they want to regsiter alongside the main deliverable. I'm actually liking this idea a bit more.
+
+## Default options
+Each option in the toml spec will need a default field.
+The onDefault callback will update the state of all the buttons, and also restore the ini entries to these default values.
+
+## TOML needs
+- Defaults
+- Option names to render in the options menu
+
+## Game API needs
+- Consider implementing `CSWGuiOptionsCheckbox` for these toogles
+- Will likley need some testing for edit box and slider
+- The list options are typically built with 3 buttons, the main select, and a left/right selector
