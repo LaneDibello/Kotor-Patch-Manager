@@ -1,5 +1,6 @@
 #include "CSWGuiButtonToggle.h"
 #include "GameVersion.h"
+#include "CSWGuiBorder.h"
 
 CSWGuiButtonToggle::SetSelectedFn CSWGuiButtonToggle::setSelected = nullptr;
 CSWGuiButtonToggle::ConstructorFn CSWGuiButtonToggle::constructor = nullptr;
@@ -8,6 +9,11 @@ int CSWGuiButtonToggle::classSize = -1;
 
 bool CSWGuiButtonToggle::functionsInitialized = false;
 bool CSWGuiButtonToggle::offsetsInitialized = false;
+
+int CSWGuiButtonToggle::offsetToggleEvent = -1;
+int CSWGuiButtonToggle::offsetBitFlags = -1;
+int CSWGuiButtonToggle::offsetBorderSelected = -1;
+int CSWGuiButtonToggle::offsetBorderHilight = -1;
 
 void CSWGuiButtonToggle::InitializeFunctions() {
     if (functionsInitialized) {
@@ -47,7 +53,10 @@ void CSWGuiButtonToggle::InitializeOffsets() {
     }
 
     try {
-        // Offsets Here
+        offsetToggleEvent = GameVersion::GetOffset("CSWGuiButtonToggle", "toggle_event");
+        offsetBitFlags = GameVersion::GetOffset("CSWGuiButtonToggle", "bit_flags");
+        offsetBorderSelected = GameVersion::GetOffset("CSWGuiButtonToggle", "border_selected");
+        offsetBorderHilight = GameVersion::GetOffset("CSWGuiButtonToggle", "border_hilight");
         classSize = GameVersion::GetClassSize("CSWGuiButtonToggle");
 
         offsetsInitialized = true;
@@ -97,6 +106,46 @@ CSWGuiButtonToggle::~CSWGuiButtonToggle()
         objectPtr = nullptr;
         shouldFree = false;
     }
+}
+
+CSWGuiBorder* CSWGuiButtonToggle::GetBorderSelected() {
+    if (!objectPtr || offsetBorderSelected < 0) {
+        return nullptr;
+    }
+    // Inline CSWGuiBorder member: wrap its in-place address.
+    return new CSWGuiBorder((char*)objectPtr + offsetBorderSelected);
+}
+
+CSWGuiBorder* CSWGuiButtonToggle::GetBorderHilight() {
+    if (!objectPtr || offsetBorderHilight < 0) {
+        return nullptr;
+    }
+    // Inline CSWGuiBorder member: wrap its in-place address.
+    return new CSWGuiBorder((char*)objectPtr + offsetBorderHilight);
+}
+
+CSWGuiControl::GuiEvent CSWGuiButtonToggle::GetToggleEvent() {
+    if (!objectPtr || offsetToggleEvent < 0) {
+        return CSWGuiControl::HoverEnter;
+    }
+    return getObjectProperty<CSWGuiControl::GuiEvent>(objectPtr, offsetToggleEvent);
+}
+
+void CSWGuiButtonToggle::SetToggleEvent(CSWGuiControl::GuiEvent toggleEvent) {
+    if (!objectPtr || offsetToggleEvent < 0) return;
+    setObjectProperty<CSWGuiControl::GuiEvent>(objectPtr, offsetToggleEvent, toggleEvent);
+}
+
+int CSWGuiButtonToggle::GetBitFlags() {
+    if (!objectPtr || offsetBitFlags < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetBitFlags);
+}
+
+void CSWGuiButtonToggle::SetBitFlags(int bitFlags) {
+    if (!objectPtr || offsetBitFlags < 0) return;
+    setObjectProperty<int>(objectPtr, offsetBitFlags, bitFlags);
 }
 
 void CSWGuiButtonToggle::SetSelected(UINT selected) {

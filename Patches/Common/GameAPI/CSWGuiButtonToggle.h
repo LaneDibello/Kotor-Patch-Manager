@@ -2,11 +2,21 @@
 #include "../Common.h"
 #include "CSWGuiButton.h"
 
+class CSWGuiBorder;
+
 class CSWGuiButtonToggle : public CSWGuiButton {
 public:
     explicit CSWGuiButtonToggle(void* objectPtr);
     CSWGuiButtonToggle();
     ~CSWGuiButtonToggle();
+
+    // Accessors. Returned wrapper is heap allocated; caller owns it.
+    CSWGuiBorder* GetBorderSelected();
+    CSWGuiBorder* GetBorderHilight();
+    CSWGuiControl::GuiEvent GetToggleEvent();
+    void SetToggleEvent(CSWGuiControl::GuiEvent toggleEvent);
+    int GetBitFlags();
+    void SetBitFlags(int bitFlags);
 
     // Functions
     void SetSelected(UINT selected);
@@ -26,4 +36,9 @@ protected:
 
     static bool functionsInitialized;
     static bool offsetsInitialized;
+
+    static int offsetToggleEvent;
+    static int offsetBitFlags;
+    static int offsetBorderSelected;
+    static int offsetBorderHilight;
 };
