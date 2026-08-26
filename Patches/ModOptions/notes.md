@@ -1,12 +1,7 @@
 ## Function Handling
 We need some way for patches to regsiter functions that can be referenced by this patch.
 
-A few ideas:
-
-- Somehow get this patch in the dependancy path of patches that want to work with this
-- Just have a file this patch creates that other patches can append entries to, that this patch can use as a library to pull up functions
-- Have something in the common lib that all patches can pull from that will establish a re-usable IPC (Inter-Patch Communitication) format for other things like this
-- Have a means for patches to compile a static lib with the functions they want to regsiter alongside the main deliverable. I'm actually liking this idea a bit more.
+Since the other patches alreayd export functions, a GetModuleHandle call shoudl be able to retrieve them.
 
 ## Default options
 Each option in the toml spec will need a default field.
