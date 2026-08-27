@@ -1,0 +1,5 @@
+LIBRARY K2AspyrMapAspectFix
+EXPORTS
+    preserveAreaMapAspect
+    preserveAreaMapProjection
+    preserveMiniMapAspect
