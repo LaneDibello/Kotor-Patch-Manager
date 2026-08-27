@@ -1,0 +1,38 @@
+[metadata]
+target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"]
+
+# Correct the full map's X scale before its image and child rectangles are sized.
+[[hooks]]
+address = 0x005633A5
+type = "detour"
+function = "preserveAreaMapAspect"
+original_bytes = [0xC7, 0x85, 0x7C, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer"
+
+# Correct the X scale used by fog, markers, and marker hit testing.
+[[hooks]]
+address = 0x00564DDD
+type = "detour"
+function = "preserveAreaMapProjection"
+original_bytes = [0x89, 0x85, 0xA0, 0xFD, 0xFF, 0xFF, 0x8B, 0x85, 0xA0, 0xFD, 0xFF, 0xFF]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer"
+
+# Correct the minimap's X scale immediately before it is positioned and drawn.
+[[hooks]]
+address = 0x0052202A
+type = "detour"
+function = "preserveMiniMapAspect"
+original_bytes = [0x89, 0x45, 0x8C, 0x8B, 0x45, 0x8C]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer"
