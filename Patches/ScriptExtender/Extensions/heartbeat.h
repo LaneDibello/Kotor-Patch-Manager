@@ -1,6 +1,9 @@
 #pragma once
 #include "Common.h"
 #include "GameAPI/CVirtualMachine.h"
+#include "GameAPI/CServerExoApp.h"
+#include "GameAPI/CGameObject.h"
+
 
 const int ForceHeartbeatIndex = 803;
 VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int paramCount);
