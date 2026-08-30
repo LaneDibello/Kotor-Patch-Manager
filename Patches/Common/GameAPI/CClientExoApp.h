@@ -9,6 +9,7 @@ class CResRef;
 class CSWCCreature;
 class CGameObject;
 class CGuiInGame;
+class CWorldTimer;
 
 class CClientExoApp : public GameAPIObject {
 public:
@@ -95,6 +96,8 @@ public:
 
     // Misc
     int GetClientLanguage();
+    // Returns the world timer (heap-allocated wrapper; caller owns it). K1 only.
+    CWorldTimer* GetWorldTimer();
 
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
@@ -170,6 +173,7 @@ private:
     typedef void(__thiscall* StopCreditSequenceFn)(void* thisPtr);
 
     typedef int(__thiscall* GetClientLanguageFn)(void* thisPtr);
+    typedef void* (__thiscall* GetWorldTimerFn)(void* thisPtr);
 
     static GetClientOptionsFn getClientOptions;
 
@@ -237,6 +241,7 @@ private:
     static StopCreditSequenceFn stopCreditSequence;
 
     static GetClientLanguageFn getClientLanguage;
+    static GetWorldTimerFn getWorldTimer;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;
