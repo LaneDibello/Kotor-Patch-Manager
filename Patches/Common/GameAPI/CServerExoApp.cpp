@@ -3,6 +3,8 @@
 #include "GameVersion.h"
 #include "../Common.h"
 #include "CSWSCreature.h"
+#include "CWorldTimer.h"
+#include "CGameObject.h"
 
 CServerExoApp::GetObjectArrayFn CServerExoApp::getObjectArray = nullptr;
 CServerExoApp::GetPlayerCreatureIdFn CServerExoApp::getPlayerCreatureId = nullptr;
@@ -10,6 +12,9 @@ CServerExoApp::GetCreatureByGameObjectIDFn CServerExoApp::getCreatureByGameObjec
 CServerExoApp::GetPlayerCreatureFn CServerExoApp::getPlayerCreature = nullptr;
 CServerExoApp::GetGlobalVariableTableFn CServerExoApp::getGlobalVariableTable = nullptr;
 CServerExoApp::ClientToServerObjectIdFn CServerExoApp::clientToServerObjectId = nullptr;
+CServerExoApp::GetWorldTimerFn CServerExoApp::getWorldTimer = nullptr;
+CServerExoApp::GetActiveTimerFn CServerExoApp::getActiveTimer = nullptr;
+CServerExoApp::GetGameObjectFn CServerExoApp::getGameObject = nullptr;
 bool CServerExoApp::functionsInitialized = false;
 bool CServerExoApp::offsetsInitialized = false;
 
@@ -48,6 +53,18 @@ void CServerExoApp::InitializeFunctions() {
 
         clientToServerObjectId = reinterpret_cast<ClientToServerObjectIdFn>(
             GameVersion::GetFunctionAddress("CServerExoApp", "ClientToServerObjectId")
+        );
+
+        getWorldTimer = reinterpret_cast<GetWorldTimerFn>(
+            GameVersion::GetFunctionAddress("CServerExoApp", "GetWorldTimer")
+        );
+
+        getActiveTimer = reinterpret_cast<GetActiveTimerFn>(
+            GameVersion::GetFunctionAddress("CServerExoApp", "GetActiveTimer")
+        );
+
+        getGameObject = reinterpret_cast<GetGameObjectFn>(
+            GameVersion::GetFunctionAddress("CServerExoApp", "GetGameObject")
         );
     }
     catch (const GameVersionException& e) {
@@ -153,4 +170,49 @@ DWORD CServerExoApp::ClientToServerObjectId(DWORD clientId) {
     }
 
     return clientToServerObjectId(objectPtr, clientId);
+}
+
+CWorldTimer* CServerExoApp::GetWorldTimer() {
+    if (!objectPtr || !getWorldTimer) {
+        debugLog("[CServerExoApp] Error: no objectPtr or no getWorldTimer");
+        return nullptr;
+    }
+
+    void* worldTimerPtr = getWorldTimer(objectPtr);
+    if (!worldTimerPtr) {
+        debugLog("[CServerExoApp] Error: Bad worldTimerPtr");
+        return nullptr;
+    }
+
+    return new CWorldTimer(worldTimerPtr);
+}
+
+CWorldTimer* CServerExoApp::GetActiveTimer(int objectId) {
+    if (!objectPtr || !getActiveTimer) {
+        debugLog("[CServerExoApp] Error: no objectPtr or no getActiveTimer");
+        return nullptr;
+    }
+
+    void* worldTimerPtr = getActiveTimer(objectPtr, objectId);
+    if (!worldTimerPtr) {
+        debugLog("[CServerExoApp] Error: Bad worldTimerPtr");
+        return nullptr;
+    }
+
+    return new CWorldTimer(worldTimerPtr);
+}
+
+CGameObject* CServerExoApp::GetGameObject(DWORD objectId) {
+    if (!objectPtr || !getGameObject) {
+        debugLog("[CServerExoApp] Error: no objectPtr or no getGameObject");
+        return nullptr;
+    }
+
+    void* gameObjectPtr = getGameObject(objectPtr, objectId);
+    if (!gameObjectPtr) {
+        debugLog("[CServerExoApp] Error: Bad gameObjectPtr");
+        return nullptr;
+    }
+
+    return new CGameObject(gameObjectPtr);
 }
