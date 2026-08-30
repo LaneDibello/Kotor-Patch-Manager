@@ -21,7 +21,7 @@ public:
     void InitializeFunctions() override;
     void InitializeOffsets() override;
 
-private:
+protected:
 
     typedef void* (__thiscall* GetClientCreatureFn)(void* thisPtr);
 

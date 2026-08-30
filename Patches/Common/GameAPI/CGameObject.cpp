@@ -62,4 +62,8 @@ WORD CGameObject::GetObjectType() {
     return getObjectProperty<WORD>(objectPtr, offsetObjectType);
 }
 
+GAME_OBJECT_TYPES CGameObject::GetObjectTypeEnum() {
+    return static_cast<GAME_OBJECT_TYPES>(GetObjectType());
+}
+
 // GetPtr() is now inherited from GameAPIObject

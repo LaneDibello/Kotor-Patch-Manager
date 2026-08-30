@@ -1,12 +1,12 @@
 #pragma once
 
 #include "../Common.h"
-#include "GameAPIObject.h"
+#include "CSWCObject.h"
 
-class CSWCCreature : public GameAPIObject {
+class CSWCCreature : public CSWCObject {
 public:
     explicit CSWCCreature(void* creaturePtr);
-    ~CSWCCreature();
+    virtual ~CSWCCreature();
 
     bool GetRunning();
     bool GetStealth();
@@ -18,7 +18,7 @@ public:
     void InitializeFunctions() override;
     void InitializeOffsets() override;
 
-private:
+protected:
     static bool functionsInitialized;
     static bool offsetsInitialized;
 

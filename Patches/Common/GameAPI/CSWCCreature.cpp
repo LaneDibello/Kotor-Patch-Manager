@@ -7,6 +7,12 @@ int CSWCCreature::offsetStealth = -1;
 bool CSWCCreature::offsetsInitialized = false;
 
 void CSWCCreature::InitializeFunctions() {
+    if (functionsInitialized) {
+        return;
+    }
+
+    CSWCObject::InitializeFunctions();
+
     // CSWCCreature has no functions
     functionsInitialized = true;
 }
@@ -15,6 +21,8 @@ void CSWCCreature::InitializeOffsets() {
     if (offsetsInitialized) {
         return;
     }
+
+    CSWCObject::InitializeOffsets();
 
     if (!GameVersion::IsInitialized()) {
         OutputDebugStringA("[CSWCCreature] ERROR: GameVersion not initialized\n");
@@ -33,7 +41,7 @@ void CSWCCreature::InitializeOffsets() {
 }
 
 CSWCCreature::CSWCCreature(void* creaturePtr)
-    : GameAPIObject(creaturePtr, false)  // false = don't free (wrapping existing)
+    : CSWCObject(creaturePtr)
 {
     if (!functionsInitialized) {
         InitializeFunctions();
