@@ -11,7 +11,7 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 #
 # This NOPs the same OnPanelAdded() call that the Windows GOG/Steam patch removes.
 [[hooks]]
-address = 0x1002107fe
+address = 0x2117FE
 type = "simple"
 original_bytes = [0xE8, 0x1b, 0x05, 0x00, 0x00]
 replacement_bytes = [0x90, 0x90, 0x90, 0x90, 0x90]
