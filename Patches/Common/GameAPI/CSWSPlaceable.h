@@ -132,6 +132,11 @@ public:
     int GetIsCorpse();
     void SetIsCorpse(int value);
 
+    int GetLastHeartbeatDay();
+    void SetLastHeartbeatDay(int value);
+    int GetLastHeartbeatMs();
+    void SetLastHeartbeatMs(int value);
+
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -205,6 +210,8 @@ protected:
     static int offsetOrientationQuat;
     static int offsetIsBodyBag;
     static int offsetIsCorpse;
+    static int offsetLastHeartbeatDay;
+    static int offsetLastHeartbeatMs;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;

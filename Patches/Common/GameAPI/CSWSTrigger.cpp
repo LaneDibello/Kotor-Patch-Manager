@@ -36,6 +36,8 @@ int CSWSTrigger::offsetBBoxMaxY = -1;
 int CSWSTrigger::offsetCursor = -1;
 int CSWSTrigger::offsetLoadScreenId = -1;
 int CSWSTrigger::offsetTransitionDestination = -1;
+int CSWSTrigger::offsetLastHeartbeatMs = -1;
+int CSWSTrigger::offsetLastHeartbeatDays = -1;
 
 bool CSWSTrigger::functionsInitialized = false;
 bool CSWSTrigger::offsetsInitialized = false;
@@ -114,6 +116,8 @@ void CSWSTrigger::InitializeOffsets() {
         offsetCursor = GameVersion::GetOffset("CSWSTrigger", "cursor");
         offsetLoadScreenId = GameVersion::GetOffset("CSWSTrigger", "load_screen_id");
         offsetTransitionDestination = GameVersion::GetOffset("CSWSTrigger", "transition_destination");
+        offsetLastHeartbeatMs = GameVersion::GetOffset("CSWSTrigger", "last_heartbeat_ms");
+        offsetLastHeartbeatDays = GameVersion::GetOffset("CSWSTrigger", "last_heartbeat_days");
 
         offsetsInitialized = true;
     }
@@ -458,4 +462,32 @@ CExoLocString* CSWSTrigger::GetTransitionDestination() {
         return nullptr;
     }
     return new CExoLocString(static_cast<BYTE*>(objectPtr) + offsetTransitionDestination);
+}
+
+int CSWSTrigger::GetLastHeartbeatMs() {
+    if (!objectPtr || offsetLastHeartbeatMs < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetLastHeartbeatMs);
+}
+
+void CSWSTrigger::SetLastHeartbeatMs(int value) {
+    if (!objectPtr || offsetLastHeartbeatMs < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetLastHeartbeatMs, value);
+}
+
+int CSWSTrigger::GetLastHeartbeatDays() {
+    if (!objectPtr || offsetLastHeartbeatDays < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetLastHeartbeatDays);
+}
+
+void CSWSTrigger::SetLastHeartbeatDays(int value) {
+    if (!objectPtr || offsetLastHeartbeatDays < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetLastHeartbeatDays, value);
 }

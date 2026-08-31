@@ -53,6 +53,8 @@ int CSWSDoor::offsetDescription = -1;
 int CSWSDoor::offsetLoadScreenIdLower = -1;
 int CSWSDoor::offsetLoadScreenIdUpper = -1;
 int CSWSDoor::offsetTransitionDestination = -1;
+int CSWSDoor::offsetLastHeartbeatDay = -1;
+int CSWSDoor::offsetLastHeartbeatMs = -1;
 
 bool CSWSDoor::functionsInitialized = false;
 bool CSWSDoor::offsetsInitialized = false;
@@ -147,6 +149,8 @@ void CSWSDoor::InitializeOffsets() {
         offsetLoadScreenIdLower = GameVersion::GetOffset("CSWSDoor", "load_screen_id_lower");
         offsetLoadScreenIdUpper = GameVersion::GetOffset("CSWSDoor", "load_screen_id_upper");
         offsetTransitionDestination = GameVersion::GetOffset("CSWSDoor", "transition_destination");
+        offsetLastHeartbeatDay = GameVersion::GetOffset("CSWSDoor", "last_heartbeat_day");
+        offsetLastHeartbeatMs = GameVersion::GetOffset("CSWSDoor", "last_heartbeat_ms");
 
         offsetsInitialized = true;
     }
@@ -660,4 +664,32 @@ CExoLocString* CSWSDoor::GetTransitionDestination() {
         return nullptr;
     }
     return new CExoLocString(static_cast<BYTE*>(objectPtr) + offsetTransitionDestination);
+}
+
+int CSWSDoor::GetLastHeartbeatDay() {
+    if (!objectPtr || offsetLastHeartbeatDay < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetLastHeartbeatDay);
+}
+
+void CSWSDoor::SetLastHeartbeatDay(int value) {
+    if (!objectPtr || offsetLastHeartbeatDay < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetLastHeartbeatDay, value);
+}
+
+int CSWSDoor::GetLastHeartbeatMs() {
+    if (!objectPtr || offsetLastHeartbeatMs < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetLastHeartbeatMs);
+}
+
+void CSWSDoor::SetLastHeartbeatMs(int value) {
+    if (!objectPtr || offsetLastHeartbeatMs < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetLastHeartbeatMs, value);
 }

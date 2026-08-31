@@ -22,7 +22,8 @@ VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int par
 	case AREAOFEFFECT:
 		CSWSAreaOfEffectObject* aoe = object->AsSWSAreaOfEffectObject();
 		if (!aoe) break;
-
+		aoe->SetLastHeartbeatDay(0);
+		aoe->SetLastHeartbeatTime(1);
 		delete aoe;
 		break;
 	case CREATURE:
@@ -34,7 +35,8 @@ VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int par
 	case DOOR:
 		CSWSDoor* door = object->AsSWSDoor();
 		if (!door) break;
-
+		door->SetLastHeartbeatDay(0);
+		door->SetLastHeartbeatMs(1);
 		delete door;
 		break;
 	case ENCOUNTER:
@@ -50,13 +52,15 @@ VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int par
 	case PLACEABLE:
 		CSWSPlaceable* placeable = object->AsCSWSPlaceable();
 		if (!placeable) break;
-		
+		placeable->SetLastHeartbeatDay(0);
+		placeable->SetLastHeartbeatMs(1);
 		delete placeable;
 		break;
 	case TRIGGER:
 		CSWSTrigger* trigger = object->AsSWSTrigger();
 		if (!trigger) break;
-
+		trigger->SetLastHeartbeatDays(0);
+		trigger->SetLastHeartbeatMs(1);
 		delete trigger;
 		break;
 	default:
@@ -64,7 +68,5 @@ VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int par
 		break;
 	}
 
-
-	// Use the `As` object type methods to get it in the proper form
 	// Set the timer or timestamp to the appropriate value to cause a heartbeat to occur
 }

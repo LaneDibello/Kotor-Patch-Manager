@@ -92,6 +92,11 @@ public:
     void SetLoadScreenIdUpper(BYTE value);
     CExoLocString* GetTransitionDestination();
 
+    int GetLastHeartbeatDay();
+    void SetLastHeartbeatDay(int value);
+    int GetLastHeartbeatMs();
+    void SetLastHeartbeatMs(int value);
+
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -154,6 +159,8 @@ protected:
     static int offsetLoadScreenIdLower;
     static int offsetLoadScreenIdUpper;
     static int offsetTransitionDestination;
+    static int offsetLastHeartbeatDay;
+    static int offsetLastHeartbeatMs;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;

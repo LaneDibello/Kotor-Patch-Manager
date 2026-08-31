@@ -10,6 +10,8 @@ int CSWSAreaOfEffectObject::offsetScriptOnUserDefined = -1;
 int CSWSAreaOfEffectObject::offsetScriptOnEnter = -1;
 int CSWSAreaOfEffectObject::offsetScriptOnExit = -1;
 int CSWSAreaOfEffectObject::offsetDurationType = -1;
+int CSWSAreaOfEffectObject::offsetLastHeartbeatDay = -1;
+int CSWSAreaOfEffectObject::offsetLastHeartbeatTime = -1;
 
 bool CSWSAreaOfEffectObject::functionsInitialized = false;
 bool CSWSAreaOfEffectObject::offsetsInitialized = false;
@@ -46,6 +48,8 @@ void CSWSAreaOfEffectObject::InitializeOffsets() {
         offsetScriptOnEnter = GameVersion::GetOffset("CSWSAreaOfEffectObject", "script_on_enter");
         offsetScriptOnExit = GameVersion::GetOffset("CSWSAreaOfEffectObject", "script_on_exit");
         offsetDurationType = GameVersion::GetOffset("CSWSAreaOfEffectObject", "duration_type");
+        offsetLastHeartbeatDay = GameVersion::GetOffset("CSWSAreaOfEffectObject", "last_heartbeat_day");
+        offsetLastHeartbeatTime = GameVersion::GetOffset("CSWSAreaOfEffectObject", "last_heartbeat_time");
 
         offsetsInitialized = true;
     }
@@ -153,4 +157,32 @@ void CSWSAreaOfEffectObject::SetDurationType(BYTE value) {
         return;
     }
     setObjectProperty<BYTE>(objectPtr, offsetDurationType, value);
+}
+
+int CSWSAreaOfEffectObject::GetLastHeartbeatDay() {
+    if (!objectPtr || offsetLastHeartbeatDay < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetLastHeartbeatDay);
+}
+
+void CSWSAreaOfEffectObject::SetLastHeartbeatDay(int value) {
+    if (!objectPtr || offsetLastHeartbeatDay < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetLastHeartbeatDay, value);
+}
+
+int CSWSAreaOfEffectObject::GetLastHeartbeatTime() {
+    if (!objectPtr || offsetLastHeartbeatTime < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetLastHeartbeatTime);
+}
+
+void CSWSAreaOfEffectObject::SetLastHeartbeatTime(int value) {
+    if (!objectPtr || offsetLastHeartbeatTime < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetLastHeartbeatTime, value);
 }

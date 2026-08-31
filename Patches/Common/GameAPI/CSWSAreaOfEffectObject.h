@@ -25,6 +25,11 @@ public:
     BYTE GetDurationType();
     void SetDurationType(BYTE value);
 
+    int GetLastHeartbeatDay();
+    void SetLastHeartbeatDay(int value);
+    int GetLastHeartbeatTime();
+    void SetLastHeartbeatTime(int value);
+
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -38,6 +43,8 @@ protected:
     static int offsetScriptOnEnter;
     static int offsetScriptOnExit;
     static int offsetDurationType;
+    static int offsetLastHeartbeatDay;
+    static int offsetLastHeartbeatTime;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;

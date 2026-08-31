@@ -84,6 +84,11 @@ public:
     // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoLocString* GetTransitionDestination();
 
+    int GetLastHeartbeatMs();
+    void SetLastHeartbeatMs(int value);
+    int GetLastHeartbeatDays();
+    void SetLastHeartbeatDays(int value);
+
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -130,6 +135,8 @@ protected:
     static int offsetCursor;
     static int offsetLoadScreenId;
     static int offsetTransitionDestination;
+    static int offsetLastHeartbeatMs;
+    static int offsetLastHeartbeatDays;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;

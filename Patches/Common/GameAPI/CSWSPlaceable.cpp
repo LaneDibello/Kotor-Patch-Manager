@@ -62,6 +62,8 @@ int CSWSPlaceable::offsetBodyBag = -1;
 int CSWSPlaceable::offsetOrientationQuat = -1;
 int CSWSPlaceable::offsetIsBodyBag = -1;
 int CSWSPlaceable::offsetIsCorpse = -1;
+int CSWSPlaceable::offsetLastHeartbeatDay = -1;
+int CSWSPlaceable::offsetLastHeartbeatMs = -1;
 
 bool CSWSPlaceable::functionsInitialized = false;
 bool CSWSPlaceable::offsetsInitialized = false;
@@ -167,6 +169,8 @@ void CSWSPlaceable::InitializeOffsets() {
         offsetOrientationQuat = GameVersion::GetOffset("CSWSPlaceable", "orientation");
         offsetIsBodyBag = GameVersion::GetOffset("CSWSPlaceable", "is_body_bag");
         offsetIsCorpse = GameVersion::GetOffset("CSWSPlaceable", "is_corpse");
+        offsetLastHeartbeatDay = GameVersion::GetOffset("CSWSPlaceable", "last_heartbeat_day");
+        offsetLastHeartbeatMs = GameVersion::GetOffset("CSWSPlaceable", "last_heartbeat_ms");
 
         offsetsInitialized = true;
     }
@@ -765,4 +769,32 @@ void CSWSPlaceable::SetIsCorpse(int value) {
         return;
     }
     setObjectProperty<int>(objectPtr, offsetIsCorpse, value);
+}
+
+int CSWSPlaceable::GetLastHeartbeatDay() {
+    if (!objectPtr || offsetLastHeartbeatDay < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetLastHeartbeatDay);
+}
+
+void CSWSPlaceable::SetLastHeartbeatDay(int value) {
+    if (!objectPtr || offsetLastHeartbeatDay < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetLastHeartbeatDay, value);
+}
+
+int CSWSPlaceable::GetLastHeartbeatMs() {
+    if (!objectPtr || offsetLastHeartbeatMs < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetLastHeartbeatMs);
+}
+
+void CSWSPlaceable::SetLastHeartbeatMs(int value) {
+    if (!objectPtr || offsetLastHeartbeatMs < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetLastHeartbeatMs, value);
 }
