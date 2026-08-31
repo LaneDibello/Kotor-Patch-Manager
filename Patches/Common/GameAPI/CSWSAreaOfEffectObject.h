@@ -5,12 +5,6 @@
 
 class CExoString;
 
-/// <summary>
-/// Wraps a server-side area-of-effect object (persistent spell effects).
-///
-/// Skeleton only: the inheritance chain is in place, but no functions or offsets
-/// are wrapped yet. Add them following the pattern in CSWSObject / CSWGuiLabel.
-/// </summary>
 class CSWSAreaOfEffectObject : public CSWSObject {
 public:
     explicit CSWSAreaOfEffectObject(void* objectPtr);
@@ -24,13 +18,9 @@ public:
     void SetSpellId(DWORD value);
     Vector* GetCorners();
     void SetCorners(Vector* value);
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnHeartbeat();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnUserDefined();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnEnter();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnExit();
     BYTE GetDurationType();
     void SetDurationType(BYTE value);

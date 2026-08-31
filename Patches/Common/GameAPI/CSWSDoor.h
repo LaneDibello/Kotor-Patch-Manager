@@ -8,18 +8,13 @@ class CExoString;
 class CResRef;
 class CExoLocString;
 
-/// <summary>
-/// Wraps a server-side door.
-/// </summary>
 class CSWSDoor : public CSWSObject {
 public:
     explicit CSWSDoor(void* objectPtr);
     virtual ~CSWSDoor();
 
-    // Fills outResRef and returns it wrapped; caller owns the returned wrapper.
-    CResRef* GetDialogResref(CResRef* outResRef);
 
-    // Returns a heap-allocated wrapper; caller owns it.
+    CResRef* GetDialogResref(CResRef* outResRef);
     CExoLocString* GetFirstName();
 
     int GetIsLinked();
@@ -35,41 +30,25 @@ public:
 
 
     // ===== Offsets =====
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnOpen();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnClosed();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnDamaged();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnDeath();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnDisarm();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnHeartbeat();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnLock();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnMeleeAttacked();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnSpellCastAt();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnTrapTriggered();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnUnlock();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnUserDefined();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnClick();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnDialog();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnFailToOpen();
     BYTE GetAppearance();
     void SetAppearance(BYTE value);
     BYTE GetGenericType();
     void SetGenericType(BYTE value);
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CResRef* GetConversation();
     DWORD GetFaction();
     void SetFaction(DWORD value);
@@ -89,7 +68,6 @@ public:
     void SetHardness(BYTE value);
     BYTE GetOpenState();
     void SetOpenState(BYTE value);
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetKeyName();
     int GetKeyRequired();
     void SetKeyRequired(int value);
@@ -104,19 +82,14 @@ public:
     void SetCorner(int index, const Vector& value);
     BYTE GetLinkedToFlags();
     void SetLinkedToFlags(BYTE value);
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetLinkedTo();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetLinkedToModule();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoLocString* GetLocName();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoLocString* GetDescription();
     BYTE GetLoadScreenIdLower();
     void SetLoadScreenIdLower(BYTE value);
     BYTE GetLoadScreenIdUpper();
     void SetLoadScreenIdUpper(BYTE value);
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoLocString* GetTransitionDestination();
 
     // Override virtual methods from GameAPIObject

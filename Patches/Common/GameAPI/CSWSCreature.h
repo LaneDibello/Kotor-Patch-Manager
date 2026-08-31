@@ -23,33 +23,19 @@ public:
     // ===== Offsets =====
     int GetJoiningXP();
     void SetJoiningXP(int value);
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptHeartbeat();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnNotice();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptSpellAt();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptAttacked();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptDamaged();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptDisturbed();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptEndRound();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptDialogue();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptSpawn();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptRested();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptDeath();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptUserDefine();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptOnBlocked();
-    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
     CExoString* GetScriptEndDialogue();
     DWORD GetAreaObjectId();
     void SetAreaObjectId(DWORD value);

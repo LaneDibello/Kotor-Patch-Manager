@@ -38,6 +38,26 @@ enum GAME_OBJECT_TYPES {
     SOUND = 16,
 };
 
+class CSWSObject;
+class CSWCObject;
+class CSWSCreature;
+class CSWSPlaceable;
+class CSWSDoor;
+class CSWSTrigger;
+class CSWSEncounter;
+class CSWSAreaOfEffectObject;
+class CSWSStore;
+class CSWSWaypoint;
+class CSWCCreature;
+class CSWCSoundObject;
+class CSWCPlaceable;
+class CSWCDoor;
+class CSWCVisualEffect;
+class CSWCTrigger;
+class CSWCMapPin;
+class CSWCProjectile;
+class CSWCAreaOfEffectObject;
+
 class CGameObject : public GameAPIObject {
 protected:
     // Static function pointers
@@ -57,6 +77,45 @@ public:
     WORD GetObjectType();
     // Same value as GetObjectType(), typed as the enum.
     GAME_OBJECT_TYPES GetObjectTypeEnum();
+
+    // ===== Type-safe conversions =====
+    //
+    // Each As* checks object_type and, on a match, returns a NEW wrapper over the
+    // same pointer (heap-allocated; caller owns it). Returns nullptr on mismatch.
+    //
+    // These are ours, not game functions -- object_type does not record whether a
+    // pointer is server- or client-side, so AsSWS* and AsSWC* of the same type
+    // check the identical value. Picking the right side is the CALLER'S job: use
+    // AsSWS* for pointers from CServerExoApp, AsSWC* for CClientExoApp.
+    //
+    // AREA, MODULE and ITEM are always rejected: those classes hold their
+    // CGameObject subobject at a non-zero offset, so the pointer handed out by the
+    // object array is not the start of the object and wrapping it would read
+    // garbage. They need dedicated handling and are not wrapped yet.
+    bool IsConvertible();
+
+    // Any supported object type; see IsConvertible().
+    CSWSObject* AsSWSObject();
+    CSWCObject* AsSWCObject();
+
+    CSWSCreature* AsSWSCreature();
+    CSWSPlaceable* AsSWSPlaceable();
+    CSWSDoor* AsSWSDoor();
+    CSWSTrigger* AsSWSTrigger();
+    CSWSEncounter* AsSWSEncounter();
+    CSWSAreaOfEffectObject* AsSWSAreaOfEffectObject();
+    CSWSStore* AsSWSStore();
+    CSWSWaypoint* AsSWSWaypoint();
+
+    CSWCCreature* AsSWCCreature();
+    CSWCSoundObject* AsSWCSoundObject();
+    CSWCPlaceable* AsSWCPlaceable();
+    CSWCDoor* AsSWCDoor();
+    CSWCVisualEffect* AsSWCVisualEffect();
+    CSWCTrigger* AsSWCTrigger();
+    CSWCMapPin* AsSWCMapPin();
+    CSWCProjectile* AsSWCProjectile();
+    CSWCAreaOfEffectObject* AsSWCAreaOfEffectObject();
 
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
