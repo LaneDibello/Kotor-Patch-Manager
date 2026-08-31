@@ -2,6 +2,9 @@
 
 #include <windows.h>
 #include "CGameObject.h"
+#include "CExoArrayList.h"
+
+class CSWSObject;
 #include "../Common.h"
 
 class CSWCObject;
@@ -73,6 +76,47 @@ public:
     int StopDialog();
     void StopSoundPlayingInDialog();
 
+
+    // ===== Offsets =====
+    // Wrapper over the embedded field; caller owns the wrapper, not the memory.
+    CExoString* GetTag();
+    DWORD GetDlgDelayDay();
+    void SetDlgDelayDay(DWORD value);
+    DWORD GetDlgDelayMS();
+    void SetDlgDelayMS(DWORD value);
+    DWORD GetDlgLastTimeDay();
+    void SetDlgLastTimeDay(DWORD value);
+    DWORD GetDlgLastTimeMS();
+    void SetDlgLastTimeMS(DWORD value);
+    // Returns a heap-allocated wrapper; caller owns it.
+    CSWSObject* GetDialogOwner();
+    int GetAILevel();
+    void SetAILevel(int value);
+    int GetAnimation();
+    int GetHitPoints();
+    int GetIsDestroyable();
+    void SetIsDestroyable(int value);
+    int GetIsRaiseable();
+    void SetIsRaiseable(int value);
+    int GetDeadSelectable();
+    void SetDeadSelectable(int value);
+    DWORD GetPlot();
+    void SetPlot(DWORD value);
+    // Wrapper over the embedded list; caller owns the wrapper, not the memory.
+    CExoArrayList<DWORD>* GetEffectTargets();
+    int GetListening();
+    void SetListening(int value);
+    // Wrapper over the embedded list; caller owns the wrapper, not the memory.
+    CExoArrayList<CExoString*>* GetMatchedExpressionStrings();
+    Vector GetSpellTargetPosition();
+    void SetSpellTargetPosition(const Vector& value);
+    int GetMin1HP();
+    void SetMin1HP(int value);
+    int GetPartyInteract();
+    void SetPartyInteract(int value);
+    int GetReorienting();
+    void SetReorienting(int value);
+
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -142,6 +186,27 @@ protected:
     static SetDialogOwnerFn setDialogOwner;
     static StopDialogFn stopDialog;
     static StopSoundPlayingInDialogFn stopSoundPlayingInDialog;
+
+    static int offsetTag;
+    static int offsetDlgDelayDay;
+    static int offsetDlgDelayMS;
+    static int offsetDlgLastTimeDay;
+    static int offsetDlgLastTimeMS;
+    static int offsetDialogOwner;
+    static int offsetAILevel;
+    static int offsetAnimation;
+    static int offsetHitPoints;
+    static int offsetIsDestroyable;
+    static int offsetIsRaiseable;
+    static int offsetDeadSelectable;
+    static int offsetPlot;
+    static int offsetEffectTargets;
+    static int offsetListening;
+    static int offsetMatchedExpressionStrings;
+    static int offsetSpellTargetPosition;
+    static int offsetMin1HP;
+    static int offsetPartyInteract;
+    static int offsetReorienting;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;

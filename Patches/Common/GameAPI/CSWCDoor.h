@@ -30,6 +30,16 @@ public:
     void SetState(BYTE state);
     void UpdateAreaTransitionDisplay();
 
+
+    // ===== Offsets =====
+    int GetIsHostile();
+    void SetIsHostile(int value);
+    BYTE GetAppearance();
+    void SetAppearance(BYTE value);
+    BYTE GetDoorType();
+    void SetDoorType(BYTE value);
+    int GetIsTransition();
+
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -50,6 +60,11 @@ protected:
     static SetIsAreaTransitionFn setIsAreaTransition;
     static SetStateFn setState;
     static UpdateAreaTransitionDisplayFn updateAreaTransitionDisplay;
+
+    static int offsetIsHostile;
+    static int offsetAppearance;
+    static int offsetDoorType;
+    static int offsetIsTransition;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;

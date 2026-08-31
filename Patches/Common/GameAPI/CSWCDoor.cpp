@@ -11,6 +11,11 @@ CSWCDoor::SetIsAreaTransitionFn CSWCDoor::setIsAreaTransition = nullptr;
 CSWCDoor::SetStateFn CSWCDoor::setState = nullptr;
 CSWCDoor::UpdateAreaTransitionDisplayFn CSWCDoor::updateAreaTransitionDisplay = nullptr;
 
+int CSWCDoor::offsetIsHostile = -1;
+int CSWCDoor::offsetAppearance = -1;
+int CSWCDoor::offsetDoorType = -1;
+int CSWCDoor::offsetIsTransition = -1;
+
 bool CSWCDoor::functionsInitialized = false;
 bool CSWCDoor::offsetsInitialized = false;
 
@@ -57,8 +62,22 @@ void CSWCDoor::InitializeOffsets() {
 
     CSWCObject::InitializeOffsets();
 
-    // No CSWCDoor offsets wrapped yet
-    offsetsInitialized = true;
+    if (!GameVersion::IsInitialized()) {
+        OutputDebugStringA("[CSWCDoor] ERROR: GameVersion not initialized\n");
+        return;
+    }
+
+    try {
+        offsetIsHostile = GameVersion::GetOffset("CSWCDoor", "is_hostile");
+        offsetAppearance = GameVersion::GetOffset("CSWCDoor", "appearance");
+        offsetDoorType = GameVersion::GetOffset("CSWCDoor", "door_type");
+        offsetIsTransition = GameVersion::GetOffset("CSWCDoor", "is_transition");
+
+        offsetsInitialized = true;
+    }
+    catch (const GameVersionException& e) {
+        debugLog("[CSWCDoor] ERROR: %s\n", e.what());
+    }
 }
 
 CSWCDoor::CSWCDoor(void* objectPtr)
@@ -141,4 +160,55 @@ void CSWCDoor::UpdateAreaTransitionDisplay() {
         return;
     }
     updateAreaTransitionDisplay(objectPtr);
+}
+
+// ===== Offsets =====
+
+int CSWCDoor::GetIsHostile() {
+    if (!objectPtr || offsetIsHostile < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetIsHostile);
+}
+
+void CSWCDoor::SetIsHostile(int value) {
+    if (!objectPtr || offsetIsHostile < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetIsHostile, value);
+}
+
+BYTE CSWCDoor::GetAppearance() {
+    if (!objectPtr || offsetAppearance < 0) {
+        return 0;
+    }
+    return getObjectProperty<BYTE>(objectPtr, offsetAppearance);
+}
+
+void CSWCDoor::SetAppearance(BYTE value) {
+    if (!objectPtr || offsetAppearance < 0) {
+        return;
+    }
+    setObjectProperty<BYTE>(objectPtr, offsetAppearance, value);
+}
+
+BYTE CSWCDoor::GetDoorType() {
+    if (!objectPtr || offsetDoorType < 0) {
+        return 0;
+    }
+    return getObjectProperty<BYTE>(objectPtr, offsetDoorType);
+}
+
+void CSWCDoor::SetDoorType(BYTE value) {
+    if (!objectPtr || offsetDoorType < 0) {
+        return;
+    }
+    setObjectProperty<BYTE>(objectPtr, offsetDoorType, value);
+}
+
+int CSWCDoor::GetIsTransition() {
+    if (!objectPtr || offsetIsTransition < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetIsTransition);
 }

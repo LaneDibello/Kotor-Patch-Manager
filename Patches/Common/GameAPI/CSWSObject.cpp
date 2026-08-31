@@ -1,4 +1,5 @@
 #include "CSWSObject.h"
+#include "CExoArrayList.h"
 #include "GameVersion.h"
 #include "../Common.h"
 #include "CSWCObject.h"
@@ -41,6 +42,26 @@ bool CSWSObject::functionsInitialized = false;
 int CSWSObject::offsetPosition = -1;
 int CSWSObject::offsetOrientation = -1;
 int CSWSObject::offsetAreaId = -1;
+int CSWSObject::offsetTag = -1;
+int CSWSObject::offsetDlgDelayDay = -1;
+int CSWSObject::offsetDlgDelayMS = -1;
+int CSWSObject::offsetDlgLastTimeDay = -1;
+int CSWSObject::offsetDlgLastTimeMS = -1;
+int CSWSObject::offsetDialogOwner = -1;
+int CSWSObject::offsetAILevel = -1;
+int CSWSObject::offsetAnimation = -1;
+int CSWSObject::offsetHitPoints = -1;
+int CSWSObject::offsetIsDestroyable = -1;
+int CSWSObject::offsetIsRaiseable = -1;
+int CSWSObject::offsetDeadSelectable = -1;
+int CSWSObject::offsetPlot = -1;
+int CSWSObject::offsetEffectTargets = -1;
+int CSWSObject::offsetListening = -1;
+int CSWSObject::offsetMatchedExpressionStrings = -1;
+int CSWSObject::offsetSpellTargetPosition = -1;
+int CSWSObject::offsetMin1HP = -1;
+int CSWSObject::offsetPartyInteract = -1;
+int CSWSObject::offsetReorienting = -1;
 bool CSWSObject::offsetsInitialized = false;
 
 void CSWSObject::InitializeFunctions() {
@@ -138,6 +159,26 @@ void CSWSObject::InitializeOffsets() {
         offsetPosition = GameVersion::GetOffset("CSWSObject", "Position");
         offsetOrientation = GameVersion::GetOffset("CSWSObject", "Orientation");
         offsetAreaId = GameVersion::GetOffset("CSWSObject", "AreaId");
+        offsetTag = GameVersion::GetOffset("CSWSObject", "tag");
+        offsetDlgDelayDay = GameVersion::GetOffset("CSWSObject", "dlg_delay_day");
+        offsetDlgDelayMS = GameVersion::GetOffset("CSWSObject", "dlg_delay_ms");
+        offsetDlgLastTimeDay = GameVersion::GetOffset("CSWSObject", "dlg_last_time_day");
+        offsetDlgLastTimeMS = GameVersion::GetOffset("CSWSObject", "dlg_last_time_ms");
+        offsetDialogOwner = GameVersion::GetOffset("CSWSObject", "dialog_owner");
+        offsetAILevel = GameVersion::GetOffset("CSWSObject", "ai_level");
+        offsetAnimation = GameVersion::GetOffset("CSWSObject", "animation");
+        offsetHitPoints = GameVersion::GetOffset("CSWSObject", "hit_points");
+        offsetIsDestroyable = GameVersion::GetOffset("CSWSObject", "is_destroyable");
+        offsetIsRaiseable = GameVersion::GetOffset("CSWSObject", "is_raiseable");
+        offsetDeadSelectable = GameVersion::GetOffset("CSWSObject", "dead_selectable");
+        offsetPlot = GameVersion::GetOffset("CSWSObject", "plot");
+        offsetEffectTargets = GameVersion::GetOffset("CSWSObject", "effect_targets");
+        offsetListening = GameVersion::GetOffset("CSWSObject", "listening");
+        offsetMatchedExpressionStrings = GameVersion::GetOffset("CSWSObject", "matched_expression_strings");
+        offsetSpellTargetPosition = GameVersion::GetOffset("CSWSObject", "spell_target_position");
+        offsetMin1HP = GameVersion::GetOffset("CSWSObject", "min1hp");
+        offsetPartyInteract = GameVersion::GetOffset("CSWSObject", "party_interact");
+        offsetReorienting = GameVersion::GetOffset("CSWSObject", "reorienting");
 
         offsetsInitialized = true;
     }
@@ -430,4 +471,253 @@ void CSWSObject::StopSoundPlayingInDialog() {
         return;
     }
     stopSoundPlayingInDialog(objectPtr);
+}
+
+// ===== Offsets =====
+
+CExoString* CSWSObject::GetTag() {
+    if (!objectPtr || offsetTag < 0) {
+        return nullptr;
+    }
+    return new CExoString(static_cast<BYTE*>(objectPtr) + offsetTag);
+}
+
+DWORD CSWSObject::GetDlgDelayDay() {
+    if (!objectPtr || offsetDlgDelayDay < 0) {
+        return 0;
+    }
+    return getObjectProperty<DWORD>(objectPtr, offsetDlgDelayDay);
+}
+
+void CSWSObject::SetDlgDelayDay(DWORD value) {
+    if (!objectPtr || offsetDlgDelayDay < 0) {
+        return;
+    }
+    setObjectProperty<DWORD>(objectPtr, offsetDlgDelayDay, value);
+}
+
+DWORD CSWSObject::GetDlgDelayMS() {
+    if (!objectPtr || offsetDlgDelayMS < 0) {
+        return 0;
+    }
+    return getObjectProperty<DWORD>(objectPtr, offsetDlgDelayMS);
+}
+
+void CSWSObject::SetDlgDelayMS(DWORD value) {
+    if (!objectPtr || offsetDlgDelayMS < 0) {
+        return;
+    }
+    setObjectProperty<DWORD>(objectPtr, offsetDlgDelayMS, value);
+}
+
+DWORD CSWSObject::GetDlgLastTimeDay() {
+    if (!objectPtr || offsetDlgLastTimeDay < 0) {
+        return 0;
+    }
+    return getObjectProperty<DWORD>(objectPtr, offsetDlgLastTimeDay);
+}
+
+void CSWSObject::SetDlgLastTimeDay(DWORD value) {
+    if (!objectPtr || offsetDlgLastTimeDay < 0) {
+        return;
+    }
+    setObjectProperty<DWORD>(objectPtr, offsetDlgLastTimeDay, value);
+}
+
+DWORD CSWSObject::GetDlgLastTimeMS() {
+    if (!objectPtr || offsetDlgLastTimeMS < 0) {
+        return 0;
+    }
+    return getObjectProperty<DWORD>(objectPtr, offsetDlgLastTimeMS);
+}
+
+void CSWSObject::SetDlgLastTimeMS(DWORD value) {
+    if (!objectPtr || offsetDlgLastTimeMS < 0) {
+        return;
+    }
+    setObjectProperty<DWORD>(objectPtr, offsetDlgLastTimeMS, value);
+}
+
+CSWSObject* CSWSObject::GetDialogOwner() {
+    if (!objectPtr || offsetDialogOwner < 0) {
+        return nullptr;
+    }
+
+    void* p = getObjectProperty<void*>(objectPtr, offsetDialogOwner);
+    if (!p) {
+        return nullptr;
+    }
+
+    return new CSWSObject(p);
+}
+
+int CSWSObject::GetAILevel() {
+    if (!objectPtr || offsetAILevel < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetAILevel);
+}
+
+void CSWSObject::SetAILevel(int value) {
+    if (!objectPtr || offsetAILevel < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetAILevel, value);
+}
+
+int CSWSObject::GetAnimation() {
+    if (!objectPtr || offsetAnimation < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetAnimation);
+}
+
+int CSWSObject::GetHitPoints() {
+    if (!objectPtr || offsetHitPoints < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetHitPoints);
+}
+
+int CSWSObject::GetIsDestroyable() {
+    if (!objectPtr || offsetIsDestroyable < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetIsDestroyable);
+}
+
+void CSWSObject::SetIsDestroyable(int value) {
+    if (!objectPtr || offsetIsDestroyable < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetIsDestroyable, value);
+}
+
+int CSWSObject::GetIsRaiseable() {
+    if (!objectPtr || offsetIsRaiseable < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetIsRaiseable);
+}
+
+void CSWSObject::SetIsRaiseable(int value) {
+    if (!objectPtr || offsetIsRaiseable < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetIsRaiseable, value);
+}
+
+int CSWSObject::GetDeadSelectable() {
+    if (!objectPtr || offsetDeadSelectable < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetDeadSelectable);
+}
+
+void CSWSObject::SetDeadSelectable(int value) {
+    if (!objectPtr || offsetDeadSelectable < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetDeadSelectable, value);
+}
+
+DWORD CSWSObject::GetPlot() {
+    if (!objectPtr || offsetPlot < 0) {
+        return 0;
+    }
+    return getObjectProperty<DWORD>(objectPtr, offsetPlot);
+}
+
+void CSWSObject::SetPlot(DWORD value) {
+    if (!objectPtr || offsetPlot < 0) {
+        return;
+    }
+    setObjectProperty<DWORD>(objectPtr, offsetPlot, value);
+}
+
+CExoArrayList<DWORD>* CSWSObject::GetEffectTargets() {
+    if (!objectPtr || offsetEffectTargets < 0) {
+        return nullptr;
+    }
+    return new CExoArrayList<DWORD>(static_cast<BYTE*>(objectPtr) + offsetEffectTargets);
+}
+
+int CSWSObject::GetListening() {
+    if (!objectPtr || offsetListening < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetListening);
+}
+
+void CSWSObject::SetListening(int value) {
+    if (!objectPtr || offsetListening < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetListening, value);
+}
+
+CExoArrayList<CExoString*>* CSWSObject::GetMatchedExpressionStrings() {
+    if (!objectPtr || offsetMatchedExpressionStrings < 0) {
+        return nullptr;
+    }
+    return new CExoArrayList<CExoString*>(static_cast<BYTE*>(objectPtr) + offsetMatchedExpressionStrings);
+}
+
+Vector CSWSObject::GetSpellTargetPosition() {
+    Vector result = { 0.0f, 0.0f, 0.0f };
+
+    if (!objectPtr || offsetSpellTargetPosition < 0) {
+        return result;
+    }
+
+    return getObjectProperty<Vector>(objectPtr, offsetSpellTargetPosition);
+}
+
+void CSWSObject::SetSpellTargetPosition(const Vector& value) {
+    if (!objectPtr || offsetSpellTargetPosition < 0) {
+        return;
+    }
+    setObjectProperty<Vector>(objectPtr, offsetSpellTargetPosition, value);
+}
+
+int CSWSObject::GetMin1HP() {
+    if (!objectPtr || offsetMin1HP < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetMin1HP);
+}
+
+void CSWSObject::SetMin1HP(int value) {
+    if (!objectPtr || offsetMin1HP < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetMin1HP, value);
+}
+
+int CSWSObject::GetPartyInteract() {
+    if (!objectPtr || offsetPartyInteract < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetPartyInteract);
+}
+
+void CSWSObject::SetPartyInteract(int value) {
+    if (!objectPtr || offsetPartyInteract < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetPartyInteract, value);
+}
+
+int CSWSObject::GetReorienting() {
+    if (!objectPtr || offsetReorienting < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetReorienting);
+}
+
+void CSWSObject::SetReorienting(int value) {
+    if (!objectPtr || offsetReorienting < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetReorienting, value);
 }

@@ -14,11 +14,18 @@ public:
     explicit CSWCVisualEffect(void* objectPtr);
     virtual ~CSWCVisualEffect();
 
+
+    // ===== Offsets =====
+    int GetEffectRow();
+    void SetEffectRow(int value);
+
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
     void InitializeOffsets() override;
 
 protected:
+    static int offsetEffectRow;
+
     static bool functionsInitialized;
     static bool offsetsInitialized;
 };

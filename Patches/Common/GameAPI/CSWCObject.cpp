@@ -40,6 +40,9 @@ CSWCObject::GetPortraitIdFn CSWCObject::getPortraitId = nullptr;
 CSWCObject::SetPortraitIdFn CSWCObject::setPortraitId = nullptr;
 
 bool CSWCObject::functionsInitialized = false;
+int CSWCObject::offsetPosition = -1;
+int CSWCObject::offsetOrientation = -1;
+int CSWCObject::offsetGroundNormal = -1;
 bool CSWCObject::offsetsInitialized = false;
 
 void CSWCObject::InitializeFunctions() {
@@ -137,8 +140,21 @@ void CSWCObject::InitializeOffsets() {
 
     CGameObject::InitializeOffsets();
 
-    // No CSWCObject offsets wrapped yet
-    offsetsInitialized = true;
+    if (!GameVersion::IsInitialized()) {
+        OutputDebugStringA("[CSWCObject] ERROR: GameVersion not initialized\n");
+        return;
+    }
+
+    try {
+        offsetPosition = GameVersion::GetOffset("CSWCObject", "position");
+        offsetOrientation = GameVersion::GetOffset("CSWCObject", "orientation");
+        offsetGroundNormal = GameVersion::GetOffset("CSWCObject", "ground_normal");
+
+        offsetsInitialized = true;
+    }
+    catch (const GameVersionException& e) {
+        debugLog("[CSWCObject] ERROR: %s\n", e.what());
+    }
 }
 
 CSWCObject::CSWCObject(void* objectPtr)
@@ -413,4 +429,57 @@ void CSWCObject::SetPortraitId(WORD id) {
         return;
     }
     setPortraitId(objectPtr, id);
+}
+
+// ===== Offsets =====
+
+Vector CSWCObject::GetPosition() {
+    Vector result = { 0.0f, 0.0f, 0.0f };
+
+    if (!objectPtr || offsetPosition < 0) {
+        return result;
+    }
+
+    return getObjectProperty<Vector>(objectPtr, offsetPosition);
+}
+
+void CSWCObject::SetPosition(const Vector& value) {
+    if (!objectPtr || offsetPosition < 0) {
+        return;
+    }
+    setObjectProperty<Vector>(objectPtr, offsetPosition, value);
+}
+
+Vector CSWCObject::GetOrientation() {
+    Vector result = { 0.0f, 0.0f, 0.0f };
+
+    if (!objectPtr || offsetOrientation < 0) {
+        return result;
+    }
+
+    return getObjectProperty<Vector>(objectPtr, offsetOrientation);
+}
+
+void CSWCObject::SetOrientation(const Vector& value) {
+    if (!objectPtr || offsetOrientation < 0) {
+        return;
+    }
+    setObjectProperty<Vector>(objectPtr, offsetOrientation, value);
+}
+
+Vector CSWCObject::GetGroundNormal() {
+    Vector result = { 0.0f, 0.0f, 0.0f };
+
+    if (!objectPtr || offsetGroundNormal < 0) {
+        return result;
+    }
+
+    return getObjectProperty<Vector>(objectPtr, offsetGroundNormal);
+}
+
+void CSWCObject::SetGroundNormal(const Vector& value) {
+    if (!objectPtr || offsetGroundNormal < 0) {
+        return;
+    }
+    setObjectProperty<Vector>(objectPtr, offsetGroundNormal, value);
 }

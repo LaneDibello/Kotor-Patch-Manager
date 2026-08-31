@@ -70,6 +70,15 @@ public:
     WORD GetPortraitId();
     void SetPortraitId(WORD id);
 
+
+    // ===== Offsets =====
+    Vector GetPosition();
+    void SetPosition(const Vector& value);
+    Vector GetOrientation();
+    void SetOrientation(const Vector& value);
+    Vector GetGroundNormal();
+    void SetGroundNormal(const Vector& value);
+
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -152,6 +161,10 @@ protected:
     static SetPortraitFn setPortrait;
     static GetPortraitIdFn getPortraitId;
     static SetPortraitIdFn setPortraitId;
+
+    static int offsetPosition;
+    static int offsetOrientation;
+    static int offsetGroundNormal;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;
