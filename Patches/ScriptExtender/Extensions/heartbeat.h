@@ -11,4 +11,4 @@
 #include "GameAPI/CSWSTrigger.h"
 
 const int ForceHeartbeatIndex = 803;
-VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int paramCount);
+VirtualMachineReturnTypes __stdcall ExecuteCommandForceHeartbeat(DWORD routine, int paramCount);

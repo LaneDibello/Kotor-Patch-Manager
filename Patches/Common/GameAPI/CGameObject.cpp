@@ -86,14 +86,14 @@ GAME_OBJECT_TYPES CGameObject::GetObjectTypeEnum() {
 }
 
 CSWSObject* CGameObject::AsSWSObject() {
-    if (!objectPtr()) {
+    if (!objectPtr) {
         return nullptr;
     }
     return new CSWSObject(objectPtr);
 }
 
 CSWCObject* CGameObject::AsSWCObject() {
-    if (!objectPtr()) {
+    if (!objectPtr) {
         return nullptr;
     }
     return new CSWCObject(objectPtr);
