@@ -3,7 +3,7 @@ id = "full-party-select"
 name = "Full Party Select"
 version = "0.0.1"
 author = "Vriff"
-description = "Disables blanking of paired Party Select portraits"
+description = "This patch disables blanking of paired party-select portraits (Hanharr/Mira, Handmaiden/Disciple). By enabling this patch and installing partyselect_p.gui (under 'additional') in your override folder, all 12 slots will be made available on your party-select screen."
 
 requires = []
 
