@@ -1,9 +1,9 @@
 [patch]
-id = "full-party-select"
-name = "Full Party Select"
-version = "0.0.1"
-author = "Vriff"
-description = "This patch disables blanking of paired party-select portraits (Hanharr/Mira, Handmaiden/Disciple). By enabling this patch and installing partyselect_p.gui (under 'additional') in your override folder, all 12 slots will be made available on your party-select screen."
+id = "k2_grass_fog_fix"
+name = "K2 Grass Fog Flicker Fix"
+version = "1.3.0"
+author = "J"
+description = "Fixes grass changing color at certain angles."
 
 requires = []
 
