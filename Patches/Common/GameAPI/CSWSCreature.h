@@ -75,6 +75,8 @@ public:
     void SetIsDisguised(int value);
     WORD GetAppearance();
     void SetAppearance(WORD value);
+    int GetHeartbeatMsRemaining();
+    void SetHeartbeatMsRemaining(int value);
 
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
@@ -119,6 +121,7 @@ protected:
     static int offsetMovementRateFactor;
     static int offsetIsDisguised;
     static int offsetAppearance;
+    static int offsetHeartbeatMsRemaining;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;

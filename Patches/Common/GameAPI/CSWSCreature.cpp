@@ -45,6 +45,7 @@ int CSWSCreature::offsetBodyBag = -1;
 int CSWSCreature::offsetMovementRateFactor = -1;
 int CSWSCreature::offsetIsDisguised = -1;
 int CSWSCreature::offsetAppearance = -1;
+int CSWSCreature::offsetHeartbeatMsRemaining = -1;
 bool CSWSCreature::offsetsInitialized = false;
 
 void CSWSCreature::InitializeFunctions() {
@@ -124,6 +125,7 @@ void CSWSCreature::InitializeOffsets() {
         offsetMovementRateFactor = GameVersion::GetOffset("CSWSCreature", "movement_rate_factor");
         offsetIsDisguised = GameVersion::GetOffset("CSWSCreature", "is_disguised");
         offsetAppearance = GameVersion::GetOffset("CSWSCreature", "appearance");
+        offsetHeartbeatMsRemaining = GameVersion::GetOffset("CSWSCreature", "heartbeat_ms_remaining");
 
         offsetsInitialized = true;
     }
@@ -561,4 +563,18 @@ void CSWSCreature::SetAppearance(WORD value) {
         return;
     }
     setObjectProperty<WORD>(objectPtr, offsetAppearance, value);
+}
+
+int CSWSCreature::GetHeartbeatMsRemaining() {
+    if (!objectPtr || offsetHeartbeatMsRemaining < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetHeartbeatMsRemaining);
+}
+
+void CSWSCreature::SetHeartbeatMsRemaining(int value) {
+    if (!objectPtr || offsetHeartbeatMsRemaining < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetHeartbeatMsRemaining, value);
 }

@@ -14,10 +14,9 @@ VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int par
 
 	CGameObject* object = server->GetGameObject(objectId);
 
-	// Split handling based on game object type
 	switch (object->GetObjectTypeEnum()) {
 	case AREA:
-		// CSWSArea not yet implemented
+		debugLog("[ScriptExtender] CSWSModule heartbeats not yet supported.");
 		break;
 	case AREAOFEFFECT:
 		CSWSAreaOfEffectObject* aoe = object->AsSWSAreaOfEffectObject();
@@ -29,7 +28,7 @@ VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int par
 	case CREATURE:
 		CSWSCreature* creature = object->AsSWSCreature();
 		if (!creature) break;
-
+		creature->SetHeartbeatMsRemaining(1);
 		delete creature;
 		break;
 	case DOOR:
@@ -47,7 +46,7 @@ VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int par
 		delete encounter;
 		break;
 	case MODULE:
-		// CSWSModule not yet implemented
+		debugLog("[ScriptExtender] CSWSModule heartbeats not yet supported.");
 		break;
 	case PLACEABLE:
 		CSWSPlaceable* placeable = object->AsCSWSPlaceable();
@@ -64,9 +63,12 @@ VirtualMachineReturnTypes __stdcall ExecuteForceHeartbeat(DWORD routine, int par
 		delete trigger;
 		break;
 	default:
-		//do nothing
+		debugLog("[ScriptExtender] Game Object type %i doesn't have a heartbeat", object->GetObjectTypeEnum());
 		break;
 	}
 
-	// Set the timer or timestamp to the appropriate value to cause a heartbeat to occur
+	delete object;
+	delete server;
+	delete vm;
+	return SUCCESS;
 }
