@@ -11,6 +11,7 @@
 #include "Extensions/consoleCommand.h"
 #include "Extensions/lastTarget.h"
 #include "Extensions/ini.h"
+#include "Extensions/heartbeat.h"
 
 const int TestScriptExtensionIndex = 772;
 VirtualMachineReturnTypes __stdcall ExecuteCommandTestScriptExtension(DWORD routine, int paramCount) {
@@ -105,6 +106,8 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
 
     commands[ReadIniEntryIndex] = (DWORD)&ExecuteCommandReadIniEntry;
     commands[WriteIniEntryIndex] = (DWORD)&ExecuteCommandWriteIniEntry;
+
+    commands[ForceHeartbeatIndex] = (DWORD)&ExecuteCommandForceHeartbeat;
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
