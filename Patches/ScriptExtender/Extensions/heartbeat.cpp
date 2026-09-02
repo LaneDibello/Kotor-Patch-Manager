@@ -24,7 +24,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandForceHeartbeat(DWORD routine, 
 	switch (object->GetObjectTypeEnum()) {
 	case AREA:
 	{
-		debugLog("[ScriptExtender] CSWSModule heartbeats not yet supported.");
+		debugLog("[ScriptExtender] CSWSArea heartbeats not yet supported.");
 		break;
 	}
 	case AREAOFEFFECT:
