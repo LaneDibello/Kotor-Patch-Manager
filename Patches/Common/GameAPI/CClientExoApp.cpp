@@ -7,6 +7,7 @@
 #include "CSWCCreature.h"
 #include "CGameObject.h"
 #include "CGuiInGame.h"
+#include "CWorldTimer.h"
 
 CClientExoApp::GetClientOptionsFn CClientExoApp::getClientOptions = nullptr;
 
@@ -74,6 +75,7 @@ CClientExoApp::GetCreditSequenceInProgressFn CClientExoApp::getCreditSequenceInP
 CClientExoApp::StopCreditSequenceFn CClientExoApp::stopCreditSequence = nullptr;
 
 CClientExoApp::GetClientLanguageFn CClientExoApp::getClientLanguage = nullptr;
+CClientExoApp::GetWorldTimerFn CClientExoApp::getWorldTimer = nullptr;
 
 bool CClientExoApp::functionsInitialized = false;
 bool CClientExoApp::offsetsInitialized = false;
@@ -208,6 +210,8 @@ void CClientExoApp::InitializeFunctions() {
 
         getClientLanguage = reinterpret_cast<GetClientLanguageFn>(
             GameVersion::GetFunctionAddress("CClientExoApp", "GetClientLanguage"));
+        getWorldTimer = reinterpret_cast<GetWorldTimerFn>(
+            GameVersion::GetFunctionAddress("CClientExoApp", "GetWorldTimer"));
     }
     catch (const GameVersionException& e) {
         debugLog("[CClientExoApp] ERROR: %s\n", e.what());
@@ -694,4 +698,17 @@ int CClientExoApp::GetClientLanguage() {
         return 0;
     }
     return getClientLanguage(objectPtr);
+}
+
+CWorldTimer* CClientExoApp::GetWorldTimer() {
+    if (!objectPtr || !getWorldTimer) {
+        return nullptr;
+    }
+
+    void* worldTimerPtr = getWorldTimer(objectPtr);
+    if (!worldTimerPtr) {
+        return nullptr;
+    }
+
+    return new CWorldTimer(worldTimerPtr);
 }

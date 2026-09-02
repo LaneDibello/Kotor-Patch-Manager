@@ -5364,3 +5364,6 @@ string ReadIniEntry(string sFilename, string sCategory, string sKey);
 // enables the AllowWindowedMode setting
 // If the referenced file/category/key doesn't exist, it will be created.
 void WriteIniEntry(string sValue, string sFilename, string sCategory, string sKey);
+
+// 803. ForceHeartbeat
+void ForceHeartbeat(object oObject);
