@@ -235,6 +235,7 @@ KotOR Patch Manager v$VERSION (Linux)
 Contents:
   bin/KPatchLauncher     - Main application (native linux-x64)
   bin/KotorPatcher.dll   - Runtime patcher (loaded inside the game under Wine)
+  bin/KotorPatcher.so    - Runtime patcher for the native Linux build of KOTOR II
   bin/binkw32.dll        - KProxy: loads the patcher when the game starts
   bin/sqlite3.dll        - Address database access for patch DLLs (Wine side)
   tools/create-patch.py  - Patch creation tool (needs MinGW-w64 for DETOUR patches)
@@ -245,8 +246,11 @@ Quick Start:
   1. Run bin/KPatchLauncher
   2. Point to your KOTOR installation (Steam/GOG under Wine or Proton)
   3. Point to your patch directory of choice
-  4. Apply, then launch through Steam or a custom command. Patches load via the
-     KProxy (it replaces binkw32.dll; the original is kept as binkw32Hooked.dll).
+  4. Apply, then launch through Steam or a custom command. For a Windows build
+     under Wine or Proton the KProxy loads the patches (it replaces binkw32.dll;
+     the original is kept as binkw32Hooked.dll). The native Linux build of
+     KOTOR II instead names KotorPatcher.so in its own dependency list, so the
+     loader maps it at startup.
 
 Created by Lane (Discord: @lane_d)
 EOF

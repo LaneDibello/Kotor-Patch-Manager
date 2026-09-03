@@ -133,7 +133,7 @@ internal static class ProcessInjector
 
                 var process = Process.GetProcessById(pi.dwProcessId);
 
-                return LaunchResult.Ok(
+                return LaunchResult.Patched(
                     process,
                     injectionPerformed: true,
                     $"Successfully launched {Path.GetFileName(gameExePath)} with DLL injection");
@@ -364,7 +364,7 @@ internal static class ProcessInjector
 
             Console.WriteLine("[KPatchCore] DLL injected successfully into Steam game");
 
-            return LaunchResult.Ok(
+            return LaunchResult.Patched(
                 gameProcess,
                 injectionPerformed: true,
                 $"Successfully launched {Path.GetFileName(gameExePath)} with delayed injection (Steam)");

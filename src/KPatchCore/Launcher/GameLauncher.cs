@@ -46,7 +46,7 @@ public static class GameLauncher
 
         if (!File.Exists(patchConfigPath))
         {
-            return LaunchVanilla(gameExePath, commandLineArgs, launchConfig, deployment);
+            return LaunchVanilla(gameExePath, commandLineArgs, launchConfig);
         }
 
         var moduleName = DeploymentPolicy.PatcherModuleFileName(deployment);
@@ -100,20 +100,19 @@ public static class GameLauncher
         // Callers that never detected the game fall back to the host's default.
         var method = deployment ?? DeploymentPolicy.ForCurrentPlatform();
 
-        // Anything the manager cannot start itself is started the way the user configured:
-        // the game loads the patcher on its own, via the staged proxy or via DT_NEEDED.
-        if (!DeploymentPolicy.HostStartsGameDirectly(method))
+        // Injection has to create the process itself, and it uses the Win32 API to do it.
+        if (method == DeploymentMethod.RuntimeInjection)
         {
-            return new ConfiguredGameLauncher(launchConfig ?? new LaunchConfig());
+            return RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? new WindowsGameInjector()
+                : new UnsupportedGameInjector();
         }
 
-        // Injection only works on Windows (it uses the Win32 API).
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return new WindowsGameInjector();
-        }
-
-        return new UnsupportedGameInjector();
+        // Every other method has the game load the patcher on its own, so starting it is all that
+        // is left. How that happens depends on the host, not on the method.
+        return DeploymentPolicy.CanStartGameDirectly()
+            ? new DirectGameLauncher()
+            : new ConfiguredGameLauncher(launchConfig ?? new LaunchConfig());
     }
 
     /// <summary>
@@ -122,13 +121,11 @@ public static class GameLauncher
     /// <param name="gameExePath">Path to game executable</param>
     /// <param name="commandLineArgs">Optional command line arguments</param>
     /// <param name="launchConfig">How to start the game, when the host cannot run it directly</param>
-    /// <param name="deployment">The game's deployment method; defaults to the host's</param>
     /// <returns>Launch result with process information</returns>
     public static LaunchResult LaunchVanilla(
         string gameExePath,
         string? commandLineArgs = null,
-        LaunchConfig? launchConfig = null,
-        DeploymentMethod? deployment = null)
+        LaunchConfig? launchConfig = null)
     {
         // Validate game path
         if (string.IsNullOrWhiteSpace(gameExePath) || !File.Exists(gameExePath))
@@ -138,39 +135,8 @@ public static class GameLauncher
 
         // Whether the game is patched changes what gets loaded into it, not how it is
         // started, so an unpatched launch asks the same question a patched one does.
-        if (!DeploymentPolicy.HostStartsGameDirectly(deployment ?? DeploymentPolicy.ForCurrentPlatform()))
-        {
-            return LaunchDispatcher.Start(
-                launchConfig ?? new LaunchConfig(), gameExePath, "No patches are installed.");
-        }
-
-        try
-        {
-            var gameDir = Path.GetDirectoryName(gameExePath);
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = gameExePath,
-                Arguments = commandLineArgs ?? string.Empty,
-                UseShellExecute = true,
-                WorkingDirectory = gameDir
-            };
-
-            var process = Process.Start(startInfo);
-
-            if (process == null)
-            {
-                return LaunchResult.Fail("Process.Start returned null - game may have failed to launch");
-            }
-
-            return LaunchResult.Ok(
-                process,
-                injectionPerformed: false,
-                $"Launched {Path.GetFileName(gameExePath)} in vanilla mode (no patches)");
-        }
-        catch (Exception ex)
-        {
-            return LaunchResult.Fail($"Vanilla launch failed: {ex.Message}");
-        }
+        return DeploymentPolicy.CanStartGameDirectly()
+            ? LaunchDispatcher.StartDirectly(gameExePath, commandLineArgs, "No patches are installed.", patched: false)
+            : LaunchDispatcher.Start(launchConfig ?? new LaunchConfig(), gameExePath, "No patches are installed.");
     }
 }

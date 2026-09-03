@@ -35,23 +35,12 @@ public class PatchApplicator
         public bool CreateBackup { get; init; } = true;
 
         /// <summary>
-        /// Path to KotorPatcher.dll (if null, assumes it's in same directory as game exe)
+        /// Directory holding the patcher modules and the proxy library, which is where the
+        /// launcher itself runs from. Which of them gets staged is the deployment method's
+        /// decision, so a new platform adds a file here rather than a field to this type.
+        /// Null means they are expected to be in the game directory already.
         /// </summary>
-        public string? PatcherDllPath { get; init; }
-
-        /// <summary>
-        /// Path to the KProxy (binkw32.dll) to stage when deploying via proxy
-        /// so the game loads KotorPatcher under Wine/Proton.
-        /// Ignored on Windows (live injection).
-        /// If null on Linux, DLL-based patches won't load under Wine.
-        /// </summary>
-        public string? ProxyDllPath { get; init; }
-
-        /// <summary>
-        /// Path to KotorPatcher.so to stage in the game directory when the detected game
-        /// is a native Linux ELF (DeploymentMethod.ElfNeeded). Ignored otherwise.
-        /// </summary>
-        public string? PatcherSoPath { get; init; }
+        public string? PatcherDirectory { get; init; }
     }
 
     /// <summary>
@@ -107,9 +96,23 @@ public class PatchApplicator
     private static PatcherModule ResolvePatcherModule(DeploymentMethod deployment, InstallOptions options)
     {
         var fileName = DeploymentPolicy.PatcherModuleFileName(deployment);
-        return deployment == DeploymentMethod.ElfNeeded
-            ? new PatcherModule(fileName, options.PatcherSoPath, NeedsSqlite: false)
-            : new PatcherModule(fileName, options.PatcherDllPath, NeedsSqlite: true);
+        // sqlite3.dll ships beside the Windows engine for the patch DLLs' GameVersion lookups.
+        // The native engine links no sqlite, so nothing travels with it.
+        var needsSqlite = deployment != DeploymentMethod.LinkedDependency;
+        return new PatcherModule(fileName, ResolveStagedFile(options.PatcherDirectory, fileName), needsSqlite);
+    }
+
+    /// <summary>
+    /// The full path to a file the launcher would stage, or null when it is not there. Callers
+    /// treat null as "not shipped with this build" and warn rather than fail.
+    /// </summary>
+    private static string? ResolveStagedFile(string? patcherDirectory, string fileName)
+    {
+        if (string.IsNullOrEmpty(patcherDirectory))
+            return null;
+
+        var path = Path.Combine(patcherDirectory, fileName);
+        return File.Exists(path) ? path : null;
     }
 
     /// <summary>
@@ -379,11 +382,18 @@ public class PatchApplicator
                 messages.Add("  No static hooks to apply");
             }
 
-            // Step 4.6: on a native Linux ELF, add KotorPatcher.so to the game's DT_NEEDED list.
-            if (deployment == DeploymentMethod.ElfNeeded)
+            // Step 4.6: name the patcher in the executable's own dependency list, so the loader
+            // maps it at startup. This runs after the static hooks because the edit preserves
+            // existing addresses, which keeps the patched code valid.
+            if (deployment == DeploymentMethod.LinkedDependency)
             {
-                messages.Add("Step 4.6/8: Adding KotorPatcher.so to the game's DT_NEEDED...");
-                var injectResult = ElfInjector.AddNeeded(options.GameExePath, "KotorPatcher.so");
+                var linkedModule = DeploymentPolicy.PatcherModuleFileName(deployment);
+                messages.Add($"Step 4.6/8: Adding {linkedModule} to the game's dependency list...");
+
+                var dependencies = ExecutableDependencies.Open(options.GameExePath);
+                var injectResult = dependencies.Success && dependencies.Data != null
+                    ? dependencies.Data.Add(linkedModule)
+                    : PatchResult.Fail(dependencies.Error!);
                 if (!injectResult.Success)
                 {
                     if (backup != null)
@@ -394,14 +404,14 @@ public class PatchApplicator
                     return new InstallResult
                     {
                         Success = false,
-                        Error = $"Failed to add KotorPatcher.so to the game ELF: {injectResult.Error}",
+                        Error = $"Failed to add {linkedModule} to the game executable: {injectResult.Error}",
                         DetectedVersion = gameVersion,
                         Backup = backup,
                         Messages = messages
                     };
                 }
 
-                messages.Add($"  {injectResult.Messages.FirstOrDefault() ?? "DT_NEEDED updated"}");
+                messages.Add($"  {injectResult.Messages.FirstOrDefault() ?? "Dependency list updated"}");
             }
 
             // Step 5: Extract patch DLLs (for DETOUR hooks and DLL-only patches)
@@ -509,10 +519,10 @@ public class PatchApplicator
             // Step 6.5: Copy address database to game directory
             messages.Add("Step 6.5/8: Copying address database...");
 
-            // Find AddressDatabases directory in same directory as executing assembly
-            // (copied there by build system via .csproj)
-            var assemblyDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? string.Empty;
-            var addressDbSourceDirNormalized = Path.Combine(assemblyDir, "AddressDatabases");
+            // Find AddressDatabases beside the running application (put there by the build).
+            // Assembly.Location is empty in a single-file build, which is what Windows ships, and
+            // the lookup then resolved against the working directory instead of the install.
+            var addressDbSourceDirNormalized = Path.Combine(AppContext.BaseDirectory, "AddressDatabases");
 
             if (!Directory.Exists(addressDbSourceDirNormalized))
             {
@@ -693,9 +703,10 @@ public class PatchApplicator
             // Step 7.5: for the proxy deployment method, stage the KProxy so
             // the game loads KotorPatcher when it starts (injection does not).
             var proxyInstalled = false;
-            if (deployment == DeploymentMethod.Proxy)
+            if (deployment == DeploymentMethod.LibraryProxy)
             {
-                if (string.IsNullOrEmpty(options.ProxyDllPath))
+                var proxyPath = ResolveStagedFile(options.PatcherDirectory, DeploymentPolicy.ProxyLibraryFileName);
+                if (string.IsNullOrEmpty(proxyPath))
                 {
                     // Without the proxy staged nothing loads KotorPatcher, so DLL
                     // (DETOUR) patches won't take effect. Static patches still do.
@@ -704,7 +715,7 @@ public class PatchApplicator
                 }
                 else
                 {
-                    var proxyResult = KProxyInstaller.Install(gameDir, options.ProxyDllPath);
+                    var proxyResult = KProxyInstaller.Install(gameDir, proxyPath);
                     if (!proxyResult.Success)
                     {
                         // Undo any half-done rename before rolling back the executable.
@@ -734,7 +745,7 @@ public class PatchApplicator
                 gameVersion,
                 installOrder,
                 proxyInstalled,
-                elfNeededInstalled: deployment == DeploymentMethod.ElfNeeded);
+                linkedDependencyInstalled: deployment == DeploymentMethod.LinkedDependency);
             if (stateResult.Success)
             {
                 messages.Add($"  {stateResult.Messages.FirstOrDefault() ?? "Managed install state saved"}");
