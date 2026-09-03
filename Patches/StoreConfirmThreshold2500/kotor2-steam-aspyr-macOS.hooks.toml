@@ -21,7 +21,7 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 # This modification changes that fallbak to 2500.
 # 0x10020693d is 0x20793d
 [[hooks]]
-address = 0x207941
+address = 0x20793F
 type = "simple"
 original_bytes = [0xfa, 0x00]
 replacement_bytes = [0xc4, 0x09]
@@ -38,7 +38,7 @@ replacement_bytes = [0xEB]
 # Same as the sell path's first step: changing fallback from 50 to 250.
 # 0x100207020 is 0x208020
 [[hooks]]
-address = 0x208024
+address = 0x208022
 type = "simple"
 original_bytes = [0x32, 0x00]
 replacement_bytes = [0xc4, 0x09]
