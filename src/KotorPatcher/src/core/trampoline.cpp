@@ -6,14 +6,12 @@
 
 // SIMPLE 5-byte relative JMP trampolines that replace the instructions at the
 // hook point. The unprotect/write/reprotect and instruction-cache handling live
-// in Platform::WriteCode, so this file is pure x86 byte layout. Both targets are
-// 32-bit, so a code address fits a uint32_t and reinterpret_cast to/from it
-// loses nothing.
+// in Platform::WriteCode, so this file is pure x86 byte layout.
 
 namespace KotorPatcher {
     namespace Trampoline {
 
-        bool VerifyBytes(uint32_t address, const uint8_t* expected, std::size_t length) {
+        bool VerifyBytes(uintptr_t address, const uint8_t* expected, std::size_t length) {
             if (!expected || length == 0) {
                 return false;
             }
@@ -21,7 +19,7 @@ namespace KotorPatcher {
             return std::memcmp(actual, expected, length) == 0;
         }
 
-        bool WriteNoOps(uint32_t startAddress, std::size_t length) {
+        bool WriteNoOps(uintptr_t startAddress, std::size_t length) {
             if (length == 0) {
                 // Nothing to do; the hook fit exactly in 5 bytes.
                 return true;
@@ -34,10 +32,11 @@ namespace KotorPatcher {
             return true;
         }
 
-        bool WriteJump(uint32_t address, void* target) {
+        bool WriteJump(uintptr_t address, void* target) {
             // E9 <rel32>, where rel32 = target - (address + 5). The +5 is the size
             // of the instruction the CPU has already consumed when it reads rel32.
-            uint32_t offset = reinterpret_cast<uint32_t>(target) - (address + 5);
+            int32_t offset = static_cast<int32_t>(
+                reinterpret_cast<uintptr_t>(target) - (address + 5));
             uint8_t jmp[5];
             jmp[0] = 0xE9;
             std::memcpy(&jmp[1], &offset, 4);
@@ -48,9 +47,10 @@ namespace KotorPatcher {
             return true;
         }
 
-        bool WriteCall(uint32_t address, void* target) {
+        bool WriteCall(uintptr_t address, void* target) {
             // E8 <rel32>: like WriteJump but pushes a return address first.
-            uint32_t offset = reinterpret_cast<uint32_t>(target) - (address + 5);
+            int32_t offset = static_cast<int32_t>(
+                reinterpret_cast<uintptr_t>(target) - (address + 5));
             uint8_t call[5];
             call[0] = 0xE8;
             std::memcpy(&call[1], &offset, 4);

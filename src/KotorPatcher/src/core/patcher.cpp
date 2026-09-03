@@ -5,6 +5,7 @@
 #include "wrapper_base.h"
 
 #include <chrono>
+#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -223,14 +224,14 @@ namespace KotorPatcher {
         }
 
         char addrMsg[256];
-        snprintf(addrMsg, sizeof(addrMsg), "[KotorPatcher] Symbol resolved: %s at 0x%08X\n",
-            patch.functionName.c_str(), reinterpret_cast<uint32_t>(funcAddr));
+        snprintf(addrMsg, sizeof(addrMsg), "[KotorPatcher] Symbol resolved: %s at 0x%08" PRIXPTR "\n",
+            patch.functionName.c_str(), reinterpret_cast<uintptr_t>(funcAddr));
         Platform::Log(addrMsg);
 
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
             char errorMsg[256];
-            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08X - wrong game version?\n", patch.hookAddress);
+            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08" PRIXPTR " - wrong game version?\n", patch.hookAddress);
             Platform::Log(errorMsg);
             return false;
         }
@@ -282,7 +283,7 @@ namespace KotorPatcher {
         }
 
         char successMsg[256];
-        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied DETOUR hook at 0x%08X -> %s\n",
+        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied DETOUR hook at 0x%08" PRIXPTR " -> %s\n",
             patch.hookAddress,
             patch.functionName.c_str());
         Platform::Log(successMsg);
@@ -295,7 +296,7 @@ namespace KotorPatcher {
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
             char errorMsg[256];
-            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08X - wrong game version?\n", patch.hookAddress);
+            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08" PRIXPTR " - wrong game version?\n", patch.hookAddress);
             Platform::Log(errorMsg);
             return false;
         }
@@ -308,7 +309,7 @@ namespace KotorPatcher {
         }
 
         char successMsg[256];
-        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied SIMPLE hook at 0x%08X (%zu bytes replaced)\n",
+        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied SIMPLE hook at 0x%08" PRIXPTR " (%zu bytes replaced)\n",
             patch.hookAddress,
             patch.replacementBytes.size());
         Platform::Log(successMsg);
@@ -321,7 +322,7 @@ namespace KotorPatcher {
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
             char errorMsg[256];
-            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08X - wrong game version?\n", patch.hookAddress);
+            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08" PRIXPTR " - wrong game version?\n", patch.hookAddress);
             Platform::Log(errorMsg);
             return false;
         }
@@ -348,7 +349,8 @@ namespace KotorPatcher {
         // Write JMP back to game code at end of replacement bytes
         uint8_t* returnJmp = static_cast<uint8_t*>(codeBuf) + patch.replacementBytes.size();
         *returnJmp = 0xE9;  // JMP opcode
-        uint32_t offset = reinterpret_cast<uint32_t>(returnAddr) - (reinterpret_cast<uint32_t>(returnJmp) + 5);
+        int32_t offset = static_cast<int32_t>(
+            reinterpret_cast<uintptr_t>(returnAddr) - (reinterpret_cast<uintptr_t>(returnJmp) + 5));
         std::memcpy(returnJmp + 1, &offset, 4);
 
         // Flush instruction cache for code buffer
@@ -369,7 +371,7 @@ namespace KotorPatcher {
         }
 
         char successMsg[256];
-        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied REPLACE hook at 0x%08X (%zu bytes code, %zu bytes replaced)\n",
+        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied REPLACE hook at 0x%08" PRIXPTR " (%zu bytes code, %zu bytes replaced)\n",
             patch.hookAddress,
             patch.replacementBytes.size(),
             patch.originalBytes.size());

@@ -1,6 +1,8 @@
 #include "config_reader.h"
 #include "platform.h"
 
+#include <cerrno>
+#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -14,21 +16,41 @@
 namespace KotorPatcher {
     namespace Config {
 
-        // Helper function to convert hex string to uint32_t
-        static bool ParseHexAddress(const std::string& hexStr, uint32_t& outAddress) {
+        // Helper function to convert a hex string to uint64_t
+        // Width is the caller's problem: this reads both hook addresses and single
+        // bytes out of the original/replacement arrays
+        static bool ParseHexValue(const std::string& hexStr, uint64_t& outValue) {
             std::string cleaned = hexStr;
             if (cleaned.size() >= 2 && cleaned[0] == '0' && (cleaned[1] == 'x' || cleaned[1] == 'X')) {
                 cleaned = cleaned.substr(2);
             }
 
             char* endPtr = nullptr;
-            unsigned long value = strtoul(cleaned.c_str(), &endPtr, 16);
+            errno = 0;
+            unsigned long long value = strtoull(cleaned.c_str(), &endPtr, 16);
 
-            if (endPtr == cleaned.c_str() || *endPtr != '\0') {
+            if (endPtr == cleaned.c_str() || *endPtr != '\0' || errno == ERANGE) {
                 return false; // Parse failed
             }
 
-            outAddress = static_cast<uint32_t>(value);
+            outValue = static_cast<uint64_t>(value);
+            return true;
+        }
+
+        // Helper function to narrow a config address to the target's pointer width
+        // The engine dereferences these, so a 64-bit address reaching the 32-bit
+        // engine means the config is for another build of the game. Reject it rather
+        // than truncate it into a plausible-looking address elsewhere in this image
+        static bool NarrowCodeAddress(uint64_t value, uintptr_t& outAddress, const char* what) {
+            if (value > static_cast<uint64_t>(UINTPTR_MAX)) {
+                char msg[192];
+                snprintf(msg, sizeof(msg),
+                    "[Config] %s 0x%llX does not fit a %zu-bit address\n",
+                    what, static_cast<unsigned long long>(value), sizeof(uintptr_t) * 8);
+                Platform::Log(msg);
+                return false;
+            }
+            outAddress = static_cast<uintptr_t>(value);
             return true;
         }
 
@@ -51,8 +73,8 @@ namespace KotorPatcher {
                 // Or as hex strings like "0x55"
                 else if (elem.is_string()) {
                     std::string hexStr = elem.as_string()->get();
-                    uint32_t byteVal;
-                    if (!ParseHexAddress(hexStr, byteVal) || byteVal > 255) {
+                    uint64_t byteVal;
+                    if (!ParseHexValue(hexStr, byteVal) || byteVal > 255) {
                         Platform::Log(("[Config] Invalid byte string: " + hexStr + "\n").c_str());
                         return false;
                     }
@@ -167,14 +189,21 @@ namespace KotorPatcher {
 
                     if (addressStr) {
                         // Address specified as hex string "0x401234"
-                        if (!ParseHexAddress(*addressStr, patch.hookAddress)) {
+                        uint64_t parsed = 0;
+                        if (!ParseHexValue(*addressStr, parsed)) {
                             Platform::Log(("[Config] Invalid address format: " + *addressStr + "\n").c_str());
+                            continue;
+                        }
+                        if (!NarrowCodeAddress(parsed, patch.hookAddress, "hook address")) {
                             continue;
                         }
                     }
                     else if (addressInt) {
                         // Address specified as integer
-                        patch.hookAddress = static_cast<uint32_t>(*addressInt);
+                        if (!NarrowCodeAddress(static_cast<uint64_t>(*addressInt),
+                                               patch.hookAddress, "hook address")) {
+                            continue;
+                        }
                     }
                     else {
                         Platform::Log("[Config] Hook missing 'address' field\n");
@@ -311,7 +340,7 @@ namespace KotorPatcher {
                     if (skipOrigBytes) {
                         patch.skipOriginalBytes = *skipOrigBytes;
                         char debugMsg[256];
-                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Parsed skip_original_bytes = %s for hook at 0x%08X\n",
+                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Parsed skip_original_bytes = %s for hook at 0x%08" PRIXPTR "\n",
                             *skipOrigBytes ? "true" : "false", patch.hookAddress);
                         Platform::Log(debugMsg);
                     }
@@ -323,16 +352,19 @@ namespace KotorPatcher {
                     auto consumedExitInt = hookTable->at_path("consumed_exit_address").value<int64_t>();
 
                     if (consumedExitStr) {
-                        if (!ParseHexAddress(*consumedExitStr, patch.consumedExitAddress)) {
+                        uint64_t parsed = 0;
+                        if (!ParseHexValue(*consumedExitStr, parsed) ||
+                            !NarrowCodeAddress(parsed, patch.consumedExitAddress, "consumed_exit_address")) {
                             Platform::Log(("[Config] Invalid consumed_exit_address: " + *consumedExitStr + "\n").c_str());
                         }
                     }
                     else if (consumedExitInt) {
-                        patch.consumedExitAddress = static_cast<uint32_t>(*consumedExitInt);
+                        NarrowCodeAddress(static_cast<uint64_t>(*consumedExitInt),
+                                          patch.consumedExitAddress, "consumed_exit_address");
                     }
                     if (patch.consumedExitAddress != 0) {
                         char debugMsg[256];
-                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Parsed consumed_exit_address = 0x%08X for hook at 0x%08X\n",
+                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Parsed consumed_exit_address = 0x%08" PRIXPTR " for hook at 0x%08" PRIXPTR "\n",
                             patch.consumedExitAddress, patch.hookAddress);
                         Platform::Log(debugMsg);
                     }
@@ -371,11 +403,11 @@ namespace KotorPatcher {
                     // Debug message
                     char debugMsg[256];
                     if (patch.type == HookType::SIMPLE) {
-                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Loaded SIMPLE hook: %s @ 0x%08X (%zu bytes)\n",
+                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Loaded SIMPLE hook: %s @ 0x%08" PRIXPTR " (%zu bytes)\n",
                             patchId.c_str(), patch.hookAddress, patch.originalBytes.size());
                     }
                     else {
-                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Loaded DETOUR hook: %s -> %s @ 0x%08X (%zu bytes)\n",
+                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Loaded DETOUR hook: %s -> %s @ 0x%08" PRIXPTR " (%zu bytes)\n",
                             patchId.c_str(), patch.functionName.c_str(),
                             patch.hookAddress, patch.originalBytes.size());
                     }
