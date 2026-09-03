@@ -130,6 +130,10 @@ CExoArrayList<CSWGuiPanel*>* CSWGuiManager::GetPanels() {
 void CSWGuiManager::AddPanel(CSWGuiPanel* panel, int flags, int playSound) {
     if (!objectPtr || !addPanel) return;
     addPanel(objectPtr, panel ? panel->GetPtr() : nullptr, flags, playSound);
+
+    // The game owns the panel from here and frees it when it is done, so the wrapper
+    // must not also destroy it.
+    if (panel) panel->ReleaseOwnership();
 }
 
 void CSWGuiManager::PlayGuiSound(byte soundId) {

@@ -57,25 +57,17 @@ inline void setObjectProperty(void* object, int offset, propType value) {
 
 // ===== MEMBER FUNCTION -> RAW CODE ADDRESS =====
 //
-// The game stores GUI callbacks ("menuFunc") as a plain code address and invokes
-// them as __thiscall: the registered guiObject in ECX, one parameter on the stack.
-// A non-virtual C++ member function has exactly that ABI on both MSVC and MinGW (both
-// pass 'this' in ECX and callee-clean the stack), so a real member can serve as a
-// menuFunc directly. Register the owning object as the guiObject and its 'this' lands
-// in ECX.
+// A non-virtual member is __thiscall, which is what the game calls a callback as.
+// Casting pointer-to-member to void* is illegal, so this punches through: MSVC packs
+// one into a 4-byte address, MinGW into an Itanium { code_ptr, this_adjust } pair.
+// The static_assert rejects anything else (virtual, multiple/virtual inheritance).
 //
-// The language forbids casting a pointer-to-member to void*, so this helper punches
-// through that. The extraction differs by compiler because the pointer-to-member
-// representation does (see the two branches below): MSVC packs a non-virtual member
-// into a 4-byte code address, MinGW into an 8-byte Itanium { code_ptr, this_adjust }
-// pair. The MSVC static_assert rejects any member that is not a plain address (a
-// virtual member, or multiple/virtual inheritance) so a bad pointer fails at compile
-// time instead of being silently handed to the game. That same precondition is what
-// makes MinGW's first-word read the real code address, so the two paths cannot
-// disagree: anything that compiles on MSVC extracts correctly under MinGW.
+// Only valid where the game passes the wrapper in ECX, i.e. the CSWGuiPanel::Override*
+// virtuals. CSWGuiControl::AddEvent passes the game pointer -- use memberThunkAddr
+// (MemberFunctionThunk.h) there instead.
 //
 // USAGE:
-//   button.AddEvent(0x27, this, memberFuncAddr(&MyPanel::OnClick));
+//   this->OverrideHandleInputEvent(memberFuncAddr(&MyPanel::_HandleInputEvent));
 template<typename MemFn>
 inline void* memberFuncAddr(MemFn fn) {
 #if defined(_MSC_VER)

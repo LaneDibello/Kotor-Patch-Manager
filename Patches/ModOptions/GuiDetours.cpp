@@ -17,6 +17,12 @@ extern "C" void __cdecl InjectOptionsButton(void* thisPanel) {
     panel.InitControl(modOptionsButton, &buttonTag, 1);
 }
 
+// Sample handler, so the resolve-and-call path is testable without a second patch.
+extern "C" void __cdecl ModOptions_DebugHandler(const char* key, const char* value) {
+    debugLog("[ModOptions] ModOptions_DebugHandler(%s, %s)",
+        key ? key : "(null)", value ? value : "(null)");
+}
+
 extern "C" void __cdecl AddCreateEvent(void* thisPanel) {
     CSWGuiPanel panel(thisPanel);
     modOptionsButton->AddEvent(0x27, &panel, &CreateModOptionsGui);

@@ -1,8 +1,12 @@
 #include "CSWGuiButtonToggle.h"
 #include "GameVersion.h"
 #include "CSWGuiBorder.h"
+#include "CSWGuiBorderParams.h"
+#include "CSWGuiTextParams.h"
+#include "CSWGuiExtent.h"
 
 CSWGuiButtonToggle::SetSelectedFn CSWGuiButtonToggle::setSelected = nullptr;
+CSWGuiButtonToggle::InitializeToggleParamsFn CSWGuiButtonToggle::initializeToggleParams = nullptr;
 CSWGuiButtonToggle::ConstructorFn CSWGuiButtonToggle::constructor = nullptr;
 CSWGuiButtonToggle::DestructorFn  CSWGuiButtonToggle::destructor  = nullptr;
 int CSWGuiButtonToggle::classSize = -1;
@@ -29,6 +33,7 @@ void CSWGuiButtonToggle::InitializeFunctions() {
 
     try {
         setSelected = reinterpret_cast<SetSelectedFn>(GameVersion::GetFunctionAddress("CSWGuiButtonToggle", "SetSelected"));
+        initializeToggleParams = reinterpret_cast<InitializeToggleParamsFn>(GameVersion::GetFunctionAddress("CSWGuiButtonToggle", "Initialize"));
         constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiButtonToggle", "Constructor"));
         destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiButtonToggle", "Destructor_2"));
 
@@ -155,4 +160,16 @@ bool CSWGuiButtonToggle::GetSelected() {
 void CSWGuiButtonToggle::SetSelected(UINT selected) {
     if (!objectPtr || !setSelected) return;
     setSelected(objectPtr, selected);
+}
+
+void CSWGuiButtonToggle::Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
+                                    CSWGuiBorderParams* border1, CSWGuiBorderParams* border2,
+                                    CSWGuiBorderParams* borderSelected, CSWGuiBorderParams* borderHilight) {
+    if (!objectPtr || !initializeToggleParams) return;
+    initializeToggleParams(objectPtr, extent,
+        textParams ? textParams->GetPtr() : nullptr,
+        border1 ? border1->GetPtr() : nullptr,
+        border2 ? border2->GetPtr() : nullptr,
+        borderSelected ? borderSelected->GetPtr() : nullptr,
+        borderHilight ? borderHilight->GetPtr() : nullptr);
 }

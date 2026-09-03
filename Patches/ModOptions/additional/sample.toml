@@ -2,6 +2,10 @@
 name = "Sample Mod Menu"
 description = "Example of what custom mod menus can looks like"
 
+# Manifest id of the patch that owns this menu.
+# Default `patch` for every option below, and how their functions get resolved.
+patch = "mod-options-gui"
+
 [[options]]
 # All options needs a name
 # This will be what appears in the UI
@@ -9,6 +13,7 @@ name = "Toggle Option"
 
 # One of: `toggle`, `slider`, `list`, `text`
 # toggle will supply a value of 0 or 1
+# NOTE: only `toggle` is implemented so far; other types parse but are skipped.
 type = "toggle"
 
 # All options need a default value
@@ -22,10 +27,12 @@ key = "toggleOption"
 
 # Running a function on set is also optional
 # Though some mods might need this
-# I think these functions can be registered
-# externally by other patches at runtime, via
-# some API.
-function = "SampleFunction"
+#
+# Must be an undecorated __cdecl export of the owning patch, listed in its exports.def:
+#     extern "C" void __cdecl SampleFunction(const char* key, const char* value)
+# key is this option's `key` (or `name` if it has no ini); value is "0"/"1" here.
+# Add `patch = "other-patch-id"` to point somewhere other than [menu].
+function = "ModOptions_DebugHandler"
 
 # A description is optional, and is shown alongside the option
 description = "Description string for what this option does"

@@ -31,7 +31,9 @@ struct ModOption {
 	std::string ini;
 	std::string category;
 	std::string key;
+
 	std::string function;
+	std::string patch;		// defaults to the [menu] `patch`
 
 	// Slider only.
 	int min = 0;
@@ -52,6 +54,11 @@ struct ModOption {
 
 	const std::string& GetName() const { return name; }
 	const std::string& GetDescription() const { return description; }
+	const std::string& GetPatch() const { return patch; }
+	const std::string& GetFunction() const { return function; }
+
+	// Handler's first argument; `key` is only required when there is an ini.
+	const std::string& EffectiveKey() const { return key.empty() ? name : key; }
 
 	int DefaultAsInt() const { return defaultNumber; }
 	bool DefaultAsBool() const { return defaultNumber != 0; }
@@ -60,7 +67,8 @@ struct ModOption {
 	const std::string& DefaultAsString() const { return defaultString; }
 
 	bool HasIni() const { return !ini.empty() && !category.empty() && !key.empty(); }
-	bool HasFunction() const { return !function.empty(); }
+	// Both halves are needed to reach the symbol.
+	bool HasFunction() const { return !function.empty() && !patch.empty(); }
 	bool HasDescription() const { return !description.empty(); }
 };
 
@@ -68,6 +76,7 @@ struct ModOptionsConfig {
 	// The [menu] block.
 	std::string menuName;			// falls back to the file stem
 	std::string menuDescription;	// may be empty
+	std::string menuPatch;			// default owning patch id for this file's options
 
 	std::string sourcePath;			// empty for configs parsed from memory
 
@@ -134,7 +143,7 @@ namespace ModOptionsConfigDetail {
 	inline bool ParseDefault(const toml::table& source, size_t index, const std::string& sourceName, ModOption& outOption) {
 		const toml::node* node = source.get("default");
 		if (!node) {
-			debugLog("[ModOptions] %s: option %u has no `default`; skipping\n", sourceName.c_str(), (unsigned)index);
+			debugLog("[ModOptions] %s: option %u has no `default`; skipping", sourceName.c_str(), (unsigned)index);
 			return false;
 		}
 
@@ -146,7 +155,7 @@ namespace ModOptionsConfigDetail {
 			}
 			else if (auto text = node->value<std::string>()) {
 				if (!ParseBooleanText(*text, value)) {
-					debugLog("[ModOptions] %s: toggle option %u has an unrecognized `default` of `%s`; skipping\n",
+					debugLog("[ModOptions] %s: toggle option %u has an unrecognized `default` of `%s`; skipping",
 						sourceName.c_str(), (unsigned)index, text->c_str());
 					return false;
 				}
@@ -154,14 +163,14 @@ namespace ModOptionsConfigDetail {
 			else if (node->is_integer()) {
 				auto number = node->value<int64_t>();
 				if (*number != 0 && *number != 1) {
-					debugLog("[ModOptions] %s: toggle option %u has a `default` of %d, which is not 0 or 1; skipping\n",
+					debugLog("[ModOptions] %s: toggle option %u has a `default` of %d, which is not 0 or 1; skipping",
 						sourceName.c_str(), (unsigned)index, (int)*number);
 					return false;
 				}
 				value = (*number != 0);
 			}
 			else {
-				debugLog("[ModOptions] %s: toggle option %u has a `default` that is not a boolean; skipping\n",
+				debugLog("[ModOptions] %s: toggle option %u has a `default` that is not a boolean; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
@@ -178,7 +187,7 @@ namespace ModOptionsConfigDetail {
 				number = (int64_t)atoi(text->c_str());
 			}
 			if (!number) {
-				debugLog("[ModOptions] %s: slider option %u has a `default` that is not an integer; skipping\n",
+				debugLog("[ModOptions] %s: slider option %u has a `default` that is not an integer; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
@@ -186,7 +195,7 @@ namespace ModOptionsConfigDetail {
 			if (clamped < outOption.min) { clamped = outOption.min; }
 			if (clamped > outOption.max) { clamped = outOption.max; }
 			if (clamped != *number) {
-				debugLog("[ModOptions] %s: slider option %u has a `default` of %d outside [%d, %d]; clamping to %d\n",
+				debugLog("[ModOptions] %s: slider option %u has a `default` of %d outside [%d, %d]; clamping to %d",
 					sourceName.c_str(), (unsigned)index, (int)*number, outOption.min, outOption.max, (int)clamped);
 			}
 			outOption.defaultNumber = (int)clamped;
@@ -202,7 +211,7 @@ namespace ModOptionsConfigDetail {
 						return true;
 					}
 				}
-				debugLog("[ModOptions] %s: list option %u has a `default` of `%s`, which is not one of its choices; using `%s`\n",
+				debugLog("[ModOptions] %s: list option %u has a `default` of `%s`, which is not one of its choices; using `%s`",
 					sourceName.c_str(), (unsigned)index, text->c_str(), outOption.choices[0].c_str());
 				outOption.defaultNumber = 0;
 				outOption.defaultString = outOption.choices[0];
@@ -214,14 +223,14 @@ namespace ModOptionsConfigDetail {
 				if (clamped < 0) { clamped = 0; }
 				if (clamped >= (int64_t)outOption.choices.size()) { clamped = (int64_t)outOption.choices.size() - 1; }
 				if (clamped != *number) {
-					debugLog("[ModOptions] %s: list option %u has a `default` index of %d outside its %u choices; clamping to %d\n",
+					debugLog("[ModOptions] %s: list option %u has a `default` index of %d outside its %u choices; clamping to %d",
 						sourceName.c_str(), (unsigned)index, (int)*number, (unsigned)outOption.choices.size(), (int)clamped);
 				}
 				outOption.defaultNumber = (int)clamped;
 				outOption.defaultString = outOption.choices[(size_t)clamped];
 				return true;
 			}
-			debugLog("[ModOptions] %s: list option %u has a `default` that is neither a choice nor an index; skipping\n",
+			debugLog("[ModOptions] %s: list option %u has a `default` that is neither a choice nor an index; skipping",
 				sourceName.c_str(), (unsigned)index);
 			return false;
 		}
@@ -238,7 +247,7 @@ namespace ModOptionsConfigDetail {
 				outOption.defaultString = std::to_string((int)*node->value<int64_t>());
 				return true;
 			}
-			debugLog("[ModOptions] %s: text option %u has a `default` that is not a string; skipping\n",
+			debugLog("[ModOptions] %s: text option %u has a `default` that is not a string; skipping",
 				sourceName.c_str(), (unsigned)index);
 			return false;
 		}
@@ -247,20 +256,21 @@ namespace ModOptionsConfigDetail {
 		return false;
 	}
 
-	inline bool ParseOption(const toml::table& source, size_t index, const std::string& sourceName, ModOption& outOption) {
+	inline bool ParseOption(const toml::table& source, size_t index, const std::string& sourceName,
+		const std::string& defaultPatch, ModOption& outOption) {
 		outOption.name = StringOr(source, "name");
 		if (outOption.name.empty()) {
-			debugLog("[ModOptions] %s: option %u has no `name`; skipping\n", sourceName.c_str(), (unsigned)index);
+			debugLog("[ModOptions] %s: option %u has no `name`; skipping", sourceName.c_str(), (unsigned)index);
 			return false;
 		}
 
 		auto typeText = source["type"].value<std::string>();
 		if (!typeText) {
-			debugLog("[ModOptions] %s: option %u has no `type`; skipping\n", sourceName.c_str(), (unsigned)index);
+			debugLog("[ModOptions] %s: option %u has no `type`; skipping", sourceName.c_str(), (unsigned)index);
 			return false;
 		}
 		if (!ParseType(*typeText, outOption.type)) {
-			debugLog("[ModOptions] %s: option %u has unknown type `%s`; skipping\n",
+			debugLog("[ModOptions] %s: option %u has unknown type `%s`; skipping",
 				sourceName.c_str(), (unsigned)index, typeText->c_str());
 			return false;
 		}
@@ -270,10 +280,16 @@ namespace ModOptionsConfigDetail {
 		outOption.category = StringOr(source, "category");
 		outOption.key = StringOr(source, "key");
 		outOption.function = StringOr(source, "function");
+		outOption.patch = StringOr(source, "patch", defaultPatch);
+
+		if (!outOption.function.empty() && outOption.patch.empty()) {
+			debugLog("[ModOptions] %s: option %u names function `%s` but no `patch`",
+				sourceName.c_str(), (unsigned)index, outOption.function.c_str());
+		}
 
 		// An option that neither stores a value nor calls anything does nothing.
 		if (!outOption.HasIni() && !outOption.HasFunction()) {
-			debugLog("[ModOptions] %s: option %u has neither a complete ini/category/key nor a function; skipping\n",
+			debugLog("[ModOptions] %s: option %u has neither a complete ini/category/key nor a resolvable function; skipping",
 				sourceName.c_str(), (unsigned)index);
 			return false;
 		}
@@ -283,17 +299,17 @@ namespace ModOptionsConfigDetail {
 			auto min = source["min"].value<int64_t>();
 			auto max = source["max"].value<int64_t>();
 			if (!min || !max) {
-				debugLog("[ModOptions] %s: slider option %u is missing `min` or `max`; skipping\n",
+				debugLog("[ModOptions] %s: slider option %u is missing `min` or `max`; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
 			if (*min < 0) {
-				debugLog("[ModOptions] %s: slider option %u has a negative `min`; skipping\n",
+				debugLog("[ModOptions] %s: slider option %u has a negative `min`; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
 			if (*max <= *min) {
-				debugLog("[ModOptions] %s: slider option %u has max <= min; skipping\n",
+				debugLog("[ModOptions] %s: slider option %u has max <= min; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
@@ -304,7 +320,7 @@ namespace ModOptionsConfigDetail {
 		case ModOptionType::List: {
 			const toml::array* choices = source["choices"].as_array();
 			if (!choices || choices->empty()) {
-				debugLog("[ModOptions] %s: list option %u has no `choices` array; skipping\n",
+				debugLog("[ModOptions] %s: list option %u has no `choices` array; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
@@ -314,12 +330,12 @@ namespace ModOptionsConfigDetail {
 					outOption.choices.push_back(*text);
 				}
 				else {
-					debugLog("[ModOptions] %s: list option %u has a non-string choice; ignoring it\n",
+					debugLog("[ModOptions] %s: list option %u has a non-string choice; ignoring it",
 						sourceName.c_str(), (unsigned)index);
 				}
 			}
 			if (outOption.choices.empty()) {
-				debugLog("[ModOptions] %s: list option %u has no usable choices; skipping\n",
+				debugLog("[ModOptions] %s: list option %u has no usable choices; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
@@ -343,9 +359,11 @@ namespace ModOptionsConfigDetail {
 
 		config.menuName = StringOr(root, "name");
 		config.menuDescription = StringOr(root, "description");
+		config.menuPatch = StringOr(root, "patch");
 		if (auto menu = root["menu"].as_table()) {
 			config.menuName = StringOr(*menu, "name", config.menuName);
 			config.menuDescription = StringOr(*menu, "description", config.menuDescription);
+			config.menuPatch = StringOr(*menu, "patch", config.menuPatch);
 		}
 		if (config.menuName.empty()) {
 			config.menuName = FileStem(sourceName);
@@ -353,7 +371,7 @@ namespace ModOptionsConfigDetail {
 
 		const toml::array* options = root["options"].as_array();
 		if (!options) {
-			debugLog("[ModOptions] %s: no [[options]] entries found\n", sourceName.c_str());
+			debugLog("[ModOptions] %s: no [[options]] entries found", sourceName.c_str());
 			return config;
 		}
 
@@ -361,11 +379,11 @@ namespace ModOptionsConfigDetail {
 		for (size_t i = 0; i < options->size(); ++i) {
 			const toml::table* optionTable = options->get(i)->as_table();
 			if (!optionTable) {
-				debugLog("[ModOptions] %s: option %u is not a table; skipping\n", sourceName.c_str(), (unsigned)i);
+				debugLog("[ModOptions] %s: option %u is not a table; skipping", sourceName.c_str(), (unsigned)i);
 				continue;
 			}
 			ModOption option;
-			if (ParseOption(*optionTable, i, sourceName, option)) {
+			if (ParseOption(*optionTable, i, sourceName, config.menuPatch, option)) {
 				config.options.push_back(std::move(option));
 			}
 		}
@@ -380,7 +398,7 @@ namespace ModOptionsConfigDetail {
 		if (!result) {
 			ModOptionsConfig config;
 			config.error = sourceName + ": TOML parse error: " + std::string(result.error().description());
-			debugLog("[ModOptions] %s\n", config.error.c_str());
+			debugLog("[ModOptions] %s", config.error.c_str());
 			return config;
 		}
 		return FromTable(std::move(result).table(), sourceName);
@@ -397,7 +415,7 @@ inline ModOptionsConfig ModOptionsConfig::LoadFromFile(const std::string& path) 
 	}
 	catch (const toml::parse_error& parseError) {
 		config.error = path + ": TOML parse error: " + std::string(parseError.description());
-		debugLog("[ModOptions] %s\n", config.error.c_str());
+		debugLog("[ModOptions] %s", config.error.c_str());
 	}
 #else
 	ModOptionsConfig config = ModOptionsConfigDetail::FromResult(toml::parse_file(path), path);
@@ -415,7 +433,7 @@ inline ModOptionsConfig ModOptionsConfig::ParseText(const std::string& text, con
 	catch (const toml::parse_error& parseError) {
 		ModOptionsConfig config;
 		config.error = source + ": TOML parse error: " + std::string(parseError.description());
-		debugLog("[ModOptions] %s\n", config.error.c_str());
+		debugLog("[ModOptions] %s", config.error.c_str());
 		return config;
 	}
 #else
