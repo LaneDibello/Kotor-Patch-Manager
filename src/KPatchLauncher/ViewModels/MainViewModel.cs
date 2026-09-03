@@ -815,24 +815,16 @@ public class MainViewModel : ViewModelBase
             // during the reinstall that follows.
             await Task.Run(() => PatchRemover.RemoveAllPatches(GamePath, removeManagedState: false));
 
-            // Get patcher DLL path (should be in same directory as launcher)
-            // AppContext.BaseDirectory works reliably with both regular and single-file builds
-            var appDir = AppContext.BaseDirectory;
-            var patcherDllPath = Path.Combine(appDir, "KotorPatcher.dll");
-            // The native Linux engine, staged when patching the native ELF.
-            var patcherSoPath = Path.Combine(appDir, "KotorPatcher.so");
-            // The KProxy ships alongside the launcher; staged when deploying via proxy.
-            var proxyDllPath = Path.Combine(appDir, "binkw32.dll");
-
+            // The patcher modules and the KProxy all ship next to the launcher. Which one gets
+            // staged is the deployment method's call, so only the directory is passed.
+            // AppContext.BaseDirectory works reliably with both regular and single-file builds.
             var applicator = new PatchApplicator(_repository);
             var options = new PatchApplicator.InstallOptions
             {
                 GameExePath = GamePath,
                 PatchIds = checkedPatches.Select(p => p.Id).ToList(),
                 CreateBackup = true,
-                PatcherDllPath = File.Exists(patcherDllPath) ? patcherDllPath : null,
-                PatcherSoPath = File.Exists(patcherSoPath) ? patcherSoPath : null,
-                ProxyDllPath = File.Exists(proxyDllPath) ? proxyDllPath : null
+                PatcherDirectory = AppContext.BaseDirectory
             };
 
             // Run on background thread

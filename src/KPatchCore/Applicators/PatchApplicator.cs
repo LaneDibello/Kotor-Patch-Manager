@@ -35,23 +35,12 @@ public class PatchApplicator
         public bool CreateBackup { get; init; } = true;
 
         /// <summary>
-        /// Path to KotorPatcher.dll (if null, assumes it's in same directory as game exe)
+        /// Directory holding the patcher modules and the proxy library, which is where the
+        /// launcher itself runs from. Which of them gets staged is the deployment method's
+        /// decision, so a new platform adds a file here rather than a field to this type.
+        /// Null means they are expected to be in the game directory already.
         /// </summary>
-        public string? PatcherDllPath { get; init; }
-
-        /// <summary>
-        /// Path to the KProxy (binkw32.dll) to stage when deploying via proxy
-        /// so the game loads KotorPatcher under Wine/Proton.
-        /// Ignored on Windows (live injection).
-        /// If null on Linux, DLL-based patches won't load under Wine.
-        /// </summary>
-        public string? ProxyDllPath { get; init; }
-
-        /// <summary>
-        /// Path to KotorPatcher.so to stage in the game directory when the detected game
-        /// is a native Linux ELF (DeploymentMethod.LinkedDependency). Ignored otherwise.
-        /// </summary>
-        public string? PatcherSoPath { get; init; }
+        public string? PatcherDirectory { get; init; }
     }
 
     /// <summary>
@@ -107,9 +96,23 @@ public class PatchApplicator
     private static PatcherModule ResolvePatcherModule(DeploymentMethod deployment, InstallOptions options)
     {
         var fileName = DeploymentPolicy.PatcherModuleFileName(deployment);
-        return deployment == DeploymentMethod.LinkedDependency
-            ? new PatcherModule(fileName, options.PatcherSoPath, NeedsSqlite: false)
-            : new PatcherModule(fileName, options.PatcherDllPath, NeedsSqlite: true);
+        // sqlite3.dll ships beside the Windows engine for the patch DLLs' GameVersion lookups.
+        // The native engine links no sqlite, so nothing travels with it.
+        var needsSqlite = deployment != DeploymentMethod.LinkedDependency;
+        return new PatcherModule(fileName, ResolveStagedFile(options.PatcherDirectory, fileName), needsSqlite);
+    }
+
+    /// <summary>
+    /// The full path to a file the launcher would stage, or null when it is not there. Callers
+    /// treat null as "not shipped with this build" and warn rather than fail.
+    /// </summary>
+    private static string? ResolveStagedFile(string? patcherDirectory, string fileName)
+    {
+        if (string.IsNullOrEmpty(patcherDirectory))
+            return null;
+
+        var path = Path.Combine(patcherDirectory, fileName);
+        return File.Exists(path) ? path : null;
     }
 
     /// <summary>
@@ -695,7 +698,8 @@ public class PatchApplicator
             var proxyInstalled = false;
             if (deployment == DeploymentMethod.LibraryProxy)
             {
-                if (string.IsNullOrEmpty(options.ProxyDllPath))
+                var proxyPath = ResolveStagedFile(options.PatcherDirectory, DeploymentPolicy.ProxyLibraryFileName);
+                if (string.IsNullOrEmpty(proxyPath))
                 {
                     // Without the proxy staged nothing loads KotorPatcher, so DLL
                     // (DETOUR) patches won't take effect. Static patches still do.
@@ -704,7 +708,7 @@ public class PatchApplicator
                 }
                 else
                 {
-                    var proxyResult = KProxyInstaller.Install(gameDir, options.ProxyDllPath);
+                    var proxyResult = KProxyInstaller.Install(gameDir, proxyPath);
                     if (!proxyResult.Success)
                     {
                         // Undo any half-done rename before rolling back the executable.

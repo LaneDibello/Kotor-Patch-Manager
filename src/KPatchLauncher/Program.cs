@@ -92,11 +92,10 @@ class Program
             return 1;
         }
 
-        var patcherDllPath = Path.Combine(AppContext.BaseDirectory, PatcherDllName);
         var result = orchestrator.InstallPatches(
             gameExePath,
             patchIds,
-            patcherDllPath: File.Exists(patcherDllPath) ? patcherDllPath : null);
+            patcherDirectory: AppContext.BaseDirectory);
         if (!result.Success)
         {
             Console.WriteLine($"ERROR: {result.Error}");

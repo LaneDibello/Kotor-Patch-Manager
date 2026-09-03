@@ -97,4 +97,11 @@ public static class DeploymentPolicy
             ? "KotorPatcher.so"
             : "KotorPatcher.dll";
     }
+
+    /// <summary>
+    /// The library <see cref="DeploymentMethod.LibraryProxy"/> stands in for. KOTOR 1 and 2 both
+    /// import binkw32.dll and Wine has no builtin, so the game's own loader picks up whatever sits
+    /// under that name in the game directory.
+    /// </summary>
+    public const string ProxyLibraryFileName = "binkw32.dll";
 }

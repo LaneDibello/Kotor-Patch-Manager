@@ -40,23 +40,20 @@ public class PatchOrchestrator
     /// <param name="gameExePath">Path to the game executable</param>
     /// <param name="patchIds">Patch IDs to install</param>
     /// <param name="createBackup">Whether to create a backup before installation</param>
-    /// <param name="patcherDllPath">Path to KotorPatcher.dll (optional)</param>
-    /// <param name="patcherSoPath">Path to KotorPatcher.so for the native Linux ELF (optional)</param>
+    /// <param name="patcherDirectory">Directory the patcher modules and proxy library ship in (optional)</param>
     /// <returns>Installation result</returns>
     public PatchApplicator.InstallResult InstallPatches(
         string gameExePath,
         IEnumerable<string> patchIds,
         bool createBackup = true,
-        string? patcherDllPath = null,
-        string? patcherSoPath = null)
+        string? patcherDirectory = null)
     {
         var options = new PatchApplicator.InstallOptions
         {
             GameExePath = gameExePath,
             PatchIds = patchIds.ToList(),
             CreateBackup = createBackup,
-            PatcherDllPath = patcherDllPath,
-            PatcherSoPath = patcherSoPath
+            PatcherDirectory = patcherDirectory
         };
 
         return _applicator.InstallPatches(options);
