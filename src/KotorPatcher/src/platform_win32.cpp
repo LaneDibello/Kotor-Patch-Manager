@@ -15,7 +15,16 @@ namespace Platform {
     }
 
     void* AllocExec(std::size_t size) {
-        return VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        return VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    }
+
+    bool ProtectExec(void* addr, std::size_t size) {
+        DWORD oldProtect = 0;
+        if (!VirtualProtect(addr, size, PAGE_EXECUTE_READ, &oldProtect)) {
+            return false;
+        }
+        FlushInstructionCache(GetCurrentProcess(), addr, size);
+        return true;
     }
 
     void FreeExec(void* addr, std::size_t /*size*/) {

@@ -340,7 +340,7 @@ namespace KotorPatcher {
         // Track allocated buffer for cleanup
         g_allocatedCodeBuffers.push_back({ codeBuf, bufferSize });
 
-        // Write replacement bytes to allocated memory (already writable+executable)
+        // Write replacement bytes to allocated memory (not executable until ProtectExec)
         std::memcpy(codeBuf, patch.replacementBytes.data(), patch.replacementBytes.size());
 
         // Calculate return address (after original bytes)
@@ -359,8 +359,10 @@ namespace KotorPatcher {
         *returnJmp = 0xE9;  // JMP opcode
         std::memcpy(returnJmp + 1, &offset, 4);
 
-        // Flush instruction cache for code buffer
-        Platform::FlushICache(codeBuf, bufferSize);
+        if (!Platform::ProtectExec(codeBuf, bufferSize)) {
+            Platform::Log("[KotorPatcher] Failed to make the REPLACE code block executable\n");
+            return false;
+        }
 
         // Write JMP at hook address to code buffer
         if (!Trampoline::WriteJump(patch.hookAddress, codeBuf)) {

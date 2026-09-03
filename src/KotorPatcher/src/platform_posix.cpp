@@ -51,9 +51,17 @@ namespace Platform {
     }
 
     void* AllocExec(std::size_t size) {
-        void* mem = mmap(nullptr, size, PROT_READ | PROT_WRITE | PROT_EXEC,
+        void* mem = mmap(nullptr, size, PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         return mem == MAP_FAILED ? nullptr : mem;
+    }
+
+    bool ProtectExec(void* addr, std::size_t size) {
+        if (mprotect(addr, size, PROT_READ | PROT_EXEC) != 0) {
+            return false;
+        }
+        FlushICache(addr, size);
+        return true;
     }
 
     void FreeExec(void* addr, std::size_t size) {

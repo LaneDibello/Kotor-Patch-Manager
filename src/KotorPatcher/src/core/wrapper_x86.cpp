@@ -284,8 +284,12 @@ namespace KotorPatcher {
                 }
             }
 
-            // Flush instruction cache
-            Platform::FlushICache(wrapperMem, static_cast<size_t>(code - wrapperMem));
+            // The stub was written through a writable mapping, so it only becomes
+            // code once it is sealed. ProtectExec flushes the instruction cache.
+            if (!Platform::ProtectExec(wrapperMem, estimatedSize)) {
+                Platform::Log("[Wrapper] Failed to make the wrapper executable\n");
+                return nullptr;
+            }
 
             char debugMsg[256];
             snprintf(debugMsg, sizeof(debugMsg), "[Wrapper] Generated DETOUR wrapper at 0x%08X (%d bytes)\n",

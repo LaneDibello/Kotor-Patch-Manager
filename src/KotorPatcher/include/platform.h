@@ -19,9 +19,19 @@ namespace Platform {
     // (OutputDebugStringA); Linux writes it to stderr.
     void Log(const char* message);
 
-    // Allocate `size` bytes of read/write/execute memory for generated stubs
-    // (DETOUR wrappers, REPLACE code blocks), or nullptr on failure.
+    // Allocate `size` bytes of writable memory for a generated stub (a DETOUR
+    // wrapper, a REPLACE code block), or nullptr on failure. The block is not
+    // executable yet: fill it, then seal it with ProtectExec.
+    //
+    // Writable and executable at once is deliberately not offered. macOS refuses
+    // such a mapping, and these games are x86_64-only, so every Apple Silicon Mac
+    // runs them under Rosetta and would hit that refusal.
     void* AllocExec(std::size_t size);
+
+    // Turn a filled AllocExec block into read+execute and make the CPU observe the
+    // bytes. Returns false if the protection change failed, in which case nothing
+    // may jump to the block.
+    bool ProtectExec(void* addr, std::size_t size);
 
     // Release memory returned by AllocExec.
     void FreeExec(void* addr, std::size_t size);
