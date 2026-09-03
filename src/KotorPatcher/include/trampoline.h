@@ -23,6 +23,11 @@
 
 namespace KotorPatcher {
     namespace Trampoline {
+        // Displacement a 5-byte E9/E8 at `instructionAddress` needs to reach `target`.
+        // Returns false when the target is too far for a signed 32-bit displacement,
+        // which can only happen on a 64-bit target.
+        bool ComputeRel32(uintptr_t instructionAddress, uintptr_t target, int32_t& outRel);
+
         // Write a 5-byte relative JMP at `address` targeting `target`.
         bool WriteJump(uintptr_t address, void* target);
 

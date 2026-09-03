@@ -348,9 +348,15 @@ namespace KotorPatcher {
 
         // Write JMP back to game code at end of replacement bytes
         uint8_t* returnJmp = static_cast<uint8_t*>(codeBuf) + patch.replacementBytes.size();
+        int32_t offset = 0;
+        if (!Trampoline::ComputeRel32(reinterpret_cast<uintptr_t>(returnJmp),
+                                      reinterpret_cast<uintptr_t>(returnAddr), offset)) {
+            // AllocExec places the block wherever the kernel likes, which on a 64-bit
+            // target can be further than a rel32 from the game image.
+            Platform::Log("[KotorPatcher] REPLACE code block is out of rel32 range of the game\n");
+            return false;
+        }
         *returnJmp = 0xE9;  // JMP opcode
-        int32_t offset = static_cast<int32_t>(
-            reinterpret_cast<uintptr_t>(returnAddr) - (reinterpret_cast<uintptr_t>(returnJmp) + 5));
         std::memcpy(returnJmp + 1, &offset, 4);
 
         // Flush instruction cache for code buffer
