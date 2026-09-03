@@ -5,6 +5,7 @@ using KPatchCore.Detectors;
 using KPatchCore.Launcher;
 using KPatchCore.Managers;
 using KPatchCore.Models;
+using KPatchLauncher.Models;
 
 namespace KPatchLauncher;
 
@@ -27,6 +28,12 @@ class Program
         }
         else
         {
+            // The deployment preference is machine configuration, and the CLI installs into and
+            // launches the same game the window does. Without reading it here a CLI install would
+            // quietly put a proxy deployment back on injection, and a CLI launch would inject into
+            // a game whose proxy already loads the patcher.
+            DeploymentPolicy.PreferLibraryProxy = AppSettings.Load().PreferLibraryProxy;
+
             // CLI mode - launch game with patches
             return RunCli(args);
         }
