@@ -17,6 +17,6 @@ internal sealed class DirectGameLauncher : IGameLauncher
         Distribution distribution)
     {
         return LaunchDispatcher.StartDirectly(
-            gameExePath, commandLineArgs, "The game loads the patches at startup.");
+            gameExePath, commandLineArgs, "The game loads the patches at startup.", patched: true);
     }
 }

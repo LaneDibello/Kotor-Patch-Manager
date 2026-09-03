@@ -923,15 +923,16 @@ public class MainViewModel : ViewModelBase
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (result.Success && result.ProcessId.HasValue)
+                if (result.Success)
                 {
-                    var mode = result.VanillaLaunch ? "no patches" : "with patches";
-                    SetOperationInProgress(false, $"Game launched {mode} (PID: {result.ProcessId})");
-                }
-                else if (result.Success)
-                {
-                    // Process-less launch (e.g. through Steam); show its message.
-                    SetOperationInProgress(false, result.Messages.FirstOrDefault() ?? "Game launched");
+                    // The launcher's own message says how the game was started and how the
+                    // patches got in, which differs per deployment method. A launch the manager
+                    // started itself also has a pid; one handed to Steam or a custom command does
+                    // not, since the manager never owns that process.
+                    var detail = result.Messages.FirstOrDefault()
+                        ?? (result.VanillaLaunch ? "Game launched, no patches" : "Game launched with patches");
+                    var pid = result.ProcessId.HasValue ? $" (PID: {result.ProcessId})" : string.Empty;
+                    SetOperationInProgress(false, detail + pid);
                 }
                 else
                 {

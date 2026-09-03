@@ -136,7 +136,7 @@ public static class GameLauncher
         // Whether the game is patched changes what gets loaded into it, not how it is
         // started, so an unpatched launch asks the same question a patched one does.
         return DeploymentPolicy.CanStartGameDirectly()
-            ? LaunchDispatcher.StartDirectly(gameExePath, commandLineArgs, "No patches are installed.")
+            ? LaunchDispatcher.StartDirectly(gameExePath, commandLineArgs, "No patches are installed.", patched: false)
             : LaunchDispatcher.Start(launchConfig ?? new LaunchConfig(), gameExePath, "No patches are installed.");
     }
 }
