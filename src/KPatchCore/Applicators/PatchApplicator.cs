@@ -519,10 +519,10 @@ public class PatchApplicator
             // Step 6.5: Copy address database to game directory
             messages.Add("Step 6.5/8: Copying address database...");
 
-            // Find AddressDatabases directory in same directory as executing assembly
-            // (copied there by build system via .csproj)
-            var assemblyDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? string.Empty;
-            var addressDbSourceDirNormalized = Path.Combine(assemblyDir, "AddressDatabases");
+            // Find AddressDatabases beside the running application (put there by the build).
+            // Assembly.Location is empty in a single-file build, which is what Windows ships, and
+            // the lookup then resolved against the working directory instead of the install.
+            var addressDbSourceDirNormalized = Path.Combine(AppContext.BaseDirectory, "AddressDatabases");
 
             if (!Directory.Exists(addressDbSourceDirNormalized))
             {
