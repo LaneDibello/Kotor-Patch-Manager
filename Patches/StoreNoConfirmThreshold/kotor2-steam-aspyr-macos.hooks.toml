@@ -1,0 +1,40 @@
+[metadata]
+target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77"]
+
+# KOTOR 2 Steam Aspyr / KOTOR2.app
+# Store expensive-item confirmation bypass patch.
+#
+# The original code uses:
+#   cmp item_value, threshold
+#   jbe direct_transaction
+#   ... build confirmation message box ...
+#
+# These hooks replace the conditional jbe with an unconditional near jmp to the
+# same direct transaction blocks. The value and threshold may still be computed,
+# but the expensive-item confirmation box is never entered.
+#
+# Raw Offset + 0x100000000 - 0x1000 = 64 bit VA
+
+# Sell path: always jump to the existing direct SellItem block.
+#	Original
+#		100206be4 0f 86 5b 01 00 00  jbe LAB_100206d45
+#	Patched
+#		100206be4 e9 5C 01 00 00 90  jmp LAB_100206d45 ; nop
+
+[[hooks]]
+address = 0x207be4
+type = "simple"
+original_bytes = [0x0f, 0x86, 0x5b, 0x01, 0x00, 0x00]
+replacement_bytes = [0xe9, 0x5c, 0x01, 0x00, 0x00, 0x90]
+
+# Buy path: always jump to the existing direct BuyItem block after the affordability check has already passed.
+#	Original:
+#		10020704e 0f 86 4e 01 00 00  jmp LAB_1002071a2
+#	Patched:
+#		10020704e  e9 4f 01 00 00 90  jmp LAB_1002071a2 ; nop
+
+[[hooks]]
+address = 0x20804e
+type = "simple"
+original_bytes = [0x0f, 0x86, 0x79, 0x01, 0x00, 0x00]
+replacement_bytes = [0xe9, 0x4f, 0x01, 0x00, 0x00, 0x90]
