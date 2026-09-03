@@ -54,12 +54,12 @@ public sealed class ManagedInstallState
     /// Whether the KProxy was staged (the game's binkw32.dll renamed to
     /// binkw32Hooked.dll and the proxy put in its place).
     /// </summary>
-    public bool KProxyInstalled { get; init; }
+    public bool LibraryProxyInstalled { get; init; }
 
     /// <summary>
-    /// Whether KotorPatcher.so was added to the native Linux game ELF's DT_NEEDED list.
+    /// Whether the patcher was added to the game executable's own dependency list.
     /// </summary>
-    public bool ElfNeededInstalled { get; init; }
+    public bool LinkedDependencyInstalled { get; init; }
 
     /// <summary>
     /// When KPM first claimed this install.

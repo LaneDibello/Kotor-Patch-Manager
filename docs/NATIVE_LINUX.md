@@ -18,7 +18,7 @@ The manager has three ways to load `KotorPatcher` into a game, chosen by
 |-------------|----------------------------|-------------------------------------------|
 | `Injection` | Windows PE (native)        | Manager injects `KotorPatcher.dll`        |
 | `Proxy`     | Windows PE under Wine/Proton | Staged KProxy loads `KotorPatcher.dll`    |
-| `ElfNeeded` | Native Linux ELF           | Loader maps `KotorPatcher.so` via DT_NEEDED |
+| `LinkedDependency` | Native Linux ELF           | Loader maps `KotorPatcher.so` via DT_NEEDED |
 
 For the native ELF the manager adds `KotorPatcher.so` to the game
 executable's `DT_NEEDED` list. The dynamic loader then maps it at startup,

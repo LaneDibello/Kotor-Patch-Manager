@@ -43,20 +43,42 @@ public sealed class LaunchResult
     public List<string> Messages { get; init; } = new();
 
     /// <summary>
-    /// Creates a successful launch result
+    /// Creates a result for a launch that got the patches into the game.
     /// </summary>
     /// <param name="process">The launched process</param>
-    /// <param name="injectionPerformed">Whether DLL injection was performed</param>
+    /// <param name="injectionPerformed">Whether the patcher was injected, as opposed to the game
+    /// loading it itself</param>
     /// <param name="message">Optional message</param>
-    /// <returns>Successful launch result</returns>
-    public static LaunchResult Ok(Process process, bool injectionPerformed, string? message = null)
+    public static LaunchResult Patched(Process process, bool injectionPerformed, string? message = null)
+    {
+        return Create(process, injectionPerformed, vanillaLaunch: false, message);
+    }
+
+    /// <summary>
+    /// Creates a result for a launch of a game with no patches installed.
+    /// </summary>
+    /// <param name="process">The launched process</param>
+    /// <param name="message">Optional message</param>
+    public static LaunchResult Vanilla(Process process, string? message = null)
+    {
+        return Create(process, injectionPerformed: false, vanillaLaunch: true, message);
+    }
+
+    // Whether the patcher was injected and whether the game is patched are separate facts. They
+    // agreed only while injection was the one way patches reached a Windows game; the library
+    // proxy has the game load the patcher itself, so a patched launch injects nothing.
+    private static LaunchResult Create(
+        Process process,
+        bool injectionPerformed,
+        bool vanillaLaunch,
+        string? message)
     {
         var result = new LaunchResult
         {
             Success = true,
             GameProcess = process,
             InjectionPerformed = injectionPerformed,
-            VanillaLaunch = !injectionPerformed
+            VanillaLaunch = vanillaLaunch
         };
 
         if (message != null)

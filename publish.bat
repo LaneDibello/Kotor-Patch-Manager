@@ -43,6 +43,19 @@ if exist "lib\sqlite3.dll" (
     echo   [ERROR] lib\sqlite3.dll not found - GameAPI patches will fail at runtime
 )
 
+REM Stage the KProxy. It takes the place of the game's binkw32.dll when the user
+REM picks the library proxy under Options, and the manager copies it from here into
+REM the game directory at install time. There is no MSVC project for it, only
+REM src\KProxy\build-mingw.sh, so it is staged when a build has produced it and
+REM the release goes out without the proxy option working when it has not.
+if exist "bin\Release\binkw32.dll" (
+    copy /Y "bin\Release\binkw32.dll" "%RELEASE_DIR%\bin\" >nul
+    echo   [OK] binkw32.dll staged ^(KProxy^)
+) else (
+    echo   [WARN] binkw32.dll not found in bin\Release\
+    echo          Options ^> "Use library proxy" will have nothing to stage.
+)
+
 REM Build launcher
 echo [2/5] Building KPatchLauncher...
 cd src\KPatchLauncher
@@ -96,7 +109,9 @@ set "README_FILE=%RELEASE_DIR%\README.txt"
   echo.
   echo Contents:
   echo   bin/KPatchLauncher.exe - Main application
-  echo   bin/KotorPatcher.dll   - Runtime patcher (injected into the game)
+  echo   bin/KotorPatcher.dll   - Runtime patcher loaded into the game
+  echo   bin/binkw32.dll        - KProxy: loads the patcher when the game starts,
+  echo                            used when Options ^> "Use library proxy" is on
   echo   bin/sqlite3.dll        - Address database access for GameAPI patch DLLs
   echo   tools/create-patch.bat - Patch creation tool
   echo   patches/ - pre-built patches I've been developing with this project
@@ -107,6 +122,12 @@ set "README_FILE=%RELEASE_DIR%\README.txt"
   echo   2. Point to your KOTOR installation
   echo   3. Point to your patch directory of choice
   echo   4. Apply and enjoy!
+  echo.
+  echo Deployment ^(Options menu^):
+  echo   unchecked - the manager starts the game and injects the patcher
+  echo   checked   - KProxy replaces the game's binkw32.dll and loads the patcher
+  echo               itself; the original is kept as binkw32Hooked.dll
+  echo   The choice is locked while patches are installed.
   echo.
   echo Created by Lane (Discord: @lane_d)
 )

@@ -12,6 +12,10 @@ public partial class MainWindow : Window
         TrySetWindowIcon();
     }
 
+    // Closing the window is the view's business, not the view model's, so this stays in
+    // code-behind rather than becoming a command.
+    private void OnExitClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
+
     private void TrySetWindowIcon()
     {
         try

@@ -60,6 +60,7 @@ public class MainViewModel : ViewModelBase
         _patchesPath = _settings.PatchesPath;
         _useCustomLaunch = _settings.LaunchMethod == LaunchMethod.Custom;
         _customLaunchCommand = _settings.CustomLaunchCommand;
+        DeploymentPolicy.PreferLibraryProxy = _settings.PreferLibraryProxy;
         ClearPersistedPatchSelection();
 
         // Create simple commands
@@ -123,6 +124,7 @@ public class MainViewModel : ViewModelBase
         {
             if (SetProperty(ref _hasInstalledPatches, value))
             {
+                OnPropertyChanged(nameof(CanChangeDeployment));
                 ((SimpleCommand)UninstallAllCommand).RaiseCanExecuteChanged();
             }
         }
@@ -194,13 +196,47 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Whether the launch-method controls apply. They are read wherever the manager
-    /// cannot start the game itself and the user's choice of Steam or a custom command
-    /// is what actually starts it. Injection runs the executable directly and ignores
-    /// them, so they stay hidden there.
+    /// Whether the launch-method controls apply. They matter only where the manager cannot start
+    /// the game itself and the user's choice of Steam or a custom command is what starts it.
+    /// Windows runs the executable directly whichever deployment method is in use, so they stay
+    /// hidden there rather than appearing when the proxy is switched on.
     /// </summary>
-    public bool ShowLaunchSettings =>
-        !DeploymentPolicy.HostStartsGameDirectly(DeploymentPolicy.ForCurrentPlatform());
+    public bool ShowLaunchSettings => !DeploymentPolicy.CanStartGameDirectly();
+
+    /// <summary>
+    /// Whether the game is reached through the library proxy instead of injection. Only Windows
+    /// can choose; Linux is on the proxy either way, which is why the menu item is disabled there.
+    /// </summary>
+    public bool PreferLibraryProxy
+    {
+        get => DeploymentPolicy.PreferLibraryProxy;
+        set
+        {
+            if (DeploymentPolicy.PreferLibraryProxy == value)
+            {
+                return;
+            }
+
+            DeploymentPolicy.PreferLibraryProxy = value;
+            _settings.PreferLibraryProxy = value;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Whether to offer the deployment choice at all. Hidden where there is nothing to choose:
+    /// a host that cannot inject, or a game whose format settles the method itself.
+    /// </summary>
+    public bool ShowDeploymentOption => DeploymentPolicy.HasDeploymentChoice(_detectedGameVersion);
+
+    /// <summary>
+    /// Whether the deployment method can be changed right now. Switching it with patches installed
+    /// would leave the game staged for the previous method, so it is fixed until they come out.
+    /// This is a temporary state, unlike <see cref="ShowDeploymentOption"/>, so the control stays
+    /// visible and goes disabled.
+    /// </summary>
+    public bool CanChangeDeployment => !HasInstalledPatches;
 
     /// <summary>
     /// When true, the game is launched with <see cref="CustomLaunchCommand"/>
@@ -571,6 +607,7 @@ public class MainViewModel : ViewModelBase
         ClearAllPatchSelections(clearInstalledState: true, removeOrphanedPatches: true);
         _detectedGameVersion = null;
         KotorVersion = "Unknown";
+        OnPropertyChanged(nameof(ShowDeploymentOption));
         UpdatePatchCompatibility();
     }
 
@@ -815,24 +852,16 @@ public class MainViewModel : ViewModelBase
             // during the reinstall that follows.
             await Task.Run(() => PatchRemover.RemoveAllPatches(GamePath, removeManagedState: false));
 
-            // Get patcher DLL path (should be in same directory as launcher)
-            // AppContext.BaseDirectory works reliably with both regular and single-file builds
-            var appDir = AppContext.BaseDirectory;
-            var patcherDllPath = Path.Combine(appDir, "KotorPatcher.dll");
-            // The native Linux engine, staged when patching the native ELF.
-            var patcherSoPath = Path.Combine(appDir, "KotorPatcher.so");
-            // The KProxy ships alongside the launcher; staged when deploying via proxy.
-            var proxyDllPath = Path.Combine(appDir, "binkw32.dll");
-
+            // The patcher modules and the KProxy all ship next to the launcher. Which one gets
+            // staged is the deployment method's call, so only the directory is passed.
+            // AppContext.BaseDirectory works reliably with both regular and single-file builds.
             var applicator = new PatchApplicator(_repository);
             var options = new PatchApplicator.InstallOptions
             {
                 GameExePath = GamePath,
                 PatchIds = checkedPatches.Select(p => p.Id).ToList(),
                 CreateBackup = true,
-                PatcherDllPath = File.Exists(patcherDllPath) ? patcherDllPath : null,
-                PatcherSoPath = File.Exists(patcherSoPath) ? patcherSoPath : null,
-                ProxyDllPath = File.Exists(proxyDllPath) ? proxyDllPath : null
+                PatcherDirectory = AppContext.BaseDirectory
             };
 
             // Run on background thread
@@ -932,15 +961,16 @@ public class MainViewModel : ViewModelBase
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (result.Success && result.ProcessId.HasValue)
+                if (result.Success)
                 {
-                    var mode = result.VanillaLaunch ? "no patches" : "with patches";
-                    SetOperationInProgress(false, $"Game launched {mode} (PID: {result.ProcessId})");
-                }
-                else if (result.Success)
-                {
-                    // Process-less launch (e.g. through Steam); show its message.
-                    SetOperationInProgress(false, result.Messages.FirstOrDefault() ?? "Game launched");
+                    // The launcher's own message says how the game was started and how the
+                    // patches got in, which differs per deployment method. A launch the manager
+                    // started itself also has a pid; one handed to Steam or a custom command does
+                    // not, since the manager never owns that process.
+                    var detail = result.Messages.FirstOrDefault()
+                        ?? (result.VanillaLaunch ? "Game launched, no patches" : "Game launched with patches");
+                    var pid = result.ProcessId.HasValue ? $" (PID: {result.ProcessId})" : string.Empty;
+                    SetOperationInProgress(false, detail + pid);
                 }
                 else
                 {
@@ -1143,6 +1173,7 @@ public class MainViewModel : ViewModelBase
             var v = versionInfo.Data;
             _detectedGameVersion = v;
             KotorVersion = v.DisplayName;
+            OnPropertyChanged(nameof(ShowDeploymentOption));
 
             // Switch theme based on detected game title
             if (Application.Current is App app)
@@ -1160,6 +1191,7 @@ public class MainViewModel : ViewModelBase
     {
         _detectedGameVersion = null;
         KotorVersion = "Unknown";
+        OnPropertyChanged(nameof(ShowDeploymentOption));
 
         // Load default theme (KOTOR 1) for unknown games
         if (Application.Current is App app)
