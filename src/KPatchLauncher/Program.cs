@@ -34,9 +34,71 @@ class Program
             // a game whose proxy already loads the patcher.
             DeploymentPolicy.PreferLibraryProxy = AppSettings.Load().PreferLibraryProxy;
 
+            if (!TryTakeDeploymentOption(ref args, out var deploymentError))
+            {
+                Console.WriteLine($"ERROR: {deploymentError}");
+                return 1;
+            }
+
             // CLI mode - launch game with patches
             return RunCli(args);
         }
+    }
+
+    /// <summary>
+    /// Consumes "--deployment proxy|injection" from <paramref name="args"/> and applies it for
+    /// this run, leaving what remains positional for the callers that index into it.
+    /// </summary>
+    /// <remarks>
+    /// The choice is not written back to the settings file. A scripted install should not decide
+    /// what the window does the next time somebody opens it.
+    /// </remarks>
+    /// <returns>False when the option is present but unusable, with the reason in
+    /// <paramref name="error"/>.</returns>
+    private static bool TryTakeDeploymentOption(ref string[] args, out string? error)
+    {
+        error = null;
+
+        var index = Array.FindIndex(args, a => a.Equals("--deployment", StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+        {
+            return true;
+        }
+
+        if (index + 1 >= args.Length)
+        {
+            error = "--deployment needs a value: proxy or injection.";
+            return false;
+        }
+
+        var value = args[index + 1];
+        DeploymentMethod requested;
+        if (value.Equals("proxy", StringComparison.OrdinalIgnoreCase))
+        {
+            DeploymentPolicy.PreferLibraryProxy = true;
+            requested = DeploymentMethod.LibraryProxy;
+        }
+        else if (value.Equals("injection", StringComparison.OrdinalIgnoreCase))
+        {
+            DeploymentPolicy.PreferLibraryProxy = false;
+            requested = DeploymentMethod.RuntimeInjection;
+        }
+        else
+        {
+            error = $"Unknown deployment \"{value}\". Use proxy or injection.";
+            return false;
+        }
+
+        // Asking for something the host cannot do is not fatal, but it would otherwise be silent:
+        // a Linux host has no way to inject and stays on the proxy whatever was asked for.
+        var effective = DeploymentPolicy.ForCurrentPlatform();
+        if (effective != requested)
+        {
+            Console.WriteLine($"Note: this host cannot use {value}; deploying via {effective} instead.");
+        }
+
+        args = args.Where((_, i) => i != index && i != index + 1).ToArray();
+        return true;
     }
 
     /// <summary>
@@ -71,6 +133,7 @@ class Program
         if (args.Length < 3)
         {
             Console.WriteLine("Usage: KPatchLauncher.exe <game_executable.exe> --patches <patches_directory> [patch_id]...");
+            Console.WriteLine("       [--deployment proxy|injection]  how the patcher gets into the game");
             return 1;
         }
 
@@ -139,7 +202,7 @@ class Program
                 Console.WriteLine("ERROR: Could not find game executable.");
                 Console.WriteLine();
                 Console.WriteLine("Usage:");
-                Console.WriteLine("  KPatchLauncher.exe [game_executable.exe]");
+                Console.WriteLine("  KPatchLauncher.exe [game_executable.exe] [--deployment proxy|injection]");
                 Console.WriteLine();
                 Console.WriteLine("Place this launcher in the same directory as the game executable,");
                 Console.WriteLine("or specify the game executable path as an argument.");
