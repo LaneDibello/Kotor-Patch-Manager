@@ -35,7 +35,7 @@ namespace KotorPatcher {
             std::vector<AllocatedWrapper> m_allocatedWrappers;
 
             // Allocate executable memory for wrapper code
-            void* AllocateExecutableMemory(size_t size);
+            void* AllocateExecutableMemory(size_t size, uintptr_t nearAddress);
 
             // Generate DETOUR type wrapper (save state, call patch, restore state, execute stolen bytes)
             void* GenerateDetourWrapper(const WrapperConfig& config);

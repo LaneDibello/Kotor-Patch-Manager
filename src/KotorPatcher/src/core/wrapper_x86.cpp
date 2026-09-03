@@ -17,8 +17,8 @@ namespace KotorPatcher {
             FreeAllWrappers();
         }
 
-        void* WrapperGenerator_x86::AllocateExecutableMemory(size_t size) {
-            void* mem = Platform::AllocExec(size);
+        void* WrapperGenerator_x86::AllocateExecutableMemory(size_t size, uintptr_t nearAddress) {
+            void* mem = Platform::AllocExec(size, nearAddress);
             if (mem) {
                 m_allocatedWrappers.push_back({ mem, size });
             }
@@ -65,7 +65,10 @@ namespace KotorPatcher {
                 estimatedSize += 16;
             }
 
-            uint8_t* wrapperMem = static_cast<uint8_t*>(AllocateExecutableMemory(estimatedSize));
+            // The hook site jumps here and the wrapper jumps back, so the stub has to
+            // land within a relative jump of the code it is hooking.
+            uint8_t* wrapperMem = static_cast<uint8_t*>(
+                AllocateExecutableMemory(estimatedSize, config.hookAddress));
             if (!wrapperMem) {
                 Platform::Log("[Wrapper] Failed to allocate wrapper memory\n");
                 return nullptr;

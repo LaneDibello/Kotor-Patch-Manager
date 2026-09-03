@@ -17,6 +17,7 @@
 #include <string>
 
 #include "platform.h"
+#include "stub_placement.h"
 
 namespace KotorPatcher {
 namespace Platform {
@@ -50,10 +51,37 @@ namespace Platform {
         }
     }
 
-    void* AllocExec(std::size_t size) {
-        void* mem = mmap(nullptr, size, PROT_READ | PROT_WRITE,
-                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        return mem == MAP_FAILED ? nullptr : mem;
+    // Mapped writable, never writable+executable: macOS refuses that mapping, and
+    // these games are x86_64-only, so every Apple Silicon Mac runs them under
+    // Rosetta and would hit the refusal. ProtectExec flips the block to executable.
+    void* AllocExec(std::size_t size, std::uintptr_t nearAddress) {
+        auto map = [size](void* hint) -> void* {
+            void* mem = mmap(hint, size, PROT_READ | PROT_WRITE,
+                             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            return mem == MAP_FAILED ? nullptr : mem;
+        };
+
+        if (StubPlacement::kEveryAddressReaches || nearAddress == 0) {
+            return map(nullptr);
+        }
+
+        for (std::size_t attempt = 0; attempt < StubPlacement::kSearchAttempts; ++attempt) {
+            std::uintptr_t hint = 0;
+            if (!StubPlacement::NextCandidate(nearAddress, attempt, hint)) break;
+
+            // Without MAP_FIXED the hint is only a suggestion, and an occupied one is
+            // answered with a mapping wherever the kernel pleased. MAP_FIXED is not an
+            // option: it would silently unmap whatever already lives there.
+            void* mem = map(reinterpret_cast<void*>(hint));
+            if (!mem) continue;
+            if (StubPlacement::NearEnough(nearAddress, reinterpret_cast<std::uintptr_t>(mem), size)) {
+                return mem;
+            }
+            munmap(mem, size);
+        }
+
+        Platform::Log("[KotorPatcher] No free memory within a relative jump of the game\n");
+        return nullptr;
     }
 
     bool ProtectExec(void* addr, std::size_t size) {

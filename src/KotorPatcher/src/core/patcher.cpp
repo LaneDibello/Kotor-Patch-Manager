@@ -331,7 +331,7 @@ namespace KotorPatcher {
         std::size_t bufferSize = patch.replacementBytes.size() + 5;
 
         // Allocate executable memory for replacement code + return JMP
-        void* codeBuf = Platform::AllocExec(bufferSize);
+        void* codeBuf = Platform::AllocExec(bufferSize, patch.hookAddress);
         if (!codeBuf) {
             Platform::Log("[KotorPatcher] Failed to allocate memory for REPLACE hook\n");
             return false;
