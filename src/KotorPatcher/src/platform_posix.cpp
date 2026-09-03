@@ -106,7 +106,13 @@ namespace Platform {
         auto* page = reinterpret_cast<void*>(start);
         std::size_t span = end - start;
 
-        if (mprotect(page, span, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
+        // Writable and executable at once is asked for first, because it leaves the
+        // page runnable throughout: the deferred-apply path patches while the game is
+        // already running on other threads. Apple Silicon refuses that combination,
+        // and these games are x86_64-only so they always run there under Rosetta, so
+        // dropping execute for the duration of the write is the fallback.
+        if (mprotect(page, span, PROT_READ | PROT_WRITE | PROT_EXEC) != 0 &&
+            mprotect(page, span, PROT_READ | PROT_WRITE) != 0) {
             return false;
         }
         std::memcpy(dest, src, len);
