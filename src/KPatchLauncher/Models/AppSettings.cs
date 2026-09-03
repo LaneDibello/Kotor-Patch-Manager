@@ -34,6 +34,12 @@ public class AppSettings
     public List<string> CheckedPatchIds { get; set; } = new();
 
     /// <summary>
+    /// Whether to deploy through the library proxy where injection would otherwise be used.
+    /// Only meaningful on Windows; Linux uses the proxy regardless.
+    /// </summary>
+    public bool PreferLibraryProxy { get; set; }
+
+    /// <summary>
     /// How to start the game when patches are deployed via proxy (Steam or a
     /// custom command). Unused by the injection method.
     /// </summary>

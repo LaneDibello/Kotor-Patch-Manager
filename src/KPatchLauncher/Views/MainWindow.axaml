@@ -156,6 +156,19 @@
                 <Separator/>
                 <MenuItem Header="E_xit" Click="OnExitClicked"/>
             </MenuItem>
+            <!-- The deployment toggle is the only entry, so the menu goes with it. Anything added
+                 here later wants its own visibility rather than the menu's. -->
+            <MenuItem Header="_Options" IsVisible="{Binding ShowDeploymentOption}">
+                <!-- MenuItem.ToggleType arrived after Avalonia 11.0, so the check state lives on a
+                     CheckBox in the header instead. -->
+                <MenuItem ToolTip.Tip="Load the patcher through a stand-in binkw32.dll instead of injecting at launch. Uninstall patches before changing this.">
+                    <MenuItem.Header>
+                        <CheckBox Content="Use library proxy"
+                                  IsChecked="{Binding PreferLibraryProxy}"
+                                  IsEnabled="{Binding CanChangeDeployment}"/>
+                    </MenuItem.Header>
+                </MenuItem>
+            </MenuItem>
         </Menu>
 
         <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto" Margin="10">

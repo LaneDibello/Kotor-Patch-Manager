@@ -48,18 +48,52 @@ public enum DeploymentMethod
 public static class DeploymentPolicy
 {
     /// <summary>
-    /// The deployment method for the current platform. Linux must use the proxy
-    /// (native injection can't reach a Wine process); Windows uses injection.
+    /// Whether to reach the game through <see cref="DeploymentMethod.LibraryProxy"/> where
+    /// injection would otherwise be used. Process-wide configuration, set from the user's saved
+    /// settings at startup and whenever they change it. Linux is on the proxy either way, so this
+    /// only decides anything on Windows.
     /// </summary>
     /// <remarks>
-    /// To have Windows use the KProxy too, return
-    /// <see cref="DeploymentMethod.LibraryProxy"/> here. Nothing else is platform-gated.
+    /// Switching this while patches are installed would leave the game staged for the method it
+    /// was installed with, so callers gate the change on there being nothing installed.
+    /// </remarks>
+    public static bool PreferLibraryProxy { get; set; }
+
+    /// <summary>
+    /// The deployment method for the current platform. Linux must use the proxy, since native
+    /// injection cannot reach a Wine process; Windows injects unless asked for the proxy.
+    /// </summary>
+    /// <remarks>
+    /// Windows follows <see cref="PreferLibraryProxy"/>. Nothing else is platform-gated.
     /// </remarks>
     public static DeploymentMethod ForCurrentPlatform()
     {
-        return RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
+        // Linux has no choice: a native process cannot inject into the Wine process running the
+        // game, so the proxy is the only way in. Windows can do either.
+        return RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || PreferLibraryProxy
             ? DeploymentMethod.LibraryProxy
             : DeploymentMethod.RuntimeInjection;
+    }
+
+    /// <summary>
+    /// Whether the deployment method is the user's to pick for a given game. It is a choice only
+    /// where both candidates are open.
+    /// </summary>
+    /// <remarks>
+    /// The host has to be able to inject, which means Windows; elsewhere the proxy is the only way
+    /// in whatever the user would prefer. The game also has to be one the host default applies to.
+    /// A native build settles the question itself by naming the patcher in its own dependency
+    /// list, and no preference changes that. A null game is treated as a choice, since nothing
+    /// about an unrecognised executable rules the host default out.
+    /// </remarks>
+    public static bool HasDeploymentChoice(GameVersion? gameVersion)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return false;
+        }
+
+        return gameVersion is null || gameVersion.Platform == Platform.Windows;
     }
 
     /// <summary>

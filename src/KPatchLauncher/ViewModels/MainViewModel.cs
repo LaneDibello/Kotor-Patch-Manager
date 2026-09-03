@@ -60,6 +60,7 @@ public class MainViewModel : ViewModelBase
         _patchesPath = _settings.PatchesPath;
         _useCustomLaunch = _settings.LaunchMethod == LaunchMethod.Custom;
         _customLaunchCommand = _settings.CustomLaunchCommand;
+        DeploymentPolicy.PreferLibraryProxy = _settings.PreferLibraryProxy;
         ClearPersistedPatchSelection();
 
         // Create simple commands
@@ -123,6 +124,7 @@ public class MainViewModel : ViewModelBase
         {
             if (SetProperty(ref _hasInstalledPatches, value))
             {
+                OnPropertyChanged(nameof(CanChangeDeployment));
                 ((SimpleCommand)UninstallAllCommand).RaiseCanExecuteChanged();
             }
         }
@@ -200,6 +202,41 @@ public class MainViewModel : ViewModelBase
     /// hidden there rather than appearing when the proxy is switched on.
     /// </summary>
     public bool ShowLaunchSettings => !DeploymentPolicy.CanStartGameDirectly();
+
+    /// <summary>
+    /// Whether the game is reached through the library proxy instead of injection. Only Windows
+    /// can choose; Linux is on the proxy either way, which is why the menu item is disabled there.
+    /// </summary>
+    public bool PreferLibraryProxy
+    {
+        get => DeploymentPolicy.PreferLibraryProxy;
+        set
+        {
+            if (DeploymentPolicy.PreferLibraryProxy == value)
+            {
+                return;
+            }
+
+            DeploymentPolicy.PreferLibraryProxy = value;
+            _settings.PreferLibraryProxy = value;
+            _settings.Save();
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Whether to offer the deployment choice at all. Hidden where there is nothing to choose:
+    /// a host that cannot inject, or a game whose format settles the method itself.
+    /// </summary>
+    public bool ShowDeploymentOption => DeploymentPolicy.HasDeploymentChoice(_detectedGameVersion);
+
+    /// <summary>
+    /// Whether the deployment method can be changed right now. Switching it with patches installed
+    /// would leave the game staged for the previous method, so it is fixed until they come out.
+    /// This is a temporary state, unlike <see cref="ShowDeploymentOption"/>, so the control stays
+    /// visible and goes disabled.
+    /// </summary>
+    public bool CanChangeDeployment => !HasInstalledPatches;
 
     /// <summary>
     /// When true, the game is launched with <see cref="CustomLaunchCommand"/>
@@ -570,6 +607,7 @@ public class MainViewModel : ViewModelBase
         ClearAllPatchSelections(clearInstalledState: true, removeOrphanedPatches: true);
         _detectedGameVersion = null;
         KotorVersion = "Unknown";
+        OnPropertyChanged(nameof(ShowDeploymentOption));
         UpdatePatchCompatibility();
     }
 
@@ -1135,6 +1173,7 @@ public class MainViewModel : ViewModelBase
             var v = versionInfo.Data;
             _detectedGameVersion = v;
             KotorVersion = v.DisplayName;
+            OnPropertyChanged(nameof(ShowDeploymentOption));
 
             // Switch theme based on detected game title
             if (Application.Current is App app)
@@ -1152,6 +1191,7 @@ public class MainViewModel : ViewModelBase
     {
         _detectedGameVersion = null;
         KotorVersion = "Unknown";
+        OnPropertyChanged(nameof(ShowDeploymentOption));
 
         // Load default theme (KOTOR 1) for unknown games
         if (Application.Current is App app)
