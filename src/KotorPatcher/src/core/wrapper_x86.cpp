@@ -60,7 +60,10 @@ namespace KotorPatcher {
             // Estimate wrapper size
             // Base: ~100 bytes, +10 per excluded register, +16 for the
             // consumed-exit conditional (12 bytes emitted, padded to 16)
-            size_t estimatedSize = 128 + (config.excludeFromRestore.size() * 10);
+            // Original bytes are copied into the stub verbatim, so they are counted
+            // here rather than left to the base's headroom
+            size_t estimatedSize = 128 + config.originalBytes.size() +
+                                   (config.excludeFromRestore.size() * 10);
             if (config.consumedExitAddress != 0) {
                 estimatedSize += 16;
             }
@@ -114,22 +117,42 @@ namespace KotorPatcher {
             EmitByte(code, 0x89);  // MOV r/m32, r32
             EmitByte(code, 0xE3);  // ModRM: EBX = ESP
 
-            // IMPORTANT: We do NOT modify ESP here!
-            // If we did, PUSH instructions would overwrite our saved registers.
-            // Instead, we'll read parameters with adjusted offsets (see ExtractAndPushParameter)
+            // ===== ALIGN THE STACK FOR THE CALL =====
+            // IMPORTANT: this is where ESP starts moving.
+            // AND only rounds down, so the saved state stays above ESP and the
+            // parameter pushes land below it. ExtractAndPushParameter reads from
+            // EBX for that reason: ESP no longer points at the saved state.
+            //
+            // We align unconditionally because we cannot know what compiled the
+            // patch DLL. MSVC and MinGW realign in their own prologue; GCC
+            // targeting Linux or macOS assumes the caller did it and emits an
+            // aligned move regardless. A hook site is an arbitrary instruction in
+            // the game, so it promises neither.
+            //
+            // AND and SUB write EFLAGS. That is already given up here: with
+            // preserveFlags the state was saved above and is restored below, and
+            // without it the CALL clobbers the flags anyway.
+            const int paramBytes = static_cast<int>(config.parameters.size()) * 4;
+            const int alignmentPad = (16 - (paramBytes % 16)) % 16;
+
+            // AND ESP, -16
+            EmitByte(code, 0x83);  // AND r/m32, imm8
+            EmitByte(code, 0xE4);  // ModRM: ESP
+            EmitByte(code, 0xF0);  // imm8: -16
+
+            if (alignmentPad != 0) {
+                // SUB ESP, alignmentPad: leaves the pushes ending on a boundary
+                EmitByte(code, 0x83);  // SUB r/m32, imm8
+                EmitByte(code, 0xEC);  // ModRM: ESP
+                EmitByte(code, static_cast<uint8_t>(alignmentPad));
+            }
 
             // ===== EXTRACT AND PUSH PARAMETERS =====
             // If the hook has parameters defined, extract them and push onto stack
             // Parameters are pushed in reverse order for __cdecl (right-to-left)
 
-            if (!config.parameters.empty()) {
-                // Push parameters in reverse order (last parameter first)
-                int pushCount = 0;
-                for (int i = static_cast<int>(config.parameters.size()) - 1; i >= 0; i--) {
-                    const auto& param = config.parameters[i];
-                    ExtractAndPushParameter(code, param, savedStateSize, pushCount);
-                    pushCount++;
-                }
+            for (int i = static_cast<int>(config.parameters.size()) - 1; i >= 0; i--) {
+                ExtractAndPushParameter(code, config.parameters[i], savedStateSize);
             }
 
             // ===== CALL PATCH FUNCTION =====
@@ -143,23 +166,10 @@ namespace KotorPatcher {
             uint32_t callOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
             EmitDword(code, callOffset);
 
-            // ===== CLEAN UP PARAMETERS =====
-            // For __cdecl, caller cleans up the stack
-            if (!config.parameters.empty()) {
-                int paramBytes = static_cast<int>(config.parameters.size()) * 4;
-                if (paramBytes <= 127) {
-                    EmitByte(code, 0x83);  // ADD ESP, imm8
-                    EmitByte(code, 0xC4);
-                    EmitByte(code, static_cast<uint8_t>(paramBytes));
-                } else {
-                    EmitByte(code, 0x81);  // ADD ESP, imm32
-                    EmitByte(code, 0xC4);
-                    EmitDword(code, paramBytes);
-                }
-            }
-
             // ===== RESTORE WRAPPER ESP =====
             // Restore ESP back to point to our saved state
+            // This also undoes the alignment, the pad and the pushed parameters,
+            // so __cdecl's caller-side cleanup is not emitted separately
             // MOV ESP, EBX
             EmitByte(code, 0x89);  // MOV r/m32, r32
             EmitByte(code, 0xDC);  // ModRM: ESP = EBX
@@ -304,7 +314,7 @@ namespace KotorPatcher {
 
         // ===== Parameter Extraction =====
 
-        void WrapperGenerator_x86::ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize, int pushCount) {
+        void WrapperGenerator_x86::ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize) {
             // Stack layout constants (relative to EBX, which points to saved state)
             // EBX points to where ESP was after PUSHAD/PUSHFD
             //
@@ -317,9 +327,10 @@ namespace KotorPatcher {
             const int OFFSET_ECX    = 28;  // [EBX+28] = ECX
             const int OFFSET_EAX    = 32;  // [EBX+32] = EAX
 
-            // Original stack data (parameters, return address, etc.) is at:
-            // [ESP + savedStateSize + 4]
-            // The +4 accounts for the return address pushed by the game's CALL instruction
+            // Original stack data (parameters, etc.) is at:
+            // [EBX + savedStateSize]
+            // The hook site is reached by a JMP, not a CALL, so there is no return
+            // address in between
             const int STACK_OFFSET_TO_ORIGINAL_DATA = savedStateSize;
 
             std::string source = param.source;
@@ -391,31 +402,27 @@ namespace KotorPatcher {
                     return;
                 }
 
-                // Calculate the actual offset from current ESP
-                // ESP still points to saved state, so we need to account for:
+                // Calculate the actual offset from EBX, not ESP
+                // ESP has moved by the alignment, its pad, and every push before
+                // this one. EBX still points at the saved state, so:
                 // 1. The saved state size (PUSHAD + PUSHFD)
-                // 2. The return address (+4)
-                // 3. The user's requested offset
-                // 4. 4 times the number of push instructions before this one
-                int actualOffset = STACK_OFFSET_TO_ORIGINAL_DATA + userOffset + pushCount * 4;
+                // 2. The user's requested offset
+                int actualOffset = STACK_OFFSET_TO_ORIGINAL_DATA + userOffset;
 
-                // Generate LEA ECX, [ESP + actualOffset]
+                // Generate LEA ECX, [EBX + actualOffset]
                 if (actualOffset == 0) {
-                    // LEA ECX, [ESP]
+                    // LEA ECX, [EBX]
                     EmitByte(code, 0x8D);  // LEA r32, m
-                    EmitByte(code, 0x0C);  // ModRM: ECX, [ESP]
-                    EmitByte(code, 0x24);  // SIB: [ESP]
+                    EmitByte(code, 0x0B);  // ModRM: ECX, [EBX]
                 } else if (actualOffset >= -128 && actualOffset <= 127) {
-                    // LEA ECX, [ESP + imm8]
+                    // LEA ECX, [EBX + imm8]
                     EmitByte(code, 0x8D);  // LEA r32, m
-                    EmitByte(code, 0x4C);  // ModRM: ECX, [ESP + disp8]
-                    EmitByte(code, 0x24);  // SIB: [ESP]
+                    EmitByte(code, 0x4B);  // ModRM: ECX, [EBX + disp8]
                     EmitByte(code, static_cast<uint8_t>(actualOffset));
                 } else {
-                    // LEA ECX, [ESP + imm32]
+                    // LEA ECX, [EBX + imm32]
                     EmitByte(code, 0x8D);  // LEA r32, m
-                    EmitByte(code, 0x8C);  // ModRM: ECX, [ESP + disp32]
-                    EmitByte(code, 0x24);  // SIB: [ESP]
+                    EmitByte(code, 0x8B);  // ModRM: ECX, [EBX + disp32]
                     EmitDword(code, actualOffset);
                 }
                 EmitByte(code, 0x51);  // PUSH ECX
