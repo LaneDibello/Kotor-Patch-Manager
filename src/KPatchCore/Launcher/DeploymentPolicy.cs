@@ -6,22 +6,38 @@ namespace KPatchCore.Launcher;
 /// <summary>
 /// How KotorPatcher gets loaded into the game.
 /// </summary>
+/// <remarks>
+/// Two of these have the game's own dynamic loader do the work, and they differ only in the
+/// mechanism the executable format offers. <see cref="LinkedDependency"/> edits the executable's
+/// dependency list, which is what ELF and Mach-O allow cheaply. <see cref="LibraryProxy"/> leaves
+/// the executable alone and replaces a library it already loads, which is the answer wherever
+/// editing that list is not an option. A packed executable is the case that forces it: the
+/// SteamStub build of KOTOR 1 does not run the image sitting on disk, so nothing written there
+/// would take effect. <see cref="RuntimeInjection"/> is the odd one out, changing nothing about
+/// the game and requiring the launcher to be what starts it.
+/// </remarks>
 public enum DeploymentMethod
 {
-    /// <summary>Runtime DLL injection into the launched process.</summary>
-    Injection,
+    /// <summary>
+    /// The launcher starts the game and writes the patcher into the live process. Win32 only,
+    /// and only available when the launcher is what started the game.
+    /// </summary>
+    RuntimeInjection,
 
     /// <summary>
-    /// The KProxy loads the patcher when the game starts. Works under
-    /// Wine/Proton, and on Windows too.
+    /// A library the game already loads is replaced with one of ours, which loads the patcher and
+    /// forwards every call on to the original. The executable is untouched, so this survives
+    /// packing and works under Wine/Proton. KProxy is the implementation, standing in for
+    /// binkw32.dll.
     /// </summary>
-    Proxy,
+    LibraryProxy,
 
     /// <summary>
-    /// KotorPatcher.so is added to the native Linux game ELF's DT_NEEDED list, so
-    /// the dynamic loader maps it at startup. No injector or proxy needed.
+    /// The patcher is named in the executable's own list of libraries to load, so the dynamic
+    /// loader maps it at startup with no injector or proxy involved. That list is DT_NEEDED on
+    /// ELF and LC_LOAD_DYLIB on Mach-O.
     /// </summary>
-    ElfNeeded,
+    LinkedDependency,
 }
 
 /// <summary>
@@ -37,25 +53,25 @@ public static class DeploymentPolicy
     /// </summary>
     /// <remarks>
     /// To have Windows use the KProxy too, return
-    /// <see cref="DeploymentMethod.Proxy"/> here. Nothing else is platform-gated.
+    /// <see cref="DeploymentMethod.LibraryProxy"/> here. Nothing else is platform-gated.
     /// </remarks>
     public static DeploymentMethod ForCurrentPlatform()
     {
         return RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-            ? DeploymentMethod.Proxy
-            : DeploymentMethod.Injection;
+            ? DeploymentMethod.LibraryProxy
+            : DeploymentMethod.RuntimeInjection;
     }
 
     /// <summary>
-    /// The deployment method for a specific detected game. A native Linux ELF uses
-    /// <see cref="DeploymentMethod.ElfNeeded"/> (the loader maps the patcher via
-    /// DT_NEEDED); everything else is a Windows PE and falls back to the host default
-    /// (proxy under Wine/Proton, injection on Windows).
+    /// The deployment method for a specific detected game. A game whose executable can name the
+    /// patcher in its own dependency list uses <see cref="DeploymentMethod.LinkedDependency"/>.
+    /// Everything else is a Windows PE and falls back to the host default, which is the proxy
+    /// under Wine or Proton and injection on Windows.
     /// </summary>
     public static DeploymentMethod ForGame(GameVersion gameVersion)
     {
         return gameVersion.Platform == Platform.Linux
-            ? DeploymentMethod.ElfNeeded
+            ? DeploymentMethod.LinkedDependency
             : ForCurrentPlatform();
     }
 
@@ -67,17 +83,17 @@ public static class DeploymentPolicy
     /// </summary>
     public static bool HostStartsGameDirectly(DeploymentMethod deployment)
     {
-        return deployment == DeploymentMethod.Injection;
+        return deployment == DeploymentMethod.RuntimeInjection;
     }
 
     /// <summary>
-    /// The patcher runtime module the game loads for a deployment method: the native ELF
-    /// maps KotorPatcher.so via DT_NEEDED, every other method loads KotorPatcher.dll. This
-    /// is the single source of the .so-vs-.dll choice, shared by install staging and launch.
+    /// The patcher runtime module the game loads for a deployment method. This is the single
+    /// source of that choice, shared by install staging and launch, so a new platform adds its
+    /// module here rather than at each call site.
     /// </summary>
     public static string PatcherModuleFileName(DeploymentMethod deployment)
     {
-        return deployment == DeploymentMethod.ElfNeeded
+        return deployment == DeploymentMethod.LinkedDependency
             ? "KotorPatcher.so"
             : "KotorPatcher.dll";
     }

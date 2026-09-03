@@ -49,7 +49,7 @@ public class PatchApplicator
 
         /// <summary>
         /// Path to KotorPatcher.so to stage in the game directory when the detected game
-        /// is a native Linux ELF (DeploymentMethod.ElfNeeded). Ignored otherwise.
+        /// is a native Linux ELF (DeploymentMethod.LinkedDependency). Ignored otherwise.
         /// </summary>
         public string? PatcherSoPath { get; init; }
     }
@@ -107,7 +107,7 @@ public class PatchApplicator
     private static PatcherModule ResolvePatcherModule(DeploymentMethod deployment, InstallOptions options)
     {
         var fileName = DeploymentPolicy.PatcherModuleFileName(deployment);
-        return deployment == DeploymentMethod.ElfNeeded
+        return deployment == DeploymentMethod.LinkedDependency
             ? new PatcherModule(fileName, options.PatcherSoPath, NeedsSqlite: false)
             : new PatcherModule(fileName, options.PatcherDllPath, NeedsSqlite: true);
     }
@@ -380,7 +380,7 @@ public class PatchApplicator
             }
 
             // Step 4.6: on a native Linux ELF, add KotorPatcher.so to the game's DT_NEEDED list.
-            if (deployment == DeploymentMethod.ElfNeeded)
+            if (deployment == DeploymentMethod.LinkedDependency)
             {
                 messages.Add("Step 4.6/8: Adding KotorPatcher.so to the game's DT_NEEDED...");
                 var injectResult = ElfInjector.AddNeeded(options.GameExePath, "KotorPatcher.so");
@@ -693,7 +693,7 @@ public class PatchApplicator
             // Step 7.5: for the proxy deployment method, stage the KProxy so
             // the game loads KotorPatcher when it starts (injection does not).
             var proxyInstalled = false;
-            if (deployment == DeploymentMethod.Proxy)
+            if (deployment == DeploymentMethod.LibraryProxy)
             {
                 if (string.IsNullOrEmpty(options.ProxyDllPath))
                 {
@@ -734,7 +734,7 @@ public class PatchApplicator
                 gameVersion,
                 installOrder,
                 proxyInstalled,
-                elfNeededInstalled: deployment == DeploymentMethod.ElfNeeded);
+                linkedDependencyInstalled: deployment == DeploymentMethod.LinkedDependency);
             if (stateResult.Success)
             {
                 messages.Add($"  {stateResult.Messages.FirstOrDefault() ?? "Managed install state saved"}");
