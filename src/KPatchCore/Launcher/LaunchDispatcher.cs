@@ -92,4 +92,36 @@ internal static class LaunchDispatcher
             return LaunchResult.Fail($"Custom launch failed: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Starts the game executable itself, for hosts that can run it. KOTOR resolves chitin.key
+    /// and the override directory relative to the working directory, so it starts in the game
+    /// folder. Returns why it could not rather than throwing.
+    /// </summary>
+    public static LaunchResult StartDirectly(string gameExePath, string? commandLineArgs, string context)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = gameExePath,
+                Arguments = commandLineArgs ?? string.Empty,
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(gameExePath),
+            };
+
+            var process = Process.Start(startInfo);
+            if (process == null)
+            {
+                return LaunchResult.Fail("Process.Start returned null - game may have failed to launch");
+            }
+
+            return LaunchResult.Ok(process, injectionPerformed: false,
+                $"Launched {Path.GetFileName(gameExePath)}. {context}");
+        }
+        catch (Exception ex)
+        {
+            return LaunchResult.Fail($"Launch failed: {ex.Message}");
+        }
+    }
 }

@@ -76,14 +76,18 @@ public static class DeploymentPolicy
     }
 
     /// <summary>
-    /// Whether the manager can start the game executable itself. Injection runs it
-    /// directly; the other methods cannot, because the executable is either a Windows
-    /// build that needs Wine or a native build Steam owns. For those the user's
-    /// configured launch method is the only way in, patched or not.
+    /// Whether the manager can start the game executable itself, rather than handing off to Steam
+    /// or a user-supplied command.
     /// </summary>
-    public static bool HostStartsGameDirectly(DeploymentMethod deployment)
+    /// <remarks>
+    /// This is a question about the host, not about the deployment method. A Windows host runs a
+    /// Windows game directly whatever loads the patcher into it, which is what injection has
+    /// always done. Everywhere else the executable is either a Windows build that needs Wine or a
+    /// native build Steam owns, so the user's configured launch method is the only way in.
+    /// </remarks>
+    public static bool CanStartGameDirectly()
     {
-        return deployment == DeploymentMethod.RuntimeInjection;
+        return RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
     }
 
     /// <summary>
