@@ -4,19 +4,25 @@ using LibObjectFile.Elf;
 namespace KPatchCore.Applicators;
 
 /// <summary>
-/// Injects a DT_NEEDED dependency on the native patcher module (KotorPatcher.so) into a
-/// dynamically-linked ELF game executable, so the dynamic loader maps it at startup. This is the
-/// native Linux counterpart to staging the KProxy DLL on Windows. The edit is address-preserving
-/// (LibObjectFile relocates .dynamic/.dynstr and repurposes a PT_NOTE into a PT_LOAD), so existing
-/// code, symbols and relocations stay valid.
+/// The DT_NEEDED list of a dynamically-linked ELF. The edit is address-preserving: LibObjectFile
+/// relocates .dynamic and .dynstr and repurposes a PT_NOTE into a PT_LOAD rather than shifting
+/// what is already there, so existing code, symbols and relocations stay valid.
 /// </summary>
-public static class ElfInjector
+internal sealed class ElfDependencies : IExecutableDependencies
 {
+    private readonly string _elfPath;
+
+    public ElfDependencies(string elfPath) => _elfPath = elfPath;
+
+    public PatchResult<bool> Contains(string moduleName) => IsNeeded(_elfPath, moduleName);
+
+    public PatchResult Add(string moduleName) => AddNeeded(_elfPath, moduleName);
+
     /// <summary>
     /// Reports whether <paramref name="soName"/> is already a DT_NEEDED dependency of the ELF at
     /// <paramref name="elfPath"/>. Fails if the file is missing, unreadable, or not dynamically linked.
     /// </summary>
-    public static PatchResult<bool> IsNeeded(string elfPath, string soName)
+    private static PatchResult<bool> IsNeeded(string elfPath, string soName)
     {
         if (!File.Exists(elfPath))
             return PatchResult<bool>.Fail($"Executable not found: {elfPath}");
@@ -45,7 +51,7 @@ public static class ElfInjector
     /// through a sibling temp file that is then swapped in, so a failed write never leaves a corrupt
     /// executable on disk (the caller has also backed the exe up before this runs).
     /// </summary>
-    public static PatchResult AddNeeded(string elfPath, string soName)
+    private static PatchResult AddNeeded(string elfPath, string soName)
     {
         if (string.IsNullOrWhiteSpace(elfPath))
             return PatchResult.Fail("Executable path cannot be null or empty");

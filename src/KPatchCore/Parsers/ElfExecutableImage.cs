@@ -5,7 +5,7 @@ namespace KPatchCore.Parsers;
 
 /// <summary>
 /// <see cref="IExecutableImage"/> over an ELF executable. Address mapping uses LibObjectFile (the same
-/// dependency ElfInjector uses) to walk the PT_LOAD segments: a virtual address maps to a file offset via
+/// dependency ElfDependencies uses) to walk the PT_LOAD segments: a virtual address maps to a file offset via
 /// offset = segment.Position + (va - segment.VirtualAddress) for the segment whose file-backed range
 /// covers it. The byte read/write itself is a direct, size-preserving file edit, so it never triggers a
 /// layout rewrite of the executable.

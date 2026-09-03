@@ -382,11 +382,18 @@ public class PatchApplicator
                 messages.Add("  No static hooks to apply");
             }
 
-            // Step 4.6: on a native Linux ELF, add KotorPatcher.so to the game's DT_NEEDED list.
+            // Step 4.6: name the patcher in the executable's own dependency list, so the loader
+            // maps it at startup. This runs after the static hooks because the edit preserves
+            // existing addresses, which keeps the patched code valid.
             if (deployment == DeploymentMethod.LinkedDependency)
             {
-                messages.Add("Step 4.6/8: Adding KotorPatcher.so to the game's DT_NEEDED...");
-                var injectResult = ElfInjector.AddNeeded(options.GameExePath, "KotorPatcher.so");
+                var linkedModule = DeploymentPolicy.PatcherModuleFileName(deployment);
+                messages.Add($"Step 4.6/8: Adding {linkedModule} to the game's dependency list...");
+
+                var dependencies = ExecutableDependencies.Open(options.GameExePath);
+                var injectResult = dependencies.Success && dependencies.Data != null
+                    ? dependencies.Data.Add(linkedModule)
+                    : PatchResult.Fail(dependencies.Error!);
                 if (!injectResult.Success)
                 {
                     if (backup != null)
@@ -397,14 +404,14 @@ public class PatchApplicator
                     return new InstallResult
                     {
                         Success = false,
-                        Error = $"Failed to add KotorPatcher.so to the game ELF: {injectResult.Error}",
+                        Error = $"Failed to add {linkedModule} to the game executable: {injectResult.Error}",
                         DetectedVersion = gameVersion,
                         Backup = backup,
                         Messages = messages
                     };
                 }
 
-                messages.Add($"  {injectResult.Messages.FirstOrDefault() ?? "DT_NEEDED updated"}");
+                messages.Add($"  {injectResult.Messages.FirstOrDefault() ?? "Dependency list updated"}");
             }
 
             // Step 5: Extract patch DLLs (for DETOUR hooks and DLL-only patches)
