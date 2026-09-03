@@ -23,8 +23,8 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 [[hooks]]
 address = 0x207941
 type = "simple"
-original_bytes = [0xfa, 0x00, 0x00, 0x00]
-replacement_bytes = [0xc4, 0x09, 0x00, 0x00]
+original_bytes = [0xfa, 0x00]
+replacement_bytes = [0xc4, 0x09]
 
 # And this modification forces the code to use that fallback.
 # 0x100206968 is 0x207968
@@ -40,8 +40,8 @@ replacement_bytes = [0xEB]
 [[hooks]]
 address = 0x208024
 type = "simple"
-original_bytes = [0x32, 0x00, 0x00, 0x00]
-replacement_bytes = [0xc4, 0x09, 0x00, 0x00]
+original_bytes = [0x32, 0x00]
+replacement_bytes = [0xc4, 0x09]
 
 # And forcing the fallback (jumping the alternative calculation).
 # 0x100207029 is 0x208029
