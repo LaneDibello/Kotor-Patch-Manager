@@ -71,7 +71,7 @@ public:
 	{
 		ThunkRegistry::Register(this);
 
-		CResRef guiResref("modOptions");
+		CResRef guiResref("modoptions");
 		this->StartLoadFromLayout(&guiResref);
 		CExoString titleTag("LBL_TITLE");
 		this->InitControl(&titleLabel, &titleTag, 1);
@@ -89,7 +89,10 @@ public:
 
 		// Set up description ListBox
 		CSWGuiControl* descProtoItem = descriptionListBox.GetProtoItem();
-		if (descProtoItem) {
+		if (!descProtoItem) {
+			debugLog("[ModOptions] LB_DESC has no proto item");
+		}
+		else {
 			CSWGuiLabel descProto(descProtoItem->GetPtr());
 			CSWGuiExtent descExtent = descProto.GetExtent();
 			descriptionLabel.Initialize(&descExtent, &descProto, 1.0f);

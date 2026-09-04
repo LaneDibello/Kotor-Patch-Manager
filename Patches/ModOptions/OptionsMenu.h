@@ -38,7 +38,7 @@ public:
 	CSWGuiButton backButton;
 	CSWGuiButton defaultButton;
 
-	// Authoritative option state, indexed like config.options, in ini text form.
+	// Authoritative option state, indexed like config.options, in INI text form.
 	std::vector<std::string> values;
 
 	//Callbacks
@@ -84,7 +84,6 @@ public:
 			value = wasOn ? "0" : "1";
 			CSWGuiButtonToggle toggle(control);
 			toggle.SetSelected(wasOn ? 0 : 1);
-			SetControlText(&toggle, OptionLabel(*opt, value));
 			break;
 		}
 		case ModOptionType::Slider:
@@ -100,7 +99,7 @@ public:
 
 		values[index] = value;
 
-		// Ini first, so a handler that re-reads its settings sees the new value.
+		// INI first, so a handler that re-reads its settings sees the new value.
 		if (opt->HasIni()) {
 			WriteOptionValue(*opt, value);
 		}
@@ -157,7 +156,7 @@ public:
 		// Before any AddEvent: the thunks look us up by game pointer.
 		ThunkRegistry::Register(this);
 
-		CResRef guiResref("modOptionMenu");
+		CResRef guiResref("modoptionmenu");
 		this->StartLoadFromLayout(&guiResref);
 		CExoString titleTag("LBL_TITLE");
 		this->InitControl(&titleLabel, &titleTag, 1);
