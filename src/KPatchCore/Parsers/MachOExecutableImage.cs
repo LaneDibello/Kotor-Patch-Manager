@@ -130,9 +130,7 @@ internal sealed class MachOExecutableImage : IExecutableImage
         if (!_modified || !_isSigned)
             return PatchResult.Ok();
 
-        // codesign uses the file name without its extension as the default identifier, which is
-        // what these binaries already carry. The reader does not expose the existing one to copy.
-        var identifier = Path.GetFileNameWithoutExtension(_exePath);
+        var identifier = MachOSigning.IdentifierFor(_exePath);
         var tempPath = _exePath + ".kpm-sign.tmp";
 
         try
@@ -145,13 +143,7 @@ internal sealed class MachOExecutableImage : IExecutableImage
                     input.Position = 0;
                     var fat = MachOFatFile.Read(input);
 
-                    // Each slice carries its own signature, and a slice that had none keeps none.
-                    foreach (var slice in fat.Slices)
-                    {
-                        if (slice.File?.CodeSignature is not null)
-                            slice.File.AdHocSign(identifier);
-                    }
-
+                    MachOSigning.ResignWhatWasSigned(fat, identifier);
                     fat.UpdateLayout();
                     fat.Write(output);
                 }
@@ -159,7 +151,7 @@ internal sealed class MachOExecutableImage : IExecutableImage
                 {
                     input.Position = 0;
                     var file = MachOFile.Read(input);
-                    file.AdHocSign(identifier);
+                    MachOSigning.ResignWhatWasSigned(file, identifier);
                     file.Write(output);
                 }
             }
