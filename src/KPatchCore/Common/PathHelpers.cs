@@ -99,17 +99,23 @@ public static class PathHelpers
     }
 
     /// <summary>
+    /// Names that sit directly in the game directory: the Windows builds and the native Linux one.
+    /// </summary>
+    private static readonly string[] DirectExecutableNames =
+        { "swkotor.exe", "swkotor2.exe", "KOTOR.exe", "KOTOR2.exe", "KOTOR2" };
+
+    /// <summary>
+    /// Names inside an .app bundle's Contents/MacOS. Deliberately not the bundle's
+    /// CFBundleExecutable: that is an Aspyr launcher stub which starts the real game beside it.
+    /// KOTOR II's stub is called "KOTOR2", the same name the native Linux build uses, so searching
+    /// a bundle with the list above would find the stub and patch the wrong file.
+    /// </summary>
+    private static readonly string[] BundleExecutableNames = { "KOTOR_Exe", "KOTOR2sub" };
+
+    /// <summary>
     /// Validates that a path looks like a valid KOTOR installation directory
     /// </summary>
-    public static bool LooksLikeKotorDirectory(string path)
-    {
-        if (!Directory.Exists(path))
-            return false;
-
-        // Check for common KOTOR files
-        var exeNames = new[] { "swkotor.exe", "swkotor2.exe", "KOTOR.exe", "KOTOR2.exe", "KOTOR2" };
-        return exeNames.Any(exe => File.Exists(Path.Combine(path, exe)));
-    }
+    public static bool LooksLikeKotorDirectory(string path) => FindKotorExecutable(path) is not null;
 
     /// <summary>
     /// Finds the KOTOR executable in a directory
@@ -120,16 +126,42 @@ public static class PathHelpers
         if (!Directory.Exists(directory))
             return null;
 
-        var exeNames = new[] { "swkotor.exe", "swkotor2.exe", "KOTOR.exe", "KOTOR2.exe", "KOTOR2" };
-
-        foreach (var exeName in exeNames)
+        foreach (var exeName in DirectExecutableNames)
         {
             var fullPath = Path.Combine(directory, exeName);
             if (File.Exists(fullPath))
                 return fullPath;
         }
 
+        // A macOS install keeps the game inside an .app, so accept either the directory holding
+        // the bundle (what a Steam library looks like) or the bundle itself.
+        foreach (var bundle in BundlesIn(directory))
+        {
+            foreach (var exeName in BundleExecutableNames)
+            {
+                var fullPath = Path.Combine(bundle, "Contents", "MacOS", exeName);
+                if (File.Exists(fullPath))
+                    return fullPath;
+            }
+        }
+
         return null;
+    }
+
+    private static IEnumerable<string> BundlesIn(string directory)
+    {
+        if (directory.EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+            return new[] { directory };
+
+        try
+        {
+            return Directory.GetDirectories(directory, "*.app");
+        }
+        catch (Exception)
+        {
+            // An unreadable directory is not a KOTOR install as far as this is concerned.
+            return Array.Empty<string>();
+        }
     }
 
     /// <summary>
