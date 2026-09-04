@@ -68,11 +68,11 @@ public static class DeploymentPolicy
     /// </remarks>
     public static DeploymentMethod ForCurrentPlatform()
     {
-        // Linux has no choice: a native process cannot inject into the Wine process running the
-        // game, so the proxy is the only way in. Windows can do either.
-        return RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || PreferLibraryProxy
-            ? DeploymentMethod.LibraryProxy
-            : DeploymentMethod.RuntimeInjection;
+        // Injection is Win32 API work, so only a Windows host can do it at all. Everywhere else
+        // the proxy is the only way into a Windows build of the game, whatever the user prefers.
+        return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && !PreferLibraryProxy
+            ? DeploymentMethod.RuntimeInjection
+            : DeploymentMethod.LibraryProxy;
     }
 
     /// <summary>

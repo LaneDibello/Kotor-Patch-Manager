@@ -15,7 +15,6 @@ namespace KPatchLauncher;
 /// </summary>
 class Program
 {
-    private const string PatcherDllName = "KotorPatcher.dll";
     private const string PatchConfigName = "patch_config.toml";
 
     [STAThread]
@@ -219,8 +218,6 @@ class Program
             // Check if patches are installed
             var gameDir = Path.GetDirectoryName(gameExePath)!;
             var patchConfigPath = Path.Combine(gameDir, PatchConfigName);
-            var patcherDllPath = Path.Combine(gameDir, PatcherDllName);
-
             if (!File.Exists(patchConfigPath))
             {
                 Console.WriteLine("No patches detected (patch_config.toml not found).");
@@ -230,10 +227,16 @@ class Program
                 return LaunchVanilla(gameExePath);
             }
 
-            if (!File.Exists(patcherDllPath))
+            // Which module the game loads follows the game, not the host: the Windows builds
+            // take the DLL, the native Linux one a shared object, the macOS ones a dylib.
+            var detectedForModule = GameDetector.DetectVersion(gameExePath, allowManagedInstallState: true).Data;
+            var patcherModuleName = DeploymentPolicy.PatcherModuleFileName(detectedForModule);
+            var patcherModulePath = Path.Combine(gameDir, patcherModuleName);
+
+            if (!File.Exists(patcherModulePath))
             {
-                Console.WriteLine($"ERROR: {PatcherDllName} not found in game directory.");
-                Console.WriteLine("Patches are configured but patcher DLL is missing.");
+                Console.WriteLine($"ERROR: {patcherModuleName} not found in game directory.");
+                Console.WriteLine("Patches are configured but the patcher module is missing.");
                 Console.WriteLine("Please reinstall patches or run vanilla game directly.");
                 return 1;
             }
@@ -269,13 +272,13 @@ class Program
 
             Console.WriteLine();
             Console.WriteLine($"Launching with patches...");
-            Console.WriteLine($"Injecting: {PatcherDllName}");
+            Console.WriteLine($"Patcher module: {patcherModuleName}");
             Console.WriteLine();
 
             // Launch with DLL injection (method depends on distribution)
             var result = GameLauncher.Launch(
                 gameExePath,
-                patcherDllPath,
+                patcherModulePath,
                 distribution: distribution,
                 commandLineArgs: null);
 
@@ -290,7 +293,7 @@ class Program
 
             var process = result.GameProcess!;
             Console.WriteLine($"✓ Game launched successfully (PID: {process.Id})");
-            Console.WriteLine($"✓ {PatcherDllName} injected");
+            Console.WriteLine($"✓ {patcherModuleName} in place");
             Console.WriteLine();
             Console.WriteLine("Game is running with patches applied.");
             Console.WriteLine("You can close this window - the game will continue running.");
