@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Avalonia;
 using KPatchCore.Applicators;
+using KPatchCore.Common;
 using KPatchCore.Detectors;
 using KPatchCore.Launcher;
 using KPatchCore.Managers;
@@ -137,7 +138,9 @@ class Program
             return 1;
         }
 
-        var gameExePath = args[0];
+        // Resolved the same way the window resolves it, so a macOS bundle or a game
+        // folder works from a script too.
+        var gameExePath = PathHelpers.ResolveGameExecutable(args[0]);
         var orchestrator = new PatchOrchestrator(args[2]);
         var availablePatches = orchestrator.GetAvailablePatches();
         var patchIds = args.Skip(3).ToList();

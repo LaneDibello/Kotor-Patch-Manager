@@ -118,6 +118,20 @@ public static class PathHelpers
     public static bool LooksLikeKotorDirectory(string path) => FindKotorExecutable(path) is not null;
 
     /// <summary>
+    /// Turns whatever the user pointed at into the executable to patch. A path that is already a
+    /// file is taken as given; anything else is searched, which covers a macOS .app bundle and the
+    /// folder holding one. A path with no game under it comes back unchanged, so the caller reports
+    /// what the user actually chose rather than an empty box.
+    /// </summary>
+    public static string ResolveGameExecutable(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || File.Exists(path))
+            return path;
+
+        return FindKotorExecutable(path) ?? path;
+    }
+
+    /// <summary>
     /// Finds the KOTOR executable in a directory
     /// Returns null if not found
     /// </summary>

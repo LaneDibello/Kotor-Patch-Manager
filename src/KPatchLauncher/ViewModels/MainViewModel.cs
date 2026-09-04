@@ -14,6 +14,7 @@ using Avalonia.Threading;
 using KPatchCore.Managers;
 using KPatchCore.Models;
 using KPatchCore.Applicators;
+using KPatchCore.Common;
 using KPatchCore.Detectors;
 using KPatchCore.Launcher;
 using KPatchCore.Validators;
@@ -147,6 +148,11 @@ public class MainViewModel : ViewModelBase
         get => _gamePath;
         set
         {
+            // A macOS install is picked as a bundle or as the folder holding one, and neither is
+            // the file to patch. Resolving here means everything downstream keeps seeing an
+            // executable path, and the box shows what will actually be touched.
+            value = PathHelpers.ResolveGameExecutable(value);
+
             if (SetProperty(ref _gamePath, value))
             {
                 _settings.GamePath = value;
@@ -343,8 +349,11 @@ public class MainViewModel : ViewModelBase
                     new FilePickerFileType("Game Executables")
                     {
                         // swkotor.exe / swkotor2.exe on Windows and under Wine/Proton; the
-                        // native Linux KOTOR II build is an extensionless "KOTOR2" ELF.
-                        Patterns = new[] { "*.exe", "KOTOR2" }
+                        // native Linux KOTOR II build is an extensionless "KOTOR2" ELF. On macOS
+                        // the game lives inside a bundle, so both the bundle and the executable
+                        // within it are offered: the panel presents an .app as one item, and
+                        // whichever is chosen resolves to the same file.
+                        Patterns = new[] { "*.exe", "KOTOR2", "*.app", "KOTOR_Exe", "KOTOR2sub" }
                     },
                     new FilePickerFileType("All Files")
                     {
