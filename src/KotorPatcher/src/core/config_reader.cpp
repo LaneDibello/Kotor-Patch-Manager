@@ -416,8 +416,12 @@ namespace KotorPatcher {
             }
 
             if (outPatches.empty()) {
-                Platform::Log("[Config] Warning: No patches found in config\n");
-                return false;
+                // Nothing to do at runtime is a normal install, not a broken config. A patch
+                // made only of STATIC hooks reaches the game by editing the executable, and
+                // ConfigGenerator leaves those hooks out of this file, so a config listing
+                // only such patches has no entries by design.
+                Platform::Log("[Config] No runtime hooks in config; nothing to apply\n");
+                return true;
             }
 
             char successMsg[128];
