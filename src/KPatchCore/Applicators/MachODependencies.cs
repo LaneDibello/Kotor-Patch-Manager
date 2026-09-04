@@ -1,3 +1,4 @@
+using KPatchCore.Common;
 using KPatchCore.Models;
 using KPatchCore.Parsers;
 using LibObjectFile.MachO;
@@ -84,7 +85,7 @@ internal sealed class MachODependencies : IExecutableDependencies
                 image.Write(output);
 
             // Swapped in only once it is written, so a failed write never leaves a broken game.
-            File.Move(tempPath, _exePath, overwrite: true);
+            PathHelpers.ReplacePreservingMode(tempPath, _exePath);
             return PatchResult.Ok($"Added {qualified} to {Path.GetFileName(_exePath)}.");
         }
         catch (Exception ex)

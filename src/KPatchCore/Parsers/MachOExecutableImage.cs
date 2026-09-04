@@ -1,3 +1,4 @@
+using KPatchCore.Common;
 using KPatchCore.Models;
 using LibObjectFile.MachO;
 
@@ -157,7 +158,7 @@ internal sealed class MachOExecutableImage : IExecutableImage
             }
 
             // Swapped in only once it is written, so a failure never leaves a half-signed binary.
-            File.Move(tempPath, _exePath, overwrite: true);
+            PathHelpers.ReplacePreservingMode(tempPath, _exePath);
             return PatchResult.Ok();
         }
         catch (Exception ex)
