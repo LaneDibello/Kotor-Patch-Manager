@@ -34,6 +34,12 @@ internal sealed class PeExecutableImage : IExecutableImage
         return PeHeaderParser.ReadBytesAtVirtualAddress(_exePath, _info, va, length);
     }
 
+    /// <summary>
+    /// The KOTOR PE builds are unsigned, and their header checksum is not enforced for an
+    /// executable image, so a byte write leaves nothing to repair.
+    /// </summary>
+    public PatchResult Complete() => PatchResult.Ok();
+
     public PatchResult WriteAtVirtualAddress(ulong virtualAddress, byte[] bytes)
     {
         if (!TryNarrow(virtualAddress, out var va, out var error))

@@ -90,6 +90,9 @@ internal sealed class ElfExecutableImage : IExecutableImage
         }
     }
 
+    /// <summary>An ELF carries nothing that a size-preserving byte write invalidates.</summary>
+    public PatchResult Complete() => PatchResult.Ok();
+
     public PatchResult WriteAtVirtualAddress(ulong virtualAddress, byte[] bytes)
     {
         if (bytes == null || bytes.Length == 0)

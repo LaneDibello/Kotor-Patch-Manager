@@ -17,6 +17,7 @@ internal sealed class MachOExecutableImage : IExecutableImage
     private readonly string _exePath;
     private readonly List<MappedRange> _ranges;
     private readonly bool _isSigned;
+    private bool _modified;
 
     private MachOExecutableImage(string exePath, List<MappedRange> ranges, bool isSigned)
     {
@@ -114,6 +115,66 @@ internal sealed class MachOExecutableImage : IExecutableImage
         return PatchResult<long>.Ok((long)(found.ContainerOffset + offsetInSegment));
     }
 
+    /// <summary>
+    /// Re-signs the image when the edits above invalidated a signature it already carried. The
+    /// kernel checks that signature when it execs the binary, not only when Gatekeeper assesses
+    /// it, so a patched game would otherwise stop starting.
+    /// </summary>
+    /// <remarks>
+    /// Whether to sign is a property of the file, never of which game it is: an image that arrived
+    /// unsigned stays unsigned, and one that was not written to is left exactly as it was, since
+    /// re-signing it would trade the vendor's signature for an ad-hoc one and gain nothing.
+    /// </remarks>
+    public PatchResult Complete()
+    {
+        if (!_modified || !_isSigned)
+            return PatchResult.Ok();
+
+        // codesign uses the file name without its extension as the default identifier, which is
+        // what these binaries already carry. The reader does not expose the existing one to copy.
+        var identifier = Path.GetFileNameWithoutExtension(_exePath);
+        var tempPath = _exePath + ".kpm-sign.tmp";
+
+        try
+        {
+            using (var input = File.OpenRead(_exePath))
+            using (var output = File.Create(tempPath))
+            {
+                if (MachOFatFile.IsFat(input))
+                {
+                    input.Position = 0;
+                    var fat = MachOFatFile.Read(input);
+
+                    // Each slice carries its own signature, and a slice that had none keeps none.
+                    foreach (var slice in fat.Slices)
+                    {
+                        if (slice.File?.CodeSignature is not null)
+                            slice.File.AdHocSign(identifier);
+                    }
+
+                    fat.UpdateLayout();
+                    fat.Write(output);
+                }
+                else
+                {
+                    input.Position = 0;
+                    var file = MachOFile.Read(input);
+                    file.AdHocSign(identifier);
+                    file.Write(output);
+                }
+            }
+
+            // Swapped in only once it is written, so a failure never leaves a half-signed binary.
+            File.Move(tempPath, _exePath, overwrite: true);
+            return PatchResult.Ok();
+        }
+        catch (Exception ex)
+        {
+            try { File.Delete(tempPath); } catch { /* the original is still intact */ }
+            return PatchResult.Fail($"Failed to re-sign {Path.GetFileName(_exePath)}: {ex.Message}");
+        }
+    }
+
     public PatchResult<byte[]> ReadAtVirtualAddress(ulong virtualAddress, int length)
     {
         if (length <= 0)
@@ -143,14 +204,6 @@ internal sealed class MachOExecutableImage : IExecutableImage
         if (bytes == null || bytes.Length == 0)
             return PatchResult.Fail("Bytes cannot be null or empty");
 
-        // The kernel checks a signed binary's signature when it execs it, not just when Gatekeeper
-        // assesses it, so editing one produces a game that will not start. K1's KOTOR_Exe is signed;
-        // K2's KOTOR2sub is not.
-        if (_isSigned)
-            return PatchResult.Fail(
-                $"{Path.GetFileName(_exePath)} carries a code signature, and editing its bytes would " +
-                "leave a binary the kernel refuses to run.");
-
         var offset = ToFileOffset(virtualAddress, bytes.Length);
         if (!offset.Success)
             return PatchResult.Fail(offset.Error!);
@@ -161,6 +214,7 @@ internal sealed class MachOExecutableImage : IExecutableImage
             stream.Seek(offset.Data, SeekOrigin.Begin);
             stream.Write(bytes, 0, bytes.Length);
             stream.Flush();
+            _modified = true;
             return PatchResult.Ok();
         }
         catch (Exception ex)
