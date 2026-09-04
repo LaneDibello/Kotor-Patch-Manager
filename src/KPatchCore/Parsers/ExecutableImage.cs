@@ -9,10 +9,10 @@ namespace KPatchCore.Parsers;
 internal interface IExecutableImage
 {
     /// <summary>Reads <paramref name="length"/> bytes located at <paramref name="virtualAddress"/>.</summary>
-    PatchResult<byte[]> ReadAtVirtualAddress(uint virtualAddress, int length);
+    PatchResult<byte[]> ReadAtVirtualAddress(ulong virtualAddress, int length);
 
     /// <summary>Writes <paramref name="bytes"/> at <paramref name="virtualAddress"/>.</summary>
-    PatchResult WriteAtVirtualAddress(uint virtualAddress, byte[] bytes);
+    PatchResult WriteAtVirtualAddress(ulong virtualAddress, byte[] bytes);
 }
 
 /// <summary>

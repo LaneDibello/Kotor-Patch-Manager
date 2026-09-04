@@ -32,9 +32,10 @@ public enum HookType
 public sealed class Hook
 {
     /// <summary>
-    /// Memory address to hook (e.g., 0x401234)
+    /// Absolute virtual address to hook (e.g., 0x401234). Wide enough for a 64-bit
+    /// Mach-O, whose image sits above a 4 GB __PAGEZERO and so starts at 0x100000000.
     /// </summary>
-    public required uint Address { get; init; }
+    public required ulong Address { get; init; }
 
     /// <summary>
     /// Exported function name in patch DLL
@@ -104,7 +105,7 @@ public sealed class Hook
     /// must match stack state at the natural fall-through point.
     /// Default: null (feature disabled — wrapper always uses fall-through path).
     /// </summary>
-    public uint? ConsumedExitAddress { get; init; }
+    public ulong? ConsumedExitAddress { get; init; }
 
     /// <summary>
     /// Validates that the hook configuration is valid

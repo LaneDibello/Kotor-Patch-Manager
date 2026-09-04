@@ -48,7 +48,7 @@ internal sealed class ElfExecutableImage : IExecutableImage
         }
     }
 
-    private PatchResult<long> ToFileOffset(uint virtualAddress, int length)
+    private PatchResult<long> ToFileOffset(ulong virtualAddress, int length)
     {
         foreach (var seg in _loads)
         {
@@ -66,7 +66,7 @@ internal sealed class ElfExecutableImage : IExecutableImage
         return PatchResult<long>.Fail($"Virtual address 0x{virtualAddress:X8} is not mapped by any PT_LOAD segment.");
     }
 
-    public PatchResult<byte[]> ReadAtVirtualAddress(uint virtualAddress, int length)
+    public PatchResult<byte[]> ReadAtVirtualAddress(ulong virtualAddress, int length)
     {
         if (length <= 0)
             return PatchResult<byte[]>.Fail($"Invalid length: {length}");
@@ -90,7 +90,7 @@ internal sealed class ElfExecutableImage : IExecutableImage
         }
     }
 
-    public PatchResult WriteAtVirtualAddress(uint virtualAddress, byte[] bytes)
+    public PatchResult WriteAtVirtualAddress(ulong virtualAddress, byte[] bytes)
     {
         if (bytes == null || bytes.Length == 0)
             return PatchResult.Fail("Bytes cannot be null or empty");
