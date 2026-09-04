@@ -93,9 +93,10 @@ public class PatchApplicator
     private readonly record struct PatcherModule(string FileName, string? SourcePath, bool NeedsSqlite);
 
     /// <summary>Selects the patcher module (and whether sqlite3.dll ships with it) for a deployment.</summary>
-    private static PatcherModule ResolvePatcherModule(DeploymentMethod deployment, InstallOptions options)
+    private static PatcherModule ResolvePatcherModule(
+        GameVersion? gameVersion, DeploymentMethod deployment, InstallOptions options)
     {
-        var fileName = DeploymentPolicy.PatcherModuleFileName(deployment);
+        var fileName = DeploymentPolicy.PatcherModuleFileName(gameVersion);
         // sqlite3.dll ships beside the Windows engine for the patch DLLs' GameVersion lookups.
         // The native engine links no sqlite, so nothing travels with it.
         var needsSqlite = deployment != DeploymentMethod.LinkedDependency;
@@ -387,7 +388,7 @@ public class PatchApplicator
             // existing addresses, which keeps the patched code valid.
             if (deployment == DeploymentMethod.LinkedDependency)
             {
-                var linkedModule = DeploymentPolicy.PatcherModuleFileName(deployment);
+                var linkedModule = DeploymentPolicy.PatcherModuleFileName(gameVersion);
                 messages.Add($"Step 4.6/8: Adding {linkedModule} to the game's dependency list...");
 
                 var dependencies = ExecutableDependencies.Open(options.GameExePath);
@@ -601,7 +602,7 @@ public class PatchApplicator
             // Step 7: Copy patcher DLL and SQLite
             messages.Add("Step 7/8: Installing patcher DLL and dependencies...");
 
-            var (moduleName, moduleSource, needsSqlite) = ResolvePatcherModule(deployment, options);
+            var (moduleName, moduleSource, needsSqlite) = ResolvePatcherModule(gameVersion, deployment, options);
             var destPath = Path.Combine(gameDir, moduleName);
             if (!string.IsNullOrEmpty(moduleSource))
             {

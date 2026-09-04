@@ -104,9 +104,9 @@ public static class DeploymentPolicy
     /// </summary>
     public static DeploymentMethod ForGame(GameVersion gameVersion)
     {
-        return gameVersion.Platform == Platform.Linux
-            ? DeploymentMethod.LinkedDependency
-            : ForCurrentPlatform();
+        return gameVersion.Platform == Platform.Windows
+            ? ForCurrentPlatform()
+            : DeploymentMethod.LinkedDependency;
     }
 
     /// <summary>
@@ -125,16 +125,32 @@ public static class DeploymentPolicy
     }
 
     /// <summary>
-    /// The patcher runtime module the game loads for a deployment method. This is the single
-    /// source of that choice, shared by install staging and launch, so a new platform adds its
-    /// module here rather than at each call site.
+    /// The patcher runtime module the game loads. This is the single source of that choice, shared
+    /// by install staging and launch, so a new platform adds its module here rather than at each
+    /// call site.
     /// </summary>
-    public static string PatcherModuleFileName(DeploymentMethod deployment)
+    /// <remarks>
+    /// It follows the game, not the deployment method and not the host: a Windows build loads the
+    /// DLL whether that arrives by injection or through the proxy, and it still does when the host
+    /// running it is Linux. LinkedDependency alone no longer identifies the module, since both the
+    /// Linux and macOS builds reach the patcher that way and load different files.
+    /// </remarks>
+    public static string PatcherModuleFileName(Platform gamePlatform)
     {
-        return deployment == DeploymentMethod.LinkedDependency
-            ? "KotorPatcher.so"
-            : "KotorPatcher.dll";
+        return gamePlatform switch
+        {
+            Platform.Linux => "KotorPatcher.so",
+            Platform.macOS => "KotorPatcher.dylib",
+            _ => "KotorPatcher.dll",
+        };
     }
+
+    /// <summary>
+    /// The patcher runtime module for a detected game. An unrecognised executable is treated as a
+    /// Windows build, which is what the deployment default already assumes.
+    /// </summary>
+    public static string PatcherModuleFileName(GameVersion? gameVersion) =>
+        PatcherModuleFileName(gameVersion?.Platform ?? Platform.Windows);
 
     /// <summary>
     /// The library <see cref="DeploymentMethod.LibraryProxy"/> stands in for. KOTOR 1 and 2 both
