@@ -1,4 +1,3 @@
-// TODO: Draw up class for individual mod option menus
 #pragma once
 #include "Common.h"
 #include "MemberFunctionThunk.h"
