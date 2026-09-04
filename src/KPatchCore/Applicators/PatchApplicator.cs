@@ -518,86 +518,100 @@ public class PatchApplicator
             messages.Add($"  Config generated: patch_config.toml");
 
             // Step 6.5: Copy address database to game directory
-            messages.Add("Step 6.5/8: Copying address database...");
-
-            // Find AddressDatabases beside the running application (put there by the build).
-            // Assembly.Location is empty in a single-file build, which is what Windows ships, and
-            // the lookup then resolved against the working directory instead of the install.
-            var addressDbSourceDirNormalized = Path.Combine(AppContext.BaseDirectory, "AddressDatabases");
-
-            if (!Directory.Exists(addressDbSourceDirNormalized))
+            //
+            // Only a patch DLL reads addresses.db, through its own sqlite build, to look up
+            // addresses for the version it finds itself in. A patch made only of SIMPLE,
+            // REPLACE or STATIC hooks carries no DLL and never opens it, so requiring one
+            // turned a missing database into a failed install for patches that had no use
+            // for it. That is what a macOS install hits: the databases shipped are Windows
+            // and Linux only.
+            if (config.Patches.Any(p => !string.IsNullOrEmpty(p.Dll)))
             {
-                if (backup != null)
+                messages.Add("Step 6.5/8: Copying address database...");
+
+                // Find AddressDatabases beside the running application (put there by the build).
+                // Assembly.Location is empty in a single-file build, which is what Windows ships, and
+                // the lookup then resolved against the working directory instead of the install.
+                var addressDbSourceDirNormalized = Path.Combine(AppContext.BaseDirectory, "AddressDatabases");
+
+                if (!Directory.Exists(addressDbSourceDirNormalized))
                 {
-                    BackupManager.RestoreBackup(backup);
+                    if (backup != null)
+                    {
+                        BackupManager.RestoreBackup(backup);
+                    }
+
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = $"Address database directory not found: {addressDbSourceDirNormalized}",
+                        DetectedVersion = gameVersion,
+                        Backup = backup,
+                        Messages = messages
+                    };
                 }
 
-                return new InstallResult
+                // Find matching address database by SHA
+                var addressDbFiles = Directory.GetFiles(addressDbSourceDirNormalized, "*.db");
+                string? matchingAddressDb = null;
+
+                foreach (var dbFile in addressDbFiles)
                 {
-                    Success = false,
-                    Error = $"Address database directory not found: {addressDbSourceDirNormalized}",
-                    DetectedVersion = gameVersion,
-                    Backup = backup,
-                    Messages = messages
-                };
-            }
-
-            // Find matching address database by SHA
-            var addressDbFiles = Directory.GetFiles(addressDbSourceDirNormalized, "*.db");
-            string? matchingAddressDb = null;
-
-            foreach (var dbFile in addressDbFiles)
-            {
-                // Query SQLite database to check sha256_hash field
-                try
-                {
-                    using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbFile};Mode=ReadOnly");
-                    connection.Open();
-                    using var command = connection.CreateCommand();
-                    command.CommandText = "SELECT sha256_hash FROM game_version";
-                    var reader = command.ExecuteReader();
-
-                    if (reader.HasRows)
+                    // Query SQLite database to check sha256_hash field
+                    try
                     {
-                        while(reader.Read())
+                        using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbFile};Mode=ReadOnly");
+                        connection.Open();
+                        using var command = connection.CreateCommand();
+                        command.CommandText = "SELECT sha256_hash FROM game_version";
+                        var reader = command.ExecuteReader();
+
+                        if (reader.HasRows)
                         {
-                            var sha = reader.GetString(0);
-                            if (sha == gameVersion.Hash)
+                            while(reader.Read())
                             {
-                                matchingAddressDb = dbFile;
-                                break;
+                                var sha = reader.GetString(0);
+                                if (sha == gameVersion.Hash)
+                                {
+                                    matchingAddressDb = dbFile;
+                                    break;
+                                }
                             }
                         }
                     }
+                    catch
+                    {
+                        // Skip databases that can't be read
+                        continue;
+                    }
                 }
-                catch
-                {
-                    // Skip databases that can't be read
-                    continue;
-                }
-            }
 
-            if (matchingAddressDb == null)
+                if (matchingAddressDb == null)
+                {
+                    if (backup != null)
+                    {
+                        BackupManager.RestoreBackup(backup);
+                    }
+
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = $"No address database found for game version SHA: {gameVersion.Hash.Substring(0, 16)}...",
+                        DetectedVersion = gameVersion,
+                        Backup = backup,
+                        Messages = messages
+                    };
+                }
+
+                // Copy to game directory as addresses.db (generic name)
+                var addressDbDest = Path.Combine(gameDir, "addresses.db");
+                File.Copy(matchingAddressDb, addressDbDest, overwrite: true);
+                messages.Add($"  Copied: {Path.GetFileName(matchingAddressDb)} -> addresses.db");
+            }
+            else
             {
-                if (backup != null)
-                {
-                    BackupManager.RestoreBackup(backup);
-                }
-
-                return new InstallResult
-                {
-                    Success = false,
-                    Error = $"No address database found for game version SHA: {gameVersion.Hash.Substring(0, 16)}...",
-                    DetectedVersion = gameVersion,
-                    Backup = backup,
-                    Messages = messages
-                };
+                messages.Add("Step 6.5/8: No patch needs an address database; skipping.");
             }
-
-            // Copy to game directory as addresses.db (generic name)
-            var addressDbDest = Path.Combine(gameDir, "addresses.db");
-            File.Copy(matchingAddressDb, addressDbDest, overwrite: true);
-            messages.Add($"  Copied: {Path.GetFileName(matchingAddressDb)} -> addresses.db");
 
             // Step 7: Copy patcher DLL and SQLite
             messages.Add("Step 7/8: Installing patcher DLL and dependencies...");
