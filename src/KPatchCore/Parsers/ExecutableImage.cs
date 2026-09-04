@@ -31,6 +31,7 @@ internal static class ExecutableImage
         {
             ExecutableFormat.Elf => ElfExecutableImage.Open(exePath),
             ExecutableFormat.Pe => PeExecutableImage.Open(exePath),
+            ExecutableFormat.MachO => MachOExecutableImage.Open(exePath),
             _ => PatchResult<IExecutableImage>.Fail(
                 $"{Path.GetFileName(exePath)} is a {format.Data} executable, which byte patching does not support yet."),
         };
