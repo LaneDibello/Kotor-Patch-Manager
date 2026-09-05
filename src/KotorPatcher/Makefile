@@ -65,8 +65,45 @@ BUILD_SO  := $(BUILD)/KotorPatcher.so
 DLL_OUT ?=
 SO_OUT  ?=
 
-.PHONY: all dll so clean
+.PHONY: all dll so test clean
 all: dll so
+
+# Host tests for the code generators. Each assembles a hook site, runs a stub the
+# generator produced, and checks what came back, so they need an x86 host with
+# 32-bit support. The emitted bytes do not depend on the OS, so running them here
+# covers the Windows build too.
+#
+# tests/any_* are built at both widths; tests/t32_* and tests/t64_* pick the
+# wrapper generator that matches their instruction set.
+TEST_ENGINE := src/core/trampoline.cpp src/platform_posix.cpp
+TESTS_ANY   := $(wildcard tests/any_*.cpp)
+TESTS_32    := $(wildcard tests/t32_*.cpp) $(TESTS_ANY)
+TESTS_64    := $(wildcard tests/t64_*.cpp) $(TESTS_ANY)
+TEST_FLAGS  := -std=c++17 -O1 $(INCLUDES) -Itests -Isrc
+
+# The engine logs to stderr as it generates, which drowns the results, so each
+# run is captured and only the non-log lines are shown. The status has to come
+# from the test itself: piping it into a filter would report the filter's.
+test:
+	@mkdir -p $(BUILD)/tests
+	@rc=0; \
+	run() { \
+	  if "$$1" > "$$1.log" 2>&1; then :; else rc=1; fi; \
+	  grep -vE '^\[' "$$1.log" || true; \
+	}; \
+	for t in $(TESTS_32); do \
+	  n=$$(basename $$t .cpp); echo "  [i386]   $$n"; \
+	  $(CXX_LINUX) $(TEST_FLAGS) -m32 -msse2 -o $(BUILD)/tests/$$n-32 $$t \
+	      src/core/wrapper_x86.cpp $(TEST_ENGINE) -ldl || { rc=1; continue; }; \
+	  run $(BUILD)/tests/$$n-32; \
+	done; \
+	for t in $(TESTS_64); do \
+	  n=$$(basename $$t .cpp); echo "  [x86_64] $$n"; \
+	  $(CXX_LINUX) $(TEST_FLAGS) -o $(BUILD)/tests/$$n-64 $$t \
+	      src/core/wrapper_x86_64.cpp $(TEST_ENGINE) -ldl || { rc=1; continue; }; \
+	  run $(BUILD)/tests/$$n-64; \
+	done; \
+	exit $$rc
 
 # The copy is skipped when DLL_OUT/SO_OUT is empty or already points at the built
 # file (-ef: same file), so `make dll DLL_OUT=<build path>` can't cp a file onto itself.
