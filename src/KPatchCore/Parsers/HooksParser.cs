@@ -107,7 +107,7 @@ public static class HooksParser
                 var hookTable = hooksArray[i];
 
                 // Parse required fields
-                if (!TryGetUInt(hookTable, "address", out var address))
+                if (!TryGetULong(hookTable, "address", out var address))
                 {
                     return PatchResult<List<Hook>>.Fail($"Hook [{i}] missing required field: address");
                 }
@@ -144,8 +144,8 @@ public static class HooksParser
                 var excludeFromRestore = TryGetStringArray(hookTable, "exclude_from_restore") ?? new List<string>();
                 var skipOriginalBytes = TryGetBool(hookTable, "skip_original_bytes") ?? false;
 
-                uint? consumedExitAddress = null;
-                if (TryGetUInt(hookTable, "consumed_exit_address", out var consumedExit) && consumedExit != 0)
+                ulong? consumedExitAddress = null;
+                if (TryGetULong(hookTable, "consumed_exit_address", out var consumedExit) && consumedExit != 0)
                 {
                     consumedExitAddress = consumedExit;
                 }
@@ -203,25 +203,22 @@ public static class HooksParser
         return false;
     }
 
-    private static bool TryGetUInt(TomlTable table, string key, out uint value)
+    private static bool TryGetULong(TomlTable table, string key, out ulong value)
     {
-        if (table.TryGetValue(key, out var obj))
-        {
-            // TOML numbers can be long or int
-            if (obj is long longVal)
-            {
-                value = (uint)longVal;
-                return true;
-            }
-            else if (obj is int intVal)
-            {
-                value = (uint)intVal;
-                return true;
-            }
-        }
-
+        // The old narrowing cast here turned a Mach-O address such as 0x1004EB6C2 into
+        // 0x004EB6C2, which is a plausible-looking address somewhere else in the image.
+        // A value that is not a non-negative integer is rejected instead.
         value = 0;
-        return false;
+
+        if (!table.TryGetValue(key, out var obj))
+            return false;
+
+        switch (obj)
+        {
+            case long l when l >= 0: value = (ulong)l; return true;
+            case int i when i >= 0: value = (ulong)i; return true;
+            default: return false;
+        }
     }
 
     private static bool? TryGetBool(TomlTable table, string key)

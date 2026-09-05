@@ -7,9 +7,19 @@ namespace KPatchCore.Validators;
 /// </summary>
 public static class HookValidator
 {
-    // Typical Windows executable address range for 32-bit applications
-    private const uint MinAddress = 0x00400000;
-    private const uint MaxAddress = 0x7FFFFFFF;
+    // A hook address is an absolute virtual address in the game image. These windows
+    // exist to catch a mistyped or truncated address, not to bound the image exactly.
+    // The 32-bit targets sit in the low 2 GB: a Windows PE at 0x400000, the Linux ELF
+    // at 0x8048000. A 64-bit Mach-O is fixed just above its 4 GB __PAGEZERO, which is
+    // what puts a macOS hook at 0x1004EB6C2 rather than 0x4EB6C2.
+    private const ulong MinAddress = 0x00400000;
+    private const ulong MaxAddress = 0x7FFFFFFF;
+    private const ulong MinMachOAddress = 0x1_00000000;
+    private const ulong MaxMachOAddress = 0x1_FFFFFFFF;
+
+    private static bool IsPlausibleImageAddress(ulong address) =>
+        (address >= MinAddress && address <= MaxAddress) ||
+        (address >= MinMachOAddress && address <= MaxMachOAddress);
 
     /// <summary>
     /// Validates a single hook
@@ -25,11 +35,11 @@ public static class HookValidator
         }
 
         // Additional address range check
-        if (hook.Address < MinAddress || hook.Address > MaxAddress)
+        if (!IsPlausibleImageAddress(hook.Address))
         {
             return PatchResult.Fail(
-                $"Hook address 0x{hook.Address:X8} is outside typical executable range " +
-                $"(0x{MinAddress:X8} - 0x{MaxAddress:X8})"
+                $"Hook address 0x{hook.Address:X8} is outside the ranges a game image occupies " +
+                $"(0x{MinAddress:X8}-0x{MaxAddress:X8}, or 0x{MinMachOAddress:X8}-0x{MaxMachOAddress:X8} for a 64-bit Mach-O)"
             );
         }
 
@@ -181,7 +191,7 @@ public static class HookValidator
             if (hook.OriginalBytes[i] != actualBytes[i])
             {
                 return PatchResult.Fail(
-                    $"Byte mismatch at address 0x{hook.Address + i:X8} " +
+                    $"Byte mismatch at address 0x{hook.Address + (ulong)i:X8} " +
                     $"(expected 0x{hook.OriginalBytes[i]:X2}, got 0x{actualBytes[i]:X2}). " +
                     $"This may indicate a different game version or an already-patched executable."
                 );

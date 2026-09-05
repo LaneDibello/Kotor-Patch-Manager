@@ -133,6 +133,31 @@ public static class PathHelpers
     }
 
     /// <summary>
+    /// Moves a rewritten file over the one it replaces, carrying the original's permissions with
+    /// it. A freshly created file gets default permissions, so a plain move leaves a game
+    /// executable that is no longer executable and a game that will not start.
+    /// </summary>
+    /// <remarks>
+    /// Only whole-file rewrites need this. Byte patching writes through the existing file, where
+    /// the mode is never at risk.
+    ///
+    /// A Windows host cannot do it: SetUnixFileMode throws there, so patching a Linux or macOS
+    /// install from Windows leaves the executable bit to whatever the filesystem hands out.
+    /// Writing in place rather than replacing would avoid that, but it gives up the property this
+    /// exists for, a failed write leaving the original intact, which is the only safety net when
+    /// the caller has backups turned off.
+    /// </remarks>
+    public static void ReplacePreservingMode(string tempPath, string destinationPath)
+    {
+        // Get/SetUnixFileMode are unsupported on Windows, which has no executable bit to carry.
+        // The guard also satisfies CA1416.
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(tempPath, File.GetUnixFileMode(destinationPath));
+
+        File.Move(tempPath, destinationPath, overwrite: true);
+    }
+
+    /// <summary>
     /// Creates a temporary directory with a unique name
     /// </summary>
     public static string CreateTempDirectory()

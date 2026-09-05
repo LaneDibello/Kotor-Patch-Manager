@@ -41,6 +41,7 @@ public static class ExecutableDependencies
         return format.Data switch
         {
             ExecutableFormat.Elf => PatchResult<IExecutableDependencies>.Ok(new ElfDependencies(exePath)),
+            ExecutableFormat.MachO => PatchResult<IExecutableDependencies>.Ok(new MachODependencies(exePath)),
 
             // A PE's import table cannot be grown without moving what follows it, and a packed
             // executable would not honour the edit anyway. Windows reaches the same end through
