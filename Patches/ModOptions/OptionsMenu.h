@@ -308,6 +308,8 @@ private:
 			case CSWGuiControl::BButton:
 				guiManager->PlayGuiSound(0);
 				guiManager->PopModalPanel();
+				// TODO: properly label these bit flags
+				SetBitFlags((GetBitFlags() & ~0x300) | 0x400);
 				break;
 			default:
 				break;
