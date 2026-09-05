@@ -16,6 +16,22 @@
         <vm:MainViewModel/>
     </Design.DataContext>
 
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="File">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Select Game..." Command="{Binding BrowseGameCommand}"/>
+                        <NativeMenuItem Header="Select Patches Folder..." Command="{Binding BrowsePatchesCommand}"/>
+                        <NativeMenuItemSeparator/>
+                        <!-- No Exit here: macOS puts Quit in the application menu already. -->
+                        <NativeMenuItem Header="Refresh" Command="{Binding RefreshCommand}"/>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+        </NativeMenu>
+    </NativeMenu.Menu>
+
     <Window.Styles>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
@@ -147,7 +163,10 @@
 
         <!-- Drawn in-window, which is right on Windows and Linux. macOS puts menus in the system
              bar, so a macOS build wants NativeMenu rather than a second copy inside the window. -->
-        <Menu DockPanel.Dock="Top">
+        <!-- Hidden on macOS, where NativeMenu.Menu above puts File in the system menu bar.
+             The two are defined separately because NativeMenuItem has no IsVisible in Avalonia
+             11.0, and Options has to disappear rather than grey out when it does not apply. -->
+        <Menu DockPanel.Dock="Top" IsVisible="{Binding ShowInWindowMenu}">
             <MenuItem Header="_File">
                 <MenuItem Header="Select _Game..." Command="{Binding BrowseGameCommand}"/>
                 <MenuItem Header="Select _Patches Folder..." Command="{Binding BrowsePatchesCommand}"/>

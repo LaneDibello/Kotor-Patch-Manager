@@ -202,6 +202,12 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Whether the menu is drawn inside the window. macOS has a system menu bar and the window
+    /// gets one there instead, through NativeMenu.Menu; drawing both would show it twice.
+    /// </summary>
+    public bool ShowInWindowMenu => !OperatingSystem.IsMacOS();
+
+    /// <summary>
     /// Whether the launch-method controls apply. They matter only for a Windows build on a host
     /// that cannot run it, where a compatibility layer starts the game and the manager has no way
     /// to guess which. A native build goes through Steam, and a Windows host runs the executable
