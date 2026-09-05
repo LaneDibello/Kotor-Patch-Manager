@@ -17,6 +17,7 @@
 #include <string>
 
 #include "platform.h"
+#include "stub_placement.h"
 
 namespace KotorPatcher {
 namespace Platform {
@@ -50,10 +51,45 @@ namespace Platform {
         }
     }
 
-    void* AllocExec(std::size_t size) {
-        void* mem = mmap(nullptr, size, PROT_READ | PROT_WRITE | PROT_EXEC,
-                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        return mem == MAP_FAILED ? nullptr : mem;
+    // Mapped writable, never writable+executable: macOS refuses that mapping, and
+    // these games are x86_64-only, so every Apple Silicon Mac runs them under
+    // Rosetta and would hit the refusal. ProtectExec flips the block to executable.
+    void* AllocExec(std::size_t size, std::uintptr_t nearAddress) {
+        auto map = [size](void* hint) -> void* {
+            void* mem = mmap(hint, size, PROT_READ | PROT_WRITE,
+                             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            return mem == MAP_FAILED ? nullptr : mem;
+        };
+
+        if (StubPlacement::kEveryAddressReaches || nearAddress == 0) {
+            return map(nullptr);
+        }
+
+        for (std::size_t attempt = 0; attempt < StubPlacement::kSearchAttempts; ++attempt) {
+            std::uintptr_t hint = 0;
+            if (!StubPlacement::NextCandidate(nearAddress, attempt, hint)) break;
+
+            // Without MAP_FIXED the hint is only a suggestion, and an occupied one is
+            // answered with a mapping wherever the kernel pleased. MAP_FIXED is not an
+            // option: it would silently unmap whatever already lives there.
+            void* mem = map(reinterpret_cast<void*>(hint));
+            if (!mem) continue;
+            if (StubPlacement::NearEnough(nearAddress, reinterpret_cast<std::uintptr_t>(mem), size)) {
+                return mem;
+            }
+            munmap(mem, size);
+        }
+
+        Platform::Log("[KotorPatcher] No free memory within a relative jump of the game\n");
+        return nullptr;
+    }
+
+    bool ProtectExec(void* addr, std::size_t size) {
+        if (mprotect(addr, size, PROT_READ | PROT_EXEC) != 0) {
+            return false;
+        }
+        FlushICache(addr, size);
+        return true;
     }
 
     void FreeExec(void* addr, std::size_t size) {
@@ -70,7 +106,13 @@ namespace Platform {
         auto* page = reinterpret_cast<void*>(start);
         std::size_t span = end - start;
 
-        if (mprotect(page, span, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
+        // Writable and executable at once is asked for first, because it leaves the
+        // page runnable throughout: the deferred-apply path patches while the game is
+        // already running on other threads. Apple Silicon refuses that combination,
+        // and these games are x86_64-only so they always run there under Rosetta, so
+        // dropping execute for the duration of the write is the fallback.
+        if (mprotect(page, span, PROT_READ | PROT_WRITE | PROT_EXEC) != 0 &&
+            mprotect(page, span, PROT_READ | PROT_WRITE) != 0) {
             return false;
         }
         std::memcpy(dest, src, len);

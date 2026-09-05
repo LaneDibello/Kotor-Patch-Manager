@@ -35,7 +35,7 @@ namespace KotorPatcher {
             std::vector<AllocatedWrapper> m_allocatedWrappers;
 
             // Allocate executable memory for wrapper code
-            void* AllocateExecutableMemory(size_t size);
+            void* AllocateExecutableMemory(size_t size, uintptr_t nearAddress);
 
             // Generate DETOUR type wrapper (save state, call patch, restore state, execute stolen bytes)
             void* GenerateDetourWrapper(const WrapperConfig& config);
@@ -45,11 +45,15 @@ namespace KotorPatcher {
             void EmitByte(uint8_t*& code, uint8_t value);
             void EmitDword(uint8_t*& code, uint32_t value);
 
+            // Helper: Emit FXSAVE or FXRSTOR through the reserved area above the
+            // saved state, which the caller reaches from EBX
+            void EmitFpStateAccess(uint8_t*& code, int savedStateSize, bool restore);
+
             // Helper: Calculate relative offset for JMP/CALL
             uint32_t CalculateRelativeOffset(void* from, void* to);
 
             // Helper: Extract parameter from source and push onto stack
-            void ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateOffset, int pushCount);
+            void ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize);
         };
 
     } // namespace Wrappers

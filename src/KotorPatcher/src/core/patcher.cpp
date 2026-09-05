@@ -5,6 +5,7 @@
 #include "wrapper_base.h"
 
 #include <chrono>
+#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -223,14 +224,14 @@ namespace KotorPatcher {
         }
 
         char addrMsg[256];
-        snprintf(addrMsg, sizeof(addrMsg), "[KotorPatcher] Symbol resolved: %s at 0x%08X\n",
-            patch.functionName.c_str(), reinterpret_cast<uint32_t>(funcAddr));
+        snprintf(addrMsg, sizeof(addrMsg), "[KotorPatcher] Symbol resolved: %s at 0x%08" PRIXPTR "\n",
+            patch.functionName.c_str(), reinterpret_cast<uintptr_t>(funcAddr));
         Platform::Log(addrMsg);
 
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
             char errorMsg[256];
-            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08X - wrong game version?\n", patch.hookAddress);
+            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08" PRIXPTR " - wrong game version?\n", patch.hookAddress);
             Platform::Log(errorMsg);
             return false;
         }
@@ -282,7 +283,7 @@ namespace KotorPatcher {
         }
 
         char successMsg[256];
-        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied DETOUR hook at 0x%08X -> %s\n",
+        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied DETOUR hook at 0x%08" PRIXPTR " -> %s\n",
             patch.hookAddress,
             patch.functionName.c_str());
         Platform::Log(successMsg);
@@ -295,7 +296,7 @@ namespace KotorPatcher {
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
             char errorMsg[256];
-            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08X - wrong game version?\n", patch.hookAddress);
+            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08" PRIXPTR " - wrong game version?\n", patch.hookAddress);
             Platform::Log(errorMsg);
             return false;
         }
@@ -308,7 +309,7 @@ namespace KotorPatcher {
         }
 
         char successMsg[256];
-        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied SIMPLE hook at 0x%08X (%zu bytes replaced)\n",
+        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied SIMPLE hook at 0x%08" PRIXPTR " (%zu bytes replaced)\n",
             patch.hookAddress,
             patch.replacementBytes.size());
         Platform::Log(successMsg);
@@ -321,7 +322,7 @@ namespace KotorPatcher {
         // Verify original bytes
         if (!Trampoline::VerifyBytes(patch.hookAddress, patch.originalBytes.data(), patch.originalBytes.size())) {
             char errorMsg[256];
-            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08X - wrong game version?\n", patch.hookAddress);
+            snprintf(errorMsg, sizeof(errorMsg), "[KotorPatcher] Original bytes mismatch at hookAddress 0x%08" PRIXPTR " - wrong game version?\n", patch.hookAddress);
             Platform::Log(errorMsg);
             return false;
         }
@@ -330,7 +331,7 @@ namespace KotorPatcher {
         std::size_t bufferSize = patch.replacementBytes.size() + 5;
 
         // Allocate executable memory for replacement code + return JMP
-        void* codeBuf = Platform::AllocExec(bufferSize);
+        void* codeBuf = Platform::AllocExec(bufferSize, patch.hookAddress);
         if (!codeBuf) {
             Platform::Log("[KotorPatcher] Failed to allocate memory for REPLACE hook\n");
             return false;
@@ -339,7 +340,7 @@ namespace KotorPatcher {
         // Track allocated buffer for cleanup
         g_allocatedCodeBuffers.push_back({ codeBuf, bufferSize });
 
-        // Write replacement bytes to allocated memory (already writable+executable)
+        // Write replacement bytes to allocated memory (not executable until ProtectExec)
         std::memcpy(codeBuf, patch.replacementBytes.data(), patch.replacementBytes.size());
 
         // Calculate return address (after original bytes)
@@ -347,12 +348,21 @@ namespace KotorPatcher {
 
         // Write JMP back to game code at end of replacement bytes
         uint8_t* returnJmp = static_cast<uint8_t*>(codeBuf) + patch.replacementBytes.size();
+        int32_t offset = 0;
+        if (!Trampoline::ComputeRel32(reinterpret_cast<uintptr_t>(returnJmp),
+                                      reinterpret_cast<uintptr_t>(returnAddr), offset)) {
+            // AllocExec places the block wherever the kernel likes, which on a 64-bit
+            // target can be further than a rel32 from the game image.
+            Platform::Log("[KotorPatcher] REPLACE code block is out of rel32 range of the game\n");
+            return false;
+        }
         *returnJmp = 0xE9;  // JMP opcode
-        uint32_t offset = reinterpret_cast<uint32_t>(returnAddr) - (reinterpret_cast<uint32_t>(returnJmp) + 5);
         std::memcpy(returnJmp + 1, &offset, 4);
 
-        // Flush instruction cache for code buffer
-        Platform::FlushICache(codeBuf, bufferSize);
+        if (!Platform::ProtectExec(codeBuf, bufferSize)) {
+            Platform::Log("[KotorPatcher] Failed to make the REPLACE code block executable\n");
+            return false;
+        }
 
         // Write JMP at hook address to code buffer
         if (!Trampoline::WriteJump(patch.hookAddress, codeBuf)) {
@@ -369,7 +379,7 @@ namespace KotorPatcher {
         }
 
         char successMsg[256];
-        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied REPLACE hook at 0x%08X (%zu bytes code, %zu bytes replaced)\n",
+        snprintf(successMsg, sizeof(successMsg), "[KotorPatcher] Applied REPLACE hook at 0x%08" PRIXPTR " (%zu bytes code, %zu bytes replaced)\n",
             patch.hookAddress,
             patch.replacementBytes.size(),
             patch.originalBytes.size());

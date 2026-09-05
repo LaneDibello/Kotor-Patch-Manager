@@ -1,6 +1,7 @@
 #pragma once
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 
 // Platform seam for the patcher engine.
@@ -19,9 +20,18 @@ namespace Platform {
     // (OutputDebugStringA); Linux writes it to stderr.
     void Log(const char* message);
 
-    // Allocate `size` bytes of read/write/execute memory for generated stubs
-    // (DETOUR wrappers, REPLACE code blocks), or nullptr on failure.
-    void* AllocExec(std::size_t size);
+    // Allocate `size` bytes of writable memory for generated stubs (DETOUR
+    // wrappers, REPLACE code blocks), or nullptr on failure. Not executable yet:
+    // fill it, then seal it with ProtectExec. `nearAddress` is the game code that
+    // will jump here, and the block is placed within a 5-byte relative jump of it;
+    // pass 0 when nothing will jump here. Placement is best-effort, and
+    // Trampoline::ComputeRel32 decides whether a jump actually reaches.
+    void* AllocExec(std::size_t size, std::uintptr_t nearAddress);
+
+    // Seal a filled AllocExec block as read+execute and let the CPU observe the
+    // bytes. Returns false if the protection change failed, in which case nothing
+    // may jump to the block.
+    bool ProtectExec(void* addr, std::size_t size);
 
     // Release memory returned by AllocExec.
     void FreeExec(void* addr, std::size_t size);
