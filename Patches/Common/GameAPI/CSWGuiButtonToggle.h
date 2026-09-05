@@ -14,9 +14,6 @@ public:
     ~CSWGuiButtonToggle();
 
     // Accessors. Returned wrapper is heap allocated; caller owns it.
-    // Borders drawn while the toggle is selected: selected is the resting state,
-    // hilight_selected the hovered one. Named ...Border to keep GetSelected() the
-    // bit-flag accessor.
     CSWGuiBorder* GetSelectedBorder();
     CSWGuiBorder* GetHilightSelectedBorder();
     CSWGuiControl::GuiEvent GetToggleEvent();
@@ -28,12 +25,6 @@ public:
 
     // Functions
     void SetSelected(UINT selected);
-
-    // The toggle has two extra embedded CSWGuiBorder members that CSWGuiButton knows
-    // nothing about (selected at +460, hilight_selected at +576), so it has its
-    // own six-parameter Initialize. This overload deliberately hides the inherited
-    // four-parameter one: calling the base version on a toggle leaves both of those
-    // borders as raw malloc garbage, which the first Draw then walks.
     void Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
                     CSWGuiBorderParams* borderParams, CSWGuiBorderParams* hilightParams,
                     CSWGuiBorderParams* selectedParams, CSWGuiBorderParams* hilightSelectedParams);
