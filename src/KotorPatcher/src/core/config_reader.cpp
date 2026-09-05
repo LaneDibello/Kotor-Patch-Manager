@@ -401,15 +401,19 @@ namespace KotorPatcher {
                     outPatches.push_back(patch);
 
                     // Debug message
+                    // Only DETOUR names a function to call; the others would print an
+                    // empty one, which is how a REPLACE hook used to be reported as a
+                    // DETOUR with no target.
                     char debugMsg[256];
-                    if (patch.type == HookType::SIMPLE) {
-                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Loaded SIMPLE hook: %s @ 0x%08" PRIXPTR " (%zu bytes)\n",
-                            patchId.c_str(), patch.hookAddress, patch.originalBytes.size());
-                    }
-                    else {
+                    if (patch.type == HookType::DETOUR) {
                         snprintf(debugMsg, sizeof(debugMsg), "[Config] Loaded DETOUR hook: %s -> %s @ 0x%08" PRIXPTR " (%zu bytes)\n",
                             patchId.c_str(), patch.functionName.c_str(),
                             patch.hookAddress, patch.originalBytes.size());
+                    }
+                    else {
+                        snprintf(debugMsg, sizeof(debugMsg), "[Config] Loaded %s hook: %s @ 0x%08" PRIXPTR " (%zu bytes)\n",
+                            patch.type == HookType::SIMPLE ? "SIMPLE" : "REPLACE",
+                            patchId.c_str(), patch.hookAddress, patch.originalBytes.size());
                     }
                     Platform::Log(debugMsg);
                 }
