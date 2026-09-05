@@ -413,6 +413,18 @@ public class PatchApplicator
                 }
 
                 messages.Add($"  {injectResult.Messages.FirstOrDefault() ?? "Dependency list updated"}");
+
+                // Adding the dependency rewrites the whole executable, and only a POSIX host can
+                // carry the original's mode onto the replacement. Whether the bit survives on
+                // Windows is up to the filesystem underneath: a drive with no Unix modes at all
+                // will be fine, a share that creates files 0644 will not. Windows cannot read the
+                // mode back either, so this says what to check rather than claiming to know.
+                if (OperatingSystem.IsWindows())
+                {
+                    messages.Add($"  Note: {Path.GetFileName(options.GameExePath)} was rewritten from Windows, " +
+                                 "which cannot set a Unix executable bit. If the game will not start, " +
+                                 "run: chmod +x <game executable>");
+                }
             }
 
             // Step 5: Extract patch DLLs (for DETOUR hooks and DLL-only patches)
