@@ -52,8 +52,9 @@ namespace Platform {
     }
 
     // Mapped writable, never writable+executable: macOS refuses that mapping, and
-    // these games are x86_64-only, so every Apple Silicon Mac runs them under
-    // Rosetta and would hit the refusal. ProtectExec flips the block to executable.
+    // the Aspyr macOS builds are x86_64, so every Apple Silicon Mac runs them
+    // under Rosetta and would hit the refusal. ProtectExec flips the block to
+    // executable.
     void* AllocExec(std::size_t size, std::uintptr_t nearAddress) {
         auto map = [size](void* hint) -> void* {
             void* mem = mmap(hint, size, PROT_READ | PROT_WRITE,
@@ -109,8 +110,8 @@ namespace Platform {
         // Writable and executable at once is asked for first, because it leaves the
         // page runnable throughout: the deferred-apply path patches while the game is
         // already running on other threads. Apple Silicon refuses that combination,
-        // and these games are x86_64-only so they always run there under Rosetta, so
-        // dropping execute for the duration of the write is the fallback.
+        // and the Aspyr macOS builds are x86_64 so they always run there under
+        // Rosetta, so dropping execute for the duration of the write is the fallback.
         if (mprotect(page, span, PROT_READ | PROT_WRITE | PROT_EXEC) != 0 &&
             mprotect(page, span, PROT_READ | PROT_WRITE) != 0) {
             return false;
