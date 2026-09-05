@@ -423,6 +423,8 @@
                         Height="35"/>
                 <Button Content="Launch"
                         Command="{Binding LaunchGameCommand}"
+                        IsEnabled="{Binding CanLaunchGame}"
+                        ToolTip.Tip="{Binding LaunchButtonTip}"
                         Width="120"
                         Height="35"/>
             </StackPanel>

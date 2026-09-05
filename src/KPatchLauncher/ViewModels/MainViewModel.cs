@@ -257,6 +257,8 @@ public class MainViewModel : ViewModelBase
             {
                 _settings.LaunchMethod = value ? LaunchMethod.Custom : LaunchMethod.Steam;
                 _settings.Save();
+                OnPropertyChanged(nameof(CanLaunchGame));
+                OnPropertyChanged(nameof(LaunchButtonTip));
             }
         }
     }
@@ -274,9 +276,29 @@ public class MainViewModel : ViewModelBase
             {
                 _settings.CustomLaunchCommand = value;
                 _settings.Save();
+                OnPropertyChanged(nameof(CanLaunchGame));
+                OnPropertyChanged(nameof(LaunchButtonTip));
             }
         }
     }
+
+    /// <summary>
+    /// Whether pressing Launch can do anything. The configured method decides, not the platform:
+    /// a Windows host starts the game itself, Steam is left available because Proton makes it a
+    /// real option for a Windows build on Linux, and a custom command is only usable once one has
+    /// been typed. That last case is the only one we can be certain about, so it is the only one
+    /// that disables the button.
+    /// </summary>
+    public bool CanLaunchGame =>
+        DeploymentPolicy.CanStartGameDirectly()
+        || !UseCustomLaunch
+        || !string.IsNullOrWhiteSpace(CustomLaunchCommand);
+
+    /// <summary>What the Launch button says on hover, including why it is unavailable.</summary>
+    public string LaunchButtonTip =>
+        CanLaunchGame
+            ? "Start the game with the installed patches."
+            : "Enter a custom launch command above, or turn the option off to launch through Steam.";
 
     public string StatusMessage
     {
