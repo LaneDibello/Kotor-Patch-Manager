@@ -3,15 +3,16 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 
 # Native Mac translation of FullPartySelect.
 #
-# For convenience, the below addresses are 
-# (1) the ghidra address in the 64 bit macos file ... (2) the raw offset.
+# The hook uses the first column, the absolute virtual address Ghidra shows. The
+# second is the raw offset into the fat binary, for a hex editor. The engine
+# dereferences the address at runtime, so the offset would land in __PAGEZERO.
 # CSWGuiPartySelection::OnPanelAdded()				0x1002105fe ... 0x2115FE 
 # Patched call site:                   				0x1002107fe ... 0x2117FE
 # CSWGuiPartySelection::UpdateVisibleCharacters:	0x100210d1e ... 0x211D1E 
 #
 # This NOPs the same OnPanelAdded() call that the Windows GOG/Steam patch removes.
 [[hooks]]
-address = 0x2117FE
+address = 0x1002107FE
 type = "simple"
 original_bytes = [0xE8, 0x1b, 0x05, 0x00, 0x00]
 replacement_bytes = [0x90, 0x90, 0x90, 0x90, 0x90]

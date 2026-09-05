@@ -5,7 +5,7 @@ target_versions = [
 
 # Reapply area fog before drawing grass. Fixes culling bug.
 [[hooks]]
-address = 0x000B5F23
+address = 0x1000B4F23
 type = "simple"
 original_bytes = [
     0x48, 0x8D, 0x05, 0x7E, 0x58, 0x4F, 0x00,
