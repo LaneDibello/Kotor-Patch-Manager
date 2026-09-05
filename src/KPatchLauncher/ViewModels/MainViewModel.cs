@@ -369,32 +369,14 @@ public class MainViewModel : ViewModelBase
                 return;
             }
 
-            var result = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Select Game Executable",
-                AllowMultiple = false,
-                SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory()),
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType("Game Executables")
-                    {
-                        // swkotor.exe / swkotor2.exe on Windows and under Wine/Proton; the
-                        // native Linux KOTOR II build is an extensionless "KOTOR2" ELF. On macOS
-                        // the game lives inside a bundle, so both the bundle and the executable
-                        // within it are offered: the panel presents an .app as one item, and
-                        // whichever is chosen resolves to the same file.
-                        Patterns = new[] { "*.exe", "KOTOR2", "*.app", "KOTOR_Exe", "KOTOR2sub" }
-                    },
-                    new FilePickerFileType("All Files")
-                    {
-                        Patterns = new[] { "*" }
-                    }
-                }
-            });
+            var picked = OperatingSystem.IsMacOS()
+                ? await PickGameBundleAsync(window)
+                : await PickGameFileAsync(window);
 
-            if (result.Count > 0)
+            if (picked != null)
             {
-                GamePath = result[0].Path.LocalPath;
+                // The setter resolves a bundle or a folder to the executable inside it.
+                GamePath = picked;
                 StatusMessage = $"Selected game: {Path.GetFileName(GamePath)}";
             }
         }
@@ -402,6 +384,54 @@ public class MainViewModel : ViewModelBase
         {
             StatusMessage = $"Error browsing: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// The macOS games live inside an .app, which is a directory, and Avalonia's file picker
+    /// cannot return one: it turns every directory it is given into an IStorageFolder and then
+    /// drops it from the file results, so a bundle can be clicked and nothing comes back
+    /// (AvaloniaUI/Avalonia#18303). Asking for a folder returns it. Everything a Mac can hold
+    /// is reachable this way, since a Wine install is a folder with swkotor.exe in it and the
+    /// path is resolved to the executable afterwards.
+    /// </summary>
+    private async Task<string?> PickGameBundleAsync(Window window)
+    {
+        var result = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select Game (.app bundle or the folder holding it)",
+            AllowMultiple = false,
+            SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory())
+        });
+
+        return result.Count > 0 ? result[0].Path.LocalPath : null;
+    }
+
+    private async Task<string?> PickGameFileAsync(Window window)
+    {
+        var result = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select Game Executable",
+            AllowMultiple = false,
+            SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory()),
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Game Executables")
+                {
+                    // swkotor.exe / swkotor2.exe on Windows and under Wine or Proton; the native
+                    // Linux KOTOR II build is an extensionless "KOTOR2" ELF. The last two are the
+                    // binaries inside the macOS bundles, listed because a Windows or Linux host
+                    // can patch a macOS install and cannot select the .app itself: only macOS
+                    // offers a directory as something to choose.
+                    Patterns = new[] { "*.exe", "KOTOR2", "KOTOR_Exe", "KOTOR2sub" }
+                },
+                new FilePickerFileType("All Files")
+                {
+                    Patterns = new[] { "*" }
+                }
+            }
+        });
+
+        return result.Count > 0 ? result[0].Path.LocalPath : null;
     }
 
     private async Task BrowsePatches()
