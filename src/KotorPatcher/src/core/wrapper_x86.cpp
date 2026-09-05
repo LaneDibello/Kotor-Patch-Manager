@@ -516,11 +516,15 @@ namespace KotorPatcher {
 
         // ===== Factory Function =====
 
-        // Global instance
-        static WrapperGenerator_x86 g_wrapperGenerator;
-
+        // Constructed on first call, not at load time. The entry point runs from a
+        // module initializer, and a generator defined at file scope is only built by
+        // an initializer of its own: whichever the linker ordered first wins, and
+        // calling through the object before its constructor has run reads a null
+        // vtable pointer. The Linux build survived that by the order its objects
+        // happened to be listed in.
         WrapperGeneratorBase* GetWrapperGenerator() {
-            return &g_wrapperGenerator;
+            static WrapperGenerator_x86 generator;
+            return &generator;
         }
 
     } // namespace Wrappers
