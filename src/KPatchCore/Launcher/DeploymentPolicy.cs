@@ -162,9 +162,15 @@ public static class DeploymentPolicy
     {
         return gamePlatform switch
         {
+            Platform.Windows => "KotorPatcher.dll",
             Platform.Linux => "KotorPatcher.so",
             Platform.macOS => "KotorPatcher.dylib",
-            _ => "KotorPatcher.dll",
+
+            // Every platform is named above on purpose. The lists below are built by walking the
+            // enum, so a new value falling through to a default would quietly claim to be the
+            // Windows module and be treated as a linked dependency at the same time.
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(gamePlatform), gamePlatform, "No patcher module is defined for this platform."),
         };
     }
 
@@ -186,6 +192,14 @@ public static class DeploymentPolicy
             .Where(p => p != Platform.Windows)
             .Select(PatcherModuleFileName)
             .ToArray();
+
+    /// <summary>
+    /// Every patcher module name, whichever platform loads it. Uninstall uses this to recognise
+    /// the manager's own files wherever it finds them, which is a question about the file rather
+    /// than about how it got there.
+    /// </summary>
+    public static IReadOnlyList<string> AllModuleFileNames { get; } =
+        Enum.GetValues<Platform>().Select(PatcherModuleFileName).Distinct().ToArray();
 
     /// <summary>
     /// The library <see cref="DeploymentMethod.LibraryProxy"/> stands in for. KOTOR 1 and 2 both

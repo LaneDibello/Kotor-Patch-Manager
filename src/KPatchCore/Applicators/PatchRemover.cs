@@ -166,7 +166,11 @@ public static class PatchRemover
             var filesToRemove = new List<string>
             {
                 "patch_config.toml",
-                "KotorPatcher.dll",
+
+                // The module the game does not name in its own dependency list is safe to remove
+                // whatever happened to the executable. The linked ones are added further down,
+                // and only once the backup has been restored.
+                DeploymentPolicy.PatcherModuleFileName(Platform.Windows),
                 "KPatchLauncher.exe",
                 "KPatchLauncher.dll",
                 "KPatchLauncher.runtimeconfig.json",
@@ -205,12 +209,10 @@ public static class PatchRemover
             var appDir = AppContext.BaseDirectory;
             var managerOwnedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "KotorPatcher.dll",
-                "KotorPatcher.so",
-                "KotorPatcher.dylib",
                 "KPatchLauncher.exe",
                 "sqlite3.dll"
             };
+            managerOwnedFiles.UnionWith(DeploymentPolicy.AllModuleFileNames);
 
             // Remove each file using safe delete helper
             foreach (var fileName in filesToRemove)
