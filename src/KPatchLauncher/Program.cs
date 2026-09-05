@@ -291,8 +291,12 @@ class Program
                 return 1;
             }
 
-            var process = result.GameProcess!;
-            Console.WriteLine($"✓ Game launched successfully (PID: {process.Id})");
+            // Only a launch the manager performed itself has a process to report. Handing off to
+            // Steam or to a custom command starts the game through something else, so there is
+            // nothing here to watch, and reading one crashed the moment Steam became reachable.
+            var process = result.GameProcess;
+            var pidInfo = process is null ? string.Empty : $" (PID: {process.Id})";
+            Console.WriteLine($"✓ Game launched successfully{pidInfo}");
             Console.WriteLine($"✓ {patcherModuleName} in place");
             Console.WriteLine();
             Console.WriteLine("Game is running with patches applied.");
@@ -300,7 +304,7 @@ class Program
             Console.WriteLine();
 
             // Optionally monitor for crashes (disabled by default)
-            if (args.Contains("--monitor"))
+            if (args.Contains("--monitor") && process is not null)
             {
                 Console.WriteLine("Monitoring game process...");
                 process.WaitForExit();
