@@ -19,8 +19,8 @@ bool CSWGuiButton::functionsInitialized = false;
 bool CSWGuiButton::offsetsInitialized = false;
 
 int CSWGuiButton::offsetText = -1;
-int CSWGuiButton::offsetBorder1 = -1;
-int CSWGuiButton::offsetBorder2 = -1;
+int CSWGuiButton::offsetBorder = -1;
+int CSWGuiButton::offsetHilight = -1;
 
 void CSWGuiButton::InitializeFunctions() {
     if (functionsInitialized) {
@@ -65,8 +65,8 @@ void CSWGuiButton::InitializeOffsets() {
 
     try {
         offsetText = GameVersion::GetOffset("CSWGuiButton", "text");
-        offsetBorder1 = GameVersion::GetOffset("CSWGuiButton", "border_1");
-        offsetBorder2 = GameVersion::GetOffset("CSWGuiButton", "border_2");
+        offsetBorder = GameVersion::GetOffset("CSWGuiButton", "border");
+        offsetHilight = GameVersion::GetOffset("CSWGuiButton", "hilight");
         classSize = GameVersion::GetClassSize("CSWGuiButton");
 
         offsetsInitialized = true;
@@ -125,20 +125,20 @@ CSWGuiText* CSWGuiButton::GetText() {
     return new CSWGuiText((char*)objectPtr + offsetText);
 }
 
-CSWGuiBorder* CSWGuiButton::GetBorder1() {
-    if (!objectPtr || offsetBorder1 < 0) {
+CSWGuiBorder* CSWGuiButton::GetBorder() {
+    if (!objectPtr || offsetBorder < 0) {
         return nullptr;
     }
     // Inline CSWGuiBorder member: wrap its in-place address.
-    return new CSWGuiBorder((char*)objectPtr + offsetBorder1);
+    return new CSWGuiBorder((char*)objectPtr + offsetBorder);
 }
 
-CSWGuiBorder* CSWGuiButton::GetBorder2() {
-    if (!objectPtr || offsetBorder2 < 0) {
+CSWGuiBorder* CSWGuiButton::GetHilight() {
+    if (!objectPtr || offsetHilight < 0) {
         return nullptr;
     }
     // Inline CSWGuiBorder member: wrap its in-place address.
-    return new CSWGuiBorder((char*)objectPtr + offsetBorder2);
+    return new CSWGuiBorder((char*)objectPtr + offsetHilight);
 }
 
 void CSWGuiButton::ReSetFont() {
@@ -162,10 +162,10 @@ void CSWGuiButton::Initialize(CSWGuiExtent* extent, CSWGuiButton* button) {
 }
 
 void CSWGuiButton::Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
-                              CSWGuiBorderParams* border1Params, CSWGuiBorderParams* border2Params) {
+                              CSWGuiBorderParams* borderParams, CSWGuiBorderParams* hilightParams) {
     if (!objectPtr || !initializeParams) return;
     initializeParams(objectPtr, extent,
                      textParams ? textParams->GetPtr() : nullptr,
-                     border1Params ? border1Params->GetPtr() : nullptr,
-                     border2Params ? border2Params->GetPtr() : nullptr);
+                     borderParams ? borderParams->GetPtr() : nullptr,
+                     hilightParams ? hilightParams->GetPtr() : nullptr);
 }

@@ -16,8 +16,10 @@ bool CSWGuiButtonToggle::offsetsInitialized = false;
 
 int CSWGuiButtonToggle::offsetToggleEvent = -1;
 int CSWGuiButtonToggle::offsetBitFlags = -1;
-int CSWGuiButtonToggle::offsetBorderSelected = -1;
-int CSWGuiButtonToggle::offsetBorderHilight = -1;
+int CSWGuiButtonToggle::offsetSelected = -1;
+int CSWGuiButtonToggle::offsetHilightSelected = -1;
+
+DWORD CSWGuiButtonToggle::vtableOptionsCheckbox = -1;
 
 void CSWGuiButtonToggle::InitializeFunctions() {
     if (functionsInitialized) {
@@ -60,9 +62,10 @@ void CSWGuiButtonToggle::InitializeOffsets() {
     try {
         offsetToggleEvent = GameVersion::GetOffset("CSWGuiButtonToggle", "toggle_event");
         offsetBitFlags = GameVersion::GetOffset("CSWGuiButtonToggle", "bit_flags");
-        offsetBorderSelected = GameVersion::GetOffset("CSWGuiButtonToggle", "border_selected");
-        offsetBorderHilight = GameVersion::GetOffset("CSWGuiButtonToggle", "border_hilight");
+        offsetSelected = GameVersion::GetOffset("CSWGuiButtonToggle", "selected");
+        offsetHilightSelected = GameVersion::GetOffset("CSWGuiButtonToggle", "hilight_selected");
         classSize = GameVersion::GetClassSize("CSWGuiButtonToggle");
+        vtableOptionsCheckbox = GameVersion::GetClassVtable("CSWGuiOptionsCheckbox");
 
         offsetsInitialized = true;
     }
@@ -113,20 +116,20 @@ CSWGuiButtonToggle::~CSWGuiButtonToggle()
     }
 }
 
-CSWGuiBorder* CSWGuiButtonToggle::GetBorderSelected() {
-    if (!objectPtr || offsetBorderSelected < 0) {
+CSWGuiBorder* CSWGuiButtonToggle::GetSelectedBorder() {
+    if (!objectPtr || offsetSelected < 0) {
         return nullptr;
     }
     // Inline CSWGuiBorder member: wrap its in-place address.
-    return new CSWGuiBorder((char*)objectPtr + offsetBorderSelected);
+    return new CSWGuiBorder((char*)objectPtr + offsetSelected);
 }
 
-CSWGuiBorder* CSWGuiButtonToggle::GetBorderHilight() {
-    if (!objectPtr || offsetBorderHilight < 0) {
+CSWGuiBorder* CSWGuiButtonToggle::GetHilightSelectedBorder() {
+    if (!objectPtr || offsetHilightSelected < 0) {
         return nullptr;
     }
     // Inline CSWGuiBorder member: wrap its in-place address.
-    return new CSWGuiBorder((char*)objectPtr + offsetBorderHilight);
+    return new CSWGuiBorder((char*)objectPtr + offsetHilightSelected);
 }
 
 CSWGuiControl::GuiEvent CSWGuiButtonToggle::GetToggleEvent() {
@@ -163,13 +166,18 @@ void CSWGuiButtonToggle::SetSelected(UINT selected) {
 }
 
 void CSWGuiButtonToggle::Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
-                                    CSWGuiBorderParams* border1, CSWGuiBorderParams* border2,
-                                    CSWGuiBorderParams* borderSelected, CSWGuiBorderParams* borderHilight) {
+                                    CSWGuiBorderParams* borderParams, CSWGuiBorderParams* hilightParams,
+                                    CSWGuiBorderParams* selectedParams, CSWGuiBorderParams* hilightSelectedParams) {
     if (!objectPtr || !initializeToggleParams) return;
     initializeToggleParams(objectPtr, extent,
         textParams ? textParams->GetPtr() : nullptr,
-        border1 ? border1->GetPtr() : nullptr,
-        border2 ? border2->GetPtr() : nullptr,
-        borderSelected ? borderSelected->GetPtr() : nullptr,
-        borderHilight ? borderHilight->GetPtr() : nullptr);
+        borderParams ? borderParams->GetPtr() : nullptr,
+        hilightParams ? hilightParams->GetPtr() : nullptr,
+        selectedParams ? selectedParams->GetPtr() : nullptr,
+        hilightSelectedParams ? hilightSelectedParams->GetPtr() : nullptr);
+}
+
+void CSWGuiButtonToggle::SetOptionsCheckbox() {
+    if (!objectPtr || !vtableOptionsCheckbox) return;
+    setObjectProperty<DWORD>(objectPtr, 0, vtableOptionsCheckbox);
 }

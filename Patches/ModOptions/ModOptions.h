@@ -177,11 +177,11 @@ private:
 		delete protoItem;
 
 		CSWGuiText* protoText = proto.GetText();
-		CSWGuiBorder* protoBorder1 = proto.GetBorder1();
-		CSWGuiBorder* protoBorder2 = proto.GetBorder2();
+		CSWGuiBorder* protoBorder = proto.GetBorder();
+		CSWGuiBorder* protoHilight = proto.GetHilight();
 		CSWGuiTextParams* textParams = protoText ? protoText->GetTextParams() : nullptr;
-		CSWGuiBorderParams* border1Params = protoBorder1 ? protoBorder1->GetBorderParams() : nullptr;
-		CSWGuiBorderParams* border2Params = protoBorder2 ? protoBorder2->GetBorderParams() : nullptr;
+		CSWGuiBorderParams* borderParams = protoBorder ? protoBorder->GetBorderParams() : nullptr;
+		CSWGuiBorderParams* hilightParams = protoHilight ? protoHilight->GetBorderParams() : nullptr;
 
 		CSWGuiExtent buttonExtent;
 		buttonExtent.top = 0;
@@ -192,7 +192,7 @@ private:
 		CExoArrayList<CSWGuiControl*> listButtons;
 		for (size_t i = 0; i < modOptionConfigs.size(); ++i) {
 			CSWGuiButton* button = new CSWGuiButton();
-			button->Initialize(&buttonExtent, textParams, border1Params, border2Params);
+			button->Initialize(&buttonExtent, textParams, borderParams, hilightParams);
 			SetControlText(button, modOptionConfigs[i].GetName());
 
 			button->AddEvent(CSWGuiControl::AButton, this,
@@ -204,11 +204,11 @@ private:
 			listButtons.Add(button);
 		}
 
-		delete border2Params;
-		delete border1Params;
+		delete hilightParams;
+		delete borderParams;
 		delete textParams;
-		delete protoBorder2;
-		delete protoBorder1;
+		delete protoHilight;
+		delete protoBorder;
 		delete protoText;
 
 		if (listButtons.GetSize() == 0) {
