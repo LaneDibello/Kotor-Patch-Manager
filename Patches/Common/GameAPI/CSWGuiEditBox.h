@@ -20,6 +20,7 @@ public:
 
     // Functions
     bool GetIsSelectable();
+    void HandleFocusChange(int hasFocus);
     void Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
                     CSWGuiBorderParams* borderParams);
     void ReSetFont();
@@ -32,6 +33,7 @@ public:
 
 protected:
     typedef bool (__thiscall* GetIsSelectableFn)(void* thisPtr);
+    typedef void (__thiscall* HandleFocusChangeFn)(void* thisPtr, int hasFocus);
     typedef void (__thiscall* InitializeFn)(void* thisPtr, void* extent, void* textParams,
                                             void* borderParams);
     typedef void (__thiscall* ReSetFontFn)(void* thisPtr);
@@ -42,6 +44,7 @@ protected:
     typedef void* (__thiscall* DestructorFn)(void* thisPtr);
 
     static GetIsSelectableFn getIsSelectable;
+    static HandleFocusChangeFn handleFocusChange;
     static InitializeFn initialize;
     static ReSetFontFn reSetFont;
     static SetEnabledFn setEnabled;

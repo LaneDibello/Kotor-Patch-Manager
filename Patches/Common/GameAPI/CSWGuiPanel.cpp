@@ -432,9 +432,13 @@ void CSWGuiPanel::GetLocalMouseCoords(int* outX, int* outY) {
     getLocalMouseCoords(objectPtr, outX, outY);
 }
 
-bool CSWGuiPanel::HitCheckMouse(int mouseX, int mouseY) {
-    if (!objectPtr || !hitCheckMouse) return false;
-    return hitCheckMouse(objectPtr, mouseX, mouseY);
+CSWGuiControl* CSWGuiPanel::HitCheckMouse(int mouseX, int mouseY) {
+    if (!objectPtr || !hitCheckMouse) return nullptr;
+
+    void* controlPtr = hitCheckMouse(objectPtr, mouseX, mouseY);
+    if (!controlPtr) return nullptr;
+
+    return new CSWGuiControl(controlPtr);
 }
 
 void CSWGuiPanel::InitControl(CSWGuiControl* controlToInit, CExoString* label, int activate) {

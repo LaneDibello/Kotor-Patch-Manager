@@ -5,6 +5,7 @@
 #include "ModOptionIni.h"
 #include "ModOptionsConfig.h"
 
+#include "GameAPI/CClientExoApp.h"
 #include "GameAPI/CExoArrayList.h"
 #include "GameAPI/CExoString.h"
 #include "GameAPI/CResRef.h"
@@ -51,7 +52,7 @@ public:
 	void setEditFocus(void* control) {
 		debugLog("[ModOptions] Selected Edit Box");
 		CSWGuiEditBox editBox(control);
-		SetActiveControl(&editBox, 0);
+		optionsListBox.SetActiveControl(&editBox, 1);
 		editBox.SetFocus();
 	}
 
@@ -341,14 +342,33 @@ private:
 	}
 
 	void _HandleInputEvent(int event, int doPanelEvents) {
+		CClientExoApp client;
+		void* editBoxVtable = GameVersion::GetClassVtable("CSWGuiEditbox");
 		if (doPanelEvents && guiManager) {
 			switch (event) {
 			case CSWGuiControl::BButton:
+			{
 				guiManager->PlayGuiSound(0);
 				guiManager->PopModalPanel();
 				// TODO: properly label these bit flags
 				SetBitFlags((GetBitFlags() & ~0x300) | 0x400);
 				break;
+			}
+			case CSWGuiControl::AButton:
+			{
+				CSWGuiControl* hitCheck = this->HitCheckMouse(client.GetMouseX(), client.GetMouseY());
+				if (hitCheck) // If this was a button click, ignore it
+					break;
+				std::vector<CSWGuiControl*> controls(this->GetControls()->ToVector());
+				for (CSWGuiControl* control : controls) {
+					// Check the vtable to see if it's an edit box
+					if (getObjectProperty<void*>(control->GetPtr(), 0) != editBoxVtable)
+						continue;
+					CSWGuiEditBox editBox(control);
+					editBox.HandleFocusChange(0);
+				}
+				break;
+			}
 			default:
 				break;
 			}

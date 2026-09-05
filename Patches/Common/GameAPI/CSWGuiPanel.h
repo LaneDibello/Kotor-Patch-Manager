@@ -80,7 +80,9 @@ public:
     void GetExtentAccountingForPanelOffset(CSWGuiExtent* outExtent);
     void GetFullScreenBG(CExoString* outBGString);
     void GetLocalMouseCoords(int* outX, int* outY);
-    bool HitCheckMouse(int mouseX, int mouseY);
+    // Returns the control under the cursor, or nullptr. Wrapper is heap allocated;
+    // caller owns it.
+    CSWGuiControl* HitCheckMouse(int mouseX, int mouseY);
     void InitControl(CSWGuiControl* controlToInit, CExoString* label, int activate);
     void ResetFont();
     void SetActiveControl(CSWGuiControl* controlToActivate, int playSound);
@@ -125,7 +127,7 @@ protected:
     typedef void  (__thiscall* GetExtentAccountingForPanelOffsetFn)(void* thisPtr, CSWGuiExtent* outExtent);
     typedef void  (__thiscall* GetFullScreenBGFn)(void* thisPtr, void* outBGString);
     typedef void  (__thiscall* GetLocalMouseCoordsFn)(void* thisPtr, int* outX, int* outY);
-    typedef bool  (__thiscall* HitCheckMouseFn)(void* thisPtr, int mouseX, int mouseY);
+    typedef void* (__thiscall* HitCheckMouseFn)(void* thisPtr, int mouseX, int mouseY);
     typedef void  (__thiscall* InitControlFn)(void* thisPtr, void* controlToInit, void* label, int activate);
     typedef void  (__thiscall* ResetFontFn)(void* thisPtr);
     typedef void  (__thiscall* SetActiveControlFn)(void* thisPtr, void* controlToActivate, int playSound);

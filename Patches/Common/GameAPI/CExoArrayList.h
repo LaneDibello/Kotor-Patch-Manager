@@ -3,6 +3,7 @@
 #include "GameAPIObject.h"
 #include <cstring>
 #include <type_traits>
+#include <vector>
 
 /// <summary>
 /// Templated wrapper for KotOR's CExoArrayList<T> class.
@@ -143,6 +144,17 @@ public:
     /// element's bytes reinterpreted as a pointer (rarely useful for PODs).
     /// </summary>
     void* GetRaw(int index) const;
+
+    /// <summary>
+    /// Copies the list into a std::vector. The vector is a snapshot: changing it
+    /// does not affect the CExoArrayList, and vice versa.
+    ///
+    /// For wrapper-pointer lists (e.g. CExoArrayList&lt;CSWGuiControl*&gt;) each
+    /// element is a freshly heap-allocated non-owning wrapper around the stored
+    /// raw game pointer, so the caller owns and must delete them. Prefer ForEach
+    /// when you only need to read the list.
+    /// </summary>
+    std::vector<T> ToVector() const;
 
     /// <summary>
     /// Invokes fn for each element in order. For wrapper-pointer lists
@@ -573,6 +585,30 @@ void* CExoArrayList<T>::GetRaw(int index) const {
         // Value element: return the address of the inline slot.
         return &data[index];
     }
+}
+
+template<typename T>
+std::vector<T> CExoArrayList<T>::ToVector() const {
+    std::vector<T> result;
+
+    T* data = GetData();
+    int size = GetSize();
+    if (!data || size <= 0) {
+        return result;
+    }
+
+    result.reserve(size);
+    for (int i = 0; i < size; i++) {
+        if constexpr (kIsWrapperPtr) {
+            // Stored value is a raw game pointer; hand back a wrapper for it.
+            result.push_back(new typename std::remove_pointer<T>::type(
+                reinterpret_cast<void*>(data[i])));
+        } else {
+            result.push_back(data[i]);
+        }
+    }
+
+    return result;
 }
 
 template<typename T>

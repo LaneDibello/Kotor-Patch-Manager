@@ -8,6 +8,8 @@
 #include "CGameObject.h"
 #include "CGuiInGame.h"
 #include "CWorldTimer.h"
+#include "CGameObjectArray.h"
+#include "CSWGuiManager.h"
 
 CClientExoApp::GetClientOptionsFn CClientExoApp::getClientOptions = nullptr;
 
@@ -76,6 +78,19 @@ CClientExoApp::StopCreditSequenceFn CClientExoApp::stopCreditSequence = nullptr;
 
 CClientExoApp::GetClientLanguageFn CClientExoApp::getClientLanguage = nullptr;
 CClientExoApp::GetWorldTimerFn CClientExoApp::getWorldTimer = nullptr;
+
+int CClientExoApp::offsetInternal = -1;
+
+int CClientExoApp::offsetDebugMode = -1;
+int CClientExoApp::offsetSelectedTexturePack = -1;
+int CClientExoApp::offsetInputDisabled = -1;
+int CClientExoApp::offsetMouseX = -1;
+int CClientExoApp::offsetMouseY = -1;
+int CClientExoApp::offsetGameObjectArray = -1;
+int CClientExoApp::offsetAnimationTimer = -1;
+int CClientExoApp::offsetGuiManager = -1;
+int CClientExoApp::offsetCachedCreature = -1;
+int CClientExoApp::offsetRunScript = -1;
 
 bool CClientExoApp::functionsInitialized = false;
 bool CClientExoApp::offsetsInitialized = false;
@@ -222,8 +237,44 @@ void CClientExoApp::InitializeFunctions() {
 }
 
 void CClientExoApp::InitializeOffsets() {
-    // CClientExoApp has no offsets
-    offsetsInitialized = true;
+    if (offsetsInitialized) {
+        return;
+    }
+
+    if (!GameVersion::IsInitialized()) {
+        OutputDebugStringA("[CClientExoApp] ERROR: GameVersion not initialized\n");
+        return;
+    }
+
+    // K1 only: the K2 databases carry no CClientExoApp offsets, so these lookups
+    // throw there and every accessor falls back to its safe default.
+    try {
+        offsetInternal = GameVersion::GetOffset("CClientExoApp", "internal");
+
+        offsetDebugMode           = GameVersion::GetOffset("CClientExoAppInternal", "debug_mode");
+        offsetSelectedTexturePack = GameVersion::GetOffset("CClientExoAppInternal", "selected_texture_pack");
+        offsetInputDisabled       = GameVersion::GetOffset("CClientExoAppInternal", "input_disabled");
+        offsetMouseX              = GameVersion::GetOffset("CClientExoAppInternal", "mouse_x");
+        offsetMouseY              = GameVersion::GetOffset("CClientExoAppInternal", "mouse_y");
+        offsetGameObjectArray     = GameVersion::GetOffset("CClientExoAppInternal", "game_obj_array");
+        offsetAnimationTimer      = GameVersion::GetOffset("CClientExoAppInternal", "animation_timer");
+        offsetGuiManager          = GameVersion::GetOffset("CClientExoAppInternal", "gui_manager");
+        offsetCachedCreature      = GameVersion::GetOffset("CClientExoAppInternal", "cached_creature");
+        offsetRunScript           = GameVersion::GetOffset("CClientExoAppInternal", "run_script");
+
+        offsetsInitialized = true;
+    }
+    catch (const GameVersionException& e) {
+        debugLog("[CClientExoApp] ERROR: %s\n", e.what());
+    }
+}
+
+void* CClientExoApp::GetInternal() const {
+    if (!objectPtr || offsetInternal < 0) {
+        return nullptr;
+    }
+
+    return getObjectProperty<void*>(objectPtr, offsetInternal);
 }
 
 CClientExoApp* CClientExoApp::GetInstance() {
@@ -237,6 +288,27 @@ CClientExoApp* CClientExoApp::GetInstance() {
     delete appManager;  // Clean up the temporary CAppManager instance
 
     return client;
+}
+
+CClientExoApp::CClientExoApp()
+    : GameAPIObject(nullptr, false)  // false = don't free (singleton)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    // The client has no global pointer of its own; it hangs off the app manager
+    // (APP_MANAGER_PTR -> CAppManager::Client).
+    CClientExoApp* client = GetInstance();
+    if (client) {
+        objectPtr = client->GetPtr();
+        delete client;  // Clean up the temporary wrapper; we don't own the singleton
+    } else {
+        OutputDebugStringA("[CClientExoApp] ERROR: Failed to resolve global client\n");
+    }
 }
 
 CClientExoApp::CClientExoApp(void* clientPtr)
@@ -711,4 +783,152 @@ CWorldTimer* CClientExoApp::GetWorldTimer() {
     }
 
     return new CWorldTimer(worldTimerPtr);
+}
+
+// ===== Internal state =====
+
+int CClientExoApp::GetDebugMode() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetDebugMode < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(internalPtr, offsetDebugMode);
+}
+
+void CClientExoApp::SetDebugMode(int debugMode) {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetDebugMode < 0) {
+        return;
+    }
+    setObjectProperty<int>(internalPtr, offsetDebugMode, debugMode);
+}
+
+BYTE CClientExoApp::GetSelectedTexturePack() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetSelectedTexturePack < 0) {
+        return 0;
+    }
+    return getObjectProperty<BYTE>(internalPtr, offsetSelectedTexturePack);
+}
+
+void CClientExoApp::SetSelectedTexturePack(BYTE pack) {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetSelectedTexturePack < 0) {
+        return;
+    }
+    setObjectProperty<BYTE>(internalPtr, offsetSelectedTexturePack, pack);
+}
+
+int CClientExoApp::GetInputDisabled() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetInputDisabled < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(internalPtr, offsetInputDisabled);
+}
+
+void CClientExoApp::SetInputDisabled(int disabled) {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetInputDisabled < 0) {
+        return;
+    }
+    setObjectProperty<int>(internalPtr, offsetInputDisabled, disabled);
+}
+
+int CClientExoApp::GetMouseX() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetMouseX < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(internalPtr, offsetMouseX);
+}
+
+void CClientExoApp::SetMouseX(int x) {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetMouseX < 0) {
+        return;
+    }
+    setObjectProperty<int>(internalPtr, offsetMouseX, x);
+}
+
+int CClientExoApp::GetMouseY() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetMouseY < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(internalPtr, offsetMouseY);
+}
+
+void CClientExoApp::SetMouseY(int y) {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetMouseY < 0) {
+        return;
+    }
+    setObjectProperty<int>(internalPtr, offsetMouseY, y);
+}
+
+CGameObjectArray* CClientExoApp::GetGameObjectArray() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetGameObjectArray < 0) {
+        return nullptr;
+    }
+
+    void* arrayPtr = getObjectProperty<void*>(internalPtr, offsetGameObjectArray);
+    if (!arrayPtr) {
+        return nullptr;
+    }
+
+    return new CGameObjectArray(arrayPtr);
+}
+
+CWorldTimer* CClientExoApp::GetAnimationTimer() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetAnimationTimer < 0) {
+        return nullptr;
+    }
+
+    void* timerPtr = getObjectProperty<void*>(internalPtr, offsetAnimationTimer);
+    if (!timerPtr) {
+        return nullptr;
+    }
+
+    return new CWorldTimer(timerPtr);
+}
+
+CSWGuiManager* CClientExoApp::GetGuiManager() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetGuiManager < 0) {
+        return nullptr;
+    }
+
+    void* managerPtr = getObjectProperty<void*>(internalPtr, offsetGuiManager);
+    if (!managerPtr) {
+        return nullptr;
+    }
+
+    return new CSWGuiManager(managerPtr);
+}
+
+CSWCCreature* CClientExoApp::GetCachedCreature() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetCachedCreature < 0) {
+        return nullptr;
+    }
+
+    void* creaturePtr = getObjectProperty<void*>(internalPtr, offsetCachedCreature);
+    if (!creaturePtr) {
+        return nullptr;
+    }
+
+    return new CSWCCreature(creaturePtr);
+}
+
+CExoString* CClientExoApp::GetRunScript() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetRunScript < 0) {
+        return nullptr;
+    }
+
+    // Inline CExoString member: wrap its in-place address.
+    return new CExoString((char*)internalPtr + offsetRunScript);
 }

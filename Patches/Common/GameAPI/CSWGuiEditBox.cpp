@@ -8,6 +8,7 @@
 
 // Note: DB uses class key "CSWGuiEditbox" (lowercase b) for lookups.
 CSWGuiEditBox::GetIsSelectableFn CSWGuiEditBox::getIsSelectable = nullptr;
+CSWGuiEditBox::HandleFocusChangeFn CSWGuiEditBox::handleFocusChange = nullptr;
 CSWGuiEditBox::InitializeFn      CSWGuiEditBox::initialize      = nullptr;
 CSWGuiEditBox::ReSetFontFn       CSWGuiEditBox::reSetFont       = nullptr;
 CSWGuiEditBox::SetEnabledFn      CSWGuiEditBox::setEnabled      = nullptr;
@@ -37,6 +38,7 @@ void CSWGuiEditBox::InitializeFunctions() {
 
     try {
         getIsSelectable = reinterpret_cast<GetIsSelectableFn>(GameVersion::GetFunctionAddress("CSWGuiEditbox", "GetIsSelectable"));
+        handleFocusChange = reinterpret_cast<HandleFocusChangeFn>(GameVersion::GetFunctionAddress("CSWGuiEditbox", "HandleFocusChange"));
         reSetFont       = reinterpret_cast<ReSetFontFn>      (GameVersion::GetFunctionAddress("CSWGuiEditbox", "ReSetFont"));
         initialize      = reinterpret_cast<InitializeFn>      (GameVersion::GetFunctionAddress("CSWGuiEditbox", "Initialize"));
         setEnabled      = reinterpret_cast<SetEnabledFn>     (GameVersion::GetFunctionAddress("CSWGuiEditbox", "SetEnabled"));
@@ -138,6 +140,11 @@ CSWGuiEditText* CSWGuiEditBox::GetEditText() {
 bool CSWGuiEditBox::GetIsSelectable() {
     if (!objectPtr || !getIsSelectable) return false;
     return getIsSelectable(objectPtr);
+}
+
+void CSWGuiEditBox::HandleFocusChange(int hasFocus) {
+    if (!objectPtr || !handleFocusChange) return;
+    handleFocusChange(objectPtr, hasFocus);
 }
 
 void CSWGuiEditBox::Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
