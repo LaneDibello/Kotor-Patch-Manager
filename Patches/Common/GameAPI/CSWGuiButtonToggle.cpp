@@ -19,7 +19,7 @@ int CSWGuiButtonToggle::offsetBitFlags = -1;
 int CSWGuiButtonToggle::offsetSelected = -1;
 int CSWGuiButtonToggle::offsetHilightSelected = -1;
 
-DWORD CSWGuiButtonToggle::vtableOptionsCheckbox = -1;
+void * CSWGuiButtonToggle::vtableOptionsCheckbox = nullptr;
 
 void CSWGuiButtonToggle::InitializeFunctions() {
     if (functionsInitialized) {
@@ -179,5 +179,5 @@ void CSWGuiButtonToggle::Initialize(CSWGuiExtent* extent, CSWGuiTextParams* text
 
 void CSWGuiButtonToggle::SetOptionsCheckbox() {
     if (!objectPtr || !vtableOptionsCheckbox) return;
-    setObjectProperty<DWORD>(objectPtr, 0, vtableOptionsCheckbox);
+    setObjectProperty<void *>(objectPtr, 0, vtableOptionsCheckbox);
 }

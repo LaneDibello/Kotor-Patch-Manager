@@ -63,5 +63,5 @@ protected:
     static int offsetSelected;
     static int offsetHilightSelected;
 
-    static DWORD vtableOptionsCheckbox;
+    static void* vtableOptionsCheckbox;
 };

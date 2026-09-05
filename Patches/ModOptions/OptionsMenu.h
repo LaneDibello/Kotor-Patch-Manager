@@ -230,16 +230,22 @@ private:
 			return;
 		}
 
-		CSWGuiButton proto(protoItem->GetPtr());
+		// Will return this to generic CSWGuiButton later
+		// Right now I'm testing intertpretting the prototype as a toggle
+		CSWGuiButtonToggle proto(protoItem->GetPtr());
 		delete protoItem;
 
 		// Caller-owned wrappers, and the same for every option, so hoisted out.
 		CSWGuiText* protoText = proto.GetText();
 		CSWGuiBorder* protoBorder = proto.GetBorder();
 		CSWGuiBorder* protoHilight = proto.GetHilight();
+		CSWGuiBorder* protoSelectedBorder = proto.GetSelectedBorder();
+		CSWGuiBorder* protoHilightSelected = proto.GetHilightSelectedBorder();
 		CSWGuiTextParams* textParams = protoText ? protoText->GetTextParams() : nullptr;
 		CSWGuiBorderParams* borderParams = protoBorder ? protoBorder->GetBorderParams() : nullptr;
 		CSWGuiBorderParams* hilightParams = protoHilight ? protoHilight->GetBorderParams() : nullptr;
+		CSWGuiBorderParams* selectedParams = protoSelectedBorder ? protoSelectedBorder->GetBorderParams() : nullptr;
+		CSWGuiBorderParams* hilightSelectedParams = protoHilightSelected ? protoHilightSelected->GetBorderParams() : nullptr;
 
 		CSWGuiExtent optionExtent;
 		optionExtent.top = 0;
@@ -260,7 +266,7 @@ private:
 
 				toggle->Initialize(&optionExtent, textParams,
 					borderParams, hilightParams,
-					borderParams, hilightParams);
+					selectedParams, hilightSelectedParams);
 				toggle->SetToggleEvent((CSWGuiControl::GuiEvent)-1);
 				toggle->SetSelected((value == "1") ? 1 : 0);
 				SetControlText(toggle, options[i].name);
