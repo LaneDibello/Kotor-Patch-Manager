@@ -48,6 +48,13 @@ public:
 		_HandleInputEvent(CSWGuiControl::BButton, 1);
 	}
 
+	void setEditFocus(void* control) {
+		debugLog("[ModOptions] Selected Edit Box");
+		CSWGuiEditBox editBox(control);
+		SetActiveControl(&editBox, 0);
+		editBox.SetFocus();
+	}
+
 	void onDefault(void* control) {
 		debugLog("[ModOptions] Default Button Pressed");
 
@@ -94,9 +101,7 @@ public:
 			// TODO
 			return;
 		case ModOptionType::Text:
-			// TODO
 			CSWGuiEditBox editBox(control);
-			editBox.SetFocus();
 			CExoString* newValue = editBox.GetEditText()->GetString();
 			value = newValue->GetCStr();
 			return;
@@ -236,7 +241,7 @@ private:
 			return;
 		}
 
-		// Will likely make this more generic in teh future...
+		// Will likely make this more generic in the future...
 		CSWGuiButtonToggle proto(protoItem->GetPtr());
 		delete protoItem;
 
@@ -295,15 +300,18 @@ private:
 			case ModOptionType::Text:
 				CSWGuiEditBox* editBox = new CSWGuiEditBox();
 
-				CResRef empty("");
-				borderParams->SetFillImage(&empty, 1);
+				CResRef corner("border2");
+				CResRef edge("border1");
+				CResRef fill("dialog3");
+				borderParams->SetCornerImage(&corner, 1);
+				borderParams->SetEdgeImage(&edge, 1);
+				borderParams->SetFillImage(&fill, 1);
 				editBox->Initialize(&optionExtent, textParams, borderParams);
-				editBox->GetEditText()->SetCaretVisible(1);
 				CExoString textValue(const_cast<char*>(value.c_str()));
 				editBox->GetEditText()->SetText(&textValue);
 
 				editBox->AddEvent(CSWGuiControl::AButton, this,
-					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
+					memberThunkAddr<OptionsMenu, &OptionsMenu::setEditFocus>());
 				editBox->AddEvent(CSWGuiControl::HoverEnter, this,
 					memberThunkAddr<OptionsMenu, &OptionsMenu::SetDescription>());
 
