@@ -171,9 +171,11 @@ public static class PathHelpers
         {
             return Directory.GetDirectories(directory, "*.app");
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // An unreadable directory is not a KOTOR install as far as this is concerned.
+            // A directory we cannot read is not a KOTOR install as far as this is concerned.
+            // Narrower than catching everything, so a malformed path still surfaces as the bug
+            // it is rather than looking like an empty folder.
             return Array.Empty<string>();
         }
     }
