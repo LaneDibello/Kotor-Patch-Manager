@@ -66,6 +66,7 @@ public class MainViewModel : ViewModelBase
 
         // Create simple commands
         BrowseGameCommand = new SimpleCommand(async () => await BrowseGame());
+        BrowseGameFolderCommand = new SimpleCommand(async () => await BrowseGameFolder());
         BrowsePatchesCommand = new SimpleCommand(async () => await BrowsePatches());
         RefreshCommand = new SimpleCommand(async () => await Refresh());
         MoveUpCommand = new SimpleCommand(() => MoveUp());
@@ -354,6 +355,7 @@ public class MainViewModel : ViewModelBase
         : $"{PendingChangesCount} patch{(PendingChangesCount == 1 ? "" : "es")} pending";
 
     public ICommand BrowseGameCommand { get; }
+    public ICommand BrowseGameFolderCommand { get; }
     public ICommand BrowsePatchesCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand MoveUpCommand { get; }
@@ -364,6 +366,11 @@ public class MainViewModel : ViewModelBase
 
     private bool IsInstalled(string patchId) => _installedPatchIds.Contains(patchId);
 
+    /// <summary>
+    /// Picks the game executable directly. The macOS games are inside an .app, which no file
+    /// dialog can return, so <see cref="BrowseGameFolder"/> is the way to reach those; this still
+    /// finds the binary within one, and a Wine install's swkotor.exe, on any host.
+    /// </summary>
     private async Task BrowseGame()
     {
         try
@@ -375,14 +382,31 @@ public class MainViewModel : ViewModelBase
                 return;
             }
 
-            var picked = OperatingSystem.IsMacOS()
-                ? await PickGameBundleAsync(window)
-                : await PickGameFileAsync(window);
-
-            if (picked != null)
+            var result = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                // The setter resolves a bundle or a folder to the executable inside it.
-                GamePath = picked;
+                Title = "Select Game Executable",
+                AllowMultiple = false,
+                SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory()),
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("Game Executables")
+                    {
+                        // swkotor.exe / swkotor2.exe on Windows and under Wine or Proton; the
+                        // native Linux KOTOR II build is an extensionless "KOTOR2" ELF; the last
+                        // two are the binaries inside the macOS bundles, reachable from any host
+                        // since a Windows or Linux machine can patch a macOS install.
+                        Patterns = new[] { "*.exe", "KOTOR2", "KOTOR_Exe", "KOTOR2sub" }
+                    },
+                    new FilePickerFileType("All Files")
+                    {
+                        Patterns = new[] { "*" }
+                    }
+                }
+            });
+
+            if (result.Count > 0)
+            {
+                GamePath = result[0].Path.LocalPath;
                 StatusMessage = $"Selected game: {Path.GetFileName(GamePath)}";
             }
         }
@@ -393,51 +417,42 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// The macOS games live inside an .app, which is a directory, and Avalonia's file picker
-    /// cannot return one: it turns every directory it is given into an IStorageFolder and then
-    /// drops it from the file results, so a bundle can be clicked and nothing comes back
-    /// (AvaloniaUI/Avalonia#18303). Asking for a folder returns it. Everything a Mac can hold
-    /// is reachable this way, since a Wine install is a folder with swkotor.exe in it and the
-    /// path is resolved to the executable afterwards.
+    /// Picks the install rather than the executable, and lets the path setter find the binary.
+    /// This is the only way to choose a macOS game: it lives inside an .app, which is a directory,
+    /// and Avalonia's file picker turns every directory into an IStorageFolder and then drops it
+    /// from the file results, so the bundle can be clicked and nothing comes back
+    /// (AvaloniaUI/Avalonia#18303). It is offered everywhere because pointing at an install is
+    /// the same gesture whatever the host, and it reaches a Wine folder just as well.
     /// </summary>
-    private async Task<string?> PickGameBundleAsync(Window window)
+    private async Task BrowseGameFolder()
     {
-        var result = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        try
         {
-            Title = "Select Game (.app bundle or the folder holding it)",
-            AllowMultiple = false,
-            SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory())
-        });
-
-        return result.Count > 0 ? result[0].Path.LocalPath : null;
-    }
-
-    private async Task<string?> PickGameFileAsync(Window window)
-    {
-        var result = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Select Game Executable",
-            AllowMultiple = false,
-            SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory()),
-            FileTypeFilter = new[]
+            var window = GetMainWindow();
+            if (window == null)
             {
-                new FilePickerFileType("Game Executables")
-                {
-                    // swkotor.exe / swkotor2.exe on Windows and under Wine or Proton; the native
-                    // Linux KOTOR II build is an extensionless "KOTOR2" ELF. The last two are the
-                    // binaries inside the macOS bundles, listed because a Windows or Linux host
-                    // can patch a macOS install and cannot select the .app itself: only macOS
-                    // offers a directory as something to choose.
-                    Patterns = new[] { "*.exe", "KOTOR2", "KOTOR_Exe", "KOTOR2sub" }
-                },
-                new FilePickerFileType("All Files")
-                {
-                    Patterns = new[] { "*" }
-                }
+                StatusMessage = "Error: Could not access window";
+                return;
             }
-        });
 
-        return result.Count > 0 ? result[0].Path.LocalPath : null;
+            var result = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Select Game Folder (or a macOS .app bundle)",
+                AllowMultiple = false,
+                SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory())
+            });
+
+            if (result.Count > 0)
+            {
+                // The setter resolves a bundle or an install folder to the executable inside it.
+                GamePath = result[0].Path.LocalPath;
+                StatusMessage = $"Selected game: {Path.GetFileName(GamePath)}";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error browsing: {ex.Message}";
+        }
     }
 
     private async Task BrowsePatches()
