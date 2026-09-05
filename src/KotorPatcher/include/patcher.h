@@ -41,7 +41,7 @@ namespace KotorPatcher {
         // Basic patch information
         std::string dllPath;           // Path to patch DLL (not used for SIMPLE)
         std::string functionName;      // Exported function name in DLL (not used for SIMPLE)
-        uint32_t hookAddress;          // Address in game code to hook
+        uintptr_t hookAddress;         // Address in game code to hook
         std::vector<uint8_t> originalBytes;  // Original bytes (for verification and execution)
                                            // DETOUR: Must be >= 5 bytes, executed in wrapper
                                            // SIMPLE: Any length, verified before replacement
@@ -73,7 +73,7 @@ namespace KotorPatcher {
         // a non-zero int. Lets a hook selectively consume engine events.
         // Caller must include "eax" in excludeFromRestore so the handler's
         // return value survives the wrapper. Default 0 = feature disabled.
-        uint32_t consumedExitAddress = 0;
+        uintptr_t consumedExitAddress = 0;
 
         // Original function pointer (future: for detour trampolines)
         void* originalFunction = nullptr;

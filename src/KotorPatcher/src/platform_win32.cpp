@@ -6,6 +6,7 @@
 #include <string>
 
 #include "platform.h"
+#include "stub_placement.h"
 
 namespace KotorPatcher {
 namespace Platform {
@@ -14,8 +15,34 @@ namespace Platform {
         OutputDebugStringA(message);
     }
 
-    void* AllocExec(std::size_t size) {
-        return VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    void* AllocExec(std::size_t size, std::uintptr_t nearAddress) {
+        if (StubPlacement::kEveryAddressReaches || nearAddress == 0) {
+            return VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        }
+
+        for (std::size_t attempt = 0; attempt < StubPlacement::kSearchAttempts; ++attempt) {
+            std::uintptr_t hint = 0;
+            if (!StubPlacement::NextCandidate(nearAddress, attempt, hint)) break;
+
+            // Unlike mmap, VirtualAlloc honours the base address or fails, so a
+            // conflict just means trying the next candidate. It rounds the base down
+            // to the allocation granularity, which stays inside the window.
+            void* mem = VirtualAlloc(reinterpret_cast<void*>(hint), size,
+                                     MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            if (mem) return mem;
+        }
+
+        Log("[KotorPatcher] No free memory within a relative jump of the game\n");
+        return nullptr;
+    }
+
+    bool ProtectExec(void* addr, std::size_t size) {
+        DWORD oldProtect = 0;
+        if (!VirtualProtect(addr, size, PAGE_EXECUTE_READ, &oldProtect)) {
+            return false;
+        }
+        FlushInstructionCache(GetCurrentProcess(), addr, size);
+        return true;
     }
 
     void FreeExec(void* addr, std::size_t /*size*/) {

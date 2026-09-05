@@ -17,7 +17,7 @@ namespace KotorPatcher {
         struct WrapperConfig {
 
             void* patchFunction;
-            uint32_t hookAddress;
+            uintptr_t hookAddress;
 
             // Original bytes that were overwritten by the hook (for DETOUR type)
             // These will be executed in the wrapper before returning to original code
@@ -52,7 +52,7 @@ namespace KotorPatcher {
             // falls through to the existing original-bytes / skipOriginalBytes
             // path. Caller must add "eax" to excludeFromRestore so the
             // handler's return value reaches the test. Default 0 = disabled.
-            uint32_t consumedExitAddress = 0;
+            uintptr_t consumedExitAddress = 0;
 
             // Original function pointer (future use)
             void* originalFunction = nullptr;
