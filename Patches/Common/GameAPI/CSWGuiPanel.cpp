@@ -36,6 +36,7 @@ int CSWGuiPanel::offsetControls = -1;
 int CSWGuiPanel::offsetAlpha = -1;
 int CSWGuiPanel::offsetColor = -1;
 int CSWGuiPanel::offsetBorder = -1;
+int CSWGuiPanel::offsetBitFlags = -1;
 int CSWGuiPanel::classSize = -1;
 
 void CSWGuiPanel::InitializeFunctions() {
@@ -98,6 +99,7 @@ void CSWGuiPanel::InitializeOffsets() {
         offsetAlpha         = GameVersion::GetOffset("CSWGuiPanel", "alpha");
         offsetColor         = GameVersion::GetOffset("CSWGuiPanel", "color");
         offsetBorder        = GameVersion::GetOffset("CSWGuiPanel", "border");
+        offsetBitFlags      = GameVersion::GetOffset("CSWGuiPanel", "bit_flags");
         classSize           = GameVersion::GetClassSize("CSWGuiPanel");
 
         offsetsInitialized = true;
@@ -361,6 +363,41 @@ CSWGuiBorder* CSWGuiPanel::GetBorder() {
         return nullptr;
     }
     return new CSWGuiBorder(borderPtr);
+}
+
+int CSWGuiPanel::GetBitFlags() {
+    if (!objectPtr || offsetBitFlags < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetBitFlags);
+}
+
+void CSWGuiPanel::SetBitFlags(int bitFlags) {
+    if (!objectPtr || offsetBitFlags < 0) {
+        return;
+    }
+    setObjectProperty<int>(objectPtr, offsetBitFlags, bitFlags);
+}
+
+bool CSWGuiPanel::GetBitFlag(int bitIndex) {
+    if (bitIndex < 0 || bitIndex > 31) {
+        return false;
+    }
+    return (GetBitFlags() & (1 << bitIndex)) != 0;
+}
+
+void CSWGuiPanel::SetBitFlag(int bitIndex, bool value) {
+    if (!objectPtr || offsetBitFlags < 0 || bitIndex < 0 || bitIndex > 31) {
+        return;
+    }
+    int flags = GetBitFlags();
+    if (value) {
+        flags |= (1 << bitIndex);
+    }
+    else {
+        flags &= ~(1 << bitIndex);
+    }
+    SetBitFlags(flags);
 }
 
 void CSWGuiPanel::AddControl(CSWGuiControl* control) {

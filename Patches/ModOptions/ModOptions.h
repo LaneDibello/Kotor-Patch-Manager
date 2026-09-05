@@ -56,6 +56,7 @@ public:
 		populateOptionsListBox();
 	}
 	void onBack(void* control) {
+		debugLog("[ModOptions] Back Button Pressed");
 		_HandleInputEvent(CSWGuiControl::BButton, 1);
 	}
 
@@ -69,6 +70,7 @@ public:
 		backButton(),
 		refreshButton()
 	{
+
 		ThunkRegistry::Register(this);
 
 		CResRef guiResref("modoptions");
@@ -219,11 +221,23 @@ private:
 	}
 
 	void _HandleInputEvent(int event, int doPanelEvents) {
+		DWORD eip;
+		_asm {
+			call get_eip
+			get_eip :
+			pop eax
+				mov eip, eax
+		};
+		debugLog("[ModOptions] _HandleInputEvent at %X", eip);
+		debugLog("[ModOptions] _HandleInputEvent called with (%i,%i)", event, doPanelEvents);
+		debugLog("[ModOptions] _HandleInputEvent guiManager at %X", guiManager->GetPtr());
 		if (doPanelEvents && guiManager) {
 			switch (event) {
 			case CSWGuiControl::BButton:
 				guiManager->PlayGuiSound(0);
 				guiManager->PopModalPanel();
+				// TODO: properly label these bit flags
+				SetBitFlags((GetBitFlags() & ~0x300) | 0x400);
 				break;
 			default:
 				break;
