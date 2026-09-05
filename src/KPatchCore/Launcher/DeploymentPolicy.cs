@@ -153,6 +153,18 @@ public static class DeploymentPolicy
         PatcherModuleFileName(gameVersion?.Platform ?? Platform.Windows);
 
     /// <summary>
+    /// Every patcher module a game can name in its own dependency list. Uninstall works from a
+    /// game folder without knowing which platform installed it, so it asks for all of them rather
+    /// than guessing. The set follows the same rule <see cref="ForGame"/> uses: a Windows build
+    /// goes through the host default, everything else links the module directly.
+    /// </summary>
+    public static IReadOnlyList<string> LinkedModuleFileNames { get; } =
+        Enum.GetValues<Platform>()
+            .Where(p => p != Platform.Windows)
+            .Select(PatcherModuleFileName)
+            .ToArray();
+
+    /// <summary>
     /// The library <see cref="DeploymentMethod.LibraryProxy"/> stands in for. KOTOR 1 and 2 both
     /// import binkw32.dll and Wine has no builtin, so the game's own loader picks up whatever sits
     /// under that name in the game directory.

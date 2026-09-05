@@ -1,4 +1,5 @@
 using KPatchCore.Common;
+using KPatchCore.Launcher;
 using KPatchCore.Managers;
 using KPatchCore.Models;
 using Tomlyn;
@@ -188,9 +189,8 @@ public static class PatchRemover
             // restore succeeded (a failed restore returns above), so this holds whenever a backup was
             // found. With no backup we keep the module: the game still launches, and it is inert
             // without patch_config.toml.
-            var linkedModules = new[] { "KotorPatcher.so", "KotorPatcher.dylib" };
             var exeRestored = backupResult.Success && backupResult.Data != null;
-            foreach (var module in linkedModules)
+            foreach (var module in DeploymentPolicy.LinkedModuleFileNames)
             {
                 if (exeRestored)
                 {
