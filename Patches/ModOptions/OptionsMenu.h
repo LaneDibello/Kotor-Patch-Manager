@@ -12,6 +12,8 @@
 #include "GameAPI/CSWGuiBorderParams.h"
 #include "GameAPI/CSWGuiButton.h"
 #include "GameAPI/CSWGuiButtonToggle.h"
+#include "GameAPI/CSWGuiEditBox.h"
+#include "GameAPI/CSWGuiEditText.h"
 #include "GameAPI/CSWGuiExtent.h"
 #include "GameAPI/CSWGuiLabel.h"
 #include "GameAPI/CSWGuiListBox.h"
@@ -93,6 +95,10 @@ public:
 			return;
 		case ModOptionType::Text:
 			// TODO
+			CSWGuiEditBox editBox(control);
+			editBox.SetFocus();
+			CExoString* newValue = editBox.GetEditText()->GetString();
+			value = newValue->GetCStr();
 			return;
 		}
 
@@ -230,8 +236,7 @@ private:
 			return;
 		}
 
-		// Will return this to generic CSWGuiButton later
-		// Right now I'm testing intertpretting the prototype as a toggle
+		// Will likely make this more generic in teh future...
 		CSWGuiButtonToggle proto(protoItem->GetPtr());
 		delete protoItem;
 
@@ -288,7 +293,23 @@ private:
 				// TODO
 				break;
 			case ModOptionType::Text:
-				// TODO
+				CSWGuiEditBox* editBox = new CSWGuiEditBox();
+
+				CResRef empty("");
+				borderParams->SetFillImage(&empty, 1);
+				editBox->Initialize(&optionExtent, textParams, borderParams);
+				editBox->GetEditText()->SetCaretVisible(1);
+				CExoString textValue(const_cast<char*>(value.c_str()));
+				editBox->GetEditText()->SetText(&textValue);
+
+				editBox->AddEvent(CSWGuiControl::AButton, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
+				editBox->AddEvent(CSWGuiControl::HoverEnter, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::SetDescription>());
+
+				editBox->SetCustomValue(DWORD(i));
+
+				listOptions.Add(editBox);
 				break;
 			}
 		}
@@ -304,6 +325,8 @@ private:
 			debugLog("[ModOptions] `%s` produced no usable controls", config.GetName().c_str());
 			return;
 		}
+
+		debugLog("[ModOptions] `%s` produced %i options", config.GetName().c_str(), listOptions.GetSize());
 
 		optionsListBox.AddControls(&listOptions, 1, 0, 0);
 		optionsListBox.SetSelectedControl(0, 0);
