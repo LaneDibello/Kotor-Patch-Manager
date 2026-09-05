@@ -1,4 +1,5 @@
 using KPatchCore.Common;
+using KPatchCore.Launcher;
 using KPatchCore.Managers;
 using KPatchCore.Models;
 using Tomlyn;
@@ -165,7 +166,11 @@ public static class PatchRemover
             var filesToRemove = new List<string>
             {
                 "patch_config.toml",
-                "KotorPatcher.dll",
+
+                // The module the game does not name in its own dependency list is safe to remove
+                // whatever happened to the executable. The linked ones are added further down,
+                // and only once the backup has been restored.
+                DeploymentPolicy.PatcherModuleFileName(Platform.Windows),
                 "KPatchLauncher.exe",
                 "KPatchLauncher.dll",
                 "KPatchLauncher.runtimeconfig.json",
@@ -182,28 +187,32 @@ public static class PatchRemover
                 filesToRemove.Add(InstallStateManager.StateFileName);
             }
 
-            // KotorPatcher.so is a DT_NEEDED dependency of the native ELF, so it is only safe to delete once the
-            // backup restore has returned the executable to a state that no longer references it. If we get here
-            // the restore succeeded (a failed restore returns above), so this holds whenever a backup was found.
-            // With no backup we keep the module: the game still launches, and it is inert without patch_config.toml.
+            // These are named in the executable's own dependency list, DT_NEEDED on ELF and
+            // LC_LOAD_DYLIB on Mach-O, so they are only safe to delete once the backup restore has
+            // returned the executable to a state that no longer references them. If we get here the
+            // restore succeeded (a failed restore returns above), so this holds whenever a backup was
+            // found. With no backup we keep the module: the game still launches, and it is inert
+            // without patch_config.toml.
             var exeRestored = backupResult.Success && backupResult.Data != null;
-            if (exeRestored)
+            foreach (var module in DeploymentPolicy.LinkedModuleFileNames)
             {
-                filesToRemove.Add("KotorPatcher.so");
-            }
-            else if (File.Exists(Path.Combine(gameDir, "KotorPatcher.so")))
-            {
-                messages.Add("  Kept KotorPatcher.so (executable not restored; removing it would break launch)");
+                if (exeRestored)
+                {
+                    filesToRemove.Add(module);
+                }
+                else if (File.Exists(Path.Combine(gameDir, module)))
+                {
+                    messages.Add($"  Kept {module} (executable not restored; removing it would break launch)");
+                }
             }
 
             var appDir = AppContext.BaseDirectory;
             var managerOwnedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "KotorPatcher.dll",
-                "KotorPatcher.so",
                 "KPatchLauncher.exe",
                 "sqlite3.dll"
             };
+            managerOwnedFiles.UnionWith(DeploymentPolicy.AllModuleFileNames);
 
             // Remove each file using safe delete helper
             foreach (var fileName in filesToRemove)

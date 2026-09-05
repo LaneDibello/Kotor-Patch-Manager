@@ -14,6 +14,7 @@ using Avalonia.Threading;
 using KPatchCore.Managers;
 using KPatchCore.Models;
 using KPatchCore.Applicators;
+using KPatchCore.Common;
 using KPatchCore.Detectors;
 using KPatchCore.Launcher;
 using KPatchCore.Validators;
@@ -65,6 +66,7 @@ public class MainViewModel : ViewModelBase
 
         // Create simple commands
         BrowseGameCommand = new SimpleCommand(async () => await BrowseGame());
+        BrowseGameFolderCommand = new SimpleCommand(async () => await BrowseGameFolder());
         BrowsePatchesCommand = new SimpleCommand(async () => await BrowsePatches());
         RefreshCommand = new SimpleCommand(async () => await Refresh());
         MoveUpCommand = new SimpleCommand(() => MoveUp());
@@ -147,6 +149,11 @@ public class MainViewModel : ViewModelBase
         get => _gamePath;
         set
         {
+            // A macOS install is picked as a bundle or as the folder holding one, and neither is
+            // the file to patch. Resolving here means everything downstream keeps seeing an
+            // executable path, and the box shows what will actually be touched.
+            value = PathHelpers.ResolveGameExecutable(value);
+
             if (SetProperty(ref _gamePath, value))
             {
                 _settings.GamePath = value;
@@ -196,12 +203,18 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Whether the launch-method controls apply. They matter only where the manager cannot start
-    /// the game itself and the user's choice of Steam or a custom command is what starts it.
-    /// Windows runs the executable directly whichever deployment method is in use, so they stay
-    /// hidden there rather than appearing when the proxy is switched on.
+    /// Whether the menu is drawn inside the window. macOS has a system menu bar and the window
+    /// gets one there instead, through NativeMenu.Menu; drawing both would show it twice.
     /// </summary>
-    public bool ShowLaunchSettings => !DeploymentPolicy.CanStartGameDirectly();
+    public bool ShowInWindowMenu => !OperatingSystem.IsMacOS();
+
+    /// <summary>
+    /// Whether the launch-method controls apply. They matter only for a Windows build on a host
+    /// that cannot run it, where a compatibility layer starts the game and the manager has no way
+    /// to guess which. A native build goes through Steam, and a Windows host runs the executable
+    /// directly, so in both cases there is nothing to ask.
+    /// </summary>
+    public bool ShowLaunchSettings => DeploymentPolicy.NeedsLaunchConfiguration(_detectedGameVersion);
 
     /// <summary>
     /// Whether the game is reached through the library proxy instead of injection. Only Windows
@@ -251,6 +264,8 @@ public class MainViewModel : ViewModelBase
             {
                 _settings.LaunchMethod = value ? LaunchMethod.Custom : LaunchMethod.Steam;
                 _settings.Save();
+                OnPropertyChanged(nameof(CanLaunchGame));
+                OnPropertyChanged(nameof(LaunchButtonTip));
             }
         }
     }
@@ -268,8 +283,36 @@ public class MainViewModel : ViewModelBase
             {
                 _settings.CustomLaunchCommand = value;
                 _settings.Save();
+                OnPropertyChanged(nameof(CanLaunchGame));
+                OnPropertyChanged(nameof(LaunchButtonTip));
             }
         }
+    }
+
+    /// <summary>
+    /// Whether pressing Launch can do anything. The configured method decides, not the platform:
+    /// a Windows host starts the game itself, Steam is left available because Proton makes it a
+    /// real option for a Windows build on Linux, and a custom command is only usable once one has
+    /// been typed. That last case is the only one we can be certain about, so it is the only one
+    /// that disables the button.
+    /// </summary>
+    public bool CanLaunchGame =>
+        !ShowLaunchSettings
+        || !UseCustomLaunch
+        || !string.IsNullOrWhiteSpace(CustomLaunchCommand);
+
+    /// <summary>What the Launch button says on hover, including why it is unavailable.</summary>
+    public string LaunchButtonTip =>
+        CanLaunchGame
+            ? "Start the game with the installed patches."
+            : "Enter a custom launch command above, or turn the option off to launch through Steam.";
+
+    /// <summary>Raises the launch controls, all of which follow the detected game.</summary>
+    private void NotifyLaunchControlsChanged()
+    {
+        OnPropertyChanged(nameof(ShowLaunchSettings));
+        OnPropertyChanged(nameof(CanLaunchGame));
+        OnPropertyChanged(nameof(LaunchButtonTip));
     }
 
     public string StatusMessage
@@ -312,6 +355,7 @@ public class MainViewModel : ViewModelBase
         : $"{PendingChangesCount} patch{(PendingChangesCount == 1 ? "" : "es")} pending";
 
     public ICommand BrowseGameCommand { get; }
+    public ICommand BrowseGameFolderCommand { get; }
     public ICommand BrowsePatchesCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand MoveUpCommand { get; }
@@ -322,6 +366,11 @@ public class MainViewModel : ViewModelBase
 
     private bool IsInstalled(string patchId) => _installedPatchIds.Contains(patchId);
 
+    /// <summary>
+    /// Picks the game executable directly. The macOS games are inside an .app, which no file
+    /// dialog can return, so <see cref="BrowseGameFolder"/> is the way to reach those; this still
+    /// finds the binary within one, and a Wine install's swkotor.exe, on any host.
+    /// </summary>
     private async Task BrowseGame()
     {
         try
@@ -342,9 +391,11 @@ public class MainViewModel : ViewModelBase
                 {
                     new FilePickerFileType("Game Executables")
                     {
-                        // swkotor.exe / swkotor2.exe on Windows and under Wine/Proton; the
-                        // native Linux KOTOR II build is an extensionless "KOTOR2" ELF.
-                        Patterns = new[] { "*.exe", "KOTOR2" }
+                        // swkotor.exe / swkotor2.exe on Windows and under Wine or Proton; the
+                        // native Linux KOTOR II build is an extensionless "KOTOR2" ELF; the last
+                        // two are the binaries inside the macOS bundles, reachable from any host
+                        // since a Windows or Linux machine can patch a macOS install.
+                        Patterns = new[] { "*.exe", "KOTOR2", "KOTOR_Exe", "KOTOR2sub" }
                     },
                     new FilePickerFileType("All Files")
                     {
@@ -355,6 +406,45 @@ public class MainViewModel : ViewModelBase
 
             if (result.Count > 0)
             {
+                GamePath = result[0].Path.LocalPath;
+                StatusMessage = $"Selected game: {Path.GetFileName(GamePath)}";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error browsing: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Picks the install rather than the executable, and lets the path setter find the binary.
+    /// This is the only way to choose a macOS game: it lives inside an .app, which is a directory,
+    /// and Avalonia's file picker turns every directory into an IStorageFolder and then drops it
+    /// from the file results, so the bundle can be clicked and nothing comes back
+    /// (AvaloniaUI/Avalonia#18303). It is offered everywhere because pointing at an install is
+    /// the same gesture whatever the host, and it reaches a Wine folder just as well.
+    /// </summary>
+    private async Task BrowseGameFolder()
+    {
+        try
+        {
+            var window = GetMainWindow();
+            if (window == null)
+            {
+                StatusMessage = "Error: Could not access window";
+                return;
+            }
+
+            var result = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Select Game Folder (or a macOS .app bundle)",
+                AllowMultiple = false,
+                SuggestedStartLocation = await TryGetSuggestedStartFolderAsync(window, GetGameBrowseStartDirectory())
+            });
+
+            if (result.Count > 0)
+            {
+                // The setter resolves a bundle or an install folder to the executable inside it.
                 GamePath = result[0].Path.LocalPath;
                 StatusMessage = $"Selected game: {Path.GetFileName(GamePath)}";
             }
@@ -608,6 +698,7 @@ public class MainViewModel : ViewModelBase
         _detectedGameVersion = null;
         KotorVersion = "Unknown";
         OnPropertyChanged(nameof(ShowDeploymentOption));
+        NotifyLaunchControlsChanged();
         UpdatePatchCompatibility();
     }
 
@@ -946,9 +1037,13 @@ public class MainViewModel : ViewModelBase
         {
             SetOperationInProgress(true, "Launching game...");
 
+            // A game with no launch controls showing is started through Steam whatever the
+            // saved preference says. The box is hidden for it, so a command left behind by
+            // another install must not decide how this one starts.
+            var useCustom = ShowLaunchSettings && _useCustomLaunch;
             var launchConfig = new LaunchConfig
             {
-                Method = _useCustomLaunch ? LaunchMethod.Custom : LaunchMethod.Steam,
+                Method = useCustom ? LaunchMethod.Custom : LaunchMethod.Steam,
                 CustomCommand = _customLaunchCommand
             };
 
@@ -1174,6 +1269,7 @@ public class MainViewModel : ViewModelBase
             _detectedGameVersion = v;
             KotorVersion = v.DisplayName;
             OnPropertyChanged(nameof(ShowDeploymentOption));
+            NotifyLaunchControlsChanged();
 
             // Switch theme based on detected game title
             if (Application.Current is App app)
@@ -1192,6 +1288,7 @@ public class MainViewModel : ViewModelBase
         _detectedGameVersion = null;
         KotorVersion = "Unknown";
         OnPropertyChanged(nameof(ShowDeploymentOption));
+        NotifyLaunchControlsChanged();
 
         // Load default theme (KOTOR 1) for unknown games
         if (Application.Current is App app)

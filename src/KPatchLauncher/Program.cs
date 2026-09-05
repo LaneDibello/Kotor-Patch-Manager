@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Avalonia;
 using KPatchCore.Applicators;
+using KPatchCore.Common;
 using KPatchCore.Detectors;
 using KPatchCore.Launcher;
 using KPatchCore.Managers;
@@ -14,7 +15,6 @@ namespace KPatchLauncher;
 /// </summary>
 class Program
 {
-    private const string PatcherDllName = "KotorPatcher.dll";
     private const string PatchConfigName = "patch_config.toml";
 
     [STAThread]
@@ -137,7 +137,9 @@ class Program
             return 1;
         }
 
-        var gameExePath = args[0];
+        // Resolved the same way the window resolves it, so a macOS bundle or a game
+        // folder works from a script too.
+        var gameExePath = PathHelpers.ResolveGameExecutable(args[0]);
         var orchestrator = new PatchOrchestrator(args[2]);
         var availablePatches = orchestrator.GetAvailablePatches();
         var patchIds = args.Skip(3).ToList();
@@ -216,8 +218,6 @@ class Program
             // Check if patches are installed
             var gameDir = Path.GetDirectoryName(gameExePath)!;
             var patchConfigPath = Path.Combine(gameDir, PatchConfigName);
-            var patcherDllPath = Path.Combine(gameDir, PatcherDllName);
-
             if (!File.Exists(patchConfigPath))
             {
                 Console.WriteLine("No patches detected (patch_config.toml not found).");
@@ -227,10 +227,16 @@ class Program
                 return LaunchVanilla(gameExePath);
             }
 
-            if (!File.Exists(patcherDllPath))
+            // Which module the game loads follows the game, not the host: the Windows builds
+            // take the DLL, the native Linux one a shared object, the macOS ones a dylib.
+            var detectedForModule = GameDetector.DetectVersion(gameExePath, allowManagedInstallState: true).Data;
+            var patcherModuleName = DeploymentPolicy.PatcherModuleFileName(detectedForModule);
+            var patcherModulePath = Path.Combine(gameDir, patcherModuleName);
+
+            if (!File.Exists(patcherModulePath))
             {
-                Console.WriteLine($"ERROR: {PatcherDllName} not found in game directory.");
-                Console.WriteLine("Patches are configured but patcher DLL is missing.");
+                Console.WriteLine($"ERROR: {patcherModuleName} not found in game directory.");
+                Console.WriteLine("Patches are configured but the patcher module is missing.");
                 Console.WriteLine("Please reinstall patches or run vanilla game directly.");
                 return 1;
             }
@@ -266,13 +272,13 @@ class Program
 
             Console.WriteLine();
             Console.WriteLine($"Launching with patches...");
-            Console.WriteLine($"Injecting: {PatcherDllName}");
+            Console.WriteLine($"Patcher module: {patcherModuleName}");
             Console.WriteLine();
 
             // Launch with DLL injection (method depends on distribution)
             var result = GameLauncher.Launch(
                 gameExePath,
-                patcherDllPath,
+                patcherModulePath,
                 distribution: distribution,
                 commandLineArgs: null);
 
@@ -285,16 +291,20 @@ class Program
                 return 1;
             }
 
-            var process = result.GameProcess!;
-            Console.WriteLine($"✓ Game launched successfully (PID: {process.Id})");
-            Console.WriteLine($"✓ {PatcherDllName} injected");
+            // Only a launch the manager performed itself has a process to report. Handing off to
+            // Steam or to a custom command starts the game through something else, so there is
+            // nothing here to watch, and reading one crashed the moment Steam became reachable.
+            var process = result.GameProcess;
+            var pidInfo = process is null ? string.Empty : $" (PID: {process.Id})";
+            Console.WriteLine($"✓ Game launched successfully{pidInfo}");
+            Console.WriteLine($"✓ {patcherModuleName} in place");
             Console.WriteLine();
             Console.WriteLine("Game is running with patches applied.");
             Console.WriteLine("You can close this window - the game will continue running.");
             Console.WriteLine();
 
             // Optionally monitor for crashes (disabled by default)
-            if (args.Contains("--monitor"))
+            if (args.Contains("--monitor") && process is not null)
             {
                 Console.WriteLine("Monitoring game process...");
                 process.WaitForExit();

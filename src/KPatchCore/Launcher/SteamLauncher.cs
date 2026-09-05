@@ -14,6 +14,12 @@ internal static class SteamLauncher
         ["swkotor.exe"] = "32370",    // Knights of the Old Republic
         ["swkotor2.exe"] = "208580",  // Knights of the Old Republic II
         ["KOTOR2"] = "208580",        // KOTOR II native Linux ELF (same Steam app, Linux depot)
+
+        // The macOS builds, which live inside an .app bundle. Same Steam apps again, macOS
+        // depots. These matter more than the others: a macOS host cannot start the game
+        // itself, so Steam is the only way in.
+        ["KOTOR_Exe"] = "32370",      // KOTOR I, Knights of the Old Republic.app
+        ["KOTOR2sub"] = "208580",     // KOTOR II, KOTOR2.app
     };
 
     /// <summary>
