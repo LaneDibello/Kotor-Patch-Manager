@@ -257,7 +257,8 @@ private:
 		// Only the CExoArrayList overload marshals elements to game pointers.
 		CExoArrayList<CSWGuiControl*> descriptionItems;
 		descriptionItems.Add(&descriptionLabel);
-		descriptionListBox.AddControls(&descriptionItems, 1, 0, 0);
+		descriptionListBox.AddControls(&descriptionItems, 0, 0, 0);
 		descriptionListBox.SetActiveControl(&descriptionLabel, 0);
+
 	}
 };

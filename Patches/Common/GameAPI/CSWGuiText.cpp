@@ -120,6 +120,7 @@ int CSWGuiText::GetFontHeight() {
 }
 
 int CSWGuiText::GetIdealHeight() {
+    debugLog("[CSWGuiText] Getting Text Ideal Height");
     if (!objectPtr || !getIdealHeight) return 0;
     return getIdealHeight(objectPtr);
 }
