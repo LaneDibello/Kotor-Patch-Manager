@@ -211,10 +211,12 @@ CSWGuiControl* CSWGuiListBox::GetHoveredControl() {
 
 CSWGuiControl* CSWGuiListBox::GetProtoItem() {
     if (!objectPtr || offsetProtoItem < 0) {
+        debugLog("[CSWGuiListBox] GetProtoItem failed with objectPtr: %X | offsetProtoItem: %i", objectPtr, offsetProtoItem);
         return nullptr;
     }
     void* protoPtr = getObjectProperty<void*>(objectPtr, offsetProtoItem);
     if (!protoPtr) {
+        debugLog("[CSWGuiListBox] GetProtoItem failed because protoPtr was %X", protoPtr);
         return nullptr;
     }
     return new CSWGuiControl(protoPtr);

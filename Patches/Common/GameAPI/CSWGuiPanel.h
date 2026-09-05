@@ -63,6 +63,11 @@ public:
     Vector GetColor();
     void SetColor(const Vector& color);
     CSWGuiBorder* GetBorder();
+    int GetBitFlags();
+    void SetBitFlags(int bitFlags);
+    // Single-bit access into bit_flags; bitIndex is 0-31.
+    bool GetBitFlag(int bitIndex);
+    void SetBitFlag(int bitIndex, bool value);
 
     // Functions
     void AddControl(CSWGuiControl* control);
@@ -160,6 +165,7 @@ protected:
     static int offsetAlpha;
     static int offsetColor;
     static int offsetBorder;
+    static int offsetBitFlags;
 
     static int classSize;
 

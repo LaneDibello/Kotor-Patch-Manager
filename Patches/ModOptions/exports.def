@@ -1,0 +1,5 @@
+LIBRARY ModOptions 
+EXPORTS 
+    InjectOptionsButton 
+    AddCreateEvent 
+    ModOptions_DebugHandler

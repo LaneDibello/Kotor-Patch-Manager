@@ -29,14 +29,22 @@ public:
 
     // Functions
     void AddPanel(CSWGuiPanel* panel, int flags, int playSound);
+    // Plays one of the manager's preloaded GUI sounds by index.
+    void PlayGuiSound(byte soundId);
+    // Pops the top panel off the modal stack; returns the new stack depth.
+    int PopModalPanel();
 
     void InitializeFunctions() override;
     void InitializeOffsets() override;
 
 protected:
     typedef void (__thiscall* AddPanelFn)(void* thisPtr, void* panel, int flags, int playSound);
+    typedef void (__thiscall* PlayGuiSoundFn)(void* thisPtr, byte soundId);
+    typedef int (__thiscall* PopModalPanelFn)(void* thisPtr);
 
     static AddPanelFn addPanel;
+    static PlayGuiSoundFn playGuiSound;
+    static PopModalPanelFn popModalPanel;
 
     static bool functionsInitialized;
     static bool offsetsInitialized;

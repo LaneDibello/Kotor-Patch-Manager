@@ -16,8 +16,9 @@ public:
 
     // Accessors. Returned wrapper is heap allocated; caller owns it.
     CSWGuiText* GetText();
-    CSWGuiBorder* GetBorder1();
-    CSWGuiBorder* GetBorder2();
+    // border is the resting border; hilight is the one drawn on hover.
+    CSWGuiBorder* GetBorder();
+    CSWGuiBorder* GetHilight();
 
     // Functions
     void ReSetFont();
@@ -27,7 +28,7 @@ public:
     // Overloaded Initialize (matches the game's two CSWGuiButton::Initialize variants).
     void Initialize(CSWGuiExtent* extent, CSWGuiButton* button);
     void Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
-                    CSWGuiBorderParams* border1Params, CSWGuiBorderParams* border2Params);
+                    CSWGuiBorderParams* borderParams, CSWGuiBorderParams* hilightParams);
 
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -38,7 +39,7 @@ protected:
     typedef void (__thiscall* SetEnabledFn)(void* thisPtr, UINT enabled);
     typedef void (__thiscall* InitializeButtonFn)(void* thisPtr, void* extent, void* button);
     typedef void (__thiscall* InitializeParamsFn)(void* thisPtr, void* extent, void* textParams,
-                                                  void* border1Params, void* border2Params);
+                                                  void* borderParams, void* hilightParams);
     typedef void* (__thiscall* ConstructorFn)(void* thisPtr);
     typedef void* (__thiscall* DestructorFn)(void* thisPtr);
 
@@ -55,6 +56,6 @@ protected:
     static bool offsetsInitialized;
 
     static int offsetText;
-    static int offsetBorder1;
-    static int offsetBorder2;
+    static int offsetBorder;
+    static int offsetHilight;
 };

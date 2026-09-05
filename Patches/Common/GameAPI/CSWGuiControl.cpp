@@ -13,6 +13,8 @@ bool CSWGuiControl::functionsInitialized = false;
 bool CSWGuiControl::offsetsInitialized = false;
 
 int CSWGuiControl::offsetParentControl = -1;
+int CSWGuiControl::offsetId = -1;
+int CSWGuiControl::offsetCustomValue = -1;
 
 CSWGuiControl::ConstructorFn CSWGuiControl::constructor = nullptr;
 CSWGuiControl::DestructorFn  CSWGuiControl::destructor  = nullptr;
@@ -63,6 +65,8 @@ void CSWGuiControl::InitializeOffsets() {
 
     try {
         offsetParentControl = GameVersion::GetOffset("CSWGuiControl", "parent_control");
+        offsetId = GameVersion::GetOffset("CSWGuiControl", "id");
+        offsetCustomValue = GameVersion::GetOffset("CSWGuiControl", "custom_value");
         classSize = GameVersion::GetClassSize("CSWGuiControl");
 
         offsetsInitialized = true;
@@ -123,6 +127,25 @@ CSWGuiControl* CSWGuiControl::GetParentControl() {
         return nullptr;
     }
     return new CSWGuiControl(parentPtr);
+}
+
+int CSWGuiControl::GetId() {
+    if (!objectPtr || offsetId < 0) {
+        return -1;
+    }
+    return getObjectProperty<int>(objectPtr, offsetId);
+}
+
+DWORD CSWGuiControl::GetCustomValue() {
+    if (!objectPtr || offsetCustomValue < 0) {
+        return 0;
+    }
+    return getObjectProperty<DWORD>(objectPtr, offsetCustomValue);
+}
+
+void CSWGuiControl::SetCustomValue(DWORD value) {
+    if (!objectPtr || offsetCustomValue < 0) return;
+    setObjectProperty<DWORD>(objectPtr, offsetCustomValue, value);
 }
 
 void CSWGuiControl::AddChildControl(CSWGuiControl* child) {

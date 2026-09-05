@@ -1,9 +1,13 @@
 #include "CSWGuiLabel.h"
 #include "GameVersion.h"
 #include "CSWGuiText.h"
+#include "CSWGuiTextParams.h"
+#include "CSWGuiBorderParams.h"
 
 CSWGuiLabel::ReSetFontFn  CSWGuiLabel::reSetFont  = nullptr;
 CSWGuiLabel::SetEnabledFn CSWGuiLabel::setEnabled = nullptr;
+CSWGuiLabel::InitializeLabelFn CSWGuiLabel::initializeLabel = nullptr;
+CSWGuiLabel::InitializeParamsFn CSWGuiLabel::initializeParams = nullptr;
 CSWGuiLabel::ConstructorFn CSWGuiLabel::constructor = nullptr;
 CSWGuiLabel::DestructorFn  CSWGuiLabel::destructor  = nullptr;
 int CSWGuiLabel::classSize = -1;
@@ -28,6 +32,8 @@ void CSWGuiLabel::InitializeFunctions() {
     try {
         reSetFont  = reinterpret_cast<ReSetFontFn> (GameVersion::GetFunctionAddress("CSWGuiLabel", "ReSetFont"));
         setEnabled = reinterpret_cast<SetEnabledFn>(GameVersion::GetFunctionAddress("CSWGuiLabel", "SetEnabled"));
+        initializeLabel = reinterpret_cast<InitializeLabelFn>(GameVersion::GetFunctionAddress("CSWGuiLabel", "Initialize_2"));
+        initializeParams = reinterpret_cast<InitializeParamsFn>(GameVersion::GetFunctionAddress("CSWGuiLabel", "Initialize"));
         constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiLabel", "Constructor"));
         destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiLabel", "Destructor"));
 
@@ -119,4 +125,18 @@ void CSWGuiLabel::ReSetFont() {
 void CSWGuiLabel::SetEnabled(UINT enabled) {
     if (!objectPtr || !setEnabled) return;
     setEnabled(objectPtr, enabled);
+}
+
+void CSWGuiLabel::Initialize(CSWGuiExtent* extent, CSWGuiLabel* labelPrototype, float pointSize) {
+    if (!objectPtr || !initializeLabel) return;
+    initializeLabel(objectPtr, extent, labelPrototype ? labelPrototype->GetPtr() : nullptr, pointSize);
+}
+
+void CSWGuiLabel::Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
+                             CSWGuiBorderParams* borderParams, float pointSize) {
+    if (!objectPtr || !initializeParams) return;
+    initializeParams(objectPtr, extent,
+                     textParams ? textParams->GetPtr() : nullptr,
+                     borderParams ? borderParams->GetPtr() : nullptr,
+                     pointSize);
 }

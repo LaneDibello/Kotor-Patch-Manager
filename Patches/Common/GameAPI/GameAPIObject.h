@@ -33,6 +33,12 @@ public:
     bool IsValid() const;
 
     /// <summary>
+    /// Hands ownership of the game memory to the game, so this wrapper's destructor
+    /// leaves it alone. Called when the game takes a pointer it will free itself.
+    /// </summary>
+    void ReleaseOwnership();
+
+    /// <summary>
     /// Pure virtual function that derived classes must implement to
     /// initialize static function pointers via GameVersion lookups.
     /// Called once per class on first instantiation.

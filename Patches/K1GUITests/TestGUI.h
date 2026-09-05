@@ -189,8 +189,8 @@ public:
             CSWGuiButton* button = new CSWGuiButton();
             button->Initialize(&buttonExtent,
                                proto.GetText()->GetTextParams(),
-                               proto.GetBorder1()->GetBorderParams(),
-                               proto.GetBorder2()->GetBorderParams());
+                               proto.GetBorder()->GetBorderParams(),
+                               proto.GetHilight()->GetBorderParams());
             char testBuffer[16];
             sprintf_s(testBuffer, 16, "Button %i", i);
             CExoString buttonText(testBuffer);

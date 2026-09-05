@@ -17,3 +17,7 @@ void* GameAPIObject::GetPtr() const {
 bool GameAPIObject::IsValid() const {
     return objectPtr != nullptr;
 }
+
+void GameAPIObject::ReleaseOwnership() {
+    shouldFree = false;
+}
