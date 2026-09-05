@@ -202,12 +202,12 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Whether the launch-method controls apply. They matter only where the manager cannot start
-    /// the game itself and the user's choice of Steam or a custom command is what starts it.
-    /// Windows runs the executable directly whichever deployment method is in use, so they stay
-    /// hidden there rather than appearing when the proxy is switched on.
+    /// Whether the launch-method controls apply. They matter only for a Windows build on a host
+    /// that cannot run it, where a compatibility layer starts the game and the manager has no way
+    /// to guess which. A native build goes through Steam, and a Windows host runs the executable
+    /// directly, so in both cases there is nothing to ask.
     /// </summary>
-    public bool ShowLaunchSettings => !DeploymentPolicy.CanStartGameDirectly();
+    public bool ShowLaunchSettings => DeploymentPolicy.NeedsLaunchConfiguration(_detectedGameVersion);
 
     /// <summary>
     /// Whether the game is reached through the library proxy instead of injection. Only Windows
@@ -290,7 +290,7 @@ public class MainViewModel : ViewModelBase
     /// that disables the button.
     /// </summary>
     public bool CanLaunchGame =>
-        DeploymentPolicy.CanStartGameDirectly()
+        !ShowLaunchSettings
         || !UseCustomLaunch
         || !string.IsNullOrWhiteSpace(CustomLaunchCommand);
 
@@ -299,6 +299,14 @@ public class MainViewModel : ViewModelBase
         CanLaunchGame
             ? "Start the game with the installed patches."
             : "Enter a custom launch command above, or turn the option off to launch through Steam.";
+
+    /// <summary>Raises the launch controls, all of which follow the detected game.</summary>
+    private void NotifyLaunchControlsChanged()
+    {
+        OnPropertyChanged(nameof(ShowLaunchSettings));
+        OnPropertyChanged(nameof(CanLaunchGame));
+        OnPropertyChanged(nameof(LaunchButtonTip));
+    }
 
     public string StatusMessage
     {
@@ -639,6 +647,7 @@ public class MainViewModel : ViewModelBase
         _detectedGameVersion = null;
         KotorVersion = "Unknown";
         OnPropertyChanged(nameof(ShowDeploymentOption));
+        NotifyLaunchControlsChanged();
         UpdatePatchCompatibility();
     }
 
@@ -977,9 +986,13 @@ public class MainViewModel : ViewModelBase
         {
             SetOperationInProgress(true, "Launching game...");
 
+            // A game with no launch controls showing is started through Steam whatever the
+            // saved preference says. The box is hidden for it, so a command left behind by
+            // another install must not decide how this one starts.
+            var useCustom = ShowLaunchSettings && _useCustomLaunch;
             var launchConfig = new LaunchConfig
             {
-                Method = _useCustomLaunch ? LaunchMethod.Custom : LaunchMethod.Steam,
+                Method = useCustom ? LaunchMethod.Custom : LaunchMethod.Steam,
                 CustomCommand = _customLaunchCommand
             };
 
@@ -1205,6 +1218,7 @@ public class MainViewModel : ViewModelBase
             _detectedGameVersion = v;
             KotorVersion = v.DisplayName;
             OnPropertyChanged(nameof(ShowDeploymentOption));
+            NotifyLaunchControlsChanged();
 
             // Switch theme based on detected game title
             if (Application.Current is App app)
@@ -1223,6 +1237,7 @@ public class MainViewModel : ViewModelBase
         _detectedGameVersion = null;
         KotorVersion = "Unknown";
         OnPropertyChanged(nameof(ShowDeploymentOption));
+        NotifyLaunchControlsChanged();
 
         // Load default theme (KOTOR 1) for unknown games
         if (Application.Current is App app)

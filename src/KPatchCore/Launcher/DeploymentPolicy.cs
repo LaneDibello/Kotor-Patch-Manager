@@ -125,6 +125,29 @@ public static class DeploymentPolicy
     }
 
     /// <summary>
+    /// Whether the user has to tell the manager how the game is started. A native build is
+    /// reached through Steam and nothing else, so there is nothing to configure. A Windows build
+    /// on a host that cannot run it needs a compatibility layer the manager knows nothing about,
+    /// whether that is Proton through Steam or a Wine command the user supplies, so it has to
+    /// ask. An undetected executable is treated as a Windows build, which is what the rest of the
+    /// policy already assumes.
+    /// </summary>
+    /// <remarks>
+    /// This reads like <see cref="HasDeploymentChoice"/> and comes out the same today, but the
+    /// questions are different: that one asks how the patcher gets in, this one asks how the game
+    /// gets started. Keeping them apart means changing one cannot quietly move the other.
+    /// </remarks>
+    public static bool NeedsLaunchConfiguration(GameVersion? gameVersion)
+    {
+        if (CanStartGameDirectly())
+        {
+            return false;
+        }
+
+        return gameVersion is null || gameVersion.Platform == Platform.Windows;
+    }
+
+    /// <summary>
     /// The patcher runtime module the game loads. This is the single source of that choice, shared
     /// by install staging and launch, so a new platform adds its module here rather than at each
     /// call site.
