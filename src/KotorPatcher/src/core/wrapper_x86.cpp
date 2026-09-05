@@ -80,21 +80,22 @@ namespace KotorPatcher {
             uint8_t* code = wrapperMem;  // Current write position
 
             // ===== PROLOGUE: Save CPU State =====
+            // We always save, whatever preserveRegisters and preserveFlags say. Those
+            // decide what gets written back, not what gets kept:
+            // 1. A parameter sourced from a register reads the saved copy, so it has
+            //    to exist even when nothing is restored
+            // 2. EBX below becomes our anchor, so the game's EBX must be somewhere
 
-            if (config.preserveRegisters) {
-                // PUSHAD: Push all general-purpose registers
-                // Order: EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI
-                EmitByte(code, 0x60);  // PUSHAD
-            }
+            // PUSHAD: Push all general-purpose registers
+            // Order: EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI
+            EmitByte(code, 0x60);  // PUSHAD
 
-            if (config.preserveFlags) {
-                // PUSHFD: Push EFLAGS register
-                EmitByte(code, 0x9C);  // PUSHFD
-            }
+            // PUSHFD: Push EFLAGS register
+            EmitByte(code, 0x9C);  // PUSHFD
 
             // ===== CALCULATE STACK LAYOUT =====
             // At this point, the stack layout is:
-            // [ESP+0]  = EFLAGS (if preserveFlags)
+            // [ESP+0]  = EFLAGS
             // [ESP+4]  = EDI    \
             // [ESP+8]  = ESI     |
             // [ESP+12] = EBP     |
@@ -103,13 +104,12 @@ namespace KotorPatcher {
             // [ESP+24] = EDX     |
             // [ESP+28] = ECX     |
             // [ESP+32] = EAX    /
-            // [ESP+36] = Return address (from game's CALL to hook)
-            // [ESP+40] = Original stack data (parameters, etc.)
+            // [ESP+36] = Original stack data (parameters, etc.)
+            // The hook site is reached by a JMP, not a CALL, so there is no return
+            // address in between
 
-            // Calculate total bytes we've pushed onto the stack
-            int savedStateSize = 0;
-            if (config.preserveFlags) savedStateSize += 4;      // PUSHFD
-            if (config.preserveRegisters) savedStateSize += 32; // PUSHAD
+            // Total bytes pushed onto the stack
+            const int savedStateSize = 4 + 32;  // PUSHFD + PUSHAD
 
             // Save current ESP to EBX (points to our saved state)
             // We'll use this to read saved registers and restore ESP later
@@ -179,11 +179,18 @@ namespace KotorPatcher {
             if (config.preserveFlags) {
                 // POPFD: Restore EFLAGS
                 EmitByte(code, 0x9D);  // POPFD
+            } else {
+                // Step past the saved EFLAGS without applying them
+                // LEA ESP, [ESP+4]: ADD would set the flags we are declining to restore
+                EmitByte(code, 0x8D);  // LEA r32, m
+                EmitByte(code, 0x64);  // ModRM: ESP, [ESP+disp8] (SIB follows)
+                EmitByte(code, 0x24);  // SIB: [ESP]
+                EmitByte(code, 0x04);  // disp8 = 4
             }
 
-            if (config.preserveRegisters) {
+            {
                 // Handle register exclusions
-                if (config.excludeFromRestore.empty()) {
+                if (config.preserveRegisters && config.excludeFromRestore.empty()) {
                     // Simple case: restore all registers
                     EmitByte(code, 0x61);  // POPAD
                 } else {
@@ -194,6 +201,7 @@ namespace KotorPatcher {
                     const char* regOrder[] = { "edi", "esi", "ebp", "esp", "ebx", "edx", "ecx", "eax" };
                     const uint8_t popOpcodes[] = { 0x5F, 0x5E, 0x5D, 0x5C, 0x5B, 0x5A, 0x59, 0x58 };
                     constexpr int kEspSlot = 3;
+                    constexpr int kEbxSlot = 4;
 
                     for (int i = 0; i < 8; i++) {
                         // Hardware POPAD never restores ESP — it just advances
@@ -202,7 +210,13 @@ namespace KotorPatcher {
                         // past the remaining EBX/EDX/ECX/EAX slots and reading
                         // them from random stack memory. Always skip the ESP
                         // slot regardless of exclude_from_restore.
-                        if (i != kEspSlot && config.ShouldRestoreRegister(regOrder[i])) {
+                        // EBX is always restored. The wrapper commandeered it as its
+                        // anchor, so the patch function never had a say in its value:
+                        // leaving it out would hand the game one of our stack addresses,
+                        // not anything the patch chose. Excluding "ebx" cannot mean
+                        // anything, so it is ignored rather than obeyed.
+                        if (i != kEspSlot &&
+                            (i == kEbxSlot || config.ShouldRestoreRegister(regOrder[i]))) {
                             EmitByte(code, popOpcodes[i]);  // POP reg
                         } else {
                             // Skip this register (matches POPAD's ESP semantics
