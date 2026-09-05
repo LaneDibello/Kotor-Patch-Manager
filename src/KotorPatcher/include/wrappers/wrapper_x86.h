@@ -45,6 +45,10 @@ namespace KotorPatcher {
             void EmitByte(uint8_t*& code, uint8_t value);
             void EmitDword(uint8_t*& code, uint32_t value);
 
+            // Helper: Emit FXSAVE or FXRSTOR through the reserved area above the
+            // saved state, which the caller reaches from EBX
+            void EmitFpStateAccess(uint8_t*& code, int savedStateSize, bool restore);
+
             // Helper: Calculate relative offset for JMP/CALL
             uint32_t CalculateRelativeOffset(void* from, void* to);
 

@@ -9,6 +9,11 @@
 
 namespace KotorPatcher {
     namespace Wrappers {
+        // FXSAVE writes 512 bytes and needs a 16-byte aligned destination, so the
+        // reserved area carries enough slack to find one wherever the game's ESP
+        // happened to be. Present on every CPU with SSE, which these games require.
+        constexpr int kFpSaveSize = 512;
+        constexpr int kFpAreaSize = kFpSaveSize + 16;
 
         WrapperGenerator_x86::WrapperGenerator_x86() {
         }
@@ -46,6 +51,36 @@ namespace KotorPatcher {
             code += 4;
         }
 
+        void WrapperGenerator_x86::EmitFpStateAccess(uint8_t*& code, int savedStateSize, bool restore) {
+            // EAX is borrowed and given back. On the way out it still holds the
+            // handler's return value, which the consumed-exit test is about to read,
+            // and which the caller was told to exclude from restore so it survives.
+            EmitByte(code, 0x50);  // PUSH EAX
+
+            // LEA EAX, [EBX + savedStateSize]: the FXSAVE area sits just above the
+            // pushed state, and EBX is what still points at it
+            EmitByte(code, 0x8D);  // LEA r32, m
+            EmitByte(code, 0x83);  // ModRM: EAX, [EBX + disp32]
+            EmitDword(code, static_cast<uint32_t>(savedStateSize));
+
+            // Round the address up to the 16-byte boundary FXSAVE requires.
+            // ADD and AND write EFLAGS, which is why both callers emit this while
+            // the flags are saved.
+            EmitByte(code, 0x83);  // ADD r/m32, imm8
+            EmitByte(code, 0xC0);  // ModRM: EAX
+            EmitByte(code, 0x0F);  // imm8: 15
+
+            EmitByte(code, 0x83);  // AND r/m32, imm8
+            EmitByte(code, 0xE0);  // ModRM: EAX
+            EmitByte(code, 0xF0);  // imm8: -16
+
+            EmitByte(code, 0x0F);  // FXSAVE / FXRSTOR
+            EmitByte(code, 0xAE);
+            EmitByte(code, restore ? 0x08 : 0x00);  // ModRM: [EAX], /1 restore or /0 save
+
+            EmitByte(code, 0x58);  // POP EAX
+        }
+
         uint32_t WrapperGenerator_x86::CalculateRelativeOffset(void* from, void* to) {
             // For relative JMP/CALL: offset = target - (source + 5)
             // The +5 accounts for the instruction size (1 byte opcode + 4 byte offset)
@@ -62,7 +97,8 @@ namespace KotorPatcher {
             // consumed-exit conditional (12 bytes emitted, padded to 16)
             // Original bytes are copied into the stub verbatim, so they are counted
             // here rather than left to the base's headroom
-            size_t estimatedSize = 128 + config.originalBytes.size() +
+            // +40 for the two FXSAVE sequences and the two frame adjustments
+            size_t estimatedSize = 168 + config.originalBytes.size() +
                                    (config.excludeFromRestore.size() * 10);
             if (config.consumedExitAddress != 0) {
                 estimatedSize += 16;
@@ -80,6 +116,16 @@ namespace KotorPatcher {
             uint8_t* code = wrapperMem;  // Current write position
 
             // ===== PROLOGUE: Save CPU State =====
+            // Room for the floating-point state first, before anything is pushed.
+            // FXSAVE writes 512 bytes to a 16-byte aligned address; nothing is known
+            // about the game's ESP, so the area carries 15 bytes of slack and the
+            // aligned address inside it is worked out below, once EAX is free.
+            // LEA ESP, [ESP - kFpAreaSize]
+            EmitByte(code, 0x8D);  // LEA r32, m
+            EmitByte(code, 0xA4);  // ModRM: ESP, [ESP + disp32] (SIB follows)
+            EmitByte(code, 0x24);  // SIB: [ESP]
+            EmitDword(code, static_cast<uint32_t>(-kFpAreaSize));
+
             // We always save, whatever preserveRegisters and preserveFlags say. Those
             // decide what gets written back, not what gets kept:
             // 1. A parameter sourced from a register reads the saved copy, so it has
@@ -104,7 +150,8 @@ namespace KotorPatcher {
             // [ESP+24] = EDX     |
             // [ESP+28] = ECX     |
             // [ESP+32] = EAX    /
-            // [ESP+36] = Original stack data (parameters, etc.)
+            // [ESP+36] = FXSAVE area, plus its alignment slack
+            // [ESP+564] = Original stack data (parameters, etc.)
             // The hook site is reached by a JMP, not a CALL, so there is no return
             // address in between
 
@@ -116,6 +163,12 @@ namespace KotorPatcher {
             // MOV EBX, ESP
             EmitByte(code, 0x89);  // MOV r/m32, r32
             EmitByte(code, 0xE3);  // ModRM: EBX = ESP
+
+            // ===== SAVE FLOATING-POINT STATE =====
+            // Everything FXSAVE covers is the patch function's to destroy: the x87
+            // stack these games do their float work on, its control word, MMX, and
+            // XMM with MXCSR. None of it is in PUSHAD.
+            EmitFpStateAccess(code, savedStateSize, /*restore=*/false);
 
             // ===== ALIGN THE STACK FOR THE CALL =====
             // IMPORTANT: this is where ESP starts moving.
@@ -175,6 +228,12 @@ namespace KotorPatcher {
             EmitByte(code, 0xDC);  // ModRM: ESP = EBX
 
             // ===== EPILOGUE: Restore CPU State =====
+
+            // Ahead of the flags, because addressing the area writes them, and ahead
+            // of POPAD, because it needs EAX
+            if (config.preserveRegisters) {
+                EmitFpStateAccess(code, savedStateSize, /*restore=*/true);
+            }
 
             if (config.preserveFlags) {
                 // POPFD: Restore EFLAGS
@@ -237,6 +296,14 @@ namespace KotorPatcher {
                     }
                 }
             }
+
+            // ===== CLOSE THE FRAME =====
+            // Step past the FXSAVE area, back to the game's own ESP
+            // LEA ESP, [ESP + kFpAreaSize]
+            EmitByte(code, 0x8D);  // LEA r32, m
+            EmitByte(code, 0xA4);  // ModRM: ESP, [ESP + disp32] (SIB follows)
+            EmitByte(code, 0x24);  // SIB: [ESP]
+            EmitDword(code, kFpAreaSize);
 
             // ===== EXECUTE STOLEN ORIGINAL BYTES =====
             // Run the original instructions BEFORE the conditional consumed-exit
@@ -342,10 +409,11 @@ namespace KotorPatcher {
             const int OFFSET_EAX    = 32;  // [EBX+32] = EAX
 
             // Original stack data (parameters, etc.) is at:
-            // [EBX + savedStateSize]
+            // [EBX + savedStateSize + kFpAreaSize]
+            // The FXSAVE area sits between the pushed state and the game's own stack.
             // The hook site is reached by a JMP, not a CALL, so there is no return
             // address in between
-            const int STACK_OFFSET_TO_ORIGINAL_DATA = savedStateSize;
+            const int STACK_OFFSET_TO_ORIGINAL_DATA = savedStateSize + kFpAreaSize;
 
             std::string source = param.source;
 
