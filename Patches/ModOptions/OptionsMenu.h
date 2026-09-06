@@ -52,7 +52,8 @@ public:
 	void setEditFocus(void* control) {
 		debugLog("[ModOptions] Selected Edit Box");
 		CSWGuiEditBox editBox(control);
-		optionsListBox.SetActiveControl(&editBox, 1);
+		//optionsListBox.SetActiveControl(&editBox, 1);
+		//this->SetActiveControl(&editBox, 0);
 		editBox.SetFocus();
 	}
 
