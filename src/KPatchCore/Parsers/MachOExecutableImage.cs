@@ -168,6 +168,12 @@ internal sealed class MachOExecutableImage : IExecutableImage
         }
     }
 
+    /// <summary>
+    /// Mach-O does have an encrypted-text load command, but it belongs to the iOS App Store. The
+    /// Aspyr desktop builds store their code plainly.
+    /// </summary>
+    public bool IsPacked => false;
+
     public PatchResult<byte[]> ReadAtVirtualAddress(ulong virtualAddress, int length)
     {
         if (length <= 0)

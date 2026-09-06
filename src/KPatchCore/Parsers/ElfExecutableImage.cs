@@ -93,6 +93,9 @@ internal sealed class ElfExecutableImage : IExecutableImage
     /// <summary>An ELF carries nothing that a size-preserving byte write invalidates.</summary>
     public PatchResult Complete() => PatchResult.Ok();
 
+    /// <summary>The native build stores its code plainly. No packer targets it.</summary>
+    public bool IsPacked => false;
+
     public PatchResult WriteAtVirtualAddress(ulong virtualAddress, byte[] bytes)
     {
         if (bytes == null || bytes.Length == 0)

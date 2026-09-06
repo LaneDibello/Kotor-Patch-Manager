@@ -3,6 +3,30 @@ using KPatchCore.Models;
 namespace KPatchCore.Validators;
 
 /// <summary>
+/// What the bytes sitting in the executable say about a hook.
+/// </summary>
+public enum HookByteState
+{
+    /// <summary>
+    /// The bytes the hook recorded are the bytes in the file, so the hook points where its
+    /// author meant it to.
+    /// </summary>
+    Original,
+
+    /// <summary>
+    /// A STATIC hook's own replacement bytes are already in place, which means this patch has
+    /// been written to the executable before.
+    /// </summary>
+    AlreadyApplied,
+
+    /// <summary>
+    /// Neither. Either the address is wrong or the file is not the build the hook was made
+    /// against.
+    /// </summary>
+    Mismatch
+}
+
+/// <summary>
 /// Validates hook configurations
 /// </summary>
 public static class HookValidator
@@ -170,34 +194,31 @@ public static class HookValidator
     }
 
     /// <summary>
-    /// Validates that original bytes match what's actually in the executable
+    /// Classifies the bytes read from the executable at a hook's address.
     /// </summary>
-    /// <param name="hook">Hook to validate</param>
-    /// <param name="actualBytes">Actual bytes read from the executable at hook address</param>
-    /// <returns>Result indicating if bytes match</returns>
-    public static PatchResult ValidateOriginalBytes(Hook hook, byte[] actualBytes)
+    /// <param name="hook">Hook the bytes were read for</param>
+    /// <param name="actualBytes">Bytes read from the executable at the hook's address</param>
+    /// <returns>Which of the three states the file is in for this hook</returns>
+    /// <remarks>
+    /// STATIC is the only hook type that writes to the executable, so it is the only one whose
+    /// replacement bytes can legitimately already be sitting there. Reinstalling over an
+    /// executable a previous install statically patched has to keep working, which is why that
+    /// case is not treated as a mismatch.
+    /// </remarks>
+    public static HookByteState ClassifyBytes(Hook hook, byte[] actualBytes)
     {
-        if (actualBytes.Length < hook.OriginalBytes.Length)
+        if (hook.OriginalBytes.AsSpan().SequenceEqual(actualBytes))
         {
-            return PatchResult.Fail(
-                $"Not enough bytes at address 0x{hook.Address:X8} " +
-                $"(expected {hook.OriginalBytes.Length}, got {actualBytes.Length})"
-            );
+            return HookByteState.Original;
         }
 
-        // Compare bytes
-        for (int i = 0; i < hook.OriginalBytes.Length; i++)
+        if (hook.Type == HookType.Static &&
+            hook.ReplacementBytes is { } replacement &&
+            replacement.AsSpan().SequenceEqual(actualBytes))
         {
-            if (hook.OriginalBytes[i] != actualBytes[i])
-            {
-                return PatchResult.Fail(
-                    $"Byte mismatch at address 0x{hook.Address + (ulong)i:X8} " +
-                    $"(expected 0x{hook.OriginalBytes[i]:X2}, got 0x{actualBytes[i]:X2}). " +
-                    $"This may indicate a different game version or an already-patched executable."
-                );
-            }
+            return HookByteState.AlreadyApplied;
         }
 
-        return PatchResult.Ok("Original bytes match");
+        return HookByteState.Mismatch;
     }
 }

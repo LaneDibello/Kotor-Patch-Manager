@@ -40,6 +40,14 @@ internal sealed class PeExecutableImage : IExecutableImage
     /// </summary>
     public PatchResult Complete() => PatchResult.Ok();
 
+    /// <summary>
+    /// SteamStub is the only packer these games ship under, and it leaves a .bind section of its
+    /// own carrying the entry point. The original .text stays encrypted on disk until the stub
+    /// decrypts it at startup. The Steam release of KOTOR 1 is built this way; the GOG release and
+    /// the Aspyr builds of KOTOR 2 are not.
+    /// </summary>
+    public bool IsPacked => _info.Sections.Any(s => s.Name == ".bind");
+
     public PatchResult WriteAtVirtualAddress(ulong virtualAddress, byte[] bytes)
     {
         if (!TryNarrow(virtualAddress, out var va, out var error))

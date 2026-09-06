@@ -279,6 +279,25 @@ public class PatchApplicator
                 };
             }
 
+            // Read the hooks' addresses out of the game and check they hold what the patch expects.
+            // A hook aimed at the wrong address passes every check above, then does nothing once the
+            // game runs, with no sign to the person who installed it that anything went wrong. This
+            // runs before the backup so a refusal leaves the game untouched.
+            var hookTargetResult = HookTargetValidator.VerifyAgainstExecutable(
+                options.GameExePath, hooksByPatch);
+            if (!hookTargetResult.Success)
+            {
+                return new InstallResult
+                {
+                    Success = false,
+                    Error = hookTargetResult.Error,
+                    DetectedVersion = gameVersion,
+                    Messages = messages
+                };
+            }
+
+            messages.AddRange(hookTargetResult.Messages.Select(m => $"  {m}"));
+
             // Calculate install order
             var orderResult = DependencyValidator.CalculateInstallOrder(patchDict, options.PatchIds);
             if (!orderResult.Success || orderResult.Data == null)
