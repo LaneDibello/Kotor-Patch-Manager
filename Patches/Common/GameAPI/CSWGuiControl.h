@@ -46,6 +46,10 @@ public:
     // runtime use it to point back at whatever data they represent.
     DWORD GetCustomValue();
     void SetCustomValue(DWORD value);
+    int GetControlBitFlags();
+    void SetControlBitFlags(int bitFlags);
+    bool GetControlBitFlag(int bitIndex);
+    void SetControlBitFlag(int bitIndex, bool value);
 
     // Functions
     void AddChildControl(CSWGuiControl* child);
@@ -84,6 +88,7 @@ protected:
     static int offsetParentControl;
     static int offsetId;
     static int offsetCustomValue;
+    static int offsetBitFlags;
 
     static ConstructorFn constructor;
     static DestructorFn  destructor;

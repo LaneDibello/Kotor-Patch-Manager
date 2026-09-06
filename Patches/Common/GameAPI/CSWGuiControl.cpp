@@ -15,6 +15,7 @@ bool CSWGuiControl::offsetsInitialized = false;
 int CSWGuiControl::offsetParentControl = -1;
 int CSWGuiControl::offsetId = -1;
 int CSWGuiControl::offsetCustomValue = -1;
+int CSWGuiControl::offsetBitFlags = -1;
 
 CSWGuiControl::ConstructorFn CSWGuiControl::constructor = nullptr;
 CSWGuiControl::DestructorFn  CSWGuiControl::destructor  = nullptr;
@@ -67,6 +68,7 @@ void CSWGuiControl::InitializeOffsets() {
         offsetParentControl = GameVersion::GetOffset("CSWGuiControl", "parent_control");
         offsetId = GameVersion::GetOffset("CSWGuiControl", "id");
         offsetCustomValue = GameVersion::GetOffset("CSWGuiControl", "custom_value");
+        offsetBitFlags = GameVersion::GetOffset("CSWGuiControl", "bit_flags");
         classSize = GameVersion::GetClassSize("CSWGuiControl");
 
         offsetsInitialized = true;
@@ -146,6 +148,39 @@ DWORD CSWGuiControl::GetCustomValue() {
 void CSWGuiControl::SetCustomValue(DWORD value) {
     if (!objectPtr || offsetCustomValue < 0) return;
     setObjectProperty<DWORD>(objectPtr, offsetCustomValue, value);
+}
+
+int CSWGuiControl::GetControlBitFlags() {
+    if (!objectPtr || offsetBitFlags < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetBitFlags);
+}
+
+void CSWGuiControl::SetControlBitFlags(int bitFlags) {
+    if (!objectPtr || offsetBitFlags < 0) return;
+    setObjectProperty<int>(objectPtr, offsetBitFlags, bitFlags);
+}
+
+bool CSWGuiControl::GetControlBitFlag(int bitIndex) {
+    if (bitIndex < 0 || bitIndex > 31) {
+        return false;
+    }
+    return (GetControlBitFlags() & (1 << bitIndex)) != 0;
+}
+
+void CSWGuiControl::SetControlBitFlag(int bitIndex, bool value) {
+    if (!objectPtr || offsetBitFlags < 0 || bitIndex < 0 || bitIndex > 31) {
+        return;
+    }
+    int flags = GetControlBitFlags();
+    if (value) {
+        flags |= (1 << bitIndex);
+    }
+    else {
+        flags &= ~(1 << bitIndex);
+    }
+    SetControlBitFlags(flags);
 }
 
 void CSWGuiControl::AddChildControl(CSWGuiControl* child) {

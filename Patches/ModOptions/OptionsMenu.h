@@ -196,10 +196,16 @@ public:
 
 		defaultButton.AddEvent(CSWGuiControl::AButton, this,
 			memberThunkAddr<OptionsMenu, &OptionsMenu::onDefault>());
+		defaultButton.SetControlBitFlag(2, false);
 		backButton.AddEvent(CSWGuiControl::AButton, this,
 			memberThunkAddr<OptionsMenu, &OptionsMenu::onBack>());
+		backButton.SetControlBitFlag(2, false);
 
 		this->OverrideHandleInputEvent(memberFuncAddr(&OptionsMenu::_HandleInputEvent));
+
+		SetActiveControl(&optionsListBox, 0);
+		CSWGuiControl* first = optionsListBox.GetControl(0);
+		optionsListBox.SetActiveControl(first, 0);
 	}
 
 	~OptionsMenu() {
@@ -338,10 +344,10 @@ private:
 		debugLog("[ModOptions] `%s` produced %i options", config.GetName().c_str(), listOptions.GetSize());
 
 		optionsListBox.AddControls(&listOptions, 1, 0, 0);
-		optionsListBox.SetSelectedControl(0, 0);
 	}
 
 	void _HandleInputEvent(int event, int doPanelEvents) {
+		debugLog("[ModOptions] OptionsMenu _HandleInputEvent (%i, %i)", event, doPanelEvents);
 		CClientExoApp client;
 		void* editBoxVtable = GameVersion::GetClassVtable("CSWGuiEditbox");
 		if (doPanelEvents && guiManager) {
@@ -352,21 +358,6 @@ private:
 				guiManager->PopModalPanel();
 				// TODO: properly label these bit flags
 				SetBitFlags((GetBitFlags() & ~0x300) | 0x400);
-				break;
-			}
-			case CSWGuiControl::AButton:
-			{
-				CSWGuiControl* hitCheck = this->HitCheckMouse(client.GetMouseX(), client.GetMouseY());
-				if (hitCheck) // If this was a button click, ignore it
-					break;
-				std::vector<CSWGuiControl*> controls(this->GetControls()->ToVector());
-				for (CSWGuiControl* control : controls) {
-					// Check the vtable to see if it's an edit box
-					if (getObjectProperty<void*>(control->GetPtr(), 0) != editBoxVtable)
-						continue;
-					CSWGuiEditBox editBox(control);
-					editBox.HandleFocusChange(0);
-				}
 				break;
 			}
 			default:
