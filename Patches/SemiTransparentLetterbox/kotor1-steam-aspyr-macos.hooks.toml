@@ -1,0 +1,53 @@
+[metadata]
+target_versions = [
+    "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71",
+]
+
+# KOTOR 1, Steam Aspyr macOS build (KOTOR_Exe 1.4.0, x86_64).
+#
+# The Windows build pushes the alpha as an immediate, so its hooks rewrite
+# "PUSH 1.0f" into "PUSH 0.5f". A 64-bit build has no such instruction: floats
+# live in SSE registers and constants are loaded from __const through a
+# RIP-relative displacement. So two of the three sites here are patched by
+# pointing that displacement at a different constant rather than by editing a
+# value.
+#
+# The constants are already in the binary, eight bytes apart:
+#   0x100537DBC = 1.0f
+#   0x100537DC4 = 0.5f
+# Retargeting adds 8 to the displacement and touches one byte. Editing the 1.0f
+# constant in place was not an option: it is the game's shared 1.0f, read from
+# hundreds of sites.
+#
+# Addresses are absolute virtual addresses. The executable is non-PIE, so it
+# always loads at 0x100000000 and these match what Ghidra shows.
+#
+# The alpha is CSWGuiDialogLetterbox's field at object offset 0x60. Three places
+# set it to fully opaque:
+
+# 1. The constructor's initial value.
+#    MOV dword ptr [RBX + 0x60], 1.0f
+#    The one site that still writes the float directly, so the immediate changes.
+[[hooks]]
+address = 0x10024401D
+type = "simple"
+original_bytes    = [0xC7, 0x43, 0x60, 0x00, 0x00, 0x80, 0x3F]
+replacement_bytes = [0xC7, 0x43, 0x60, 0x00, 0x00, 0x00, 0x3F]
+
+# 2. CSWGuiDialogLetterbox::ResetFade, which restores the alpha every time the
+#    letterbox is reset, and so would undo the constructor on its own.
+#    MOVSS XMM0, dword ptr [0x100537DBC]  ->  [0x100537DC4]
+[[hooks]]
+address = 0x10024405A
+type = "simple"
+original_bytes    = [0xF3, 0x0F, 0x10, 0x05, 0x5A, 0x3D, 0x2F, 0x00]
+replacement_bytes = [0xF3, 0x0F, 0x10, 0x05, 0x62, 0x3D, 0x2F, 0x00]
+
+# 3. CSWGuiDialogLetterbox::Draw, where the fade ramp is clamped to its maximum
+#    before being stored. Left alone, a fade would climb back to fully opaque.
+#    MINSS XMM2, dword ptr [0x100537DBC]  ->  [0x100537DC4]
+[[hooks]]
+address = 0x10024443D
+type = "simple"
+original_bytes    = [0xF3, 0x0F, 0x5D, 0x15, 0x77, 0x39, 0x2F, 0x00]
+replacement_bytes = [0xF3, 0x0F, 0x5D, 0x15, 0x7F, 0x39, 0x2F, 0x00]
