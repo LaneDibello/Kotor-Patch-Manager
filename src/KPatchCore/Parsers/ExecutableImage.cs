@@ -22,6 +22,14 @@ internal interface IExecutableImage
     bool IsPacked { get; }
 
     /// <summary>
+    /// What the linker stamped on this build, or null where the format carries nothing usable.
+    /// Two files sharing one are the same build, whatever else was done to them afterwards, so a
+    /// byte patch applied later leaves it alone. Only equality is meaningful; the text is opaque
+    /// and its shape differs per format.
+    /// </summary>
+    string? BuildIdentity { get; }
+
+    /// <summary>
     /// Finishes the edit. A format whose file carries integrity metadata repairs it here, so this
     /// has to be called once after the last write; a format with nothing to repair succeeds without
     /// touching the file. Writing again afterwards is not supported, because the repair can move

@@ -48,6 +48,15 @@ internal sealed class PeExecutableImage : IExecutableImage
     /// </summary>
     public bool IsPacked => _info.Sections.Any(s => s.Name == ".bind");
 
+    /// <summary>
+    /// A PE carries no linker-generated build id: these builds ship without a CodeView debug
+    /// directory, so there is no PDB signature either. The link timestamp with the image's size and
+    /// section count stands in. Two builds that agree on all three have been the same code every
+    /// time it has been checked, and the exe patchers seen in the wild leave all three alone.
+    /// </summary>
+    public string? BuildIdentity =>
+        $"pe:{_info.TimeDateStamp:X8}:{_info.SizeOfImage:X}:{_info.Sections.Count}";
+
     public PatchResult WriteAtVirtualAddress(ulong virtualAddress, byte[] bytes)
     {
         if (!TryNarrow(virtualAddress, out var va, out var error))

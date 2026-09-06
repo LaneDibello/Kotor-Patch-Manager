@@ -18,13 +18,16 @@ internal sealed class MachOExecutableImage : IExecutableImage
     private readonly string _exePath;
     private readonly List<MappedRange> _ranges;
     private readonly bool _isSigned;
+    private readonly string? _buildIdentity;
     private bool _modified;
 
-    private MachOExecutableImage(string exePath, List<MappedRange> ranges, bool isSigned)
+    private MachOExecutableImage(
+        string exePath, List<MappedRange> ranges, bool isSigned, string? buildIdentity)
     {
         _exePath = exePath;
         _ranges = ranges;
         _isSigned = isSigned;
+        _buildIdentity = buildIdentity;
     }
 
     public static PatchResult<IExecutableImage> Open(string exePath)
@@ -32,6 +35,7 @@ internal sealed class MachOExecutableImage : IExecutableImage
         try
         {
             var ranges = new List<MappedRange>();
+            var uuids = new List<string>();
             var isSigned = false;
 
             using var stream = File.OpenRead(exePath);
@@ -44,6 +48,7 @@ internal sealed class MachOExecutableImage : IExecutableImage
                         continue;
 
                     Collect(slice.File, slice.FileOffset, ranges);
+                    CollectUuids(slice.File, uuids);
                     isSigned |= slice.File.CodeSignature is not null;
                 }
             }
@@ -52,13 +57,16 @@ internal sealed class MachOExecutableImage : IExecutableImage
                 stream.Position = 0;
                 var file = MachOFile.Read(stream);
                 Collect(file, 0, ranges);
+                CollectUuids(file, uuids);
                 isSigned = file.CodeSignature is not null;
             }
 
             if (ranges.Count == 0)
                 return PatchResult<IExecutableImage>.Fail($"{Path.GetFileName(exePath)} has no file-backed segments.");
 
-            return PatchResult<IExecutableImage>.Ok(new MachOExecutableImage(exePath, ranges, isSigned));
+            var buildIdentity = uuids.Count > 0 ? $"macho:{string.Join('+', uuids)}" : null;
+            return PatchResult<IExecutableImage>.Ok(
+                new MachOExecutableImage(exePath, ranges, isSigned, buildIdentity));
         }
         catch (Exception ex)
         {
@@ -173,6 +181,18 @@ internal sealed class MachOExecutableImage : IExecutableImage
     /// Aspyr desktop builds store their code plainly.
     /// </summary>
     public bool IsPacked => false;
+
+    public string? BuildIdentity => _buildIdentity;
+
+    /// <summary>
+    /// LC_UUID, which the linker computes over the image. A universal binary is several builds in
+    /// one file, so every slice contributes and the order they appear in is part of the identity.
+    /// </summary>
+    private static void CollectUuids(MachOFile file, List<string> into)
+    {
+        foreach (var command in file.LoadCommands.OfType<MachOUuidCommand>())
+            into.Add(command.Uuid.ToString("N").ToUpperInvariant());
+    }
 
     public PatchResult<byte[]> ReadAtVirtualAddress(ulong virtualAddress, int length)
     {

@@ -58,6 +58,16 @@ public static class PeHeaderParser
         public required ushort MachineType { get; init; }
 
         /// <summary>
+        /// TimeDateStamp from the COFF header, set when the image was linked
+        /// </summary>
+        public required uint TimeDateStamp { get; init; }
+
+        /// <summary>
+        /// SizeOfImage from the Optional Header, the memory the loaded image occupies
+        /// </summary>
+        public required uint SizeOfImage { get; init; }
+
+        /// <summary>
         /// List of sections in the PE file
         /// </summary>
         public required List<PeSection> Sections { get; init; }
@@ -126,8 +136,10 @@ public static class PeHeaderParser
             var machineType = reader.ReadUInt16();
             var numberOfSections = reader.ReadUInt16();
 
-            // Skip: TimeDateStamp (4), PointerToSymbolTable (4), NumberOfSymbols (4)
-            stream.Seek(12, SeekOrigin.Current);
+            var timeDateStamp = reader.ReadUInt32();
+
+            // Skip: PointerToSymbolTable (4), NumberOfSymbols (4)
+            stream.Seek(8, SeekOrigin.Current);
 
             var sizeOfOptionalHeader = reader.ReadUInt16();
             var characteristics = reader.ReadUInt16();
@@ -168,6 +180,11 @@ public static class PeHeaderParser
                     $"Unknown Optional Header magic: 0x{magic:X4}");
             }
 
+            // SizeOfImage sits at offset 56 in both PE32 and PE32+: the wider ImageBase in the
+            // 64-bit header is offset by BaseOfData being dropped.
+            stream.Seek(optionalHeaderStart + 56, SeekOrigin.Begin);
+            var sizeOfImage = reader.ReadUInt32();
+
             // Skip to end of optional header (after section headers)
             stream.Seek(optionalHeaderStart + sizeOfOptionalHeader, SeekOrigin.Begin);
 
@@ -189,6 +206,8 @@ public static class PeHeaderParser
             {
                 PeHeaderOffset = peHeaderOffset,
                 MachineType = machineType,
+                TimeDateStamp = timeDateStamp,
+                SizeOfImage = sizeOfImage,
                 Sections = sections,
                 Is32Bit = is32Bit,
                 ImageBase = imageBase
