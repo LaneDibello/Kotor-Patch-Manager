@@ -9,6 +9,7 @@
 // Note: DB uses class key "CSWGuiEditbox" (lowercase b) for lookups.
 CSWGuiEditBox::GetIsSelectableFn CSWGuiEditBox::getIsSelectable = nullptr;
 CSWGuiEditBox::InitializeFn      CSWGuiEditBox::initialize      = nullptr;
+CSWGuiEditBox::HandleKeyPressFn  CSWGuiEditBox::handleKeyPress  = nullptr;
 CSWGuiEditBox::ReSetFontFn       CSWGuiEditBox::reSetFont       = nullptr;
 CSWGuiEditBox::SetEnabledFn      CSWGuiEditBox::setEnabled      = nullptr;
 CSWGuiEditBox::SetExtentFn       CSWGuiEditBox::setExtent       = nullptr;
@@ -37,6 +38,7 @@ void CSWGuiEditBox::InitializeFunctions() {
 
     try {
         getIsSelectable = reinterpret_cast<GetIsSelectableFn>(GameVersion::GetFunctionAddress("CSWGuiEditbox", "GetIsSelectable"));
+        handleKeyPress  = reinterpret_cast<HandleKeyPressFn> (GameVersion::GetFunctionAddress("CSWGuiEditbox", "HandleKeyPress"));
         reSetFont       = reinterpret_cast<ReSetFontFn>      (GameVersion::GetFunctionAddress("CSWGuiEditbox", "ReSetFont"));
         initialize      = reinterpret_cast<InitializeFn>      (GameVersion::GetFunctionAddress("CSWGuiEditbox", "Initialize"));
         setEnabled      = reinterpret_cast<SetEnabledFn>     (GameVersion::GetFunctionAddress("CSWGuiEditbox", "SetEnabled"));
@@ -180,4 +182,26 @@ int CSWGuiEditBox::VTableSlotCount() {
 
     debugLog("[CSWGuiEditBox] WARNING: editbox vtable layout unknown for this game version; vtable overriding disabled\n");
     return -1;
+}
+
+void CSWGuiEditBox::HandleKeyPress(int key) {
+    if (!objectPtr || !handleKeyPress) return;
+    handleKeyPress(objectPtr, key);
+}
+
+void CSWGuiEditBox::OverrideHandleKeyPress(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    keyPressHandler = handler;
+    vtableOverride->Override(static_cast<int>(EditBoxVTableSlot::HandleKeyPress),
+                             reinterpret_cast<void*>(&CSWGuiEditBox::HandleKeyPressThunk));
+}
+
+void __fastcall CSWGuiEditBox::HandleKeyPressThunk(void* gameObj, void* /*edx*/, int key) {
+    CSWGuiEditBox* self = static_cast<CSWGuiEditBox*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->keyPressHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, int)>(self->keyPressHandler);
+    handler(self, key);
 }

@@ -7,6 +7,10 @@ public:
     explicit CExoString(void* stringPtr);
 
     CExoString();
+    // CAUTION: these BUILD a new game string by copying `src`; they do not wrap one.
+    // For a char*-typed address they also beat the explicit void* overload above in
+    // overload resolution (exact match vs pointer conversion), so wrapping an inline
+    // CExoString member must cast the computed address to void* first.
     CExoString(char* src, int length);
     CExoString(char* src);
     ~CExoString();

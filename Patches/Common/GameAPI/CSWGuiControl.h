@@ -133,6 +133,16 @@ public:
     // OverrideHandleFocusChange.
     void OverrideHandleLMouseUp(void* handler);
 
+    // Redirect the control's Draw virtual. A handler here replaces the control's
+    // whole appearance, so it usually composes sub-objects itself rather than
+    // chaining. NOTE: this runs every frame -- do not allocate in the handler.
+    void OverrideDraw(void* handler);
+
+    // Redirect the control's SetExtent virtual. This is the game's relayout hook:
+    // a container (CSWGuiListBox) calls it whenever it repositions the control, so
+    // a composite control derives its sub-extents here rather than at Initialize.
+    void OverrideSetExtent(void* handler);
+
     // DEBUG: game .text addresses that invoked the overridden virtuals most recently.
     // The game is not ASLR'd, so these paste straight into Ghidra.
     void* LastFocusChangeCaller() const { return lastFocusChangeCaller; }
@@ -180,6 +190,8 @@ protected:
     void* lastFocusChangeCaller = nullptr;
     void* lmouseUpHandler = nullptr;
     void* lastLMouseUpCaller = nullptr;
+    void* drawHandler = nullptr;
+    void* setExtentHandler = nullptr;
 
     // Installed into ControlVTableSlot::HandleFocusChange. The game calls this as
     // __thiscall (game object in ECX); we recover the owning wrapper from the
@@ -187,6 +199,8 @@ protected:
     // stands in for __thiscall on this free-standing function.
     static void __fastcall HandleFocusChangeThunk(void* gameObj, void* edx, int hasFocus);
     static void __fastcall HandleLMouseUpThunk(void* gameObj, void* edx);
+    static void __fastcall DrawThunk(void* gameObj, void* edx, float alpha);
+    static void __fastcall SetExtentThunk(void* gameObj, void* edx, void* extent);
 
     // Shared by the call-through helpers: the game function in `slot` for this
     // object's actual class, with an installed override stepped around.

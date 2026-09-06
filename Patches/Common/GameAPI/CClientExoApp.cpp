@@ -930,5 +930,6 @@ CExoString* CClientExoApp::GetRunScript() {
     }
 
     // Inline CExoString member: wrap its in-place address.
-    return new CExoString((char*)internalPtr + offsetRunScript);
+    // void* cast required -- see the note in CSWGuiEditText::GetString.
+    return new CExoString(static_cast<void*>((char*)internalPtr + offsetRunScript));
 }

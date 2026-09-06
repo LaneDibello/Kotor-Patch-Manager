@@ -4,6 +4,9 @@
 
 CSWGuiBorder::FillCenterFn CSWGuiBorder::fillCenter = nullptr;
 CSWGuiBorder::FillTileFn   CSWGuiBorder::fillTile   = nullptr;
+CSWGuiBorder::InitializeFn     CSWGuiBorder::initialize     = nullptr;
+CSWGuiBorder::GetInnerExtentFn CSWGuiBorder::getInnerExtent = nullptr;
+CSWGuiBorder::DrawFn           CSWGuiBorder::drawFn         = nullptr;
 CSWGuiBorder::ConstructorFn CSWGuiBorder::constructor = nullptr;
 CSWGuiBorder::DestructorFn  CSWGuiBorder::destructor  = nullptr;
 int CSWGuiBorder::classSize = -1;
@@ -27,6 +30,9 @@ void CSWGuiBorder::InitializeFunctions() {
     try {
         fillCenter = reinterpret_cast<FillCenterFn>(GameVersion::GetFunctionAddress("CSWGuiBorder", "FillCenter"));
         fillTile   = reinterpret_cast<FillTileFn>  (GameVersion::GetFunctionAddress("CSWGuiBorder", "FillTile"));
+        initialize     = reinterpret_cast<InitializeFn>    (GameVersion::GetFunctionAddress("CSWGuiBorder", "Initialize"));
+        getInnerExtent = reinterpret_cast<GetInnerExtentFn>(GameVersion::GetFunctionAddress("CSWGuiBorder", "GetInnerExtent"));
+        drawFn         = reinterpret_cast<DrawFn>          (GameVersion::GetFunctionAddress("CSWGuiBorder", "Draw"));
         constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiBorder", "Constructor"));
         destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiBorder", "Destructor"));
 
@@ -124,4 +130,19 @@ CSWGuiBorderParams* CSWGuiBorder::GetBorderParams() {
     }
     // Inline CSWGuiBorderParams member: wrap its in-place address.
     return new CSWGuiBorderParams((char*)objectPtr + offsetBorderParams);
+}
+
+void CSWGuiBorder::Initialize(CSWGuiExtent* extent, CSWGuiBorderParams* borderParams) {
+    if (!objectPtr || !initialize) return;
+    initialize(objectPtr, extent, borderParams ? borderParams->GetPtr() : nullptr);
+}
+
+void CSWGuiBorder::GetInnerExtent(CSWGuiExtent* outExtent) {
+    if (!objectPtr || !getInnerExtent || !outExtent) return;
+    getInnerExtent(objectPtr, outExtent);
+}
+
+void CSWGuiBorder::Draw(float alpha) {
+    if (!objectPtr || !drawFn) return;
+    drawFn(objectPtr, alpha);
 }

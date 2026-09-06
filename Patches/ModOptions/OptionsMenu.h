@@ -23,6 +23,7 @@
 #include "GameAPI/CSWGuiText.h"
 #include "GameAPI/CSWGuiTextParams.h"
 
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,14 @@ public:
 
 	// Authoritative option state, indexed like config.options, in INI text form.
 	std::vector<std::string> values;
+
+	// Ceiling on a game string length before we treat the field as garbage.
+	static const DWORD MAX_SANE_STRING = 4096;
+
+	// Height of a stacked Text row as a percentage of a toggle row. At 110 the name
+	// and the field get 55% of a normal row each -- a little over half, which is what
+	// the proto item's line height needs to sit comfortably.
+	static const int TEXT_ROW_HEIGHT_PERCENT = 170;
 
 	// Wrappers for the Text options currently in optionsListBox. Each owns a vtable
 	// override on its game object, so it has to outlive that object and be torn down
@@ -161,7 +170,16 @@ public:
 		debugLog("[ModOptions] AButton on %s (active = %s)",
 		         describe(control), describe(activeControlPtr()));
 		releaseKeyboardFocus(control);
+		commitOption(control);
+	}
 
+	// Reads a control's current state and writes it through to values/INI/handler.
+	//
+	// Split out of onOption so an edit box can commit from inside its own focus
+	// release without re-entering releaseKeyboardFocus. Text options reach this ONLY
+	// here: their AButton event is wired to setEditFocus, and
+	// CSWGuiControl::HandleInputEvent fires just the first matching handler.
+	void commitOption(void* control) {
 		CSWGuiControl option(control);
 		size_t index = (size_t)option.GetCustomValue();
 		if (index >= config.OptionCount() || index >= values.size()) {
@@ -196,11 +214,22 @@ public:
 			if (!editText) {
 				return;
 			}
-			CExoString* newValue = editText->GetString();
-			if (newValue) {
-				value = newValue->GetCStr();
-				delete newValue;
-			}
+
+			// The text params are the authoritative source: they are what the renderer
+			// draws, and by the time we commit the caret has already been switched off
+			// by HandleFocusChange(0), so no caret glyph is included.
+			//
+			// CSWGuiEditText::GetString (the "string" field) is NOT used: it hands back
+			// a pointer-shaped value rather than text -- see probeBackingString.
+			CSWGuiTextParams* params = editText->GetTextParams();
+			CExoString* displayed = params ? params->GetText() : nullptr;
+			value = exoText(displayed);
+
+			debugLog("[ModOptions] commit Text: \"%s\"", value.c_str());
+			probeBackingString(editText);
+
+			delete displayed;
+			delete params;
 			delete editText;
 			break;
 		}
@@ -373,6 +402,127 @@ private:
 		editBoxes.clear();
 	}
 
+	// Reads a game CExoString into a std::string, and does not trust it.
+	//
+	// A raw `std::string(str->GetCStr())` reads until a NUL that the game has no
+	// obligation to have written, which is how a three-character entry reached the ini
+	// as two bytes of garbage. Honour the length field instead, and reject a length
+	// that cannot be real rather than copying megabytes of heap.
+	static std::string exoText(CExoString* str) {
+		if (!str) {
+			return std::string();
+		}
+		char* text = str->GetCStr();
+		const DWORD length = str->GetLength();
+		if (!text || length == 0 || length > MAX_SANE_STRING) {
+			return std::string();
+		}
+		return std::string(text, length);
+	}
+
+	// DEBUG: confirms CSWGuiEditText::GetString now wraps the inline string instead of
+	// copying raw struct bytes through the wrong CExoString constructor. Expect the
+	// inline read to match the committed value; the dereferenced read is left in only
+	// to show it is NOT a pointer. Delete both once a run confirms it.
+	void probeBackingString(CSWGuiEditText* editText) {
+		CExoString* direct = editText->GetString();
+		if (!direct) {
+			return;
+		}
+
+		void* fieldAddr = direct->GetPtr();
+		debugLog("[ModOptions]   string field @%p read inline -> \"%s\"",
+		         fieldAddr, exoText(direct).c_str());
+
+		if (fieldAddr) {
+			void* indirect = *reinterpret_cast<void**>(fieldAddr);
+			if (indirect) {
+				CExoString viaPointer(indirect);
+				debugLog("[ModOptions]   string field dereferenced (%p) -> \"%s\"",
+				         indirect, exoText(&viaPointer).c_str());
+			}
+		}
+
+		delete direct;
+	}
+
+	// Reads a caller-owned CResRef wrapper into a string and disposes of both.
+	static std::string resRefText(CResRef* ref) {
+		std::string out;
+		if (!ref) {
+			return out;
+		}
+		char* text = ref->GetCStr();
+		if (text) {
+			out = text;
+			free(text);
+		}
+		delete ref;
+		return out;
+	}
+
+	// Swaps a border params object's three images and remembers the originals, so a
+	// borrowed proto-item params block can be put back exactly as it was.
+	//
+	// The proto item's params are shared with every row, and
+	// CSWGuiBorder::Initialize copies whatever it is handed into the border -- so
+	// without the restore, every toggle built after an edit box inherits the edit
+	// box's art (which is also why the highlight border was drawing the checkbox
+	// circle: it was still carrying the toggle's fill image).
+	struct BorrowedBorderImages {
+		BorrowedBorderImages(CSWGuiBorderParams* params, const char* corner,
+			const char* edge, const char* fill) : params(params)
+		{
+			if (!params) {
+				return;
+			}
+			savedCorner = resRefText(params->GetCornerImageResRef());
+			savedEdge   = resRefText(params->GetEdgeImageResRef());
+			savedFill   = resRefText(params->GetFillImageResRef());
+			apply(corner, edge, fill);
+		}
+
+		~BorrowedBorderImages() {
+			if (params) {
+				apply(savedCorner.c_str(), savedEdge.c_str(), savedFill.c_str());
+			}
+		}
+
+		void apply(const char* corner, const char* edge, const char* fill) {
+			CResRef cornerRef(corner);
+			CResRef edgeRef(edge);
+			CResRef fillRef(fill);
+			params->SetCornerImage(&cornerRef, 1);
+			params->SetEdgeImage(&edgeRef, 1);
+			params->SetFillImage(&fillRef, 1);
+		}
+
+		CSWGuiBorderParams* params;
+		std::string savedCorner, savedEdge, savedFill;
+	};
+
+	// Builds one Text row: thin blue frame at rest, brighter frame when hovered or
+	// focused, and the same flat fill for both so neither picks up the toggle art.
+	void initializeEditBox(OptionsEditBox* editBox, CSWGuiExtent* extent,
+		CSWGuiTextParams* textParams, CSWGuiBorderParams* borderParams,
+		CSWGuiBorderParams* hilightParams, const std::string& name,
+		const std::string& value)
+	{
+		{
+			BorrowedBorderImages frame(borderParams, "border2", "border1", "dialog3");
+			BorrowedBorderImages hilightFrame(hilightParams, "border4", "border3", "dialog3");
+
+			editBox->Initialize(extent, textParams, borderParams, hilightParams, name);
+		}
+
+		CSWGuiEditText* editText = editBox->GetEditText();
+		if (editText) {
+			CExoString textValue(const_cast<char*>(value.c_str()));
+			editText->SetText(&textValue);
+			delete editText;
+		}
+	}
+
 	// GetText/GetTextParams hand back caller-owned wrappers.
 	template <typename ControlT>
 	void SetControlText(ControlT* control, const std::string& text) {
@@ -468,18 +618,15 @@ private:
 			case ModOptionType::List:
 				// TODO
 				break;
-			case ModOptionType::Text:
-				OptionsEditBox* editBox = new OptionsEditBox(this);
+			case ModOptionType::Text: {
+				OptionsEditBox* editBox = new OptionsEditBox(this, this);
 
-				CResRef corner("border2");
-				CResRef edge("border1");
-				CResRef fill("dialog3");
-				borderParams->SetCornerImage(&corner, 1);
-				borderParams->SetEdgeImage(&edge, 1);
-				borderParams->SetFillImage(&fill, 1);
-				editBox->Initialize(&optionExtent, textParams, borderParams);
-				CExoString textValue(const_cast<char*>(value.c_str()));
-				editBox->GetEditText()->SetText(&textValue);
+				// A stacked row needs two lines: the name above the field.
+				CSWGuiExtent textExtent = optionExtent;
+				textExtent.height = optionExtent.height * TEXT_ROW_HEIGHT_PERCENT / 100;
+
+				initializeEditBox(editBox, &textExtent, textParams, borderParams,
+					hilightParams, options[i].name, value);
 
 				editBox->AddEvent(CSWGuiControl::AButton, this,
 					memberThunkAddr<OptionsMenu, &OptionsMenu::setEditFocus>());
@@ -491,6 +638,7 @@ private:
 				editBoxes.push_back(editBox);
 				listOptions.Add(editBox);
 				break;
+			}
 			}
 		}
 
@@ -508,7 +656,10 @@ private:
 
 		debugLog("[ModOptions] `%s` produced %i options", config.GetName().c_str(), listOptions.GetSize());
 
-		optionsListBox.AddControls(&listOptions, 1, 0, 0);
+		// varyItemHeights only matters once Text rows stop matching the toggle height;
+		// while they match, the uniform path is the better-trodden one.
+		optionsListBox.AddControls(&listOptions, 1, 0,
+			TEXT_ROW_HEIGHT_PERCENT != 100 ? 1 : 0);
 	}
 
 	void _HandleInputEvent(int event, int doPanelEvents) {
@@ -532,3 +683,11 @@ private:
 		HandleInputEvent(event, doPanelEvents);
 	}
 };
+
+// Defined here rather than in OptionsEditBox.h: the edit box only forward-declares
+// OptionsMenu, and both headers land in the same translation unit.
+inline void OptionsEditBox::CommitToMenu() {
+	if (menu) {
+		menu->commitOption(GetPtr());
+	}
+}

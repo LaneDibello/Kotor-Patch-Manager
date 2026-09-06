@@ -312,3 +312,38 @@ void __fastcall CSWGuiControl::HandleFocusChangeThunk(void* gameObj, void* /*edx
     auto handler = reinterpret_cast<void(__thiscall*)(void*, int)>(self->focusChangeHandler);
     handler(self, hasFocus);
 }
+
+void CSWGuiControl::OverrideDraw(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    drawHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::Draw),
+                             reinterpret_cast<void*>(&CSWGuiControl::DrawThunk));
+}
+
+// No caller capture here: Draw runs every frame and the write would be pure noise.
+void __fastcall CSWGuiControl::DrawThunk(void* gameObj, void* /*edx*/, float alpha) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->drawHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, float)>(self->drawHandler);
+    handler(self, alpha);
+}
+
+void CSWGuiControl::OverrideSetExtent(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    setExtentHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::SetExtent),
+                             reinterpret_cast<void*>(&CSWGuiControl::SetExtentThunk));
+}
+
+void __fastcall CSWGuiControl::SetExtentThunk(void* gameObj, void* /*edx*/, void* extent) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->setExtentHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, void*)>(self->setExtentHandler);
+    handler(self, extent);
+}

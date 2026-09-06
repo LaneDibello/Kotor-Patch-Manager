@@ -119,7 +119,11 @@ CExoString* CSWGuiEditText::GetString() {
         return nullptr;
     }
     // Inline CExoString member: wrap its in-place address.
-    return new CExoString((char*)objectPtr + offsetString);
+    // The void* cast is load-bearing: a bare `(char*)objectPtr + offsetString` is an
+    // exact match for CExoString(char* src), which BUILDS a new string by copying C
+    // string bytes from that address -- so this handed back the inline CExoString's
+    // own pointer field rendered as text instead of wrapping the string in place.
+    return new CExoString(static_cast<void*>((char*)objectPtr + offsetString));
 }
 
 short CSWGuiEditText::GetMaxLength() {
