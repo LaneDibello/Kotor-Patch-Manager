@@ -66,15 +66,12 @@ internal static class LaunchDispatcher
             var comSpec = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";
             startInfo = new ProcessStartInfo { FileName = comSpec, ArgumentList = { "/c", command } };
         }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            // /bin/sh is the POSIX system shell, guaranteed present. Deliberately not
-            // $SHELL, which is the user's interactive login shell, not a command runner.
-            startInfo = new ProcessStartInfo { FileName = "/bin/sh", ArgumentList = { "-c", command } };
-        }
         else
         {
-            return LaunchResult.Fail("Custom launch is only supported on Windows and Linux.");
+            // /bin/sh is the POSIX system shell, guaranteed present on Linux and macOS
+            // alike. Deliberately not $SHELL, which is the user's interactive login shell,
+            // not a command runner.
+            startInfo = new ProcessStartInfo { FileName = "/bin/sh", ArgumentList = { "-c", command } };
         }
 
         if (!string.IsNullOrWhiteSpace(gameDir))

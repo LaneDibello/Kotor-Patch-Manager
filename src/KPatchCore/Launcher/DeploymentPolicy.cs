@@ -68,11 +68,11 @@ public static class DeploymentPolicy
     /// </remarks>
     public static DeploymentMethod ForCurrentPlatform()
     {
-        // Linux has no choice: a native process cannot inject into the Wine process running the
-        // game, so the proxy is the only way in. Windows can do either.
-        return RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || PreferLibraryProxy
-            ? DeploymentMethod.LibraryProxy
-            : DeploymentMethod.RuntimeInjection;
+        // Injection is Win32 API work, so only a Windows host can do it at all. Everywhere else
+        // the proxy is the only way into a Windows build of the game, whatever the user prefers.
+        return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && !PreferLibraryProxy
+            ? DeploymentMethod.RuntimeInjection
+            : DeploymentMethod.LibraryProxy;
     }
 
     /// <summary>
@@ -104,9 +104,9 @@ public static class DeploymentPolicy
     /// </summary>
     public static DeploymentMethod ForGame(GameVersion gameVersion)
     {
-        return gameVersion.Platform == Platform.Linux
-            ? DeploymentMethod.LinkedDependency
-            : ForCurrentPlatform();
+        return gameVersion.Platform == Platform.Windows
+            ? ForCurrentPlatform()
+            : DeploymentMethod.LinkedDependency;
     }
 
     /// <summary>
@@ -125,16 +125,81 @@ public static class DeploymentPolicy
     }
 
     /// <summary>
-    /// The patcher runtime module the game loads for a deployment method. This is the single
-    /// source of that choice, shared by install staging and launch, so a new platform adds its
-    /// module here rather than at each call site.
+    /// Whether the user has to tell the manager how the game is started. A native build is
+    /// reached through Steam and nothing else, so there is nothing to configure. A Windows build
+    /// on a host that cannot run it needs a compatibility layer the manager knows nothing about,
+    /// whether that is Proton through Steam or a Wine command the user supplies, so it has to
+    /// ask. An undetected executable is treated as a Windows build, which is what the rest of the
+    /// policy already assumes.
     /// </summary>
-    public static string PatcherModuleFileName(DeploymentMethod deployment)
+    /// <remarks>
+    /// This reads like <see cref="HasDeploymentChoice"/> and comes out the same today, but the
+    /// questions are different: that one asks how the patcher gets in, this one asks how the game
+    /// gets started. Keeping them apart means changing one cannot quietly move the other.
+    /// </remarks>
+    public static bool NeedsLaunchConfiguration(GameVersion? gameVersion)
     {
-        return deployment == DeploymentMethod.LinkedDependency
-            ? "KotorPatcher.so"
-            : "KotorPatcher.dll";
+        if (CanStartGameDirectly())
+        {
+            return false;
+        }
+
+        return gameVersion is null || gameVersion.Platform == Platform.Windows;
     }
+
+    /// <summary>
+    /// The patcher runtime module the game loads. This is the single source of that choice, shared
+    /// by install staging and launch, so a new platform adds its module here rather than at each
+    /// call site.
+    /// </summary>
+    /// <remarks>
+    /// It follows the game, not the deployment method and not the host: a Windows build loads the
+    /// DLL whether that arrives by injection or through the proxy, and it still does when the host
+    /// running it is Linux. LinkedDependency alone no longer identifies the module, since both the
+    /// Linux and macOS builds reach the patcher that way and load different files.
+    /// </remarks>
+    public static string PatcherModuleFileName(Platform gamePlatform)
+    {
+        return gamePlatform switch
+        {
+            Platform.Windows => "KotorPatcher.dll",
+            Platform.Linux => "KotorPatcher.so",
+            Platform.macOS => "KotorPatcher.dylib",
+
+            // Every platform is named above on purpose. The lists below are built by walking the
+            // enum, so a new value falling through to a default would quietly claim to be the
+            // Windows module and be treated as a linked dependency at the same time.
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(gamePlatform), gamePlatform, "No patcher module is defined for this platform."),
+        };
+    }
+
+    /// <summary>
+    /// The patcher runtime module for a detected game. An unrecognised executable is treated as a
+    /// Windows build, which is what the deployment default already assumes.
+    /// </summary>
+    public static string PatcherModuleFileName(GameVersion? gameVersion) =>
+        PatcherModuleFileName(gameVersion?.Platform ?? Platform.Windows);
+
+    /// <summary>
+    /// Every patcher module a game can name in its own dependency list. Uninstall works from a
+    /// game folder without knowing which platform installed it, so it asks for all of them rather
+    /// than guessing. The set follows the same rule <see cref="ForGame"/> uses: a Windows build
+    /// goes through the host default, everything else links the module directly.
+    /// </summary>
+    public static IReadOnlyList<string> LinkedModuleFileNames { get; } =
+        Enum.GetValues<Platform>()
+            .Where(p => p != Platform.Windows)
+            .Select(PatcherModuleFileName)
+            .ToArray();
+
+    /// <summary>
+    /// Every patcher module name, whichever platform loads it. Uninstall uses this to recognise
+    /// the manager's own files wherever it finds them, which is a question about the file rather
+    /// than about how it got there.
+    /// </summary>
+    public static IReadOnlyList<string> AllModuleFileNames { get; } =
+        Enum.GetValues<Platform>().Select(PatcherModuleFileName).Distinct().ToArray();
 
     /// <summary>
     /// The library <see cref="DeploymentMethod.LibraryProxy"/> stands in for. KOTOR 1 and 2 both
