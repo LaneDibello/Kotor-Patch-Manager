@@ -23,9 +23,9 @@ public:
     void SetViewportWidth(short width);
     short GetViewportHeight();
     void SetViewportHeight(short height);
-
     // Returned wrapper is heap allocated; caller owns it.
     CExoArrayList<CSWGuiPanel*>* GetPanels();
+    void* GetFocusedEditBox();
 
     // Functions
     void AddPanel(CSWGuiPanel* panel, int flags, int playSound);
@@ -52,4 +52,5 @@ protected:
     static int offsetViewportWidth;
     static int offsetViewportHeight;
     static int offsetPanels;
+    static int offsetFocusedEditBox;
 };

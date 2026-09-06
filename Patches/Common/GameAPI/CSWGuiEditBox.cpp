@@ -1,10 +1,18 @@
 #include "CSWGuiEditBox.h"
 #include "GameVersion.h"
+#include "CSWGuiBorder.h"
+#include "CSWGuiBorderParams.h"
+#include "CSWGuiEditText.h"
+#include "CSWGuiExtent.h"
+#include "CSWGuiTextParams.h"
 
 // Note: DB uses class key "CSWGuiEditbox" (lowercase b) for lookups.
 CSWGuiEditBox::GetIsSelectableFn CSWGuiEditBox::getIsSelectable = nullptr;
+CSWGuiEditBox::InitializeFn      CSWGuiEditBox::initialize      = nullptr;
+CSWGuiEditBox::HandleKeyPressFn  CSWGuiEditBox::handleKeyPress  = nullptr;
 CSWGuiEditBox::ReSetFontFn       CSWGuiEditBox::reSetFont       = nullptr;
 CSWGuiEditBox::SetEnabledFn      CSWGuiEditBox::setEnabled      = nullptr;
+CSWGuiEditBox::SetExtentFn       CSWGuiEditBox::setExtent       = nullptr;
 CSWGuiEditBox::SetFocusFn        CSWGuiEditBox::setFocus        = nullptr;
 CSWGuiEditBox::ConstructorFn CSWGuiEditBox::constructor = nullptr;
 CSWGuiEditBox::DestructorFn  CSWGuiEditBox::destructor  = nullptr;
@@ -12,6 +20,9 @@ int CSWGuiEditBox::classSize = -1;
 
 bool CSWGuiEditBox::functionsInitialized = false;
 bool CSWGuiEditBox::offsetsInitialized = false;
+
+int CSWGuiEditBox::offsetBorder = -1;
+int CSWGuiEditBox::offsetEditText = -1;
 
 void CSWGuiEditBox::InitializeFunctions() {
     if (functionsInitialized) {
@@ -27,8 +38,11 @@ void CSWGuiEditBox::InitializeFunctions() {
 
     try {
         getIsSelectable = reinterpret_cast<GetIsSelectableFn>(GameVersion::GetFunctionAddress("CSWGuiEditbox", "GetIsSelectable"));
+        handleKeyPress  = reinterpret_cast<HandleKeyPressFn> (GameVersion::GetFunctionAddress("CSWGuiEditbox", "HandleKeyPress"));
         reSetFont       = reinterpret_cast<ReSetFontFn>      (GameVersion::GetFunctionAddress("CSWGuiEditbox", "ReSetFont"));
+        initialize      = reinterpret_cast<InitializeFn>      (GameVersion::GetFunctionAddress("CSWGuiEditbox", "Initialize"));
         setEnabled      = reinterpret_cast<SetEnabledFn>     (GameVersion::GetFunctionAddress("CSWGuiEditbox", "SetEnabled"));
+        setExtent       = reinterpret_cast<SetExtentFn>      (GameVersion::GetFunctionAddress("CSWGuiEditbox", "SetExtent"));
         setFocus        = reinterpret_cast<SetFocusFn>       (GameVersion::GetFunctionAddress("CSWGuiEditbox", "SetFocus"));
         constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiEditbox", "Constructor"));
         destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiEditbox", "Destructor_2"));
@@ -54,7 +68,8 @@ void CSWGuiEditBox::InitializeOffsets() {
     }
 
     try {
-        // Offsets Here
+        offsetBorder = GameVersion::GetOffset("CSWGuiEditbox", "border");
+        offsetEditText = GameVersion::GetOffset("CSWGuiEditbox", "edit_text");
         classSize = GameVersion::GetClassSize("CSWGuiEditbox");
 
         offsetsInitialized = true;
@@ -96,6 +111,10 @@ CSWGuiEditBox::CSWGuiEditBox()
 
 CSWGuiEditBox::~CSWGuiEditBox()
 {
+    // Put the game's vtable back before the game's destructor runs (no-op unless
+    // an override was installed).
+    RestoreVTable();
+
     if (shouldFree && objectPtr) {
         if (destructor) {
             destructor(objectPtr);
@@ -106,9 +125,33 @@ CSWGuiEditBox::~CSWGuiEditBox()
     }
 }
 
+CSWGuiBorder* CSWGuiEditBox::GetBorder() {
+    if (!objectPtr || offsetBorder < 0) {
+        return nullptr;
+    }
+    // Inline CSWGuiBorder member: wrap its in-place address.
+    return new CSWGuiBorder((char*)objectPtr + offsetBorder);
+}
+
+CSWGuiEditText* CSWGuiEditBox::GetEditText() {
+    if (!objectPtr || offsetEditText < 0) {
+        return nullptr;
+    }
+    // Inline CSWGuiEditText member: wrap its in-place address.
+    return new CSWGuiEditText((char*)objectPtr + offsetEditText);
+}
+
 bool CSWGuiEditBox::GetIsSelectable() {
     if (!objectPtr || !getIsSelectable) return false;
     return getIsSelectable(objectPtr);
+}
+
+void CSWGuiEditBox::Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
+                               CSWGuiBorderParams* borderParams) {
+    if (!objectPtr || !initialize) return;
+    initialize(objectPtr, extent,
+               textParams ? textParams->GetPtr() : nullptr,
+               borderParams ? borderParams->GetPtr() : nullptr);
 }
 
 void CSWGuiEditBox::ReSetFont() {
@@ -121,7 +164,44 @@ void CSWGuiEditBox::SetEnabled(UINT enabled) {
     setEnabled(objectPtr, enabled);
 }
 
+void CSWGuiEditBox::SetExtent(CSWGuiExtent* extent) {
+    if (!objectPtr || !setExtent) return;
+    setExtent(objectPtr, extent);
+}
+
 void CSWGuiEditBox::SetFocus() {
     if (!objectPtr || !setFocus) return;
     setFocus(objectPtr);
+}
+
+int CSWGuiEditBox::VTableSlotCount() {
+    if (GameVersion::GetTitle() == GameTitle::KOTOR1 &&
+        GameVersion::GetPlatform() == GamePlatform::Windows) {
+        return EDITBOX_VTABLE_SLOT_COUNT;
+    }
+
+    debugLog("[CSWGuiEditBox] WARNING: editbox vtable layout unknown for this game version; vtable overriding disabled\n");
+    return -1;
+}
+
+void CSWGuiEditBox::HandleKeyPress(int key) {
+    if (!objectPtr || !handleKeyPress) return;
+    handleKeyPress(objectPtr, key);
+}
+
+void CSWGuiEditBox::OverrideHandleKeyPress(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    keyPressHandler = handler;
+    vtableOverride->Override(static_cast<int>(EditBoxVTableSlot::HandleKeyPress),
+                             reinterpret_cast<void*>(&CSWGuiEditBox::HandleKeyPressThunk));
+}
+
+void __fastcall CSWGuiEditBox::HandleKeyPressThunk(void* gameObj, void* /*edx*/, int key) {
+    CSWGuiEditBox* self = static_cast<CSWGuiEditBox*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->keyPressHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, int)>(self->keyPressHandler);
+    handler(self, key);
 }

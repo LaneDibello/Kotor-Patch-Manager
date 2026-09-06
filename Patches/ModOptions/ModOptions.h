@@ -105,10 +105,16 @@ public:
 
 		refreshButton.AddEvent(CSWGuiControl::AButton, this,
 			memberThunkAddr<ModOptions, &ModOptions::onRefresh>());
+		refreshButton.SetControlBitFlag(2, false);
 		backButton.AddEvent(CSWGuiControl::AButton, this,
 			memberThunkAddr<ModOptions, &ModOptions::onBack>());
+		backButton.SetControlBitFlag(2, false);
 
 		this->OverrideHandleInputEvent(memberFuncAddr(&ModOptions::_HandleInputEvent));
+
+		SetActiveControl(&optionsListBox, 0);
+		CSWGuiControl* first = optionsListBox.GetControl(0);
+		optionsListBox.SetActiveControl(first, 0);
 	}
 
 	~ModOptions() {
@@ -217,20 +223,10 @@ private:
 		}
 
 		optionsListBox.AddControls(&listButtons, 1, 0, 0);
-		optionsListBox.SetSelectedControl(0, 0);
 	}
 
 	void _HandleInputEvent(int event, int doPanelEvents) {
-		DWORD eip;
-		_asm {
-			call get_eip
-			get_eip :
-			pop eax
-				mov eip, eax
-		};
-		debugLog("[ModOptions] _HandleInputEvent at %X", eip);
-		debugLog("[ModOptions] _HandleInputEvent called with (%i,%i)", event, doPanelEvents);
-		debugLog("[ModOptions] _HandleInputEvent guiManager at %X", guiManager->GetPtr());
+		debugLog("[ModOptions] ModOptions _HandleInputEvent called with (%i,%i)", event, doPanelEvents);
 		if (doPanelEvents && guiManager) {
 			switch (event) {
 			case CSWGuiControl::BButton:

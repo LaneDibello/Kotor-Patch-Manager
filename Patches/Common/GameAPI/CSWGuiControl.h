@@ -2,6 +2,48 @@
 #include "../Common.h"
 #include "CSWGuiObject.h"
 
+// CSWGuiControl virtual-function table layout for KotOR 1 (Windows): 38 entries /
+// 152 bytes.
+//
+// Like PanelVTableSlot, this is specific to K1/Windows. Used to index a copied
+// vtable when overriding control virtuals (see VTableOverride.h).
+enum class ControlVTableSlot : int {
+    Destructor = 0,
+    SetExtent,
+    SetActiveControl,
+    HandleMouseOver,
+    HandleMouseCapturedMovement,
+    HandleLoseMouseFocus,
+    HandleLMouseDown,
+    HandleLMouseUp,
+    HandleRMouseDownUnused,
+    HandleRMouseUp,
+    AsSWGuiPanel,
+    AsSWGuiListBox,
+    AsSWGuiControl,
+    GetHeight,
+    Draw,
+    HandleInputEvent,
+    SetActive,
+    HitCheckMouse,
+    Load,
+    AsNavigable,
+    AsLabel,
+    AsLabelHighlight,
+    AsButton,
+    AsButtonToggle,
+    // Slots 24..30 are unnamed As<Type> stubs.
+    HandleFocusChange = 31,
+    GetIsSelectable,
+    HandleRMouseDown,
+    SetEnabled,
+    ReSetFont,
+    DisplayToolTip
+};
+
+// Number of function entries in the K1/Windows control vtable above.
+inline constexpr int CONTROL_VTABLE_SLOT_COUNT = 38;
+
 class CSWGuiControl : public CSWGuiObject {
 public:
     // Event flags accepted by AddEvent. Any integer is technically valid, but
@@ -46,6 +88,10 @@ public:
     // runtime use it to point back at whatever data they represent.
     DWORD GetCustomValue();
     void SetCustomValue(DWORD value);
+    int GetControlBitFlags();
+    void SetControlBitFlags(int bitFlags);
+    bool GetControlBitFlag(int bitIndex);
+    void SetControlBitFlag(int bitIndex, bool value);
 
     // Functions
     void AddChildControl(CSWGuiControl* child);
@@ -55,9 +101,16 @@ public:
     CSWGuiControl* GetSelectableParent();
     void SetActive(UINT active);
     void SetEnabled(UINT enabled);
+    void HandleFocusChange(int hasFocus);
+
+    void OverrideHandleFocusChange(void* handler);
+    void OverrideDraw(void* handler);
+    void OverrideSetExtent(void* handler);
 
     void InitializeFunctions() override;
     void InitializeOffsets() override;
+
+    int VTableSlotCount() override;
 
 protected:
     typedef void  (__thiscall* AddChildControlFn)(void* thisPtr, void* child);
@@ -84,8 +137,23 @@ protected:
     static int offsetParentControl;
     static int offsetId;
     static int offsetCustomValue;
+    static int offsetBitFlags;
 
     static ConstructorFn constructor;
     static DestructorFn  destructor;
     static int classSize;
+
+    // Raw address of the derived wrapper's handler (via memberFuncAddr), invoked by
+    // the thunk. Null when the override is not registered.
+    void* focusChangeHandler = nullptr;
+    void* drawHandler = nullptr;
+    void* setExtentHandler = nullptr;
+
+    // Installed into ControlVTableSlot::HandleFocusChange. The game calls this as
+    // __thiscall (game object in ECX)
+    static void __fastcall HandleFocusChangeThunk(void* gameObj, void* edx, int hasFocus);
+    static void __fastcall DrawThunk(void* gameObj, void* edx, float alpha);
+    static void __fastcall SetExtentThunk(void* gameObj, void* edx, void* extent);
+
+    void* originalVirtual(ControlVTableSlot slot);
 };

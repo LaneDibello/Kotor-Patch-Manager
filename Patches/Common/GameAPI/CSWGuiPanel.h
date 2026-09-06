@@ -1,6 +1,5 @@
 #pragma once
 #include "../Common.h"
-#include "../VTableOverride.h"
 #include "CSWGuiObject.h"
 
 class CSWGuiControl;
@@ -14,7 +13,7 @@ template<typename T> class CExoArrayList;
 // 108 bytes. The order and membership of vtable slots varies between game
 // versions and platforms (e.g. the Mac builds duplicate the destructor slot, and
 // KotOR 2 adds entries), so this enum is specific to K1/Windows. Additional
-// layouts are added behind CSWGuiPanel::PanelVTableCount() as they are supported.
+// layouts are added behind CSWGuiPanel::VTableSlotCount() as they are supported.
 // Used to index a copied vtable when overriding panel virtuals (see VTableOverride.h).
 enum class PanelVTableSlot : int {
     Destructor = 0,
@@ -80,7 +79,9 @@ public:
     void GetExtentAccountingForPanelOffset(CSWGuiExtent* outExtent);
     void GetFullScreenBG(CExoString* outBGString);
     void GetLocalMouseCoords(int* outX, int* outY);
-    bool HitCheckMouse(int mouseX, int mouseY);
+    // Returns the control under the cursor, or nullptr. Wrapper is heap allocated;
+    // caller owns it.
+    CSWGuiControl* HitCheckMouse(int mouseX, int mouseY);
     void InitControl(CSWGuiControl* controlToInit, CExoString* label, int activate);
     void ResetFont();
     void SetActiveControl(CSWGuiControl* controlToActivate, int playSound);
@@ -108,11 +109,16 @@ public:
     // Redirect the panel's Update virtual
     void OverrideUpdate(void* handler);
 
-    // Returns the number of entries in the game's CSWGuiPanel vtable for the
-    // currently-detected game version, or -1 if the version is unsupported (in
-    // which case vtable overriding is disabled). This is the single place new
-    // game versions/platforms are wired in.
-    static int PanelVTableCount();
+    // Redirect the panel's SetActiveControl virtual, so the panel sees every focus
+    // change the game routes through the vtable. To chain to the game's version,
+    // the handler calls SetActiveControl() -- that goes straight to the game's
+    // function address and never re-enters the override.
+    void OverrideSetActiveControl(void* handler);
+
+    // Number of entries in the game's CSWGuiPanel vtable for the currently-detected
+    // game version, or -1 if the version is unsupported. This is the single place
+    // new game versions/platforms are wired in for panels.
+    int VTableSlotCount() override;
 
 protected:
     typedef void  (__thiscall* AddControlFn)(void* thisPtr, void* control);
@@ -125,7 +131,7 @@ protected:
     typedef void  (__thiscall* GetExtentAccountingForPanelOffsetFn)(void* thisPtr, CSWGuiExtent* outExtent);
     typedef void  (__thiscall* GetFullScreenBGFn)(void* thisPtr, void* outBGString);
     typedef void  (__thiscall* GetLocalMouseCoordsFn)(void* thisPtr, int* outX, int* outY);
-    typedef bool  (__thiscall* HitCheckMouseFn)(void* thisPtr, int mouseX, int mouseY);
+    typedef void* (__thiscall* HitCheckMouseFn)(void* thisPtr, int mouseX, int mouseY);
     typedef void  (__thiscall* InitControlFn)(void* thisPtr, void* controlToInit, void* label, int activate);
     typedef void  (__thiscall* ResetFontFn)(void* thisPtr);
     typedef void  (__thiscall* SetActiveControlFn)(void* thisPtr, void* controlToActivate, int playSound);
@@ -169,10 +175,6 @@ protected:
 
     static int classSize;
 
-    // Per-instance vtable override (null until the first Override* call). Owned;
-    // destroyed before the game object so its original vtable is restored first.
-    VTableOverride* vtableOverride = nullptr;
-
     // Raw addresses of the derived wrapper's handlers (via memberFuncAddr), invoked
     // by the matching thunk. Null when that override is not registered.
     void* inputEventHandler = nullptr;
@@ -180,10 +182,7 @@ protected:
     void* onPanelAddedHandler = nullptr;
     void* onPanelRemovedHandler = nullptr;
     void* updateHandler = nullptr;
-
-    // Lazily creates the per-instance vtable override on first use. Returns false
-    // if the game version's panel vtable layout is unsupported.
-    bool EnsureVTableOverride();
+    void* setActiveControlHandler = nullptr;
 
     // Installed into the matching vtable slot. The game calls these as __thiscall
     // (game object in ECX); we recover the owning wrapper from the override's
@@ -195,4 +194,5 @@ protected:
     static void __fastcall OnPanelAddedThunk(void* gameObj, void* edx);
     static void __fastcall OnPanelRemovedThunk(void* gameObj, void* edx);
     static void __fastcall UpdateThunk(void* gameObj, void* edx, float param1);
+    static void __fastcall SetActiveControlThunk(void* gameObj, void* edx, void* controlToActivate, int playSound);
 };

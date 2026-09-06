@@ -108,6 +108,10 @@ CSWGuiButton::CSWGuiButton()
 
 CSWGuiButton::~CSWGuiButton()
 {
+    // Put the game's vtable back before the game's destructor runs (no-op unless
+    // an override was installed).
+    RestoreVTable();
+
     if (shouldFree && objectPtr) {
         if (destructor) {
             destructor(objectPtr);
@@ -168,4 +172,14 @@ void CSWGuiButton::Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams
                      textParams ? textParams->GetPtr() : nullptr,
                      borderParams ? borderParams->GetPtr() : nullptr,
                      hilightParams ? hilightParams->GetPtr() : nullptr);
+}
+
+int CSWGuiButton::VTableSlotCount() {
+    if (GameVersion::GetTitle() == GameTitle::KOTOR1 &&
+        GameVersion::GetPlatform() == GamePlatform::Windows) {
+        return BUTTON_VTABLE_SLOT_COUNT;
+    }
+
+    debugLog("[CSWGuiButton] WARNING: button vtable layout unknown for this game version; vtable overriding disabled\n");
+    return -1;
 }

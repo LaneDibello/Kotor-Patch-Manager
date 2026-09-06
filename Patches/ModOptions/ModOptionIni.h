@@ -25,12 +25,7 @@ inline bool ReadOptionValue(const ModOption& option, std::string& outValue) {
 		return false;
 	}
 
-	char* text = value.GetCStr();
-	if (!text) {
-		return false;
-	}
-
-	outValue = text;
+	outValue = value.ToStdString();
 	return true;
 }
 

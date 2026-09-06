@@ -63,8 +63,8 @@ inline void setObjectProperty(void* object, int offset, propType value) {
 // The static_assert rejects anything else (virtual, multiple/virtual inheritance).
 //
 // Only valid where the game passes the wrapper in ECX, i.e. the CSWGuiPanel::Override*
-// virtuals. CSWGuiControl::AddEvent passes the game pointer -- use memberThunkAddr
-// (MemberFunctionThunk.h) there instead.
+// and CSWGuiControl::Override* virtuals. CSWGuiControl::AddEvent passes the game
+// pointer -- use memberThunkAddr (MemberFunctionThunk.h) there instead.
 //
 // USAGE:
 //   this->OverrideHandleInputEvent(memberFuncAddr(&MyPanel::_HandleInputEvent));

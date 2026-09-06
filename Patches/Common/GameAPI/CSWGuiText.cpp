@@ -8,6 +8,9 @@ CSWGuiText::ConstructorFn CSWGuiText::constructor = nullptr;
 CSWGuiText::DestructorFn  CSWGuiText::destructor  = nullptr;
 CSWGuiText::GetFontHeightFn  CSWGuiText::getFontHeight  = nullptr;
 CSWGuiText::GetIdealHeightFn CSWGuiText::getIdealHeight = nullptr;
+CSWGuiText::InitializeFn     CSWGuiText::initialize     = nullptr;
+CSWGuiText::SetExtentFn      CSWGuiText::setExtent      = nullptr;
+CSWGuiText::DrawFn           CSWGuiText::drawFn         = nullptr;
 CSWGuiText::WrapTextFn       CSWGuiText::wrapTextFn      = nullptr;
 int CSWGuiText::classSize = -1;
 int CSWGuiText::offsetTextParams = -1;
@@ -31,6 +34,9 @@ void CSWGuiText::InitializeFunctions() {
         getFontHeight  = reinterpret_cast<GetFontHeightFn> (GameVersion::GetFunctionAddress("CSWGuiText", "GetFontHeight"));
         getIdealHeight = reinterpret_cast<GetIdealHeightFn>(GameVersion::GetFunctionAddress("CSWGuiText", "GetIdealHeight"));
         wrapTextFn     = reinterpret_cast<WrapTextFn>      (GameVersion::GetFunctionAddress("CSWGuiText", "wrapText"));
+        initialize     = reinterpret_cast<InitializeFn>    (GameVersion::GetFunctionAddress("CSWGuiText", "Initialize"));
+        setExtent      = reinterpret_cast<SetExtentFn>     (GameVersion::GetFunctionAddress("CSWGuiText", "SetExtent"));
+        drawFn         = reinterpret_cast<DrawFn>          (GameVersion::GetFunctionAddress("CSWGuiText", "Draw"));
 
         functionsInitialized = true;
     }
@@ -96,6 +102,10 @@ CSWGuiText::CSWGuiText()
 
 CSWGuiText::~CSWGuiText()
 {
+    // Put the game's vtable back before the game's destructor runs (no-op unless
+    // an override was installed).
+    RestoreVTable();
+
     if (shouldFree && objectPtr) {
         if (destructor) {
             destructor(objectPtr);
@@ -127,4 +137,19 @@ int CSWGuiText::GetIdealHeight() {
 void CSWGuiText::wrapText() {
     if (!objectPtr || !wrapTextFn) return;
     wrapTextFn(objectPtr);
+}
+
+void CSWGuiText::Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams, float scale) {
+    if (!objectPtr || !initialize) return;
+    initialize(objectPtr, extent, textParams ? textParams->GetPtr() : nullptr, scale);
+}
+
+void CSWGuiText::SetExtent(CSWGuiExtent* extent) {
+    if (!objectPtr || !setExtent) return;
+    setExtent(objectPtr, extent);
+}
+
+void CSWGuiText::Draw(float alpha) {
+    if (!objectPtr || !drawFn) return;
+    drawFn(objectPtr, alpha);
 }
