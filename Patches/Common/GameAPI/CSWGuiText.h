@@ -17,12 +17,7 @@ public:
 	// Functions
 	int GetFontHeight();
 	int GetIdealHeight();
-	// Lays the text out inside `extent` with the given params. `scale` is 1.0 in
-	// every game call site seen so far.
 	void Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams, float scale);
-	// The game's SetExtent: moves the text AND re-wraps it. Distinct from the
-	// inherited CSWGuiObject::SetExtent(const CSWGuiExtent&), which is a plain
-	// struct write. Qualify explicitly at call sites.
 	void SetExtent(CSWGuiExtent* extent);
 	void Draw(float alpha);
 	void wrapText();

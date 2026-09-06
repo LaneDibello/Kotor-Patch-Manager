@@ -29,7 +29,6 @@
 
 class OptionsMenu : public CSWGuiPanel {
 public:
-	// By value: ModOptions deletes and reloads its configs on refresh.
 	ModOptionsConfig config;
 
 	CSWGuiManager* guiManager;
@@ -47,18 +46,13 @@ public:
 	// Ceiling on a game string length before we treat the field as garbage.
 	static const DWORD MAX_SANE_STRING = 4096;
 
-	// Height of a stacked Text row as a percentage of a toggle row. At 110 the name
-	// and the field get 55% of a normal row each -- a little over half, which is what
-	// the proto item's line height needs to sit comfortably.
+	// Height of a stacked Text Row as a percentage of the provided extent
 	static const int TEXT_ROW_HEIGHT_PERCENT = 170;
 
-	// Wrappers for the Text options currently in optionsListBox. Each owns a vtable
-	// override on its game object, so it has to outlive that object and be torn down
-	// before the list box destroys it -- see releaseEditBoxes().
+	// Wrappers for the Text options currently in optionsListBox
 	std::vector<OptionsEditBox*> editBoxes;
 
-	// Control the last suppressed SetActiveControl was for, so the per-frame
-	// suppression logs once instead of once per mouse-move.
+	// Control the last suppressed SetActiveControl was for
 	void* lastSuppressedFor = nullptr;
 
 	//Callbacks
@@ -73,20 +67,12 @@ public:
 		         describe(control), describe(activeControlPtr()));
 		releaseKeyboardFocus(control);
 
-		// SetFocus dispatches HandleFocusChange through the vtable, so this lands in
-		// OptionsEditBox::_HandleFocusChange, which hands us the active control.
+
 		CSWGuiEditBox editBox(control);
 		editBox.SetFocus();
 	}
 
-	// Drops keyboard focus from any edit box other than `keep`, and points the panel
-	// back at the list box.
-	//
-	// The menu has to drive this. CSWGuiEditbox clears GuiManager->focused_edit_box
-	// only from its own HandleFocusChange(0), and the only thing that would call that
-	// is a parent panel switching active control -- which never happens here, because
-	// every option is parented to the list box, whose AsSWGuiPanel is null. Left
-	// alone, the first edit box clicked would keep eating keystrokes forever.
+	// Drops keyboard focus from any edit box other than `keep`
 	void releaseKeyboardFocus(void* keep = nullptr) {
 		bool released = false;
 		for (OptionsEditBox* box : editBoxes) {
@@ -104,19 +90,7 @@ public:
 		}
 	}
 
-	// CSWGuiManager::HandleKeyPress only routes a keystroke when the top modal's
-	// active control IS the focused edit box, so while one of ours has focus the
-	// panel has to keep pointing at it.
-	//
-	// The pressure against that comes from the list box: on every mouse move it takes
-	// focus (it is the control the manager's hit check lands on), and
-	// CSWGuiControl::HandleFocusChange then walks up to us and claims active_control.
-	// The list box is a direct panel child, so unlike its rows that walk succeeds.
-	// Refuse it while an edit box inside that same list box is focused.
 	void _SetActiveControl(void* control, int playSound) {
-		// HandleMouseMove drives this every mouse-move frame while an edit box is
-		// focused, so the suppressed path stays allocation- and log-free: report the
-		// first one of each run and go quiet until the situation changes.
 		if (focusedEditBox() && control == optionsListBox.GetPtr()) {
 			if (lastSuppressedFor != control) {
 				lastSuppressedFor = control;
@@ -134,8 +108,6 @@ public:
 
 		releaseKeyboardFocus(control);
 
-		// The wrapper calls the game's function address directly, so this does not
-		// re-enter the override.
 		CSWGuiControl incoming(control);
 		SetActiveControl(&incoming, playSound);
 	}
@@ -174,11 +146,6 @@ public:
 	}
 
 	// Reads a control's current state and writes it through to values/INI/handler.
-	//
-	// Split out of onOption so an edit box can commit from inside its own focus
-	// release without re-entering releaseKeyboardFocus. Text options reach this ONLY
-	// here: their AButton event is wired to setEditFocus, and
-	// CSWGuiControl::HandleInputEvent fires just the first matching handler.
 	void commitOption(void* control) {
 		CSWGuiControl option(control);
 		size_t index = (size_t)option.GetCustomValue();
@@ -215,12 +182,6 @@ public:
 				return;
 			}
 
-			// The text params are the authoritative source: they are what the renderer
-			// draws, and by the time we commit the caret has already been switched off
-			// by HandleFocusChange(0), so no caret glyph is included.
-			//
-			// CSWGuiEditText::GetString (the "string" field) is NOT used: it hands back
-			// a pointer-shaped value rather than text -- see probeBackingString.
 			CSWGuiTextParams* params = editText->GetTextParams();
 			CExoString* displayed = params ? params->GetText() : nullptr;
 			value = exoText(displayed);
@@ -384,13 +345,7 @@ private:
 		return ptr;
 	}
 
-	// Tears down the Text-option wrappers. Each destructor restores the game vtable
-	// it overrode, so this must run while those game objects are still alive -- i.e.
-	// before CSWGuiListBox::ClearItems.
-	//
-	// ReleaseOwnership first: the game objects went to AddControls and whoever frees
-	// them, it is not us. That leaves the wrapper doing exactly what it did before it
-	// grew a vtable override -- restore, and hands off the game memory untouched.
+	// Tears down the Text-option wrappers. 
 	void releaseEditBoxes() {
 		// Keyboard mode is global; drop it before the boxes holding it go away.
 		releaseKeyboardFocus();

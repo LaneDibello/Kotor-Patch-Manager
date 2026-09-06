@@ -246,8 +246,6 @@ void CClientExoApp::InitializeOffsets() {
         return;
     }
 
-    // K1 only: the K2 databases carry no CClientExoApp offsets, so these lookups
-    // throw there and every accessor falls back to its safe default.
     try {
         offsetInternal = GameVersion::GetOffset("CClientExoApp", "internal");
 

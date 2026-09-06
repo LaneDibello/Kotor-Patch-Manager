@@ -148,11 +148,6 @@ public:
     /// <summary>
     /// Copies the list into a std::vector. The vector is a snapshot: changing it
     /// does not affect the CExoArrayList, and vice versa.
-    ///
-    /// For wrapper-pointer lists (e.g. CExoArrayList&lt;CSWGuiControl*&gt;) each
-    /// element is a freshly heap-allocated non-owning wrapper around the stored
-    /// raw game pointer, so the caller owns and must delete them. Prefer ForEach
-    /// when you only need to read the list.
     /// </summary>
     std::vector<T> ToVector() const;
 

@@ -9,8 +9,8 @@ class CSWGuiBorderParams;
 struct CSWGuiExtent;
 
 // CSWGuiEditBox virtual-function table for KotOR 1 (Windows): 40 entries.
-// Slots 0..37 keep their ControlVTableSlot indices (see CSWGuiControl.h); these two
-// are the edit box's own additions past the shared control table.
+// Slots 0..37 keep their ControlVTableSlot indices (see CSWGuiControl.h); these
+// are the edit box's additions.
 enum class EditBoxVTableSlot : int {
     Initialize = 38,
     HandleKeyPress = 39
@@ -36,16 +36,8 @@ public:
     void SetEnabled(UINT enabled);
     void SetExtent(CSWGuiExtent* extent);
     void SetFocus();
-
-    // Feeds one keystroke to the game's handler, bypassing any installed override.
-    // Handles backspace/delete, printable characters, and the arrow-key events; its
-    // Enter and Escape cases route through the parent *panel*, so they do nothing for
-    // a box parented to a list box.
     void HandleKeyPress(int key);
 
-    // Redirect the edit box's HandleKeyPress virtual. Same contract as the
-    // CSWGuiControl::Override* family: pass the handler through memberFuncAddr, and
-    // call HandleKeyPress() to chain.
     void OverrideHandleKeyPress(void* handler);
 
     void InitializeFunctions() override;

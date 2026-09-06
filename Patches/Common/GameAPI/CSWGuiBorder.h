@@ -14,11 +14,7 @@ public:
     CSWGuiBorderParams* GetBorderParams();
 
     // Functions
-    // Lays the border out over `extent` and copies `borderParams` into it, loading
-    // the corner/edge/fill images. Cheap enough to re-run on a relayout.
     void Initialize(CSWGuiExtent* extent, CSWGuiBorderParams* borderParams);
-    // The area inside the border art -- what the game passes to CSWGuiText::Initialize
-    // when it lays text inside a bordered control.
     void GetInnerExtent(CSWGuiExtent* outExtent);
     void Draw(float alpha);
     void FillCenter(int height, int width, int x, int y, float alpha, Vector* color);

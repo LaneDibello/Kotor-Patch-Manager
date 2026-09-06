@@ -3,14 +3,7 @@
 #include "CSWGuiObject.h"
 
 // CSWGuiControl virtual-function table layout for KotOR 1 (Windows): 38 entries /
-// 152 bytes. Slot names come from the GuiControlMethods rows in the address
-// database (byte offset / 4). The gaps are unnamed slots the game fills with its
-// shared stubs 0x63E7F0 ("return NULL") and 0x641DB0 ("return this") -- the
-// As<Type> downcasts a class does not participate in.
-//
-// Derived control classes EXTEND this table rather than matching it (editbox 40,
-// listbox 42, button 40), so each reports its own VTableSlotCount(). Slots 0..37
-// keep these indices in every one of them.
+// 152 bytes.
 //
 // Like PanelVTableSlot, this is specific to K1/Windows. Used to index a copied
 // vtable when overriding control virtuals (see VTableOverride.h).
@@ -108,39 +101,12 @@ public:
     CSWGuiControl* GetSelectableParent();
     void SetActive(UINT active);
     void SetEnabled(UINT enabled);
-
-    // Invokes the game's HandleFocusChange for this control's actual class,
-    // bypassing any installed override -- this is how an OverrideHandleFocusChange
-    // handler chains to the game's implementation.
-    //
-    // The game's version does the focus bookkeeping (an editbox sets keyboard mode,
-    // GuiManager->focused_edit_box and the caret) and then hands focus to the
-    // control's parent *panel*. A control parented to a listbox has no panel parent,
-    // so that second half silently does nothing -- see OverrideHandleFocusChange.
     void HandleFocusChange(int hasFocus);
-
-    // Redirect the control's HandleFocusChange virtual to a method on the derived
-    // wrapper. Pass it through memberFuncAddr (see Common.h); the handler runs with
-    // this wrapper as its `this`, and may call HandleFocusChange() to chain.
-    void OverrideHandleFocusChange(void* handler);
-
-    // Invokes the game's HandleLMouseUp for this control's actual class, bypassing
-    // any installed override. CSWGuiControl's version raises the AButton event;
-    // CSWGuiEditbox replaces it with one that only releases the mouse capture.
     void HandleLMouseUp();
 
-    // Redirect the control's HandleLMouseUp virtual, same contract as
-    // OverrideHandleFocusChange.
+    void OverrideHandleFocusChange(void* handler);
     void OverrideHandleLMouseUp(void* handler);
-
-    // Redirect the control's Draw virtual. A handler here replaces the control's
-    // whole appearance, so it usually composes sub-objects itself rather than
-    // chaining. NOTE: this runs every frame -- do not allocate in the handler.
     void OverrideDraw(void* handler);
-
-    // Redirect the control's SetExtent virtual. This is the game's relayout hook:
-    // a container (CSWGuiListBox) calls it whenever it repositions the control, so
-    // a composite control derives its sub-extents here rather than at Initialize.
     void OverrideSetExtent(void* handler);
 
     // DEBUG: game .text addresses that invoked the overridden virtuals most recently.
@@ -194,15 +160,11 @@ protected:
     void* setExtentHandler = nullptr;
 
     // Installed into ControlVTableSlot::HandleFocusChange. The game calls this as
-    // __thiscall (game object in ECX); we recover the owning wrapper from the
-    // override's back-pointer and forward to its registered handler. __fastcall
-    // stands in for __thiscall on this free-standing function.
+    // __thiscall (game object in ECX)
     static void __fastcall HandleFocusChangeThunk(void* gameObj, void* edx, int hasFocus);
     static void __fastcall HandleLMouseUpThunk(void* gameObj, void* edx);
     static void __fastcall DrawThunk(void* gameObj, void* edx, float alpha);
     static void __fastcall SetExtentThunk(void* gameObj, void* edx, void* extent);
 
-    // Shared by the call-through helpers: the game function in `slot` for this
-    // object's actual class, with an installed override stepped around.
     void* originalVirtual(ControlVTableSlot slot);
 };

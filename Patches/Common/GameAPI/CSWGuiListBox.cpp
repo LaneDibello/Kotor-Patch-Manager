@@ -330,8 +330,6 @@ void CSWGuiListBox::SetActive(int active) {
     setActive(objectPtr, active);
 }
 
-// Thin wrapper over SetSelectedControl(indexOf(control), playSound) -- the third
-// argument is the gui sound flag, not an "active" flag as an earlier pass assumed.
 void CSWGuiListBox::SetActiveControl(CSWGuiControl* control, int playSound) {
     if (!objectPtr || !setActiveControl) return;
     setActiveControl(objectPtr, control ? control->GetPtr() : nullptr, playSound);

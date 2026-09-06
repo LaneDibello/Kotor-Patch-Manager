@@ -244,8 +244,6 @@ void* CSWGuiControl::originalVirtual(ControlVTableSlot slot) {
 
     const int index = static_cast<int>(slot);
 
-    // With an override installed the object's vtable is our copy, so the slot holds
-    // our thunk -- calling it would recurse. Take the saved original instead.
     void* fn = vtableOverride ? vtableOverride->GetOriginal(index) : nullptr;
     if (fn) {
         return fn;
@@ -280,6 +278,8 @@ void CSWGuiControl::OverrideHandleLMouseUp(void* handler) {
                              reinterpret_cast<void*>(&CSWGuiControl::HandleLMouseUpThunk));
 }
 
+// __fastcalls are used below to mimic the behavior of a __thiscall (this in ECX)
+// without having to deal with the type baggage that comes with that
 void __fastcall CSWGuiControl::HandleLMouseUpThunk(void* gameObj, void* /*edx*/) {
     void* caller = callerAddress();
 
@@ -322,7 +322,6 @@ void CSWGuiControl::OverrideDraw(void* handler) {
                              reinterpret_cast<void*>(&CSWGuiControl::DrawThunk));
 }
 
-// No caller capture here: Draw runs every frame and the write would be pure noise.
 void __fastcall CSWGuiControl::DrawThunk(void* gameObj, void* /*edx*/, float alpha) {
     CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
     if (!self || !self->drawHandler) return;

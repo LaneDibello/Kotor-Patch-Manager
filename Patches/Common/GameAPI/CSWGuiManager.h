@@ -23,14 +23,8 @@ public:
     void SetViewportWidth(short width);
     short GetViewportHeight();
     void SetViewportHeight(short height);
-
     // Returned wrapper is heap allocated; caller owns it.
     CExoArrayList<CSWGuiPanel*>* GetPanels();
-
-    // The edit box currently taking keystrokes, or nullptr. Set and cleared by
-    // CSWGuiEditbox::HandleFocusChange; HandleKeyPress routes a key here only when
-    // it also matches the top modal panel's active control.
-    // Returns the raw game pointer -- callers compare it, they do not own it.
     void* GetFocusedEditBox();
 
     // Functions

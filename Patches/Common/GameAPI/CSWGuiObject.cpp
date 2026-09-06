@@ -56,9 +56,6 @@ CSWGuiObject::CSWGuiObject(void* objectPtr)
 
 CSWGuiObject::~CSWGuiObject()
 {
-    // Catches wrappers that do not free the game object themselves; the ones that
-    // do have already called RestoreVTable() from their own destructor.
-    // Base class destructor handles objectPtr cleanup.
     RestoreVTable();
 }
 

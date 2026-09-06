@@ -4,8 +4,6 @@
 
 class CExoString;
 
-// The editable text of a CSWGuiEditbox: a CSWGuiText with a caret, a length cap
-// and its own backing string.
 class CSWGuiEditText : public CSWGuiText {
 public:
     explicit CSWGuiEditText(void* objectPtr);
