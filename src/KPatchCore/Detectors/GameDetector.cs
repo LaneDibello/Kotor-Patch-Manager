@@ -2,6 +2,7 @@ using System.Text.Json;
 using KPatchCore.Common;
 using KPatchCore.Managers;
 using KPatchCore.Models;
+using KPatchCore.Parsers;
 
 namespace KPatchCore.Detectors;
 
@@ -198,13 +199,21 @@ public static class GameDetector
                 }
             }
 
-            // Version not recognized - create unknown version with hash info
+            // Read rather than assumed: DeploymentPolicy picks the patcher module and the load
+            // mechanism from these two.
+            var targetResult = ExecutableFormatDetector.DetectTarget(exePath);
+            if (!targetResult.Success)
+            {
+                return PatchResult<GameVersion>.Fail(targetResult.Error!);
+            }
+
+            var target = targetResult.Data;
             var unknownVersion = new GameVersion
             {
-                Platform = Platform.Windows, // Assume Windows for now
+                Platform = PlatformFor(target.Format),
                 Distribution = Distribution.Other,
                 Version = "Unknown",
-                Architecture = Architecture.x86, // Default assumption
+                Architecture = target.Architecture,
                 Title = GameTitle.Unknown,
                 FileSize = fileSize,
                 Hash = hash
@@ -492,4 +501,15 @@ public static class GameDetector
     {
         return hash.Length > 16 ? hash.Substring(0, 16) : hash;
     }
+
+    private static Platform PlatformFor(ExecutableFormat format) => format switch
+    {
+        ExecutableFormat.Pe => Platform.Windows,
+        ExecutableFormat.Elf => Platform.Linux,
+        ExecutableFormat.MachO => Platform.macOS,
+
+        // A new format needs a platform picked for it here.
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(format), format, "No platform is defined for this executable format."),
+    };
 }
