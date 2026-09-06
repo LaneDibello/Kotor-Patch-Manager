@@ -45,7 +45,7 @@ public:
 
 
 	// Height of a stacked Text Row as a percentage of the provided extent
-	static const int TEXT_ROW_HEIGHT_PERCENT = 170;
+	static const int TEXT_ROW_HEIGHT_PERCENT = 130;
 
 	// Wrappers for the Text options currently in optionsListBox
 	std::vector<OptionsEditBox*> editBoxes;
@@ -356,8 +356,9 @@ private:
 		const std::string& value)
 	{
 		{
-			BorrowedBorderImages frame(borderParams, "border2", "border1", "dialog3");
-			BorrowedBorderImages hilightFrame(hilightParams, "border4", "border3", "dialog3");
+			BorrowedBorderImages frame(borderParams, "blueborder", "blueborder01", "blackfill");
+			BorrowedBorderImages hilightFrame(hilightParams, "yellowborder", "yellowborder01", "blackfill");
+
 
 			editBox->Initialize(extent, textParams, borderParams, hilightParams, name);
 		}

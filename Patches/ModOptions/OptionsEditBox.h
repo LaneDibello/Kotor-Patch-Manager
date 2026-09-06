@@ -20,7 +20,7 @@ class OptionsMenu;
 class OptionsEditBox : public CSWGuiEditBox {
 public:
     // Layout const, this is the percentage of the extent the `name` takes up
-    static const int NAME_HEIGHT_PERCENT = 30;
+    static const int NAME_HEIGHT_PERCENT = 40;
 
     explicit OptionsEditBox(CSWGuiPanel* owner, OptionsMenu* menu)
         : CSWGuiEditBox(), owner(owner), menu(menu)
