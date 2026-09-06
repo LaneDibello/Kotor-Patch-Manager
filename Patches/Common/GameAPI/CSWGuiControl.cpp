@@ -261,37 +261,8 @@ void CSWGuiControl::HandleFocusChange(int hasFocus) {
     reinterpret_cast<void(__thiscall*)(void*, int)>(fn)(objectPtr, hasFocus);
 }
 
-void CSWGuiControl::HandleLMouseUp() {
-    void* fn = originalVirtual(ControlVTableSlot::HandleLMouseUp);
-    if (!fn) {
-        return;
-    }
-    reinterpret_cast<void(__thiscall*)(void*)>(fn)(objectPtr);
-}
-
-void CSWGuiControl::OverrideHandleLMouseUp(void* handler) {
-    if (!EnsureVTableOverride()) {
-        return;
-    }
-    lmouseUpHandler = handler;
-    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleLMouseUp),
-                             reinterpret_cast<void*>(&CSWGuiControl::HandleLMouseUpThunk));
-}
-
 // __fastcalls are used below to mimic the behavior of a __thiscall (this in ECX)
 // without having to deal with the type baggage that comes with that
-void __fastcall CSWGuiControl::HandleLMouseUpThunk(void* gameObj, void* /*edx*/) {
-    void* caller = callerAddress();
-
-    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
-    if (!self || !self->lmouseUpHandler) return;
-
-    self->lastLMouseUpCaller = caller;
-
-    auto handler = reinterpret_cast<void(__thiscall*)(void*)>(self->lmouseUpHandler);
-    handler(self);
-}
-
 void CSWGuiControl::OverrideHandleFocusChange(void* handler) {
     if (!EnsureVTableOverride()) {
         return;
@@ -302,12 +273,8 @@ void CSWGuiControl::OverrideHandleFocusChange(void* handler) {
 }
 
 void __fastcall CSWGuiControl::HandleFocusChangeThunk(void* gameObj, void* /*edx*/, int hasFocus) {
-    void* caller = callerAddress();
-
     CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
     if (!self || !self->focusChangeHandler) return;
-
-    self->lastFocusChangeCaller = caller;
 
     auto handler = reinterpret_cast<void(__thiscall*)(void*, int)>(self->focusChangeHandler);
     handler(self, hasFocus);

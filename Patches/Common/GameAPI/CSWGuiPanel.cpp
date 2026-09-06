@@ -178,12 +178,8 @@ void __fastcall CSWGuiPanel::UpdateThunk(void* gameObj, void* /*edx*/, float par
 }
 
 void __fastcall CSWGuiPanel::SetActiveControlThunk(void* gameObj, void* /*edx*/, void* controlToActivate, int playSound) {
-    void* caller = callerAddress();
-
     CSWGuiPanel* self = static_cast<CSWGuiPanel*>(VTableOverride::GetOwner(gameObj));
     if (!self || !self->setActiveControlHandler) return;
-
-    self->lastSetActiveControlCaller = caller;
 
     auto handler = reinterpret_cast<void(__thiscall*)(void*, void*, int)>(self->setActiveControlHandler);
     handler(self, controlToActivate, playSound);

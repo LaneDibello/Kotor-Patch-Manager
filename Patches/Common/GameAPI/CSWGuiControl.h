@@ -102,17 +102,10 @@ public:
     void SetActive(UINT active);
     void SetEnabled(UINT enabled);
     void HandleFocusChange(int hasFocus);
-    void HandleLMouseUp();
 
     void OverrideHandleFocusChange(void* handler);
-    void OverrideHandleLMouseUp(void* handler);
     void OverrideDraw(void* handler);
     void OverrideSetExtent(void* handler);
-
-    // DEBUG: game .text addresses that invoked the overridden virtuals most recently.
-    // The game is not ASLR'd, so these paste straight into Ghidra.
-    void* LastFocusChangeCaller() const { return lastFocusChangeCaller; }
-    void* LastLMouseUpCaller() const { return lastLMouseUpCaller; }
 
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -153,16 +146,12 @@ protected:
     // Raw address of the derived wrapper's handler (via memberFuncAddr), invoked by
     // the thunk. Null when the override is not registered.
     void* focusChangeHandler = nullptr;
-    void* lastFocusChangeCaller = nullptr;
-    void* lmouseUpHandler = nullptr;
-    void* lastLMouseUpCaller = nullptr;
     void* drawHandler = nullptr;
     void* setExtentHandler = nullptr;
 
     // Installed into ControlVTableSlot::HandleFocusChange. The game calls this as
     // __thiscall (game object in ECX)
     static void __fastcall HandleFocusChangeThunk(void* gameObj, void* edx, int hasFocus);
-    static void __fastcall HandleLMouseUpThunk(void* gameObj, void* edx);
     static void __fastcall DrawThunk(void* gameObj, void* edx, float alpha);
     static void __fastcall SetExtentThunk(void* gameObj, void* edx, void* extent);
 

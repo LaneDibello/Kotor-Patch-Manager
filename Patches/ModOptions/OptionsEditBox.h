@@ -116,7 +116,6 @@ public:
 
     void _HandleKeyPress(int key) {
         if (key == KEY_ESCAPE || key == KEY_RETURN || key == KEY_LINEFEED) {
-            debugLog("[ModOptions]   EditBox(%p) key 0x%02X ends editing", GetPtr(), key);
             ReleaseFocus();
             return;
         }
@@ -136,27 +135,15 @@ public:
     }
 
     void _HandleFocusChange(int hasFocus) {
+        // CSWGuiManager::HandleMouseMove unfocuses the panel's active control on every
+        // mouse move landing elsewhere, and it always does: the manager hit-checks down
+        // to the list box, never to a row inside it. Only the menu releases focus.
         if (!hasFocus && !releasing) {
-            if (focused && !loggedRefusal) {
-                loggedRefusal = true;
-                debugLog("[ModOptions]   EditBox(%p) refusing unfocus from %p (sticky; silenced)",
-                         GetPtr(), LastFocusChangeCaller());
-            }
             return;
         }
 
         HandleFocusChange(hasFocus);
         focused = (hasFocus != 0);
-        loggedRefusal = false;
-
-        // LastFocusChangeCaller is only written by the vtable thunk, so it is stale on
-        // a release we drove ourselves. Say so rather than print a misleading address.
-        if (releasing) {
-            debugLog("[ModOptions]   EditBox(%p)::HandleFocusChange(0) (menu-driven)", GetPtr());
-        } else {
-            debugLog("[ModOptions]   EditBox(%p)::HandleFocusChange(%i) from %p",
-                     GetPtr(), hasFocus, LastFocusChangeCaller());
-        }
 
         if (hasFocus && owner) {
             // Safe with a control the panel does not own: SetActiveControl only swaps
@@ -190,7 +177,6 @@ private:
 
     bool focused = false;
     bool releasing = false;
-    bool loggedRefusal = false;
 
     // Keys CSWGuiEditbox::HandleKeyPress recognises but cannot act on for us.
     static const int KEY_LINEFEED = 0x0A;

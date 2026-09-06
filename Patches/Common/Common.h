@@ -4,9 +4,6 @@
 #include <cstdio>
 #include <cstdarg>
 #include <type_traits>
-#if defined(_MSC_VER)
-#include <intrin.h>
-#endif
 #include "VirtualFunctionCall.h"
 #pragma pack(push, 4)
 
@@ -86,19 +83,6 @@ inline void* memberFuncAddr(MemFn fn) {
 	void* p;
 	__builtin_memcpy(&p, &fn, sizeof(p));
 	return p;
-#endif
-}
-
-// ===== CALLER'S RETURN ADDRESS (DEBUG) =====
-//
-// Inside a vtable thunk the game called directly, this is the game .text address the
-// call came from. The game is not ASLR'd (fixed 0x400000 image base), so the value
-// can be pasted straight into Ghidra to identify the caller.
-inline void* callerAddress() {
-#if defined(_MSC_VER)
-	return _ReturnAddress();
-#else
-	return __builtin_return_address(0);
 #endif
 }
 

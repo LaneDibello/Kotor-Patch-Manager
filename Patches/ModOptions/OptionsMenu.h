@@ -43,8 +43,6 @@ public:
 	// Authoritative option state, indexed like config.options, in INI text form.
 	std::vector<std::string> values;
 
-	// Ceiling on a game string length before we treat the field as garbage.
-	static const DWORD MAX_SANE_STRING = 4096;
 
 	// Height of a stacked Text Row as a percentage of the provided extent
 	static const int TEXT_ROW_HEIGHT_PERCENT = 170;
@@ -53,7 +51,6 @@ public:
 	std::vector<OptionsEditBox*> editBoxes;
 
 	// Control the last suppressed SetActiveControl was for
-	void* lastSuppressedFor = nullptr;
 
 	//Callbacks
 	void onBack(void* control) {
@@ -63,10 +60,7 @@ public:
 	}
 
 	void setEditFocus(void* control) {
-		debugLog("[ModOptions] AButton on %s (active = %s)",
-		         describe(control), describe(activeControlPtr()));
 		releaseKeyboardFocus(control);
-
 
 		CSWGuiEditBox editBox(control);
 		editBox.SetFocus();
@@ -77,8 +71,6 @@ public:
 		bool released = false;
 		for (OptionsEditBox* box : editBoxes) {
 			if (box->IsFocused() && box->GetPtr() != keep) {
-				debugLog("[ModOptions]   releasing focus from %s (keep = %s)",
-				         describe(box->GetPtr()), describe(keep));
 				box->ReleaseFocus();
 				released = true;
 			}
@@ -86,25 +78,16 @@ public:
 
 		if (released && !keep) {
 			SetActiveControl(&optionsListBox, 0);
-			debugLog("[ModOptions]   active_control parked back on optionsListBox");
 		}
 	}
 
 	void _SetActiveControl(void* control, int playSound) {
+		// HandleMouseMove drives this every mouse-move frame while an edit box is
+		// focused. Letting it through would hand active_control back to the list box,
+		// and HandleKeyPress only routes keys while active_control IS the focused box.
 		if (focusedEditBox() && control == optionsListBox.GetPtr()) {
-			if (lastSuppressedFor != control) {
-				lastSuppressedFor = control;
-				debugLog("[ModOptions] SetActiveControl from %p: -> optionsListBox SUPPRESSED, "
-				         "keeping edit box focused (silenced)", LastSetActiveControlCaller());
-			}
 			return;
 		}
-		lastSuppressedFor = nullptr;
-
-		void* current = activeControlPtr();
-		debugLog("[ModOptions] SetActiveControl from %p: %s -> %s (playSound %i)%s",
-		         LastSetActiveControlCaller(), describe(current), describe(control), playSound,
-		         current == control ? " [game would early-out]" : "");
 
 		releaseKeyboardFocus(control);
 
@@ -139,8 +122,6 @@ public:
 	}
 
 	void onOption(void* control) {
-		debugLog("[ModOptions] AButton on %s (active = %s)",
-		         describe(control), describe(activeControlPtr()));
 		releaseKeyboardFocus(control);
 		commitOption(control);
 	}
@@ -184,10 +165,7 @@ public:
 
 			CSWGuiTextParams* params = editText->GetTextParams();
 			CExoString* displayed = params ? params->GetText() : nullptr;
-			value = exoText(displayed);
-
-			debugLog("[ModOptions] commit Text: \"%s\"", value.c_str());
-			probeBackingString(editText);
+			value = displayed ? displayed->ToStdString() : std::string();
 
 			delete displayed;
 			delete params;
@@ -208,9 +186,6 @@ public:
 	}
 
 	void SetDescription(void* control) {
-		debugLog("[ModOptions] HoverEnter on %s (active = %s)",
-		         describe(control), describe(activeControlPtr()));
-
 		CSWGuiControl hovered(control);
 
 		size_t index = (size_t)hovered.GetCustomValue();
@@ -306,46 +281,7 @@ public:
 	}
 
 private:
-	// DEBUG: turns a raw game control pointer into something readable in the log.
-	// Rotates through a few buffers so several calls can share one debugLog.
-	const char* describe(void* control) {
-		static char buffers[4][64];
-		static int next = 0;
-		char* buffer = buffers[next];
-		next = (next + 1) % 4;
-
-		if (!control) {
-			return "(null)";
-		}
-		if (control == optionsListBox.GetPtr())     return "optionsListBox";
-		if (control == descriptionListBox.GetPtr()) return "descriptionListBox";
-		if (control == backButton.GetPtr())         return "backButton";
-		if (control == defaultButton.GetPtr())      return "defaultButton";
-		if (control == titleLabel.GetPtr())         return "titleLabel";
-		if (control == descriptionLabel.GetPtr())   return "descriptionLabel";
-
-		for (size_t i = 0; i < editBoxes.size(); ++i) {
-			if (editBoxes[i]->GetPtr() == control) {
-				snprintf(buffer, 64, "editBox[%u]%s", (unsigned)i,
-				         editBoxes[i]->IsFocused() ? " FOCUSED" : "");
-				return buffer;
-			}
-		}
-
-		// A list row we did not build a wrapper for: a toggle.
-		CSWGuiControl row(control);
-		snprintf(buffer, 64, "row?custom=%u", (unsigned)row.GetCustomValue());
-		return buffer;
-	}
-
-	void* activeControlPtr() {
-		CSWGuiControl* active = GetActiveControl();
-		void* ptr = active ? active->GetPtr() : nullptr;
-		delete active;
-		return ptr;
-	}
-
-	// Tears down the Text-option wrappers. 
+	// Tears down the Text-option wrappers.
 	void releaseEditBoxes() {
 		// Keyboard mode is global; drop it before the boxes holding it go away.
 		releaseKeyboardFocus();
@@ -355,50 +291,6 @@ private:
 			delete box;
 		}
 		editBoxes.clear();
-	}
-
-	// Reads a game CExoString into a std::string, and does not trust it.
-	//
-	// A raw `std::string(str->GetCStr())` reads until a NUL that the game has no
-	// obligation to have written, which is how a three-character entry reached the ini
-	// as two bytes of garbage. Honour the length field instead, and reject a length
-	// that cannot be real rather than copying megabytes of heap.
-	static std::string exoText(CExoString* str) {
-		if (!str) {
-			return std::string();
-		}
-		char* text = str->GetCStr();
-		const DWORD length = str->GetLength();
-		if (!text || length == 0 || length > MAX_SANE_STRING) {
-			return std::string();
-		}
-		return std::string(text, length);
-	}
-
-	// DEBUG: confirms CSWGuiEditText::GetString now wraps the inline string instead of
-	// copying raw struct bytes through the wrong CExoString constructor. Expect the
-	// inline read to match the committed value; the dereferenced read is left in only
-	// to show it is NOT a pointer. Delete both once a run confirms it.
-	void probeBackingString(CSWGuiEditText* editText) {
-		CExoString* direct = editText->GetString();
-		if (!direct) {
-			return;
-		}
-
-		void* fieldAddr = direct->GetPtr();
-		debugLog("[ModOptions]   string field @%p read inline -> \"%s\"",
-		         fieldAddr, exoText(direct).c_str());
-
-		if (fieldAddr) {
-			void* indirect = *reinterpret_cast<void**>(fieldAddr);
-			if (indirect) {
-				CExoString viaPointer(indirect);
-				debugLog("[ModOptions]   string field dereferenced (%p) -> \"%s\"",
-				         indirect, exoText(&viaPointer).c_str());
-			}
-		}
-
-		delete direct;
 	}
 
 	// Reads a caller-owned CResRef wrapper into a string and disposes of both.

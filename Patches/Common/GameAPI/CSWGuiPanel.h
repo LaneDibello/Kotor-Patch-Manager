@@ -115,10 +115,6 @@ public:
     // function address and never re-enters the override.
     void OverrideSetActiveControl(void* handler);
 
-    // DEBUG: game .text address that invoked the overridden SetActiveControl most
-    // recently. The game is not ASLR'd, so this pastes straight into Ghidra.
-    void* LastSetActiveControlCaller() const { return lastSetActiveControlCaller; }
-
     // Number of entries in the game's CSWGuiPanel vtable for the currently-detected
     // game version, or -1 if the version is unsupported. This is the single place
     // new game versions/platforms are wired in for panels.
@@ -187,7 +183,6 @@ protected:
     void* onPanelRemovedHandler = nullptr;
     void* updateHandler = nullptr;
     void* setActiveControlHandler = nullptr;
-    void* lastSetActiveControlCaller = nullptr;
 
     // Installed into the matching vtable slot. The game calls these as __thiscall
     // (game object in ECX); we recover the owning wrapper from the override's
