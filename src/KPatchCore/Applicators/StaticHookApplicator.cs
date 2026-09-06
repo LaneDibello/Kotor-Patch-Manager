@@ -1,5 +1,6 @@
 using KPatchCore.Models;
 using KPatchCore.Parsers;
+using KPatchCore.Validators;
 
 namespace KPatchCore.Applicators;
 
@@ -55,21 +56,24 @@ public static class StaticHookApplicator
                 continue;
             }
 
-            // Verify original bytes match. If the replacement bytes are already present,
-            // treat this hook as already applied. This keeps KPM-managed reapply flows from
-            // failing solely because a STATIC patch previously changed the executable.
+            // Verify original bytes match, using the same reading of them the install-time check
+            // uses, so a hook accepted there cannot be rejected here.
             var actualBytes = readResult.Data;
-            if (!hook.OriginalBytes.SequenceEqual(actualBytes))
-            {
-                if (hook.ReplacementBytes != null && hook.ReplacementBytes.SequenceEqual(actualBytes))
-                {
-                    appliedCount++;
-                    continue;
-                }
+            var byteState = HookValidator.ClassifyBytes(hook, actualBytes);
 
+            if (byteState == HookByteState.Mismatch)
+            {
                 var expectedHex = BitConverter.ToString(hook.OriginalBytes).Replace("-", " ");
                 var actualHex = BitConverter.ToString(actualBytes).Replace("-", " ");
                 errors.Add($"Hook at 0x{hook.Address:X8}: Byte mismatch - expected [{expectedHex}], got [{actualHex}]");
+                continue;
+            }
+
+            // Already applied. Reapply flows run over an executable a previous install changed, and
+            // rewriting bytes that are already there gains nothing.
+            if (byteState == HookByteState.AlreadyApplied)
+            {
+                appliedCount++;
                 continue;
             }
 
