@@ -84,6 +84,15 @@ public static class StaticHookApplicator
             appliedCount++;
         }
 
+        // Some formats carry integrity metadata that the writes above invalidate. A macOS binary's
+        // signature is one, and the kernel checks it at exec, so skipping this would leave a game
+        // that no longer starts.
+        var completeResult = image.Complete();
+        if (!completeResult.Success)
+        {
+            errors.Add(completeResult.Error!);
+        }
+
         // If any errors occurred, return failure
         if (errors.Count > 0)
         {

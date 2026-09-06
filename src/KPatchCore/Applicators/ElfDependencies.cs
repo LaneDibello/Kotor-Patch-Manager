@@ -1,3 +1,4 @@
+using KPatchCore.Common;
 using KPatchCore.Models;
 using LibObjectFile.Elf;
 
@@ -81,13 +82,7 @@ internal sealed class ElfDependencies : IExecutableDependencies
                 using (var output = File.Create(tempPath))
                     elf.Write(output);
 
-                // The game executable is +x; carry its mode onto the temp file, or File.Move would
-                // hand over its default (non-executable) permissions. The guard satisfies CA1416:
-                // Get/SetUnixFileMode are Windows-unsupported, and this path only runs on Linux.
-                if (!OperatingSystem.IsWindows())
-                    File.SetUnixFileMode(tempPath, File.GetUnixFileMode(elfPath));
-
-                File.Move(tempPath, elfPath, overwrite: true);
+                PathHelpers.ReplacePreservingMode(tempPath, elfPath);
             }
             finally
             {

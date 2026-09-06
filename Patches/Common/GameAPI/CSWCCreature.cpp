@@ -125,7 +125,7 @@ bool CSWCCreature::GetRunning() {
     if (!objectPtr || offsetRunning < 0) {
         return false;
     }
-    int value = getObjectProperty<int>(objectPtr, offsetRunning);
+    BYTE value = getObjectProperty<BYTE>(objectPtr, offsetRunning);
     return value != 0;
 }
 
@@ -133,7 +133,7 @@ bool CSWCCreature::GetStealth() {
     if (!objectPtr || offsetStealth < 0) {
         return false;
     }
-    int value = getObjectProperty<int>(objectPtr, offsetStealth);
+    BYTE value = getObjectProperty<BYTE>(objectPtr, offsetStealth);
     return value != 0;
 }
 

@@ -9,10 +9,18 @@ namespace KPatchCore.Parsers;
 internal interface IExecutableImage
 {
     /// <summary>Reads <paramref name="length"/> bytes located at <paramref name="virtualAddress"/>.</summary>
-    PatchResult<byte[]> ReadAtVirtualAddress(uint virtualAddress, int length);
+    PatchResult<byte[]> ReadAtVirtualAddress(ulong virtualAddress, int length);
 
     /// <summary>Writes <paramref name="bytes"/> at <paramref name="virtualAddress"/>.</summary>
-    PatchResult WriteAtVirtualAddress(uint virtualAddress, byte[] bytes);
+    PatchResult WriteAtVirtualAddress(ulong virtualAddress, byte[] bytes);
+
+    /// <summary>
+    /// Finishes the edit. A format whose file carries integrity metadata repairs it here, so this
+    /// has to be called once after the last write; a format with nothing to repair succeeds without
+    /// touching the file. Writing again afterwards is not supported, because the repair can move
+    /// whatever follows the edited bytes.
+    /// </summary>
+    PatchResult Complete();
 }
 
 /// <summary>
@@ -31,6 +39,7 @@ internal static class ExecutableImage
         {
             ExecutableFormat.Elf => ElfExecutableImage.Open(exePath),
             ExecutableFormat.Pe => PeExecutableImage.Open(exePath),
+            ExecutableFormat.MachO => MachOExecutableImage.Open(exePath),
             _ => PatchResult<IExecutableImage>.Fail(
                 $"{Path.GetFileName(exePath)} is a {format.Data} executable, which byte patching does not support yet."),
         };

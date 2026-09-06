@@ -108,7 +108,14 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandReadTextFile(DWORD routine, in
 	}
 
 	char buffer[4096];
-	int itemsRead = (int)fread_s((void *)buffer, sizeof(buffer), 1, charCount, f);
+
+	// charCount arrives off the script stack, so a script can ask for more than the buffer
+	// holds. fread_s bounds-checked that against its second argument, but it is an MSVC
+	// extension and MinGW has no such symbol, so the read is clamped here instead.
+	if (charCount < 0) charCount = 0;
+	if (charCount > (int)sizeof(buffer)) charCount = (int)sizeof(buffer);
+
+	int itemsRead = (int)fread(buffer, 1, (size_t)charCount, f);
 
 	CExoString output(buffer, itemsRead);
 

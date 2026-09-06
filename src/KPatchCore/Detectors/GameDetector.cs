@@ -54,6 +54,20 @@ public static class GameDetector
             Hash = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
         },
 
+        // KOTOR 1 - Steam Aspyr macOS build (thin x86_64 Mach-O, signed)
+        // The game is Contents/MacOS/KOTOR_Exe; the bundle's CFBundleExecutable is
+        // AppBundleExe, a launcher stub that starts this beside itself.
+        ["C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"] = new GameVersion
+        {
+            Platform = Platform.macOS,
+            Distribution = Distribution.Steam,
+            Version = "1 1.4.0 (Aspyr macOS)",
+            Architecture = Architecture.x86_64,
+            Title = GameTitle.KOTOR1,
+            FileSize = 0x60A3F0,
+            Hash = "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"
+        },
+
         // KOTOR 2 - GOG version Aspyr
         ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"] = new GameVersion
         {
@@ -88,6 +102,21 @@ public static class GameDetector
             Title = GameTitle.KOTOR2,
             FileSize = 0x8A9534,
             Hash = "ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"
+        },
+
+        // KOTOR 2 - Steam Aspyr macOS build (universal Mach-O, unsigned)
+        // The game is KOTOR2.app/Contents/MacOS/KOTOR2sub; the stub beside it is called
+        // KOTOR2, the same name the Linux build uses. The container carries an i386 slice
+        // as well, but every 64-bit Mac runs the x86_64 one.
+        ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77"] = new GameVersion
+        {
+            Platform = Platform.macOS,
+            Distribution = Distribution.Steam,
+            Version = "2 1.0.2 (Aspyr macOS)",
+            Architecture = Architecture.x86_64,
+            Title = GameTitle.KOTOR2,
+            FileSize = 0x118E6CC,
+            Hash = "1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77"
         },
 
         // KOTOR 2 - Legacy 1.0

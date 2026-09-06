@@ -13,6 +13,11 @@ MSVC-built binary from here.
 Usage: run from inside a patch directory, e.g. `python3 ../create-patch.py`.
 """
 
+# Annotations become strings rather than being evaluated at import, so the
+# `Path | None` spellings below do not need Python 3.10. macOS ships 3.9 as its
+# system python3, and this tool is meant to run on whatever the machine already has.
+from __future__ import annotations
+
 import argparse
 import os
 import re

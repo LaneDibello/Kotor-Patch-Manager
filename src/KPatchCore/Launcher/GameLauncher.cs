@@ -49,7 +49,7 @@ public static class GameLauncher
             return LaunchVanilla(gameExePath, commandLineArgs, launchConfig);
         }
 
-        var moduleName = DeploymentPolicy.PatcherModuleFileName(deployment);
+        var moduleName = DeploymentPolicy.PatcherModuleFileName(gameVersion);
         var patcherModulePath = Path.Combine(gameDir, moduleName);
         if (!File.Exists(patcherModulePath))
         {

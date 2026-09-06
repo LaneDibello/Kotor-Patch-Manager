@@ -16,6 +16,23 @@
         <vm:MainViewModel/>
     </Design.DataContext>
 
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="File">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Select Game Folder..." Command="{Binding BrowseGameFolderCommand}"/>
+                        <NativeMenuItem Header="Select Game Executable..." Command="{Binding BrowseGameCommand}"/>
+                        <NativeMenuItem Header="Select Patches Folder..." Command="{Binding BrowsePatchesCommand}"/>
+                        <NativeMenuItemSeparator/>
+                        <!-- No Exit here: macOS puts Quit in the application menu already. -->
+                        <NativeMenuItem Header="Refresh" Command="{Binding RefreshCommand}"/>
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+        </NativeMenu>
+    </NativeMenu.Menu>
+
     <Window.Styles>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
@@ -147,9 +164,13 @@
 
         <!-- Drawn in-window, which is right on Windows and Linux. macOS puts menus in the system
              bar, so a macOS build wants NativeMenu rather than a second copy inside the window. -->
-        <Menu DockPanel.Dock="Top">
+        <!-- Hidden on macOS, where NativeMenu.Menu above puts File in the system menu bar.
+             The two are defined separately because NativeMenuItem has no IsVisible in Avalonia
+             11.0, and Options has to disappear rather than grey out when it does not apply. -->
+        <Menu DockPanel.Dock="Top" IsVisible="{Binding ShowInWindowMenu}">
             <MenuItem Header="_File">
-                <MenuItem Header="Select _Game..." Command="{Binding BrowseGameCommand}"/>
+                <MenuItem Header="Select Game _Folder..." Command="{Binding BrowseGameFolderCommand}"/>
+                <MenuItem Header="Select Game _Executable..." Command="{Binding BrowseGameCommand}"/>
                 <MenuItem Header="Select _Patches Folder..." Command="{Binding BrowsePatchesCommand}"/>
                 <Separator/>
                 <MenuItem Header="_Refresh" Command="{Binding RefreshCommand}"/>
@@ -178,12 +199,16 @@
                 <TextBlock Text="Game:" VerticalAlignment="Center" Width="60"/>
                 <TextBox Text="{Binding GamePath}"
                          Width="600"
-                         Watermark="Path to swkotor.exe"
+                         Watermark="Your KOTOR install folder"
                          Margin="10,0"/>
+                <!-- The folder picker, because what a user has is an install rather than a path
+                     to a binary, and it is the only thing that can return a macOS .app. Picking
+                     the executable directly stays in the File menu for a renamed or unusual one. -->
                 <Button Content="Browse"
-                        Command="{Binding BrowseGameCommand}"
+                        Command="{Binding BrowseGameFolderCommand}"
                         Width="100"
-                        Margin="5,0"/>
+                        Margin="5,0"
+                        ToolTip.Tip="Pick your KOTOR folder, or a macOS .app, and the game inside it is found for you. To choose an executable directly, use File &gt; Select Game Executable."/>
                 <Button Content="Refresh"
                         Command="{Binding RefreshCommand}"
                         Width="100"/>
@@ -423,6 +448,8 @@
                         Height="35"/>
                 <Button Content="Launch"
                         Command="{Binding LaunchGameCommand}"
+                        IsEnabled="{Binding CanLaunchGame}"
+                        ToolTip.Tip="{Binding LaunchButtonTip}"
                         Width="120"
                         Height="35"/>
             </StackPanel>
