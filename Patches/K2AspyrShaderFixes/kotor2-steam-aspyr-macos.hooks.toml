@@ -3,7 +3,7 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 
 # Clamp vertex lighting plus the lightmap and enable linear fog to prevent washed-out lightmapped surfaces.
 [[hooks]]
-address = 0x4EC6C2
+address = 0x1004EB6C2
 type = "simple"
 original_bytes = [
     0x21, 0x21, 0x41, 0x52, 0x42, 0x66, 0x70, 0x31, 0x2E, 0x30, 0x0A, 0x41, 0x54, 0x54, 0x52, 0x49,
@@ -46,7 +46,7 @@ replacement_bytes = [
 
 # Sample the environment texture as a cubemap, clamp both lighting sums, and enable linear fog to fix malformed overbright reflections.
 [[hooks]]
-address = 0x4ED495
+address = 0x1004EC495
 type = "simple"
 original_bytes = [
     0x21, 0x21, 0x41, 0x52, 0x42, 0x66, 0x70, 0x31, 0x2E, 0x30, 0x0A, 0x41, 0x54, 0x54, 0x52, 0x49,
@@ -113,7 +113,7 @@ replacement_bytes = [
 
 # Clamp the lightmap and cubemap-reflection sums and enable linear fog to prevent overbright reflective surfaces.
 [[hooks]]
-address = 0x4ED661
+address = 0x1004EC661
 type = "simple"
 original_bytes = [
     0x21, 0x21, 0x41, 0x52, 0x42, 0x66, 0x70, 0x31, 0x2E, 0x30, 0x0A, 0x41, 0x54, 0x54, 0x52, 0x49,
@@ -180,7 +180,7 @@ replacement_bytes = [
 
 # Use alpha interpolation instead of additive cubemap blending and enable linear fog to prevent excessively bright reflections.
 [[hooks]]
-address = 0x4ECC1A
+address = 0x1004EBC1A
 type = "simple"
 original_bytes = [
     0x21, 0x21, 0x41, 0x52, 0x42, 0x66, 0x70, 0x31, 0x2E, 0x30, 0x0A, 0x41, 0x54, 0x54, 0x52, 0x49,
@@ -233,7 +233,7 @@ replacement_bytes = [
 
 # Apply vertex alpha to the output alpha and enable linear fog so transparent lightmapped surfaces blend and fog correctly.
 [[hooks]]
-address = 0x4EE49C
+address = 0x1004ED49C
 type = "simple"
 original_bytes = [
     0x21, 0x21, 0x41, 0x52, 0x42, 0x66, 0x70, 0x31, 0x2E, 0x30, 0x0A, 0x41, 0x54, 0x54, 0x52, 0x49,
@@ -286,7 +286,7 @@ replacement_bytes = [
 
 # Preserve enabled fog and neutralize disabled fragment-program fog
 [[hooks]]
-address = 0xB90A1
+address = 0x1000B80A1
 type = "simple"
 original_bytes = [
     0x83, 0x7B, 0x70, 0x00, 0x4C, 0x8D, 0x35, 0x64, 0x5B, 0x48, 0x00, 0x41, 0x8B, 0x7E, 0x08, 0x74,
@@ -321,7 +321,7 @@ replacement_bytes = [
 
 # Remove Aspyr's +15 brightness offset from the shared gamma getter (1/2)
 [[hooks]]
-address = 0x1DDD77
+address = 0x1001DCD77
 type = "simple"
 original_bytes = [
     0x83, 0xC0, 0x0F
@@ -332,7 +332,7 @@ replacement_bytes = [
 
 # Remove Aspyr's +15 brightness offset from the gamma slider handler (2/2)
 [[hooks]]
-address = 0x225CD5
+address = 0x100224CD5
 type = "simple"
 original_bytes = [
     0x8D, 0x43, 0x0F
@@ -343,7 +343,7 @@ replacement_bytes = [
 
 # Keep the hilt texture-coordinate array enabled after particle drawing
 [[hooks]]
-address = 0x84EF1
+address = 0x100083EF1
 type = "simple"
 original_bytes = [
     0xE9, 0x60, 0x4A, 0x40, 0x00
@@ -354,7 +354,7 @@ replacement_bytes = [
 
 # Restore the combined env+bump+tangent normal-map render path
 [[hooks]]
-address = 0xC7391
+address = 0x1000C6391
 type = "simple"
 original_bytes = [
     0x48, 0x8B, 0x7B, 0x58, 0xE8, 0x8A, 0xAD, 0x01, 0x00, 0x4C, 0x89, 0xF7, 0xE8, 0x8C, 0x5A, 0xFD,

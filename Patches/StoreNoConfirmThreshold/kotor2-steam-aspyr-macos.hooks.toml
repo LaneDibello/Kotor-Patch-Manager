@@ -13,7 +13,9 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 # same direct transaction blocks. The value and threshold may still be computed,
 # but the expensive-item confirmation box is never entered.
 #
-# Raw Offset + 0x100000000 - 0x1000 = 64 bit VA
+# Addresses are absolute virtual addresses, the same ones Ghidra shows and the ones
+# quoted in the notes below. The engine dereferences them at runtime, so a raw file
+# offset would land in __PAGEZERO and take the game down with it.
 
 # Sell path: always jump to the existing direct SellItem block.
 #	Original
@@ -22,7 +24,7 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 #		100206be4 e9 5C 01 00 00 90  jmp LAB_100206d45 ; nop
 
 [[hooks]]
-address = 0x207be4
+address = 0x100206BE4
 type = "simple"
 original_bytes = [0x0f, 0x86, 0x5b, 0x01, 0x00, 0x00]
 replacement_bytes = [0xe9, 0x5c, 0x01, 0x00, 0x00, 0x90]
@@ -34,7 +36,7 @@ replacement_bytes = [0xe9, 0x5c, 0x01, 0x00, 0x00, 0x90]
 #		10020704e  e9 4f 01 00 00 90  jmp LAB_1002071a2 ; nop
 
 [[hooks]]
-address = 0x20804e
+address = 0x10020704E
 type = "simple"
 original_bytes = [0x0f, 0x86, 0x4e, 0x01, 0x00, 0x00]
 replacement_bytes = [0xe9, 0x4f, 0x01, 0x00, 0x00, 0x90]

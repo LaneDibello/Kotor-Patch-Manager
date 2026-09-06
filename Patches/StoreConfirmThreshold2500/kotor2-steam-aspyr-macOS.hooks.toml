@@ -13,40 +13,42 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 #
 # 2500 decimal = 0x000009C4 = C4 09 00 00 little-endian.
 #
-# To switch from a raw file offset to the virtual address (what you'd see in Ghidra):
-# Raw Offset + 0x100000000 - 0x1000 = VA
+# Addresses are absolute virtual addresses, the same ones Ghidra shows. The engine
+# dereferences them at runtime, so a raw file offset would land in __PAGEZERO and
+# take the game down with it. For a hex editor on the fat binary, subtract
+# 0x100000000 and add back the 0x1000 the x86_64 slice starts at.
 
 # Sell path  
 # The vanilla code creates a fallback (presetting the R14D register to 250).
 # This modification changes that fallbak to 2500.
-# 0x10020693d is 0x20793d
+# MOV R14D, 0xfa at 0x10020693D; this edits the immediate's low two bytes.
 [[hooks]]
-address = 0x20793F
+address = 0x10020693F
 type = "simple"
 original_bytes = [0xfa, 0x00]
 replacement_bytes = [0xc4, 0x09]
 
 # And this modification forces the code to use that fallback.
-# 0x100206968 is 0x207968
+# JA at 0x100206968, which becomes an unconditional JMP.
 [[hooks]]
-address = 0x207968
+address = 0x100206968
 type = "simple"
 original_bytes = [0x77]
 replacement_bytes = [0xEB]
 
 # Buy path: 
 # Same as the sell path's first step: changing fallback from 50 to 250.
-# 0x100207020 is 0x208020
+# MOV R15D, 0x32 at 0x100207020; again the immediate's low two bytes.
 [[hooks]]
-address = 0x208022
+address = 0x100207022
 type = "simple"
 original_bytes = [0x32, 0x00]
 replacement_bytes = [0xc4, 0x09]
 
 # And forcing the fallback (jumping the alternative calculation).
-# 0x100207029 is 0x208029
+# JZ at 0x100207029, which becomes an unconditional JMP.
 [[hooks]]
-address = 0x208029
+address = 0x100207029
 type = "simple"
 original_bytes = [0x74]
 replacement_bytes = [0xeb]
