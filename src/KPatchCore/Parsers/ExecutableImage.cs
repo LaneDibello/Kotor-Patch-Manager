@@ -15,6 +15,13 @@ internal interface IExecutableImage
     PatchResult WriteAtVirtualAddress(ulong virtualAddress, byte[] bytes);
 
     /// <summary>
+    /// Whether the file stores its code in a form the process will not run directly. A packed
+    /// executable decrypts itself into memory at startup, so what is read here is ciphertext, and
+    /// comparing it against the instructions the game actually runs proves nothing either way.
+    /// </summary>
+    bool IsPacked { get; }
+
+    /// <summary>
     /// Finishes the edit. A format whose file carries integrity metadata repairs it here, so this
     /// has to be called once after the last write; a format with nothing to repair succeeds without
     /// touching the file. Writing again afterwards is not supported, because the repair can move
