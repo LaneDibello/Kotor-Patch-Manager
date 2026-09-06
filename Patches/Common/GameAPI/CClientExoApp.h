@@ -5,6 +5,8 @@
 
 class CAppManager;
 class CExoString;
+class CGameObjectArray;
+class CSWGuiManager;
 class CResRef;
 class CSWCCreature;
 class CGameObject;
@@ -14,6 +16,8 @@ class CWorldTimer;
 class CClientExoApp : public GameAPIObject {
 public:
     static CClientExoApp* GetInstance();
+    // Automatically retrieves and wraps the global client (APP_MANAGER_PTR -> CAppManager::Client).
+    CClientExoApp();
     ~CClientExoApp();
 
     CClientOptions* GetClientOptions();
@@ -55,7 +59,7 @@ public:
     void DisplayMainMenu();
     void ShutDownToMainMenu();
     CExoString* GetGUIString(CExoString* outString, DWORD strRef);
-    // Returns the in-game GUI manager (heap-allocated wrapper; caller owns it). K1 only.
+    // Returns the in-game GUI manager (heap-allocated wrapper; caller owns it).
     CGuiInGame* GetInGameGui();
 
     // Program lifecycle
@@ -96,8 +100,29 @@ public:
 
     // Misc
     int GetClientLanguage();
-    // Returns the world timer (heap-allocated wrapper; caller owns it). K1 only.
+    // Returns the world timer (heap-allocated wrapper; caller owns it)
     CWorldTimer* GetWorldTimer();
+
+    // ===== Internal state accessors =====
+    // The real state lives in CClientExoAppInternal; these resolve through it.
+    int GetDebugMode();
+    void SetDebugMode(int debugMode);
+    BYTE GetSelectedTexturePack();
+    void SetSelectedTexturePack(BYTE pack);
+    int GetInputDisabled();
+    void SetInputDisabled(int disabled);
+    int GetMouseX();
+    void SetMouseX(int x);
+    int GetMouseY();
+    void SetMouseY(int y);
+
+    // Returned wrappers are heap allocated; caller owns them..
+    CGameObjectArray* GetGameObjectArray();
+    CWorldTimer* GetAnimationTimer();
+    CSWGuiManager* GetGuiManager();
+    CSWCCreature* GetCachedCreature();
+    // Inline CExoString member: wrapped in place.
+    CExoString* GetRunScript();
 
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;
@@ -106,6 +131,9 @@ public:
 private:
     friend class CAppManager;
     explicit CClientExoApp(void* clientPtr);
+
+    // CClientExoApp itself is only 8 bytes; state hangs off the internal object.
+    void* GetInternal() const;
 
     typedef void* (__thiscall* GetClientOptionsFn)(void* thisPtr);
 
@@ -245,4 +273,17 @@ private:
 
     static bool functionsInitialized;
     static bool offsetsInitialized;
+
+    static int offsetInternal;
+
+    static int offsetDebugMode;
+    static int offsetSelectedTexturePack;
+    static int offsetInputDisabled;
+    static int offsetMouseX;
+    static int offsetMouseY;
+    static int offsetGameObjectArray;
+    static int offsetAnimationTimer;
+    static int offsetGuiManager;
+    static int offsetCachedCreature;
+    static int offsetRunScript;
 };

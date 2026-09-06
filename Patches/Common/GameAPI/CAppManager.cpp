@@ -61,6 +61,34 @@ CAppManager* CAppManager::GetInstance() {
     return new CAppManager(appManager);
 }
 
+CAppManager::CAppManager()
+    : GameAPIObject(nullptr, false)  // false = don't free (singleton)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    if (!GameVersion::IsInitialized()) {
+        OutputDebugStringA("[CAppManager] ERROR: GameVersion not initialized\n");
+        return;
+    }
+
+    // APP_MANAGER_PTR holds the ADDRESS of the global that stores the manager
+    // pointer, so dereference once to reach the actual instance.
+    if (!appManagerGlobalPtr) {
+        appManagerGlobalPtr = static_cast<void**>(GameVersion::GetGlobalPointer("APP_MANAGER_PTR"));
+    }
+
+    if (appManagerGlobalPtr && *appManagerGlobalPtr) {
+        objectPtr = *appManagerGlobalPtr;
+    } else {
+        OutputDebugStringA("[CAppManager] ERROR: APP_MANAGER_PTR is null\n");
+    }
+}
+
 CAppManager::CAppManager(void* appManagerPtr)
     : GameAPIObject(appManagerPtr, false)  // false = don't free (singleton)
 {

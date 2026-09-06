@@ -12,6 +12,7 @@ bool CSWGuiManager::offsetsInitialized = false;
 int CSWGuiManager::offsetViewportWidth  = -1;
 int CSWGuiManager::offsetViewportHeight = -1;
 int CSWGuiManager::offsetPanels         = -1;
+int CSWGuiManager::offsetFocusedEditBox = -1;
 
 void CSWGuiManager::InitializeFunctions() {
     if (functionsInitialized) {
@@ -50,6 +51,7 @@ void CSWGuiManager::InitializeOffsets() {
         offsetViewportWidth  = GameVersion::GetOffset("CSWGuiManager", "viewport_width");
         offsetViewportHeight = GameVersion::GetOffset("CSWGuiManager", "viewport_height");
         offsetPanels         = GameVersion::GetOffset("CSWGuiManager", "panels");
+        offsetFocusedEditBox = GameVersion::GetOffset("CSWGuiManager", "focused_edit_box");
 
         offsetsInitialized = true;
     }
@@ -144,4 +146,11 @@ void CSWGuiManager::PlayGuiSound(byte soundId) {
 int CSWGuiManager::PopModalPanel() {
     if (!objectPtr || !popModalPanel) return 0;
     return popModalPanel(objectPtr);
+}
+
+void* CSWGuiManager::GetFocusedEditBox() {
+    if (!objectPtr || offsetFocusedEditBox < 0) {
+        return nullptr;
+    }
+    return getObjectProperty<void*>(objectPtr, offsetFocusedEditBox);
 }

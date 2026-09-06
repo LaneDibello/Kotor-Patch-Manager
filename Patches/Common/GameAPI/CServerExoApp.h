@@ -11,6 +11,8 @@ class CGameObject;
 class CServerExoApp : public GameAPIObject {
 public:
     static CServerExoApp* GetInstance();
+    // Automatically retrieves and wraps the global server (APP_MANAGER_PTR -> CAppManager::Server).
+    CServerExoApp();
     ~CServerExoApp();
 
     void* GetObjectArray();

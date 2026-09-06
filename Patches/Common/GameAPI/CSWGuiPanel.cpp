@@ -177,27 +177,12 @@ void __fastcall CSWGuiPanel::UpdateThunk(void* gameObj, void* /*edx*/, float par
     handler(self, param1);
 }
 
-bool CSWGuiPanel::EnsureVTableOverride() {
-    if (vtableOverride) {
-        return vtableOverride->IsActive();
-    }
-    if (!objectPtr) {
-        return false;
-    }
+void __fastcall CSWGuiPanel::SetActiveControlThunk(void* gameObj, void* /*edx*/, void* controlToActivate, int playSound) {
+    CSWGuiPanel* self = static_cast<CSWGuiPanel*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->setActiveControlHandler) return;
 
-    int count = PanelVTableCount();
-    if (count < 0) {
-        return false;  // Unsupported version; overriding disabled (already logged).
-    }
-
-    vtableOverride = new VTableOverride(objectPtr, this, count);
-    if (!vtableOverride->IsActive()) {
-        debugLog("[CSWGuiPanel] ERROR: failed to install vtable override\n");
-        delete vtableOverride;
-        vtableOverride = nullptr;
-        return false;
-    }
-    return true;
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, void*, int)>(self->setActiveControlHandler);
+    handler(self, controlToActivate, playSound);
 }
 
 void CSWGuiPanel::OverrideHandleInputEvent(void* handler) {
@@ -245,7 +230,16 @@ void CSWGuiPanel::OverrideUpdate(void* handler) {
                              reinterpret_cast<void*>(&CSWGuiPanel::UpdateThunk));
 }
 
-int CSWGuiPanel::PanelVTableCount() {
+void CSWGuiPanel::OverrideSetActiveControl(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    setActiveControlHandler = handler;
+    vtableOverride->Override(static_cast<int>(PanelVTableSlot::SetActiveControl),
+                             reinterpret_cast<void*>(&CSWGuiPanel::SetActiveControlThunk));
+}
+
+int CSWGuiPanel::VTableSlotCount() {
     // Only KotOR 1 on Windows is supported for now. Other versions/platforms
     // return -1 so callers disable vtable overriding rather than corrupting a
     // mismatched layout.
@@ -292,10 +286,7 @@ CSWGuiPanel::~CSWGuiPanel()
 {
     // Restore the game's original vtable (and free our copy) before the game's
     // destructor runs, so it dispatches against its own vtable.
-    if (vtableOverride) {
-        delete vtableOverride;
-        vtableOverride = nullptr;
-    }
+    RestoreVTable();
 
     if (shouldFree && objectPtr) {
         if (destructor) {
@@ -432,9 +423,13 @@ void CSWGuiPanel::GetLocalMouseCoords(int* outX, int* outY) {
     getLocalMouseCoords(objectPtr, outX, outY);
 }
 
-bool CSWGuiPanel::HitCheckMouse(int mouseX, int mouseY) {
-    if (!objectPtr || !hitCheckMouse) return false;
-    return hitCheckMouse(objectPtr, mouseX, mouseY);
+CSWGuiControl* CSWGuiPanel::HitCheckMouse(int mouseX, int mouseY) {
+    if (!objectPtr || !hitCheckMouse) return nullptr;
+
+    void* controlPtr = hitCheckMouse(objectPtr, mouseX, mouseY);
+    if (!controlPtr) return nullptr;
+
+    return new CSWGuiControl(controlPtr);
 }
 
 void CSWGuiPanel::InitControl(CSWGuiControl* controlToInit, CExoString* label, int activate) {

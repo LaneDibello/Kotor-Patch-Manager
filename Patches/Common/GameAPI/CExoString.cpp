@@ -154,3 +154,11 @@ char* CExoString::GetCStr() {
     }
     return getObjectProperty<char*>(objectPtr, offsetCStr);
 }
+std::string CExoString::ToStdString() {
+    char* text = GetCStr();
+    const DWORD length = GetLength();
+    if (!text || length == 0 || length > MAX_SANE_LENGTH) {
+        return std::string();
+    }
+    return std::string(text, length);
+}

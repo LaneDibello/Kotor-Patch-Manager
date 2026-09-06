@@ -15,6 +15,7 @@ bool CSWGuiControl::offsetsInitialized = false;
 int CSWGuiControl::offsetParentControl = -1;
 int CSWGuiControl::offsetId = -1;
 int CSWGuiControl::offsetCustomValue = -1;
+int CSWGuiControl::offsetBitFlags = -1;
 
 CSWGuiControl::ConstructorFn CSWGuiControl::constructor = nullptr;
 CSWGuiControl::DestructorFn  CSWGuiControl::destructor  = nullptr;
@@ -67,6 +68,7 @@ void CSWGuiControl::InitializeOffsets() {
         offsetParentControl = GameVersion::GetOffset("CSWGuiControl", "parent_control");
         offsetId = GameVersion::GetOffset("CSWGuiControl", "id");
         offsetCustomValue = GameVersion::GetOffset("CSWGuiControl", "custom_value");
+        offsetBitFlags = GameVersion::GetOffset("CSWGuiControl", "bit_flags");
         classSize = GameVersion::GetClassSize("CSWGuiControl");
 
         offsetsInitialized = true;
@@ -108,6 +110,10 @@ CSWGuiControl::CSWGuiControl()
 
 CSWGuiControl::~CSWGuiControl()
 {
+    // Put the game's vtable back before the game's destructor runs, so it
+    // dispatches against its own vtable (and before we free the memory).
+    RestoreVTable();
+
     if (shouldFree && objectPtr) {
         if (destructor) {
             destructor(objectPtr);
@@ -148,6 +154,39 @@ void CSWGuiControl::SetCustomValue(DWORD value) {
     setObjectProperty<DWORD>(objectPtr, offsetCustomValue, value);
 }
 
+int CSWGuiControl::GetControlBitFlags() {
+    if (!objectPtr || offsetBitFlags < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetBitFlags);
+}
+
+void CSWGuiControl::SetControlBitFlags(int bitFlags) {
+    if (!objectPtr || offsetBitFlags < 0) return;
+    setObjectProperty<int>(objectPtr, offsetBitFlags, bitFlags);
+}
+
+bool CSWGuiControl::GetControlBitFlag(int bitIndex) {
+    if (bitIndex < 0 || bitIndex > 31) {
+        return false;
+    }
+    return (GetControlBitFlags() & (1 << bitIndex)) != 0;
+}
+
+void CSWGuiControl::SetControlBitFlag(int bitIndex, bool value) {
+    if (!objectPtr || offsetBitFlags < 0 || bitIndex < 0 || bitIndex > 31) {
+        return;
+    }
+    int flags = GetControlBitFlags();
+    if (value) {
+        flags |= (1 << bitIndex);
+    }
+    else {
+        flags &= ~(1 << bitIndex);
+    }
+    SetControlBitFlags(flags);
+}
+
 void CSWGuiControl::AddChildControl(CSWGuiControl* child) {
     if (!objectPtr || !addChildControl) return;
     addChildControl(objectPtr, child ? child->GetPtr() : nullptr);
@@ -183,4 +222,94 @@ void CSWGuiControl::SetActive(UINT active) {
 void CSWGuiControl::SetEnabled(UINT enabled) {
     if (!objectPtr || !setEnabled) return;
     setEnabled(objectPtr, enabled);
+}
+
+int CSWGuiControl::VTableSlotCount() {
+    // Only KotOR 1 on Windows is supported for now. Other versions/platforms
+    // return -1 so callers disable vtable overriding rather than corrupting a
+    // mismatched layout.
+    if (GameVersion::GetTitle() == GameTitle::KOTOR1 &&
+        GameVersion::GetPlatform() == GamePlatform::Windows) {
+        return CONTROL_VTABLE_SLOT_COUNT;
+    }
+
+    debugLog("[CSWGuiControl] WARNING: control vtable layout unknown for this game version; vtable overriding disabled\n");
+    return -1;
+}
+
+void* CSWGuiControl::originalVirtual(ControlVTableSlot slot) {
+    if (!objectPtr) {
+        return nullptr;
+    }
+
+    const int index = static_cast<int>(slot);
+
+    void* fn = vtableOverride ? vtableOverride->GetOriginal(index) : nullptr;
+    if (fn) {
+        return fn;
+    }
+
+    void** vtable = *reinterpret_cast<void***>(objectPtr);
+    return vtable ? vtable[index] : nullptr;
+}
+
+void CSWGuiControl::HandleFocusChange(int hasFocus) {
+    void* fn = originalVirtual(ControlVTableSlot::HandleFocusChange);
+    if (!fn) {
+        return;
+    }
+    reinterpret_cast<void(__thiscall*)(void*, int)>(fn)(objectPtr, hasFocus);
+}
+
+// __fastcalls are used below to mimic the behavior of a __thiscall (this in ECX)
+// without having to deal with the type baggage that comes with that
+void CSWGuiControl::OverrideHandleFocusChange(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    focusChangeHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleFocusChange),
+                             reinterpret_cast<void*>(&CSWGuiControl::HandleFocusChangeThunk));
+}
+
+void __fastcall CSWGuiControl::HandleFocusChangeThunk(void* gameObj, void* /*edx*/, int hasFocus) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->focusChangeHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, int)>(self->focusChangeHandler);
+    handler(self, hasFocus);
+}
+
+void CSWGuiControl::OverrideDraw(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    drawHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::Draw),
+                             reinterpret_cast<void*>(&CSWGuiControl::DrawThunk));
+}
+
+void __fastcall CSWGuiControl::DrawThunk(void* gameObj, void* /*edx*/, float alpha) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->drawHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, float)>(self->drawHandler);
+    handler(self, alpha);
+}
+
+void CSWGuiControl::OverrideSetExtent(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    setExtentHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::SetExtent),
+                             reinterpret_cast<void*>(&CSWGuiControl::SetExtentThunk));
+}
+
+void __fastcall CSWGuiControl::SetExtentThunk(void* gameObj, void* /*edx*/, void* extent) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->setExtentHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, void*)>(self->setExtentHandler);
+    handler(self, extent);
 }

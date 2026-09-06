@@ -9,6 +9,8 @@ class CClientExoApp;
 class CAppManager : public GameAPIObject {
 public:
     static CAppManager* GetInstance();
+    // Automatically retrieves and wraps the global CAppManager (APP_MANAGER_PTR).
+    CAppManager();
     ~CAppManager();
 
     CServerExoApp* GetServer();

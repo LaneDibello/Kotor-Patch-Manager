@@ -56,7 +56,43 @@ CSWGuiObject::CSWGuiObject(void* objectPtr)
 
 CSWGuiObject::~CSWGuiObject()
 {
-    // Base class destructor handles objectPtr cleanup
+    RestoreVTable();
+}
+
+void CSWGuiObject::RestoreVTable() {
+    if (vtableOverride) {
+        delete vtableOverride;
+        vtableOverride = nullptr;
+    }
+}
+
+int CSWGuiObject::VTableSlotCount() {
+    // No layout of our own; a class that wants overrides must report its count.
+    debugLog("[CSWGuiObject] WARNING: vtable layout unknown for this class; vtable overriding disabled\n");
+    return -1;
+}
+
+bool CSWGuiObject::EnsureVTableOverride() {
+    if (vtableOverride) {
+        return vtableOverride->IsActive();
+    }
+    if (!objectPtr) {
+        return false;
+    }
+
+    int count = VTableSlotCount();
+    if (count < 0) {
+        return false;  // Unsupported version/class; overriding disabled (already logged).
+    }
+
+    vtableOverride = new VTableOverride(objectPtr, this, count);
+    if (!vtableOverride->IsActive()) {
+        debugLog("[CSWGuiObject] ERROR: failed to install vtable override\n");
+        delete vtableOverride;
+        vtableOverride = nullptr;
+        return false;
+    }
+    return true;
 }
 
 CSWGuiExtent CSWGuiObject::GetExtent() {

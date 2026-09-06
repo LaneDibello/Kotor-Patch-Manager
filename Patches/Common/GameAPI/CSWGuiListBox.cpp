@@ -160,6 +160,10 @@ CSWGuiListBox::CSWGuiListBox()
 
 CSWGuiListBox::~CSWGuiListBox()
 {
+    // Put the game's vtable back before the game's destructor runs (no-op unless
+    // an override was installed).
+    RestoreVTable();
+
     if (shouldFree && objectPtr) {
         if (destructor) {
             destructor(objectPtr);
@@ -326,9 +330,9 @@ void CSWGuiListBox::SetActive(int active) {
     setActive(objectPtr, active);
 }
 
-void CSWGuiListBox::SetActiveControl(CSWGuiControl* control, int active) {
+void CSWGuiListBox::SetActiveControl(CSWGuiControl* control, int playSound) {
     if (!objectPtr || !setActiveControl) return;
-    setActiveControl(objectPtr, control ? control->GetPtr() : nullptr, active);
+    setActiveControl(objectPtr, control ? control->GetPtr() : nullptr, playSound);
 }
 
 void CSWGuiListBox::SetExtent(CSWGuiExtent* extent) {
@@ -369,4 +373,14 @@ int CSWGuiListBox::shouldScroll() {
 int CSWGuiListBox::getPagesToScroll() {
     if (!objectPtr || !getPagesToScrollFn) return 0;
     return getPagesToScrollFn(objectPtr);
+}
+
+int CSWGuiListBox::VTableSlotCount() {
+    if (GameVersion::GetTitle() == GameTitle::KOTOR1 &&
+        GameVersion::GetPlatform() == GamePlatform::Windows) {
+        return LISTBOX_VTABLE_SLOT_COUNT;
+    }
+
+    debugLog("[CSWGuiListBox] WARNING: listbox vtable layout unknown for this game version; vtable overriding disabled\n");
+    return -1;
 }

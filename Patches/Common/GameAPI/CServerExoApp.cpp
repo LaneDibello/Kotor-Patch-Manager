@@ -93,6 +93,27 @@ CServerExoApp* CServerExoApp::GetInstance() {
     return server;
 }
 
+CServerExoApp::CServerExoApp()
+    : GameAPIObject(nullptr, false)  // false = don't free (singleton)
+{
+    if (!functionsInitialized) {
+        InitializeFunctions();
+    }
+    if (!offsetsInitialized) {
+        InitializeOffsets();
+    }
+
+    // The server has no global pointer of its own; it hangs off the app manager
+    // (APP_MANAGER_PTR -> CAppManager::Server).
+    CServerExoApp* server = GetInstance();
+    if (server) {
+        objectPtr = server->GetPtr();
+        delete server;  // Clean up the temporary wrapper; we don't own the singleton
+    } else {
+        OutputDebugStringA("[CServerExoApp] ERROR: Failed to resolve global server\n");
+    }
+}
+
 CServerExoApp::CServerExoApp(void* serverPtr)
     : GameAPIObject(serverPtr, false)  // false = don't free (singleton)
 {
