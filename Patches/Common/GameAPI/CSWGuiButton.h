@@ -8,6 +8,11 @@ class CSWGuiTextParams;
 class CSWGuiBorderParams;
 struct CSWGuiExtent;
 
+// CSWGuiButton virtual-function table for KotOR 1 (Windows): 40 entries.
+// Adds two entries past the 38 shared control slots.
+// Slots 0..37 keep their ControlVTableSlot indices (see CSWGuiControl.h).
+inline constexpr int BUTTON_VTABLE_SLOT_COUNT = 40;
+
 class CSWGuiButton : public CSWGuiNavigable {
 public:
     explicit CSWGuiButton(void* objectPtr);
@@ -32,6 +37,8 @@ public:
 
     void InitializeFunctions() override;
     void InitializeOffsets() override;
+
+    int VTableSlotCount() override;
 
 protected:
     typedef void (__thiscall* ReSetFontFn)(void* thisPtr);

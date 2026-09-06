@@ -4,6 +4,9 @@
 #include <cstdio>
 #include <cstdarg>
 #include <type_traits>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 #include "VirtualFunctionCall.h"
 #pragma pack(push, 4)
 
@@ -63,8 +66,8 @@ inline void setObjectProperty(void* object, int offset, propType value) {
 // The static_assert rejects anything else (virtual, multiple/virtual inheritance).
 //
 // Only valid where the game passes the wrapper in ECX, i.e. the CSWGuiPanel::Override*
-// virtuals. CSWGuiControl::AddEvent passes the game pointer -- use memberThunkAddr
-// (MemberFunctionThunk.h) there instead.
+// and CSWGuiControl::Override* virtuals. CSWGuiControl::AddEvent passes the game
+// pointer -- use memberThunkAddr (MemberFunctionThunk.h) there instead.
 //
 // USAGE:
 //   this->OverrideHandleInputEvent(memberFuncAddr(&MyPanel::_HandleInputEvent));
@@ -83,6 +86,19 @@ inline void* memberFuncAddr(MemFn fn) {
 	void* p;
 	__builtin_memcpy(&p, &fn, sizeof(p));
 	return p;
+#endif
+}
+
+// ===== CALLER'S RETURN ADDRESS (DEBUG) =====
+//
+// Inside a vtable thunk the game called directly, this is the game .text address the
+// call came from. The game is not ASLR'd (fixed 0x400000 image base), so the value
+// can be pasted straight into Ghidra to identify the caller.
+inline void* callerAddress() {
+#if defined(_MSC_VER)
+	return _ReturnAddress();
+#else
+	return __builtin_return_address(0);
 #endif
 }
 

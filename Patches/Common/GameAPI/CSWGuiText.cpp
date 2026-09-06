@@ -96,6 +96,10 @@ CSWGuiText::CSWGuiText()
 
 CSWGuiText::~CSWGuiText()
 {
+    // Put the game's vtable back before the game's destructor runs (no-op unless
+    // an override was installed).
+    RestoreVTable();
+
     if (shouldFree && objectPtr) {
         if (destructor) {
             destructor(objectPtr);

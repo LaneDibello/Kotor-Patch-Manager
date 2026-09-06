@@ -8,6 +8,11 @@ class CSWGuiScrollBar;
 class CSWGuiControl;
 template<typename T> class CExoArrayList;
 
+// CSWGuiListBox virtual-function table for KotOR 1 (Windows): 42 entries.
+// Adds SetSelectOnLeftClick (40) and its overload (41) past the 38 shared control slots.
+// Slots 0..37 keep their ControlVTableSlot indices (see CSWGuiControl.h).
+inline constexpr int LISTBOX_VTABLE_SLOT_COUNT = 42;
+
 class CSWGuiListBox : public CSWGuiNavigable {
 public:
     explicit CSWGuiListBox(void* objectPtr);
@@ -42,7 +47,7 @@ public:
     void OrganizeUnequal();
     void ReSetFont();
     void SetActive(int active);
-    void SetActiveControl(CSWGuiControl* control, int active);
+    void SetActiveControl(CSWGuiControl* control, int playSound);
     void SetExtent(CSWGuiExtent* extent);
     void SetPadding(int padding);
     void SetScrollBarExtent(int width, int updateListBoxExtent);
@@ -54,6 +59,8 @@ public:
 
     void InitializeFunctions() override;
     void InitializeOffsets() override;
+
+    int VTableSlotCount() override;
 
 protected:
     typedef void* (__thiscall* ConstructorFn)(void* thisPtr);
@@ -71,7 +78,7 @@ protected:
     typedef void  (__thiscall* OrganizeUnequalFn)(void* thisPtr);
     typedef void  (__thiscall* ReSetFontFn)(void* thisPtr);
     typedef void  (__thiscall* SetActiveFn)(void* thisPtr, int active);
-    typedef void  (__thiscall* SetActiveControlFn)(void* thisPtr, void* control, int active);
+    typedef void  (__thiscall* SetActiveControlFn)(void* thisPtr, void* control, int playSound);
     typedef void  (__thiscall* SetExtentFn)(void* thisPtr, void* extent);
     typedef void  (__thiscall* SetPaddingFn)(void* thisPtr, int padding);
     typedef void  (__thiscall* SetScrollBarExtentFn)(void* thisPtr, int width, int updateListBoxExtent);

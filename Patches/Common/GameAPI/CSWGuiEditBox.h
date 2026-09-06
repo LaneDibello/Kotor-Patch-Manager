@@ -8,6 +8,11 @@ class CSWGuiTextParams;
 class CSWGuiBorderParams;
 struct CSWGuiExtent;
 
+// CSWGuiEditBox virtual-function table for KotOR 1 (Windows): 40 entries.
+// Adds Initialize (38) and HandleKeyPress (39) past the 38 shared control slots.
+// Slots 0..37 keep their ControlVTableSlot indices (see CSWGuiControl.h).
+inline constexpr int EDITBOX_VTABLE_SLOT_COUNT = 40;
+
 class CSWGuiEditBox : public CSWGuiNavigable {
 public:
     explicit CSWGuiEditBox(void* objectPtr);
@@ -20,7 +25,6 @@ public:
 
     // Functions
     bool GetIsSelectable();
-    void HandleFocusChange(int hasFocus);
     void Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams,
                     CSWGuiBorderParams* borderParams);
     void ReSetFont();
@@ -31,9 +35,10 @@ public:
     void InitializeFunctions() override;
     void InitializeOffsets() override;
 
+    int VTableSlotCount() override;
+
 protected:
     typedef bool (__thiscall* GetIsSelectableFn)(void* thisPtr);
-    typedef void (__thiscall* HandleFocusChangeFn)(void* thisPtr, int hasFocus);
     typedef void (__thiscall* InitializeFn)(void* thisPtr, void* extent, void* textParams,
                                             void* borderParams);
     typedef void (__thiscall* ReSetFontFn)(void* thisPtr);
@@ -44,7 +49,6 @@ protected:
     typedef void* (__thiscall* DestructorFn)(void* thisPtr);
 
     static GetIsSelectableFn getIsSelectable;
-    static HandleFocusChangeFn handleFocusChange;
     static InitializeFn initialize;
     static ReSetFontFn reSetFont;
     static SetEnabledFn setEnabled;

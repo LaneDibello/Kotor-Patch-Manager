@@ -110,6 +110,10 @@ CSWGuiControl::CSWGuiControl()
 
 CSWGuiControl::~CSWGuiControl()
 {
+    // Put the game's vtable back before the game's destructor runs, so it
+    // dispatches against its own vtable (and before we free the memory).
+    RestoreVTable();
+
     if (shouldFree && objectPtr) {
         if (destructor) {
             destructor(objectPtr);
@@ -218,4 +222,93 @@ void CSWGuiControl::SetActive(UINT active) {
 void CSWGuiControl::SetEnabled(UINT enabled) {
     if (!objectPtr || !setEnabled) return;
     setEnabled(objectPtr, enabled);
+}
+
+int CSWGuiControl::VTableSlotCount() {
+    // Only KotOR 1 on Windows is supported for now. Other versions/platforms
+    // return -1 so callers disable vtable overriding rather than corrupting a
+    // mismatched layout.
+    if (GameVersion::GetTitle() == GameTitle::KOTOR1 &&
+        GameVersion::GetPlatform() == GamePlatform::Windows) {
+        return CONTROL_VTABLE_SLOT_COUNT;
+    }
+
+    debugLog("[CSWGuiControl] WARNING: control vtable layout unknown for this game version; vtable overriding disabled\n");
+    return -1;
+}
+
+void* CSWGuiControl::originalVirtual(ControlVTableSlot slot) {
+    if (!objectPtr) {
+        return nullptr;
+    }
+
+    const int index = static_cast<int>(slot);
+
+    // With an override installed the object's vtable is our copy, so the slot holds
+    // our thunk -- calling it would recurse. Take the saved original instead.
+    void* fn = vtableOverride ? vtableOverride->GetOriginal(index) : nullptr;
+    if (fn) {
+        return fn;
+    }
+
+    void** vtable = *reinterpret_cast<void***>(objectPtr);
+    return vtable ? vtable[index] : nullptr;
+}
+
+void CSWGuiControl::HandleFocusChange(int hasFocus) {
+    void* fn = originalVirtual(ControlVTableSlot::HandleFocusChange);
+    if (!fn) {
+        return;
+    }
+    reinterpret_cast<void(__thiscall*)(void*, int)>(fn)(objectPtr, hasFocus);
+}
+
+void CSWGuiControl::HandleLMouseUp() {
+    void* fn = originalVirtual(ControlVTableSlot::HandleLMouseUp);
+    if (!fn) {
+        return;
+    }
+    reinterpret_cast<void(__thiscall*)(void*)>(fn)(objectPtr);
+}
+
+void CSWGuiControl::OverrideHandleLMouseUp(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    lmouseUpHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleLMouseUp),
+                             reinterpret_cast<void*>(&CSWGuiControl::HandleLMouseUpThunk));
+}
+
+void __fastcall CSWGuiControl::HandleLMouseUpThunk(void* gameObj, void* /*edx*/) {
+    void* caller = callerAddress();
+
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->lmouseUpHandler) return;
+
+    self->lastLMouseUpCaller = caller;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*)>(self->lmouseUpHandler);
+    handler(self);
+}
+
+void CSWGuiControl::OverrideHandleFocusChange(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    focusChangeHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleFocusChange),
+                             reinterpret_cast<void*>(&CSWGuiControl::HandleFocusChangeThunk));
+}
+
+void __fastcall CSWGuiControl::HandleFocusChangeThunk(void* gameObj, void* /*edx*/, int hasFocus) {
+    void* caller = callerAddress();
+
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->focusChangeHandler) return;
+
+    self->lastFocusChangeCaller = caller;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, int)>(self->focusChangeHandler);
+    handler(self, hasFocus);
 }
