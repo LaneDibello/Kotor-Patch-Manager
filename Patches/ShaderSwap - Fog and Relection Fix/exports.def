@@ -1,3 +1,0 @@
-LIBRARY ShaderSwapFogReflectionFix
-EXPORTS
-    KPatch_Initialize
