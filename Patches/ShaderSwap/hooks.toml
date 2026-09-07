@@ -1,3 +1,0 @@
-# ShaderSwap is a DLL-only patch. It detours OpenGL extension resolution and the
-# resolved glProgramStringARB driver entry point, then applies replacements
-# registered by dependent provider DLLs.
