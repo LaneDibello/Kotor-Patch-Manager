@@ -40,9 +40,10 @@ description = "Description string for what this option does"
 [[options]]
 name = "Slider Option"
 
-# slider will provide a positive integer value between min and max.
+# slider will provide an integer between min and max.
 # The game's slider control has no minimum -- it runs 0..(max - min) internally,
-# and `min` is added back on before the value is stored.
+# and `min` is added back on before the value is stored. `min` may therefore be
+# negative, which the control on its own could not represent.
 type = "slider"
 min = 10
 max = 100

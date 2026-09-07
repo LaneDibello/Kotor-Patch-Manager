@@ -18,7 +18,7 @@
 
 enum class ModOptionType {
 	Toggle,	// 0 or 1
-	Slider,	// integer in [min, max], min >= 0; the control runs 0..(max - min)
+	Slider,	// integer in [min, max]; the control runs 0..(max - min)
 	List,	// one of `choices`, by value
 	Text,	// free-form string
 };
@@ -37,7 +37,8 @@ struct ModOption {
 
 	// Slider only. The game's slider control has no minimum of its own -- it runs
 	// 0..max_value -- so `min` is a storage/display offset the UI applies, never
-	// something the control is told about.
+	// something the control is told about. That is also why `min` is free to be
+	// negative, which the control could not represent by itself.
 	int min = 0;
 	int max = 0;
 
@@ -305,13 +306,15 @@ namespace ModOptionsConfigDetail {
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
-			if (*min < 0) {
-				debugLog("[ModOptions] %s: slider option %u has a negative `min`; skipping",
+			if (*max <= *min) {
+				debugLog("[ModOptions] %s: slider option %u has max <= min; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
-			if (*max <= *min) {
-				debugLog("[ModOptions] %s: slider option %u has max <= min; skipping",
+			// `min` may be negative: the control never sees it. What the control is
+			// given is the span, so that is what has to fit in an int.
+			if (*min < INT32_MIN || *max > INT32_MAX || *max - *min > INT32_MAX) {
+				debugLog("[ModOptions] %s: slider option %u has a range too large to drive; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
