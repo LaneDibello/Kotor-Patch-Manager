@@ -33,6 +33,10 @@ public class MainViewModel : ViewModelBase
     private PatchItemViewModel? _selectedPatch;
     private PatchRepository? _repository;
     private readonly HashSet<string> _installedPatchIds = new(StringComparer.OrdinalIgnoreCase);
+
+    // The order the installed patches were applied in. Kept alongside the set because a reorder
+    // changes what installing would do without changing which patches are involved.
+    private readonly List<string> _installedPatchOrder = new();
     private readonly AppSettings _settings;
     private bool _hasInstalledPatches;
     private bool _isOperationInProgress;
@@ -73,8 +77,8 @@ public class MainViewModel : ViewModelBase
         RefreshCommand = new SimpleCommand(async () => await Refresh());
         ToggleIdentifyUnrecognisedBuildsCommand =
             new SimpleCommand(() => IdentifyUnrecognisedBuilds = !IdentifyUnrecognisedBuilds);
-        MoveUpCommand = new SimpleCommand(() => MoveUp());
-        MoveDownCommand = new SimpleCommand(() => MoveDown());
+        MoveUpCommand = new SimpleCommand(p => MoveUp(p as PatchItemViewModel));
+        MoveDownCommand = new SimpleCommand(p => MoveDown(p as PatchItemViewModel));
         ApplyPatchesCommand = new SimpleCommand(async () => await ApplyPatches());
         UninstallAllCommand = new SimpleCommand(async () => await UninstallAll(), () => HasInstalledPatches);
         LaunchGameCommand = new SimpleCommand(async () => await LaunchGame());
@@ -399,9 +403,37 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    public string PendingChangesMessage => PendingChangesCount == 0
-        ? "No pending changes"
-        : $"{PendingChangesCount} patch{(PendingChangesCount == 1 ? "" : "es")} pending";
+    /// <summary>
+    /// True when the same patches are installed but in a different order to the one now shown.
+    /// Applying would reinstall them in the new order, so this is a real pending change even
+    /// though <see cref="PendingChangesCount"/> is zero.
+    /// </summary>
+    public bool HasPendingReorder
+    {
+        get
+        {
+            if (PendingChangesCount != 0)
+                return false;
+
+            var desired = AllPatches
+                .Where(p => p.IsChecked && !p.IsOrphaned)
+                .Select(p => p.Id)
+                .ToList();
+
+            var current = _installedPatchOrder
+                .Where(id => AllPatches.Any(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase) && !p.IsOrphaned))
+                .ToList();
+
+            return desired.Count == current.Count
+                && !desired.SequenceEqual(current, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    public string PendingChangesMessage => PendingChangesCount != 0
+        ? $"{PendingChangesCount} patch{(PendingChangesCount == 1 ? "" : "es")} pending"
+        : HasPendingReorder
+            ? "Load order changed"
+            : "No pending changes";
 
     public ICommand BrowseGameCommand { get; }
     public ICommand BrowseGameFolderCommand { get; }
@@ -711,34 +743,45 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasVisiblePatches));
     }
 
-    private void MoveUp()
+    private void MoveUp(PatchItemViewModel? target = null) => MoveRelativeToVisibleNeighbour(target, -1);
+
+    private void MoveDown(PatchItemViewModel? target = null) => MoveRelativeToVisibleNeighbour(target, 1);
+
+    /// <summary>
+    /// Moves a patch one place up or down the list the user can actually see.
+    /// </summary>
+    /// <param name="target">
+    /// The row the button belongs to, or null when the command came from somewhere without a row,
+    /// in which case the list selection is used.
+    /// </param>
+    /// <param name="direction">-1 to move towards the top of the list, 1 towards the bottom.</param>
+    private void MoveRelativeToVisibleNeighbour(PatchItemViewModel? patch, int direction)
     {
-        if (SelectedPatch == null)
+        patch ??= SelectedPatch;
+        if (patch == null)
             return;
 
-        var patch = SelectedPatch;
-        var index = AllPatches.IndexOf(patch);
-        if (index > 0)
-        {
-            AllPatches.Move(index, index - 1);
-            StatusMessage = $"Moved {patch.Name} up";
-            UpdatePendingChanges();
-        }
-    }
-
-    private void MoveDown()
-    {
-        if (SelectedPatch == null)
+        // Step over the neighbour in VisiblePatches rather than in AllPatches. An incompatible
+        // patch sits in AllPatches but not in the list, so stepping one index there can swap the
+        // row with something the user cannot see and appear to do nothing at all.
+        var visibleIndex = VisiblePatches.IndexOf(patch);
+        var neighbourIndex = visibleIndex + direction;
+        if (visibleIndex < 0 || neighbourIndex < 0 || neighbourIndex >= VisiblePatches.Count)
             return;
 
-        var patch = SelectedPatch;
-        var index = AllPatches.IndexOf(patch);
-        if (index < AllPatches.Count - 1)
-        {
-            AllPatches.Move(index, index + 1);
-            StatusMessage = $"Moved {patch.Name} down";
-            UpdatePendingChanges();
-        }
+        var from = AllPatches.IndexOf(patch);
+        var to = AllPatches.IndexOf(VisiblePatches[neighbourIndex]);
+        if (from < 0 || to < 0)
+            return;
+
+        AllPatches.Move(from, to);
+
+        // Clicking the button does not select the row, so carry the selection across to keep the
+        // details panel on this patch and let the button be pressed repeatedly.
+        SelectedPatch = patch;
+        StatusMessage = $"Moved {patch.Name} {(direction < 0 ? "up" : "down")}";
+        SaveCheckedPatches();
+        UpdatePendingChanges();
     }
 
     private void InvalidatePatchStateForGamePathChange()
@@ -758,6 +801,7 @@ public class MainViewModel : ViewModelBase
         if (clearInstalledState)
         {
             _installedPatchIds.Clear();
+            _installedPatchOrder.Clear();
             HasInstalledPatches = false;
         }
 
@@ -794,9 +838,11 @@ public class MainViewModel : ViewModelBase
             .ToList();
 
         _installedPatchIds.Clear();
+        _installedPatchOrder.Clear();
         foreach (var patchId in normalizedInstalledIds)
         {
             _installedPatchIds.Add(patchId);
+            _installedPatchOrder.Add(patchId);
         }
 
         HasInstalledPatches = _installedPatchIds.Count > 0;
@@ -918,12 +964,14 @@ public class MainViewModel : ViewModelBase
     private void SaveCheckedPatches()
     {
         _settings.CheckedPatchIds = AllPatches.Where(p => p.IsChecked).Select(p => p.Id).ToList();
+        _settings.PatchOrder = AllPatches.Where(p => !p.IsOrphaned).Select(p => p.Id).ToList();
         _settings.Save();
     }
 
     private void UpdatePendingChanges()
     {
         OnPropertyChanged(nameof(PendingChangesCount));
+        OnPropertyChanged(nameof(HasPendingReorder));
         OnPropertyChanged(nameof(PendingChangesMessage));
     }
 
@@ -1187,6 +1235,14 @@ public class MainViewModel : ViewModelBase
 
                 // Restore checked state from settings
                 var checkedIds = _settings.CheckedPatchIds.ToHashSet();
+
+                var savedOrder = _settings.PatchOrder
+                    .Select((id, position) => (id, position))
+                    .ToDictionary(x => x.id, x => x.position, StringComparer.OrdinalIgnoreCase);
+
+                patchViewModels = patchViewModels
+                    .OrderBy(p => savedOrder.TryGetValue(p.Id, out var position) ? position : int.MaxValue)
+                    .ToList();
 
                 foreach (var patch in patchViewModels)
                 {
