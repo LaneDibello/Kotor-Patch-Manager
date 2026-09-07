@@ -89,9 +89,6 @@ public:
 
 		RefreshLabel();
 		_SetExtent(rowExtent);
-
-		debugLog("[ModOptions] slider `%s` range %i..%i value %i -> max_value %i cur_value %i",
-			name.c_str(), min, max, value, GetMaxValue(), GetCurValue());
 	}
 
 	// The value as the option means it. The control only ever holds value - min.

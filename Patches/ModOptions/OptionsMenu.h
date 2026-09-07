@@ -177,7 +177,6 @@ public:
 			// The game has already moved the thumb by the time an event reaches us.
 			slider->RefreshLabel();
 			value = std::to_string(slider->StoredValue());
-			debugLog("[ModOptions] slider `%s` commit %s", opt->name.c_str(), value.c_str());
 			break;
 		}
 		case ModOptionType::List:
@@ -400,10 +399,8 @@ private:
 		}
 	}
 
-	// Builds one Slider row, with the same frame treatment as a Text row so the
-	// track does not inherit the toggle's checkbox art.
-	// TODO: the track would read better with dedicated groove art than with the
-	// edit box's flat frame.
+	// Builds one Slider row, on the game's own slider art rather than whatever the
+	// proto item is carrying.
 	void initializeSlider(OptionsSlider* slider, CSWGuiExtent* extent,
 		CSWGuiTextParams* textParams, CSWGuiBorderParams* borderParams,
 		CSWGuiBorderParams* hilightParams, const ModOption& option,
