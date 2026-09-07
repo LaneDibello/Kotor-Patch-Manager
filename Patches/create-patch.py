@@ -2,13 +2,21 @@
 """Package a KOTOR patch directory into a .kpatch file.
 
 A .kpatch is just a zip holding manifest.toml, the *hooks.toml file(s), and (for
-DETOUR patches) binaries/windows_x86.dll.
+DETOUR patches) a binaries/ directory. An archive is platform-independent and may
+carry a module for each platform, since the manager installs to a game of any
+platform from a host of any platform.
 
-SIMPLE patches have no C++ and package with no compiler. DETOUR patches need the
+SIMPLE patches have no C++ and package with no compiler. DETOUR patches need
 windows_x86.dll: on Linux this cross-compiles it with MinGW-w64
 (i686-w64-mingw32-g++), mirroring the MSVC build in create-patch.bat. Without that
 toolchain it falls back to a prebuilt windows_x86.dll, which lets you repack an
 MSVC-built binary from here.
+
+Modules for the native games are packaged from binaries/ as they are found, under
+whatever names they carry. Nothing here cross-compiles them, so a patch supporting a
+native game builds them elsewhere and drops them in that directory. The names the
+installer looks for are composed from the game's platform and CPU, so a new
+architecture needs no change here.
 
 Usage: run from inside a patch directory, e.g. `python3 ../create-patch.py`.
 """
@@ -62,10 +70,9 @@ def find_sources(patch_dir: Path) -> list[Path]:
     return sorted([*patch_dir.glob("*.cpp"), *patch_dir.glob("*/*.cpp")])
 
 
-def find_prebuilt_dll(patch_dir: Path) -> Path | None:
-    # The DLL may sit loose in the patch dir or already under binaries/.
-    for candidate in (patch_dir / "windows_x86.dll",
-                      patch_dir / "binaries" / "windows_x86.dll"):
+def find_prebuilt_binary(patch_dir: Path, name: str) -> Path | None:
+    # A module may sit loose in the patch dir or already under binaries/.
+    for candidate in (patch_dir / name, patch_dir / "binaries" / name):
         if candidate.is_file():
             return candidate
     return None
@@ -199,7 +206,7 @@ def build(patch_dir: Path, name: str, out_dir: Path | None = None) -> None:
             print(f"  [OK] Compiled: {dll.name}")
         else:
             print("[3/5] Locating prebuilt DLL...")
-            dll = find_prebuilt_dll(patch_dir)
+            dll = find_prebuilt_binary(patch_dir, "windows_x86.dll")
             if dll is None:
                 fail("ERROR: windows_x86.dll not found and no MinGW toolchain!",
                      f"Install {CXX} to cross-compile, or build the DLL with the",
@@ -227,6 +234,17 @@ def build(patch_dir: Path, name: str, out_dir: Path | None = None) -> None:
         if dll is not None:
             archive.write(dll, "binaries/windows_x86.dll")
             print("  [OK] binaries/windows_x86.dll")
+        # Whatever else the author has built goes in as-is. Listing the names here would
+        # mean editing this every time a platform or architecture is added.
+        for extra in sorted((patch_dir / "binaries").glob("*")):
+            if not extra.is_file():
+                continue
+            # Skip the Windows DLL only when it went in above, which it does not for a
+            # SIMPLE patch that still ships one somebody built elsewhere.
+            if dll is not None and extra.name == "windows_x86.dll":
+                continue
+            archive.write(extra, f"binaries/{extra.name}")
+            print(f"  [OK] binaries/{extra.name}")
     print("  Creating archive...")
 
     # Step 5: verify

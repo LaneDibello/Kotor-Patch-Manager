@@ -458,7 +458,7 @@ public class PatchApplicator
                 var hasDllOnlyPatch = hooks.Count == 0; // DLL-only patch (no hooks)
 
                 // Try to extract DLL if it exists (supports DETOUR hooks and DLL-only patches)
-                var extractResult = _repository.ExtractPatchDll(patchId, patchesDir);
+                var extractResult = _repository.ExtractPatchDll(patchId, patchesDir, gameVersion);
 
                 if (extractResult.Success && extractResult.Data != null)
                 {
@@ -476,7 +476,7 @@ public class PatchApplicator
                     }
                     else
                     {
-                        messages.Add($"  Extracted: {patchId}.dll");
+                        messages.Add($"  Extracted: {Path.GetFileName(extractResult.Data)}");
                     }
                 }
                 else
@@ -493,7 +493,8 @@ public class PatchApplicator
                         return new InstallResult
                         {
                             Success = false,
-                            Error = $"Failed to extract {patchId}: {extractResult.Error} (DETOUR hooks require DLL)",
+                            Error = $"Failed to extract {patchId}: {extractResult.Error}. Its DETOUR " +
+                                    $"hooks need {DeploymentPolicy.PatchBinaryFileName(gameVersion)}.",
                             DetectedVersion = gameVersion,
                             Backup = backup,
                             Messages = messages
@@ -502,7 +503,7 @@ public class PatchApplicator
                     else
                     {
                         // SIMPLE, REPLACE, or STATIC-only patch - no DLL required
-                        messages.Add($"  Skipped: {patchId} (no DLL required for selected hooks)");
+                        messages.Add($"  Skipped: {patchId} (no module required for selected hooks)");
                     }
                 }
             }

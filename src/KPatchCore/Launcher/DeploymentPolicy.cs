@@ -1,6 +1,10 @@
 using System.Runtime.InteropServices;
 using KPatchCore.Models;
 
+// This file needs RuntimeInformation, and the namespace that comes with brings an
+// Architecture of its own. The game's is the one meant here.
+using Architecture = KPatchCore.Models.Architecture;
+
 namespace KPatchCore.Launcher;
 
 /// <summary>
@@ -200,6 +204,66 @@ public static class DeploymentPolicy
     /// </summary>
     public static IReadOnlyList<string> AllModuleFileNames { get; } =
         Enum.GetValues<Platform>().Select(PatcherModuleFileName).Distinct().ToArray();
+
+    /// <summary>
+    /// The module a patch archive carries for a game, named as it appears under the archive's
+    /// binaries/ directory. Composed from the game's platform and CPU rather than a fixed pairing
+    /// of the two, so a build for another architecture of a platform already handled needs nothing
+    /// added here.
+    /// </summary>
+    /// <remarks>
+    /// This follows the game, not the deployment method, for the reason
+    /// <see cref="PatcherModuleFileName(Platform)"/> does: Linux and macOS both reach the patcher
+    /// as a linked dependency and load different files.
+    /// </remarks>
+    public static string PatchBinaryFileName(GameVersion gameVersion) =>
+        PatchBinaryFileName(gameVersion.Platform, gameVersion.Architecture);
+
+    /// <summary>The module name for a platform and CPU pair.</summary>
+    public static string PatchBinaryFileName(Platform platform, Architecture architecture) =>
+        $"{PlatformTag(platform)}_{ArchitectureTag(architecture)}{PatchBinaryExtension(platform)}";
+
+    /// <summary>
+    /// Every module name a .kpatch may carry. A patch is scanned before any game is selected, so
+    /// the check that a DETOUR patch ships something has to accept any of them; the install then
+    /// asks for the one the detected game needs.
+    /// </summary>
+    public static IReadOnlyList<string> AllPatchBinaryFileNames { get; } =
+        Enum.GetValues<Platform>()
+            .SelectMany(_ => Enum.GetValues<Architecture>(), PatchBinaryFileName)
+            .Distinct()
+            .ToArray();
+
+    private static string PlatformTag(Platform platform) => platform switch
+    {
+        Platform.Windows => "windows",
+        Platform.Linux => "linux",
+        Platform.macOS => "macos",
+
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(platform), platform, "No module name is defined for this platform."),
+    };
+
+    private static string ArchitectureTag(Architecture architecture) => architecture switch
+    {
+        Architecture.x86 => "x86",
+        Architecture.x86_64 => "x86_64",
+        Architecture.ARM64 => "arm64",
+
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(architecture), architecture, "No module name is defined for this architecture."),
+    };
+
+    /// <summary>The extension the platform's dynamic loader expects.</summary>
+    private static string PatchBinaryExtension(Platform platform) => platform switch
+    {
+        Platform.Windows => ".dll",
+        Platform.Linux => ".so",
+        Platform.macOS => ".dylib",
+
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(platform), platform, "No module extension is defined for this platform."),
+    };
 
     /// <summary>
     /// The library <see cref="DeploymentMethod.LibraryProxy"/> stands in for. KOTOR 1 and 2 both
