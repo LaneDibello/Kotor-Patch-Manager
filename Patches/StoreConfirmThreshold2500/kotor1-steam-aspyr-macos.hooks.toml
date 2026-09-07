@@ -1,0 +1,54 @@
+[metadata]
+target_versions = [
+    "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71",
+]
+
+# KOTOR 1, Steam Aspyr macOS build (KOTOR_Exe 1.4.0, x86_64).
+#
+# Vanilla thresholds, the same as every other build:
+#   sell = min(player level * 50, 250)
+#   buy  = player level * 50, or 50 when there is no player creature
+#
+# Each path keeps its threshold in a register that starts at the fallback and is
+# overwritten by the level calculation. So both are pinned to 2500 the same way:
+# change the fallback immediate, then force the branch that skips the
+# overwrite. The level calculation still runs and its result is discarded.
+#
+# 2500 = 0x9C4. Addresses are absolute virtual addresses; the executable is
+# non-PIE, so it always loads at 0x100000000 and these match what Ghidra shows.
+
+# Sell path, CSWGuiStore::OnControlInvAButton at 0x1002D7D4C.
+# The fallback the register starts at.
+#   MOV R13D, 250  ->  MOV R13D, 2500
+[[hooks]]
+address = 0x1002D7DFA
+type = "simple"
+original_bytes    = [0x41, 0xBD, 0xFA, 0x00, 0x00, 0x00]
+replacement_bytes = [0x41, 0xBD, 0xC4, 0x09, 0x00, 0x00]
+
+# The cap test that skips the overwrite when level * 50 exceeds 250. Forced, so
+# the fallback always survives.
+#   JA 0x1002D7E35  ->  JMP 0x1002D7E35
+[[hooks]]
+address = 0x1002D7E1E
+type = "simple"
+original_bytes    = [0x77, 0x15]
+replacement_bytes = [0xEB, 0x15]
+
+# Buy path, CSWGuiStore::OnControlStoreAButton at 0x1002D7FC4.
+# The no-player-creature fallback.
+#   MOV R15D, 50  ->  MOV R15D, 2500
+[[hooks]]
+address = 0x1002D80C8
+type = "simple"
+original_bytes    = [0x41, 0xBF, 0x32, 0x00, 0x00, 0x00]
+replacement_bytes = [0x41, 0xBF, 0xC4, 0x09, 0x00, 0x00]
+
+# The test that selects that fallback. Forced, so the level calculation is
+# always skipped.
+#   JZ 0x1002D80C8  ->  JMP 0x1002D80C8
+[[hooks]]
+address = 0x1002D80AF
+type = "simple"
+original_bytes    = [0x74, 0x17]
+replacement_bytes = [0xEB, 0x17]
