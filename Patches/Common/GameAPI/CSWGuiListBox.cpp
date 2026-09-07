@@ -16,6 +16,7 @@ CSWGuiListBox::DisplayToolTipFn     CSWGuiListBox::displayToolTip     = nullptr;
 CSWGuiListBox::GetControlFn         CSWGuiListBox::getControl         = nullptr;
 CSWGuiListBox::GetIsSelectableFn    CSWGuiListBox::getIsSelectable    = nullptr;
 CSWGuiListBox::GetSelectedControlFn CSWGuiListBox::getSelectedControl = nullptr;
+CSWGuiListBox::HitCheckMouseLocalFn CSWGuiListBox::hitCheckMouseLocal = nullptr;
 CSWGuiListBox::OrganizeControlsFn   CSWGuiListBox::organizeControls   = nullptr;
 CSWGuiListBox::OrganizeOversizedFn  CSWGuiListBox::organizeOversized  = nullptr;
 CSWGuiListBox::OrganizeUnequalFn    CSWGuiListBox::organizeUnequal    = nullptr;
@@ -71,6 +72,7 @@ void CSWGuiListBox::InitializeFunctions() {
         getControl         = reinterpret_cast<GetControlFn>        (GameVersion::GetFunctionAddress("CSWGuiListBox", "GetControl"));
         getIsSelectable    = reinterpret_cast<GetIsSelectableFn>   (GameVersion::GetFunctionAddress("CSWGuiListBox", "GetIsSelectable"));
         getSelectedControl = reinterpret_cast<GetSelectedControlFn>(GameVersion::GetFunctionAddress("CSWGuiListBox", "GetSelectedControl"));
+        hitCheckMouseLocal = reinterpret_cast<HitCheckMouseLocalFn>(GameVersion::GetFunctionAddress("CSWGuiListBox", "HitCheckMouseLocal"));
         organizeControls   = reinterpret_cast<OrganizeControlsFn>  (GameVersion::GetFunctionAddress("CSWGuiListBox", "OrganizeControls"));
         organizeOversized  = reinterpret_cast<OrganizeOversizedFn> (GameVersion::GetFunctionAddress("CSWGuiListBox", "OrganizeOversized"));
         organizeUnequal    = reinterpret_cast<OrganizeUnequalFn>   (GameVersion::GetFunctionAddress("CSWGuiListBox", "OrganizeUnequal"));
@@ -383,4 +385,10 @@ int CSWGuiListBox::VTableSlotCount() {
 
     debugLog("[CSWGuiListBox] WARNING: listbox vtable layout unknown for this game version; vtable overriding disabled\n");
     return -1;
+}
+
+CSWGuiControl* CSWGuiListBox::HitCheckMouseLocal(int* outIndex) {
+    if (!objectPtr || !hitCheckMouseLocal) return nullptr;
+    void* control = hitCheckMouseLocal(objectPtr, outIndex);
+    return control ? new CSWGuiControl(control) : nullptr;
 }

@@ -16,7 +16,7 @@ protected:
     typedef void(__thiscall* GetResRefFn)(void* thisPtr, void* outRef, WORD* outType);
     typedef int(__thiscall* RequestFn)(void* thisPtr);
     typedef void(__thiscall* CancelRequestFn)(void* thisPtr);
-    typedef void(__thiscall* DemandFn)(void* thisPtr);
+    typedef int(__thiscall* DemandFn)(void* thisPtr);
     typedef void(__thiscall* ReleaseFn)(void* thisPtr);
 
     typedef void(__thiscall* ConstructorFn)(void* thisPtr);
@@ -54,7 +54,8 @@ public:
     void GetResRef(CResRef* outRef, WORD* outType);
     int Request();
     void CancelRequest();
-    void Demand();
+    // Nonzero once the resource data is available.
+    int Demand();
     void Release();
 
     // Override virtual methods from GameAPIObject

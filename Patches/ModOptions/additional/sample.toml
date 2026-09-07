@@ -13,7 +13,7 @@ name = "Toggle Option"
 
 # One of: `toggle`, `slider`, `list`, `text`
 # toggle will supply a value of 0 or 1
-# NOTE: only `toggle` is implemented so far; other types parse but are skipped.
+# NOTE: `list` is not implemented yet; it parses but is skipped.
 type = "toggle"
 
 # All options need a default value
@@ -40,7 +40,10 @@ description = "Description string for what this option does"
 [[options]]
 name = "Slider Option"
 
-# slider will provide a positive integer value between min and max
+# slider will provide an integer between min and max.
+# The game's slider control has no minimum -- it runs 0..(max - min) internally,
+# and `min` is added back on before the value is stored. `min` may therefore be
+# negative, which the control on its own could not represent.
 type = "slider"
 min = 10
 max = 100

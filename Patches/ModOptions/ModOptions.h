@@ -2,6 +2,7 @@
 #include "Common.h"
 #include "MemberFunctionThunk.h"
 #include "ModOptionsConfig.h"
+#include "PathCasing.h"
 #include "OptionsMenu.h"
 
 #include "GameAPI/CExoArrayList.h"
@@ -52,11 +53,9 @@ public:
 		guiManager->AddPanel(new OptionsMenu(guiManager, config), 3, 1);
 	}
 	void onRefresh(void* control) {
-		debugLog("[ModOptions] Refresh Button Pressed");
 		populateOptionsListBox();
 	}
 	void onBack(void* control) {
-		debugLog("[ModOptions] Back Button Pressed");
 		_HandleInputEvent(CSWGuiControl::BButton, 1);
 	}
 
@@ -145,7 +144,14 @@ private:
 	void loadModOptionConfigs() {
 		modOptionConfigs.clear();
 
-		std::filesystem::path directory("Mod Options");
+		// Matched without regard to casing: the directory is the user's to create,
+		// and not every filesystem we will target treats the spelling as we do.
+		std::filesystem::path directory;
+		if (!PathCasing::FindDirectory(".", "Mod Options", directory)) {
+			debugLog("[ModOptions] no `Mod Options` directory beside the game");
+			return;
+		}
+
 		std::error_code ec;
 		std::filesystem::directory_iterator entries(directory, ec);
 		if (ec) {
@@ -154,7 +160,7 @@ private:
 		}
 
 		for (const auto& entry : entries) {
-			if (!entry.is_regular_file() || entry.path().extension() != ".toml") {
+			if (!entry.is_regular_file() || !PathCasing::HasExtension(entry.path(), ".toml")) {
 				continue;
 			}
 
@@ -225,9 +231,27 @@ private:
 		optionsListBox.AddControls(&listButtons, 1, 0, 0);
 	}
 
-	void _HandleInputEvent(int event, int doPanelEvents) {
-		debugLog("[ModOptions] ModOptions _HandleInputEvent called with (%i,%i)", event, doPanelEvents);
-		if (doPanelEvents && guiManager) {
+	// The manager delivers every key twice -- phase 1 then phase 0. A panel opened
+	// on phase 1 becomes modal-stack top in time to receive the phase 0 tail of the
+	// very keypress that opened it. Drop input until a phase 1 arrives.
+	bool sawInputStart = false;
+
+	bool ownsInput(int phase) {
+		if (sawInputStart) {
+			return true;
+		}
+		if (phase == 0) {
+			return false;
+		}
+		sawInputStart = true;
+		return true;
+	}
+
+	void _HandleInputEvent(int event, int inputPhase) {
+		if (!ownsInput(inputPhase)) {
+			return;
+		}
+		if (inputPhase && guiManager) {
 			switch (event) {
 			case CSWGuiControl::BButton:
 				guiManager->PlayGuiSound(0);
@@ -240,7 +264,7 @@ private:
 			}
 		}
 
-		HandleInputEvent(event, doPanelEvents);
+		HandleInputEvent(event, inputPhase);
 	}
 
 	void SetDescription(void* control) {

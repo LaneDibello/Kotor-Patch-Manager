@@ -42,6 +42,8 @@ public:
     CSWGuiControl* GetControl(int controlId);
     int  GetIsSelectable();
     CSWGuiControl* GetSelectedControl();
+    // The item under the mouse, and its index. Returned wrapper is caller-owned.
+    CSWGuiControl* HitCheckMouseLocal(int* outIndex);
     void OrganizeControls();
     void OrganizeOversized();
     void OrganizeUnequal();
@@ -73,6 +75,7 @@ protected:
     typedef void* (__thiscall* GetControlFn)(void* thisPtr, int controlId);
     typedef int   (__thiscall* GetIsSelectableFn)(void* thisPtr);
     typedef void* (__thiscall* GetSelectedControlFn)(void* thisPtr);
+    typedef void* (__thiscall* HitCheckMouseLocalFn)(void* thisPtr, int* outIndex);
     typedef void  (__thiscall* OrganizeControlsFn)(void* thisPtr);
     typedef void  (__thiscall* OrganizeOversizedFn)(void* thisPtr);
     typedef void  (__thiscall* OrganizeUnequalFn)(void* thisPtr);
@@ -99,6 +102,7 @@ protected:
     static GetControlFn         getControl;
     static GetIsSelectableFn    getIsSelectable;
     static GetSelectedControlFn getSelectedControl;
+    static HitCheckMouseLocalFn hitCheckMouseLocal;
     static OrganizeControlsFn   organizeControls;
     static OrganizeOversizedFn  organizeOversized;
     static OrganizeUnequalFn    organizeUnequal;
