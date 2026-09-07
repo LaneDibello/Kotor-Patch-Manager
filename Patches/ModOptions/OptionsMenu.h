@@ -154,7 +154,7 @@ public:
 		case ModOptionType::Slider:
 			// TODO
 			CSWGuiSlider slider(control);
-
+			// Set `value` based on the current value
 			return;
 		case ModOptionType::List:
 			// TODO
@@ -449,7 +449,13 @@ private:
 				break;
 			}
 			case ModOptionType::Slider:
-				// TODO
+				CSWGuiSlider* slider = new CSWGuiSlider();
+				CResRef image("lbl_optslidera");
+				// Possibly swap around some border params things
+				slider->Initialize(&optionExtent, borderParams, hilightParams, &image);
+				
+				// We need events for HoverEnter, HoverExit, Left and right Arrow, and AButton
+
 				break;
 			case ModOptionType::List:
 				// TODO
