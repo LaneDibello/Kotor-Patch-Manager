@@ -128,12 +128,16 @@ public static class DependencyValidator
         Dictionary<string, PatchManifest> patches,
         IEnumerable<string> patchesToInstall)
     {
-        var toInstall = patchesToInstall.ToHashSet();
+        // The caller's sequence is the order the user arranged, and the sort only has to move a
+        // patch that something else depends on. Seeding from the set instead would leave the rest
+        // in whatever order it happened to enumerate.
+        var requested = patchesToInstall.ToList();
+        var toInstall = requested.ToHashSet();
         var ordered = new List<string>();
         var visited = new HashSet<string>();
 
         // Topological sort using DFS
-        foreach (var patchId in toInstall)
+        foreach (var patchId in requested)
         {
             if (!VisitPatch(patchId, patches, toInstall, visited, ordered))
             {

@@ -296,6 +296,7 @@
                                                     Margin="8,0,0,0">
                                             <Button Content="↑"
                                                     Command="{Binding $parent[Window].DataContext.MoveUpCommand}"
+                                                    CommandParameter="{Binding}"
                                                     Width="24"
                                                     Height="24"
                                                     Padding="0"
@@ -303,6 +304,7 @@
                                                     ToolTip.Tip="Move Up"/>
                                             <Button Content="↓"
                                                     Command="{Binding $parent[Window].DataContext.MoveDownCommand}"
+                                                    CommandParameter="{Binding}"
                                                     Width="24"
                                                     Height="24"
                                                     Padding="0"
