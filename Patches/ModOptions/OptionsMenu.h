@@ -163,7 +163,7 @@ public:
 		std::string value = "";
 		switch (opt->type) {
 		case ModOptionType::Toggle: {
-			const bool wasOn = (values[index] == "1");
+			const bool wasOn = ModOptionsConfigDetail::IsOn(values[index]);
 			value = wasOn ? "0" : "1";
 			CSWGuiButtonToggle toggle(control);
 			toggle.SetSelected(wasOn ? 0 : 1);
@@ -403,16 +403,17 @@ private:
 			switch (options[i].type) {
 			case ModOptionType::Toggle: {
 				CSWGuiButtonToggle* toggle = new CSWGuiButtonToggle();
-				toggle->SetOptionsCheckbox();
-
 				if (!layout.Load(toggle, this, "OPT_TOGGLE")) {
 					delete toggle;
 					break;
 				}
+
+				toggle->SetOptionsCheckbox();
 				sizeRow(toggle, rowWidth);
 
 				toggle->SetToggleEvent((CSWGuiControl::GuiEvent)-1);
-				toggle->SetSelected((value == "1") ? 1 : 0);
+
+				toggle->SetSelected(ModOptionsConfigDetail::IsOn(value) ? 1 : 0);
 				SetControlText(toggle, options[i].name);
 
 				toggle->AddEvent(CSWGuiControl::AButton, this,

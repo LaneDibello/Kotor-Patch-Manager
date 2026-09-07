@@ -138,6 +138,12 @@ namespace ModOptionsConfigDetail {
 		return false;
 	}
 
+	// A stored value's boolean reading, accepting the same spellings a `default` may use.
+	inline bool IsOn(const std::string& value) {
+		bool on = false;
+		return ParseBooleanText(value, on) && on;
+	}
+
 	// Requires the type-specific fields (min/max, choices) to already be parsed.
 	// A default that is present but out of range is corrected rather than fatal;
 	// a missing or wrongly typed default skips the option.
