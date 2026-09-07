@@ -202,11 +202,8 @@ public:
 		}
 		}
 
-		// Every input path reaches here more than once: the panel sees an input event
-		// twice (doPanelEvents 1 then 0), and a mouse-up commits alongside the list
-		// box's own AButton. Writing an ini file and calling into the owning patch
-		// twice per change is worth avoiding -- a mod's handler need not be
-		// idempotent. A toggle always changes value, so it is unaffected.
+		// Every input path arrives twice, and a mod's handler need not be idempotent.
+		// A toggle always changes value, so it is unaffected.
 		if (values[index] == value) {
 			return;
 		}
@@ -283,10 +280,8 @@ public:
 		this->InitControl(&defaultButton, &defaultTag, 1);
 		this->StopLoadFromLayout();
 
-		// Only now, with the panel's own GFF released: two CResGFF objects on one
-		// resource do not coexist. The second to Demand an already-demanded resource
-		// never parses its own header pointers, and then every lookup it makes comes
-		// back empty -- which shows up as a null PROTOITEM on the list boxes.
+		// After StopLoadFromLayout, so this is the only live CResGFF on the resource.
+		// Two at once and the second parses nothing, leaving every lookup empty.
 		if (!layout.Open("modoptionmenu")) {
 			debugLog("[ModOptions] could not open the modoptionmenu layout");
 		}
@@ -346,12 +341,9 @@ private:
 		sliders.clear();
 	}
 
-	// The layout gives each row its height; the width comes from the list box, and
-	// the position is the list box's to assign.
-	//
-	// Goes through LayoutExtent, not CSWGuiObject::SetExtent -- the latter only
-	// writes the field, leaving the control's border and text at whatever width the
-	// template was authored at.
+	// Height comes from the layout, width from the list box, position from AddControls.
+	// LayoutExtent, not CSWGuiObject::SetExtent -- the latter only writes the field
+	// and would leave the border and text at the template's width.
 	void sizeRow(CSWGuiControl* control, int rowWidth) {
 		if (!control) {
 			return;
@@ -445,19 +437,17 @@ private:
 				}
 				slider->Configure(rowWidth, options[i], atoi(value.c_str()));
 
-				// The gamma slider's wiring. The arrow and track events are the ones
-				// CSWGuiSlider::HandleInputEvent acts on for a horizontal slider; it
-				// calls SetCurValue and only then chains to CSWGuiNavigable, which is
-				// what dispatches these, so cur_value is already current here.
+				// The gamma slider's wiring. HandleInputEvent sets cur_value before
+				// dispatching these, so it is already current by the time we commit.
 				slider->AddEvent(CSWGuiControl::AButton, this,
 					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
 				slider->AddEvent(CSWGuiControl::LeftArrow, this,
 					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
 				slider->AddEvent(CSWGuiControl::RightArrow, this,
 					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
-				slider->AddEvent(CSWGuiControl::SliderTrackUp, this,
+				slider->AddEvent(CSWGuiSlider::EVENT_TRACK_UP, this,
 					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
-				slider->AddEvent(CSWGuiControl::SliderTrackDown, this,
+				slider->AddEvent(CSWGuiSlider::EVENT_TRACK_DOWN, this,
 					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
 				slider->AddEvent(CSWGuiControl::HoverEnter, this,
 					memberThunkAddr<OptionsMenu, &OptionsMenu::SetDescription>());
@@ -579,10 +569,10 @@ inline void OptionsListBox::_HandleLMouseDown() {
 		dragging = slider;
 		break;
 	case 2:
-		slider->HandleInputEvent(CSWGuiControl::SliderTrackDown, 1);
+		slider->HandleInputEvent(CSWGuiSlider::EVENT_TRACK_DOWN, 1);
 		break;
 	case 3:
-		slider->HandleInputEvent(CSWGuiControl::SliderTrackUp, 1);
+		slider->HandleInputEvent(CSWGuiSlider::EVENT_TRACK_UP, 1);
 		break;
 	default:
 		break;

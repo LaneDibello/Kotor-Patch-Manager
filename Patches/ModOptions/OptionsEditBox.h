@@ -118,12 +118,9 @@ public:
         }
     }
 
-    // Replaces CSWGuiEditbox::Draw, which only paints border + text. Shaped like
-    // CSWGuiButton::Draw: swap the border art on bit flag 1 (hover), then paint the
-    // pieces. Focus is included so a sticky-focused field stays marked once the
-    // mouse moves away.
-    //
-    // Runs every frame: the wrappers are cached members, never fetched here.
+    // Replaces CSWGuiEditbox::Draw, which paints no hilight. Focus counts as well as
+    // hover, so a sticky-focused field stays marked once the mouse leaves.
+    // Runs every frame: wrappers are cached members, never fetched here.
     void _Draw(float alpha) {
         CSWGuiBorder* frame = (GetControlBitFlag(0) || focused) ? hilight : border;
         if (frame) {

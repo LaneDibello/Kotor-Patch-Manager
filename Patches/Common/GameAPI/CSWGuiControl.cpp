@@ -426,10 +426,8 @@ void __fastcall CSWGuiControl::LoadThunk(void* gameObj, void* /*edx*/, void* gff
     CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
     if (!self || !self->loadHandler) return;
 
-    // The game hands over its OWN CResGFF, and the handler works in wrappers. Wrap
-    // it rather than passing it through: a handler calling GetPtr() on a game object
-    // reads CRes::demands (offset 4) and passes that as the gff. CResStruct needs no
-    // wrapping -- it is a plain index.
+    // The game passes its own CResGFF; the handler expects a wrapper. Unwrapped,
+    // GetPtr() on it would read CRes::demands. CResStruct is a plain index.
     CResGFF wrapped(gff);
 
     auto handler = reinterpret_cast<void(__thiscall*)(void*, CResGFF*, void*)>(self->loadHandler);

@@ -35,10 +35,8 @@ struct ModOption {
 	std::string function;
 	std::string patch;		// defaults to the [menu] `patch`
 
-	// Slider only. The game's slider control has no minimum of its own -- it runs
-	// 0..max_value -- so `min` is a storage/display offset the UI applies, never
-	// something the control is told about. That is also why `min` is free to be
-	// negative, which the control could not represent by itself.
+	// Slider only. The control has no minimum of its own, so `min` is an offset the
+	// UI applies -- which is also why it may be negative.
 	int min = 0;
 	int max = 0;
 

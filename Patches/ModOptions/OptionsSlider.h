@@ -12,13 +12,9 @@
 
 class OptionsMenu;
 
-// A custom control class that derives from CSWGuiSlider.
-// The game's slider is border + hilight + thumb and nothing else, so this adds the
-// option's name and its current value on a line above the track.
-//
-// It also carries the option's `min`. The game's slider has no minimum -- cur_value
-// runs 0..max_value -- so the TOML minimum is an offset this class applies on the
-// way in and out, and nothing below this class ever sees it.
+// Derives from CSWGuiSlider, which is border + hilight + thumb and nothing else, to
+// add the option's name and value on a line above the track. Also holds the option's
+// `min`, applied as an offset here so nothing below ever sees it.
 class OptionsSlider : public CSWGuiSlider {
 public:
 	// The track matches the game's own gamma slider at 24. The rest of the row --
@@ -102,11 +98,9 @@ public:
 		nameParams->SetText(&text);
 	}
 
-	// SetCurValue and SetMaxValue both end in a tail call to the virtual SetExtent,
-	// passing &this->control.extent -- so the argument ALIASES the field the base
-	// SetExtent is about to write. Copy it before anything else runs, or the split
-	// track extent gets read back as the row extent and the row loses height on
-	// every value change.
+	// SetCurValue, SetMaxValue and Load all tail-call the virtual SetExtent passing
+	// &control.extent, so the argument aliases the field the base is about to write.
+	// Copy first, or the row loses height on every value change.
 	void _SetExtent(CSWGuiExtent* extent) {
 		if (!extent) {
 			return;
@@ -128,10 +122,8 @@ public:
 		}
 	}
 
-	// CSWGuiSlider::Draw already swaps border for hilight on bit flag 1 and paints
-	// the thumb; all this adds is the name line.
-	//
-	// Runs every frame: the wrappers are cached members, never fetched here.
+	// CSWGuiSlider::Draw handles the border swap and the thumb; this adds the name.
+	// Runs every frame: wrappers are cached members, never fetched here.
 	void _Draw(float alpha) {
 		CSWGuiSlider::Draw(alpha);
 		if (nameText) {
@@ -139,10 +131,8 @@ public:
 		}
 	}
 
-	// Places the thumb from a mouse x in the space the row extent is in. Mirrors
-	// what CSWGuiSlider::HandleMouseCapturedMovement does, which we cannot call:
-	// it recomputes the position itself, through a gui object that for a list box
-	// row resolves to the wrong space.
+	// Mirrors CSWGuiSlider::HandleMouseCapturedMovement, which we cannot call: it
+	// recomputes the position in the wrong space for a list box row.
 	void SetValueFromTrackX(int x) {
 		if (trackExtent.width <= 0) {
 			return;

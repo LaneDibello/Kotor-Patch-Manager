@@ -76,11 +76,6 @@ public:
         RightArrow   = 64,
         RightMouseUp = 68,
         Tab          = 206,
-        // Synthesised by CSWGuiSlider::HandleLMouseDown for a click on the track
-        // either side of the thumb; it feeds them straight back into its own
-        // HandleInputEvent. Not Ok/Cancel, which are 502/503.
-        SliderTrackUp   = 500,
-        SliderTrackDown = 501,
         MenuLeft     = 243,
         MenuRight    = 244,
         Ok           = 502,
@@ -117,20 +112,15 @@ public:
     void HandleLMouseDown();
     void HandleLMouseUp();
 
-    // Loads this control from a layout GFF by tag. Walks `controls` (a panel's
-    // CONTROLS list) comparing each element's TAG, then dispatches the control's own
-    // virtual Load against the struct it found. Also points the control's gui object
-    // (offset 0x34) at `owner`, which is where every mouse entry point resolves its
-    // coordinates from.
+    // Finds the CONTROLS entry tagged `tag` and runs the control's own Load on it.
+    // Also sets the control's gui object to `owner`.
     void LoadFromLayout(CSWGuiObject* owner, CResGFF* gff, CResList* controls, CExoString* tag);
 
-    // The control's own virtual Load, by way of the original vtable slot -- so a
-    // class that has overridden Load can still reach the game's implementation.
+    // The game's Load, via the original slot, for a class that has overridden it.
     void LoadFromGff(CResGFF* gff, CResStruct* item);
 
-    // Sets the extent through the object's CURRENT vtable, so a type that lays its
-    // sub-parts out on SetExtent still does -- and any override installed on this
-    // instance runs too. CSWGuiObject::SetExtent only writes the field.
+    // SetExtent through the object's current vtable, so a type that lays out its
+    // sub-parts still does. CSWGuiObject::SetExtent only writes the field.
     void LayoutExtent(CSWGuiExtent* extent);
 
     void OverrideHandleFocusChange(void* handler);
@@ -194,8 +184,7 @@ protected:
     static void __fastcall HandleFocusChangeThunk(void* gameObj, void* edx, int hasFocus);
     static void __fastcall DrawThunk(void* gameObj, void* edx, float alpha);
     static void __fastcall SetExtentThunk(void* gameObj, void* edx, void* extent);
-    // Unlike the others this one returns a value, so the no-handler path has to
-    // hand back what the game's own implementation does rather than fall through.
+    // Returns a value, so the no-handler path hands back the game's own default.
     static int __fastcall HandleMouseCapturedMovementThunk(void* gameObj, void* edx, int x, int y);
     static void __fastcall HandleLMouseDownThunk(void* gameObj, void* edx);
     static void __fastcall HandleLMouseUpThunk(void* gameObj, void* edx);

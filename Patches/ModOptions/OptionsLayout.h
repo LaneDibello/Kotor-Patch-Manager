@@ -5,12 +5,9 @@
 #include "GameAPI/CResRef.h"
 #include "GameAPI/CSWGuiControl.h"
 
-// A layout GFF held open for the life of a menu, so controls can be loaded from it
-// at any time.
-//
-// CSWGuiPanel::StopLoadFromLayout releases the panel's own GFF and nulls the field,
-// so anything built after the panel finishes loading cannot use it. Opening a second
-// one costs nothing: StartLoadFromLayout does exactly what Open does below.
+// A layout GFF held open for a menu's lifetime, so rows can be loaded at any time.
+// StopLoadFromLayout releases the panel's own GFF, so anything built after the panel
+// finishes loading needs its own.
 class OptionsLayout {
 public:
 	~OptionsLayout() { Close(); }

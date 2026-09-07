@@ -5,17 +5,9 @@
 class OptionsMenu;
 class OptionsSlider;
 
-// CSWGuiListBox::HandleLMouseDown never forwards the click to the row it hit: it does
-// its own selection bookkeeping, then takes the mouse capture for itself, and its
-// HandleMouseCapturedMovement only ever drives its scrollbar. A toggle survives that
-// because HandleLMouseUp fires AButton, which is all a toggle needs; a slider needs
-// the press position and every mouse move after it.
-//
-// The slider's own mouse entry points cannot be reused: they resolve coordinates
-// through the control's gui object as a panel, which for a row is this list box, and
-// row extents are in content space anyway (HitCheckMouseLocal subtracts the viewport
-// origin before it hit-tests them). So the press is hit-tested here, in the space the
-// row extents are actually in, and the drag is driven from here too.
+// A list box keeps the mouse capture and only fires AButton, which leaves a slider
+// inert. Its own mouse handlers are no use either -- they resolve coordinates as if
+// the row sat on a panel -- so the press and drag are driven from here.
 class OptionsListBox : public CSWGuiListBox {
 public:
 	~OptionsListBox() { RestoreVTable(); }

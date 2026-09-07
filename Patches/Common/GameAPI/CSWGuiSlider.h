@@ -8,14 +8,9 @@ class CSWGuiImage;
 class CResRef;
 struct CSWGuiExtent;
 
-// CSWGuiSlider virtual-function table for KotOR 1 (Windows): 40 entries.
-// Slots 0..37 keep their ControlVTableSlot indices (see CSWGuiControl.h); these
-// are the slider's additions.
-//
-// Read out of swkotor.exe 1.03 at the vtable, 0x73E9D0: slot 38 holds Initialize_2
-// (0x418EF0), slot 39 holds Initialize (0x417DC0), and slot 40 is already string
-// data, so the table ends there. The gap to the next class's vtable is not the
-// slot count -- the tables are not packed.
+// CSWGuiSlider vtable, KotOR 1 (Windows): 40 entries. Slots 0..37 keep their
+// ControlVTableSlot indices; these are the slider's additions. Read out of the
+// vtable at 0x73E9D0 -- slot 40 is string data, so the table ends there.
 enum class SliderVTableSlot : int {
 	InitializeFromProto = 38,
 	Initialize = 39
@@ -23,11 +18,16 @@ enum class SliderVTableSlot : int {
 
 inline constexpr int SLIDER_VTABLE_SLOT_COUNT = 40;
 
-// The slider has no minimum: cur_value runs 0..max_value, and every code path in
-// the game (HandleInputEvent, HandleMouseCapturedMovement, SetExtent) treats 0 as
-// the floor. A caller wanting a non-zero minimum applies it as an offset itself.
+// No minimum: cur_value runs 0..max_value, and every code path treats 0 as the
+// floor. A caller wanting a non-zero minimum applies it as an offset itself.
 class CSWGuiSlider : public CSWGuiNavigable {
 public:
+	// Track clicks either side of the thumb. HandleLMouseDown synthesises these and
+	// feeds them back into HandleInputEvent; they are private to the slider, as
+	// other controls reuse the same ids for their own purposes.
+	static const int EVENT_TRACK_UP = 500;
+	static const int EVENT_TRACK_DOWN = 501;
+
 	explicit CSWGuiSlider(void* objectPtr);
 	CSWGuiSlider();
 	~CSWGuiSlider();
@@ -38,7 +38,7 @@ public:
 	CSWGuiImage* GetImage();
 	int GetMaxValue();
 	int GetCurValue();
-	// Index of the sound the slider plays when a step actually moves it.
+	// Sound played when a step actually moves the thumb.
 	BYTE GetGuiSound();
 	void SetGuiSound(BYTE sound);
 
@@ -51,7 +51,7 @@ public:
 	void Draw(float alpha);
 	void HandleInputEvent(int event, int doPanelEvents);
 	// 1 thumb, 2 track before it, 3 track after it, 0 miss. Coordinates are local
-	// to the control's gui object (offset 0x34), not the screen.
+	// to the control's gui object, not the screen.
 	int HitCheckSlider(int x, int y);
 
 	void InitializeFunctions() override;
