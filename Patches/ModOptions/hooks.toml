@@ -36,7 +36,6 @@ source = "esi"
 type = "pointer" # ESI is `this`
 
 # Main Menu Options Button Event
-# In game Options Button Event
 [[hooks]]
 address = 0x006e4245
 type = "detour"

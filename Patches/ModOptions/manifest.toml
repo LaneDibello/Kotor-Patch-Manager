@@ -1,7 +1,7 @@
 [patch]
 id = "mod-options-gui"
 name = "Mods Options GUI"
-version = "0.0.2"
+version = "0.0.3"
 author = "Lane"
 description = "Expanded and customizable options menus for mods and patches."
 
