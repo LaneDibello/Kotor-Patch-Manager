@@ -212,9 +212,9 @@ void CSWGuiSlider::Draw(float alpha) {
     draw(objectPtr, alpha);
 }
 
-void CSWGuiSlider::HandleInputEvent(int event, int doPanelEvents) {
+void CSWGuiSlider::HandleInputEvent(int event, int inputPhase) {
     if (!objectPtr || !handleInputEvent) return;
-    handleInputEvent(objectPtr, event, doPanelEvents);
+    handleInputEvent(objectPtr, event, inputPhase);
 }
 
 int CSWGuiSlider::VTableSlotCount() {

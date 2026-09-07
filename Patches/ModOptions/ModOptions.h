@@ -233,9 +233,31 @@ private:
 		optionsListBox.AddControls(&listButtons, 1, 0, 0);
 	}
 
-	void _HandleInputEvent(int event, int doPanelEvents) {
-		debugLog("[ModOptions] ModOptions _HandleInputEvent called with (%i,%i)", event, doPanelEvents);
-		if (doPanelEvents && guiManager) {
+	// The manager delivers every key twice -- phase 1 then phase 0. A panel opened
+	// on phase 1 becomes modal-stack top in time to receive the phase 0 tail of the
+	// very keypress that opened it. Drop input until a phase 1 arrives.
+	bool sawInputStart = false;
+
+	bool ownsInput(int event, int phase) {
+		if (sawInputStart) {
+			return true;
+		}
+		if (phase == 0) {
+			debugLog("[ModOptions] %s dropped orphan event (%i, %i)", panelName(), event, phase);
+			return false;
+		}
+		sawInputStart = true;
+		return true;
+	}
+
+	static const char* panelName() { return "ModOptions"; }
+
+	void _HandleInputEvent(int event, int inputPhase) {
+		if (!ownsInput(event, inputPhase)) {
+			return;
+		}
+		debugLog("[ModOptions] ModOptions event (%i, %i) -> active control", event, inputPhase);
+		if (inputPhase && guiManager) {
 			switch (event) {
 			case CSWGuiControl::BButton:
 				guiManager->PlayGuiSound(0);
@@ -248,7 +270,7 @@ private:
 			}
 		}
 
-		HandleInputEvent(event, doPanelEvents);
+		HandleInputEvent(event, inputPhase);
 	}
 
 	void SetDescription(void* control) {

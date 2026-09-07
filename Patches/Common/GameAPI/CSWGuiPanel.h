@@ -71,7 +71,9 @@ public:
     // Functions
     void AddControl(CSWGuiControl* control);
     void CenterPanel();
-    void HandleInputEvent(int event, int param2);
+    // inputPhase is the half of the keypress: the manager dispatches every key as
+    // phase 1 then phase 0, and controls act on 1 only.
+    void HandleInputEvent(int event, int inputPhase);
     void Draw(float param1);
     void OnPanelAdded();
     void OnPanelRemoved();
@@ -123,7 +125,7 @@ public:
 protected:
     typedef void  (__thiscall* AddControlFn)(void* thisPtr, void* control);
     typedef void  (__thiscall* CenterPanelFn)(void* thisPtr);
-    typedef void  (__thiscall* HandleInputEventFn)(void* thisPtr, int event, int param2);
+    typedef void  (__thiscall* HandleInputEventFn)(void* thisPtr, int event, int inputPhase);
     typedef void  (__thiscall* DrawFn)(void* thisPtr, float param1);
     typedef void  (__thiscall* OnPanelAddedFn)(void* thisPtr);
     typedef void  (__thiscall* OnPanelRemovedFn)(void* thisPtr);
@@ -189,7 +191,7 @@ protected:
     // back-pointer and forward to its registered handler. __fastcall stands in for
     // __thiscall on these free-standing functions (MSVC forbids __thiscall here);
     // the static members can still touch private state.
-    static void __fastcall HandleInputEventThunk(void* gameObj, void* edx, int event, int param2);
+    static void __fastcall HandleInputEventThunk(void* gameObj, void* edx, int event, int inputPhase);
     static void __fastcall DrawThunk(void* gameObj, void* edx, float param1);
     static void __fastcall OnPanelAddedThunk(void* gameObj, void* edx);
     static void __fastcall OnPanelRemovedThunk(void* gameObj, void* edx);

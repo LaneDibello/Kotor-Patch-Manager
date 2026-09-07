@@ -138,6 +138,11 @@ public:
 	}
 
 	void onOption(void* control) {
+		// A keypress fires this twice. Toggle derives its new value from the stored
+		// one, so acting on both halves flips it straight back.
+		if (currentInputPhase == 0) {
+			return;
+		}
 		releaseKeyboardFocus(control);
 		commitOption(control);
 	}
@@ -490,9 +495,37 @@ private:
 
 	}
 
-	void _HandleInputEvent(int event, int doPanelEvents) {
-		debugLog("[ModOptions] OptionsMenu _HandleInputEvent (%i, %i)", event, doPanelEvents);
-		if (doPanelEvents && guiManager) {
+	// The manager delivers every key twice -- phase 1 then phase 0. A panel opened
+	// on phase 1 becomes modal-stack top in time to receive the phase 0 tail of the
+	// very keypress that opened it. Drop input until a phase 1 arrives.
+	bool sawInputStart = false;
+
+	// Phase of the key event being dispatched, for the AddEvent callbacks -- they
+	// are handed only a control, and the game fires them on both phases. Mouse
+	// paths never come through the panel, hence the reset to 1.
+	int currentInputPhase = 1;
+
+	bool ownsInput(int event, int phase) {
+		if (sawInputStart) {
+			return true;
+		}
+		if (phase == 0) {
+			debugLog("[ModOptions] %s dropped orphan event (%i, %i)", panelName(), event, phase);
+			return false;
+		}
+		sawInputStart = true;
+		return true;
+	}
+
+	static const char* panelName() { return "OptionsMenu"; }
+
+	void _HandleInputEvent(int event, int inputPhase) {
+		if (!ownsInput(event, inputPhase)) {
+			return;
+		}
+		debugLog("[ModOptions] OptionsMenu event (%i, %i) -> active control", event, inputPhase);
+		currentInputPhase = inputPhase;
+		if (inputPhase && guiManager) {
 			switch (event) {
 			case CSWGuiControl::BButton:
 			{
@@ -508,7 +541,8 @@ private:
 			}
 		}
 
-		HandleInputEvent(event, doPanelEvents);
+		HandleInputEvent(event, inputPhase);
+		currentInputPhase = 1;
 	}
 };
 

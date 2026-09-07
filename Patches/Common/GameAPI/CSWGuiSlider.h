@@ -49,7 +49,7 @@ public:
 	void SetMaxValue(int maxValue);
 	void SetCurValue(int curValue);
 	void Draw(float alpha);
-	void HandleInputEvent(int event, int doPanelEvents);
+	void HandleInputEvent(int event, int inputPhase);
 	// 1 thumb, 2 track before it, 3 track after it, 0 miss. Coordinates are local
 	// to the control's gui object, not the screen.
 	int HitCheckSlider(int x, int y);
@@ -66,7 +66,7 @@ protected:
 	typedef void (__thiscall* SetMaxValueFn)(void* thisPtr, int maxValue);
 	typedef void (__thiscall* SetCurValueFn)(void* thisPtr, int curValue);
 	typedef void (__thiscall* DrawFn)(void* thisPtr, float alpha);
-	typedef void (__thiscall* HandleInputEventFn)(void* thisPtr, int event, int doPanelEvents);
+	typedef void (__thiscall* HandleInputEventFn)(void* thisPtr, int event, int inputPhase);
 	typedef int (__thiscall* HitCheckSliderFn)(void* thisPtr, int x, int y);
 	typedef void* (__thiscall* ConstructorFn)(void* thisPtr);
 	typedef void* (__thiscall* DestructorFn)(void* thisPtr);
