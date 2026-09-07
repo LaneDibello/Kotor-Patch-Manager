@@ -28,11 +28,14 @@ class Program
         }
         else
         {
-            // The deployment preference is machine configuration, and the CLI installs into and
-            // launches the same game the window does. Without reading it here a CLI install would
-            // quietly put a proxy deployment back on injection, and a CLI launch would inject into
-            // a game whose proxy already loads the patcher.
-            DeploymentPolicy.PreferLibraryProxy = AppSettings.Load().PreferLibraryProxy;
+            // Machine configuration, and the CLI installs into and launches the same game the
+            // window does. Without reading it here a CLI install would quietly put a proxy
+            // deployment back on injection, a CLI launch would inject into a game whose proxy
+            // already loads the patcher, and a game the window had been told to accept would be
+            // refused.
+            var settings = AppSettings.Load();
+            DeploymentPolicy.PreferLibraryProxy = settings.PreferLibraryProxy;
+            GameDetector.IdentifyUnrecognisedBuilds = settings.IdentifyUnrecognisedBuilds;
 
             if (!TryTakeDeploymentOption(ref args, out var deploymentError))
             {
