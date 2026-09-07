@@ -3,7 +3,7 @@ id = "mod-options-gui"
 name = "Mods Options GUI"
 version = "0.0.3"
 author = "Lane"
-description = "Expanded and customizable options menus for mods and patches."
+description = "Allows support for custom Options GUIs for mods and patches.\nPlace TOML configurations in a folder titled \"mod options\" in the base game directory.\nFor examples of how to format these configurations, see the sample.toml that ships with this patch."
 
 requires = []
 
