@@ -2,6 +2,10 @@
 #include "../Common.h"
 #include "CSWGuiObject.h"
 
+class CResGFF;
+struct CResStruct;
+class CExoString;
+
 class CSWGuiTextParams;
 struct CSWGuiExtent;
 
@@ -20,6 +24,7 @@ public:
 	void Initialize(CSWGuiExtent* extent, CSWGuiTextParams* textParams, float scale);
 	void SetExtent(CSWGuiExtent* extent);
 	void Draw(float alpha);
+	void Load(CResGFF* gff, CResStruct* item, CExoString* label);
 	void wrapText();
 
 	void InitializeFunctions() override;
@@ -33,6 +38,7 @@ protected:
 	typedef void (__thiscall* InitializeFn)(void* thisPtr, void* extent, void* textParams, float scale);
 	typedef void (__thiscall* SetExtentFn)(void* thisPtr, void* extent);
 	typedef void (__thiscall* DrawFn)(void* thisPtr, float alpha);
+	typedef void (__thiscall* LoadFn)(void* thisPtr, void* gff, void* item, void* label);
 	typedef void (__thiscall* WrapTextFn)(void* thisPtr);
 
 	static ConstructorFn constructor;
@@ -42,6 +48,7 @@ protected:
 	static InitializeFn     initialize;
 	static SetExtentFn      setExtent;
 	static DrawFn           drawFn;
+	static LoadFn loadFn;
 	static WrapTextFn       wrapTextFn;
 	static int classSize;
 

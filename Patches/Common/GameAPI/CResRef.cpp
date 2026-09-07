@@ -69,3 +69,17 @@ char* CResRef::GetCStr() {
     }
     return result;
 }
+
+std::string CResRef::ToStdString(CResRef* ref) {
+    std::string out;
+    if (!ref) {
+        return out;
+    }
+    char* text = ref->GetCStr();
+    if (text) {
+        out = text;
+        free(text);
+    }
+    delete ref;
+    return out;
+}

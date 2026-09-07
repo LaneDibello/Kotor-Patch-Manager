@@ -2,6 +2,8 @@
 #include "../Common.h"
 #include "GameAPIObject.h"
 
+#include <string>
+
 class CResRef : public GameAPIObject {
 public:
     explicit CResRef(void* ptr);
@@ -16,6 +18,9 @@ public:
 
     // Returns a copy of the string. Caller must free() the returned pointer!
     char* GetCStr();
+
+    // Reads a caller-owned CResRef wrapper into a string and disposes of both.
+    static std::string ToStdString(CResRef* ref);
 
     // Override virtual methods from GameAPIObject
     void InitializeFunctions() override;

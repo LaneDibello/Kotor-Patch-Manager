@@ -16,11 +16,13 @@ internal sealed class ElfExecutableImage : IExecutableImage
 
     private readonly string _exePath;
     private readonly List<LoadSegment> _loads;
+    private readonly string? _buildIdentity;
 
-    private ElfExecutableImage(string exePath, List<LoadSegment> loads)
+    private ElfExecutableImage(string exePath, List<LoadSegment> loads, string? buildIdentity)
     {
         _exePath = exePath;
         _loads = loads;
+        _buildIdentity = buildIdentity;
     }
 
     public static PatchResult<IExecutableImage> Open(string exePath)
@@ -40,7 +42,7 @@ internal sealed class ElfExecutableImage : IExecutableImage
             if (loads.Count == 0)
                 return PatchResult<IExecutableImage>.Fail($"{Path.GetFileName(exePath)} has no loadable PT_LOAD segments.");
 
-            return PatchResult<IExecutableImage>.Ok(new ElfExecutableImage(exePath, loads));
+            return PatchResult<IExecutableImage>.Ok(new ElfExecutableImage(exePath, loads, BuildIdOf(elf)));
         }
         catch (Exception ex)
         {
@@ -92,6 +94,25 @@ internal sealed class ElfExecutableImage : IExecutableImage
 
     /// <summary>An ELF carries nothing that a size-preserving byte write invalidates.</summary>
     public PatchResult Complete() => PatchResult.Ok();
+
+    public string? BuildIdentity => _buildIdentity;
+
+    /// <summary>
+    /// The GNU build-id, a hash the linker takes over the image's own contents. Read from the
+    /// section table rather than a PT_NOTE segment, which the Aspyr build does not have.
+    /// </summary>
+    private static string? BuildIdOf(ElfFile elf)
+    {
+        foreach (var note in elf.Sections.OfType<ElfNoteTable>().SelectMany(t => t.Entries).OfType<ElfGnuNoteBuildId>())
+        {
+            using var bytes = new MemoryStream();
+            note.BuildId.Position = 0;
+            note.BuildId.CopyTo(bytes);
+            return $"elf:{Convert.ToHexString(bytes.ToArray()).ToLowerInvariant()}";
+        }
+
+        return null;
+    }
 
     /// <summary>The native build stores its code plainly. No packer targets it.</summary>
     public bool IsPacked => false;

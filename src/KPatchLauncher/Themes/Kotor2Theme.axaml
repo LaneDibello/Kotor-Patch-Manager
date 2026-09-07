@@ -30,8 +30,11 @@
     <!-- Error/Warning Colors (Red shades - kept consistent across themes) -->
     <Color x:Key="ErrorBackgroundColor">#330000</Color>
     <Color x:Key="ErrorColor">#FF0000</Color>
+    <!-- Amber, for something the user should notice without it reading as a failure. -->
+    <Color x:Key="WarningColor">#FFB000</Color>
 
     <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="{StaticResource ErrorBackgroundColor}"/>
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}"/>
 
 </ResourceDictionary>

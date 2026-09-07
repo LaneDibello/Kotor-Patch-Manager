@@ -10,6 +10,23 @@
 // CExoIni returns 0 on failure. CExoString takes char* and copies, so const_cast off
 // a std::string is safe; it is non-copyable, hence all the in-place construction.
 
+// ToStdString builds from CExoString's length field, and CExoIni reports two bytes more
+// than the text -- a stored "1" arrives as 31 00 00. Cut at the first NUL, then strip
+// anything non-printable, so padding and line endings both go.
+inline std::string TrimIniValue(const std::string& value) {
+	std::string text = value.substr(0, value.find('\0'));
+
+	size_t first = 0;
+	while (first < text.size() && (unsigned char)text[first] <= ' ') {
+		++first;
+	}
+	size_t last = text.size();
+	while (last > first && (unsigned char)text[last - 1] <= ' ') {
+		--last;
+	}
+	return text.substr(first, last - first);
+}
+
 inline bool ReadOptionValue(const ModOption& option, std::string& outValue) {
 	if (!option.HasIni()) {
 		return false;
@@ -25,7 +42,7 @@ inline bool ReadOptionValue(const ModOption& option, std::string& outValue) {
 		return false;
 	}
 
-	outValue = value.ToStdString();
+	outValue = TrimIniValue(value.ToStdString());
 	return true;
 }
 

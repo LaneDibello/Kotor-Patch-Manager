@@ -1,8 +1,11 @@
 #include "CSWGuiControl.h"
 #include "GameVersion.h"
+#include "CResGFF.h"
+#include "CExoString.h"
 
 CSWGuiControl::AddChildControlFn       CSWGuiControl::addChildControl       = nullptr;
 CSWGuiControl::AddEventFn              CSWGuiControl::addEvent              = nullptr;
+CSWGuiControl::LoadFromLayoutFn        CSWGuiControl::loadFromLayout        = nullptr;
 CSWGuiControl::GetIsChildFn            CSWGuiControl::getIsChild            = nullptr;
 CSWGuiControl::GetIsSelectableFn       CSWGuiControl::getIsSelectable       = nullptr;
 CSWGuiControl::GetSelectableParentFn   CSWGuiControl::getSelectableParent   = nullptr;
@@ -36,6 +39,8 @@ void CSWGuiControl::InitializeFunctions() {
     try {
         addChildControl     = reinterpret_cast<AddChildControlFn>    (GameVersion::GetFunctionAddress("CSWGuiControl", "AddChildControl"));
         addEvent            = reinterpret_cast<AddEventFn>           (GameVersion::GetFunctionAddress("CSWGuiControl", "AddEvent"));
+        // Load_2 is the CResList overload: it searches CONTROLS by TAG.
+        loadFromLayout      = reinterpret_cast<LoadFromLayoutFn>     (GameVersion::GetFunctionAddress("CSWGuiControl", "Load_2"));
         getIsChild          = reinterpret_cast<GetIsChildFn>         (GameVersion::GetFunctionAddress("CSWGuiControl", "GetIsChild"));
         getIsSelectable     = reinterpret_cast<GetIsSelectableFn>    (GameVersion::GetFunctionAddress("CSWGuiControl", "GetIsSelectable"));
         getSelectableParent = reinterpret_cast<GetSelectableParentFn>(GameVersion::GetFunctionAddress("CSWGuiControl", "GetSelectableParent"));
@@ -312,4 +317,134 @@ void __fastcall CSWGuiControl::SetExtentThunk(void* gameObj, void* /*edx*/, void
 
     auto handler = reinterpret_cast<void(__thiscall*)(void*, void*)>(self->setExtentHandler);
     handler(self, extent);
+}
+
+int CSWGuiControl::HandleMouseCapturedMovement(int x, int y) {
+    void* fn = originalVirtual(ControlVTableSlot::HandleMouseCapturedMovement);
+    if (!fn) {
+        return 1;
+    }
+    return reinterpret_cast<int(__thiscall*)(void*, int, int)>(fn)(objectPtr, x, y);
+}
+
+void CSWGuiControl::OverrideHandleMouseCapturedMovement(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    mouseCapturedMovementHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleMouseCapturedMovement),
+                             reinterpret_cast<void*>(&CSWGuiControl::HandleMouseCapturedMovementThunk));
+}
+
+int __fastcall CSWGuiControl::HandleMouseCapturedMovementThunk(void* gameObj, void* /*edx*/, int x, int y) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    // 1 is what the game's own implementation returns on every path.
+    if (!self || !self->mouseCapturedMovementHandler) return 1;
+
+    auto handler = reinterpret_cast<int(__thiscall*)(void*, int, int)>(self->mouseCapturedMovementHandler);
+    return handler(self, x, y);
+}
+
+void CSWGuiControl::HandleLMouseUp() {
+    void* fn = originalVirtual(ControlVTableSlot::HandleLMouseUp);
+    if (!fn) {
+        return;
+    }
+    reinterpret_cast<void(__thiscall*)(void*)>(fn)(objectPtr);
+}
+
+void CSWGuiControl::OverrideHandleLMouseUp(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    lMouseUpHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleLMouseUp),
+                             reinterpret_cast<void*>(&CSWGuiControl::HandleLMouseUpThunk));
+}
+
+void __fastcall CSWGuiControl::HandleLMouseUpThunk(void* gameObj, void* /*edx*/) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->lMouseUpHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*)>(self->lMouseUpHandler);
+    handler(self);
+}
+
+void CSWGuiControl::HandleLMouseDown() {
+    void* fn = originalVirtual(ControlVTableSlot::HandleLMouseDown);
+    if (!fn) {
+        return;
+    }
+    reinterpret_cast<void(__thiscall*)(void*)>(fn)(objectPtr);
+}
+
+void CSWGuiControl::OverrideHandleLMouseDown(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    lMouseDownHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleLMouseDown),
+                             reinterpret_cast<void*>(&CSWGuiControl::HandleLMouseDownThunk));
+}
+
+void __fastcall CSWGuiControl::HandleLMouseDownThunk(void* gameObj, void* /*edx*/) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->lMouseDownHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*)>(self->lMouseDownHandler);
+    handler(self);
+}
+
+void CSWGuiControl::LoadFromLayout(CSWGuiObject* owner, CResGFF* gff, CResList* controls, CExoString* tag) {
+    if (!objectPtr || !loadFromLayout) return;
+    loadFromLayout(objectPtr,
+                   owner ? owner->GetPtr() : nullptr,
+                   gff ? gff->GetPtr() : nullptr,
+                   controls,
+                   tag ? tag->GetPtr() : nullptr);
+}
+
+void CSWGuiControl::LoadFromGff(CResGFF* gff, CResStruct* item) {
+    void* fn = originalVirtual(ControlVTableSlot::Load);
+    if (!fn) {
+        return;
+    }
+    reinterpret_cast<void(__thiscall*)(void*, void*, void*)>(fn)(
+        objectPtr, gff ? gff->GetPtr() : nullptr, item);
+}
+
+void CSWGuiControl::OverrideLoad(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    loadHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::Load),
+                             reinterpret_cast<void*>(&CSWGuiControl::LoadThunk));
+}
+
+void __fastcall CSWGuiControl::LoadThunk(void* gameObj, void* /*edx*/, void* gff, void* item) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->loadHandler) return;
+
+    // The game passes its own CResGFF; the handler expects a wrapper. Unwrapped,
+    // GetPtr() on it would read CRes::demands. CResStruct is a plain index.
+    CResGFF wrapped(gff);
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*, CResGFF*, void*)>(self->loadHandler);
+    handler(self, &wrapped, item);
+}
+
+void CSWGuiControl::LayoutExtent(CSWGuiExtent* extent) {
+    if (!objectPtr || !extent) {
+        return;
+    }
+    void** currentVtable = *reinterpret_cast<void***>(objectPtr);
+    if (!currentVtable) {
+        return;
+    }
+    void* fn = currentVtable[static_cast<int>(ControlVTableSlot::SetExtent)];
+    if (!fn) {
+        return;
+    }
+    reinterpret_cast<void(__thiscall*)(void*, void*)>(fn)(objectPtr, extent);
 }

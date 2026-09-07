@@ -34,10 +34,22 @@ public class AppSettings
     public List<string> CheckedPatchIds { get; set; } = new();
 
     /// <summary>
+    /// Every known patch id in the order the user arranged them, which is the order they are
+    /// installed in. Held separately from <see cref="CheckedPatchIds"/> so that unchecking a patch
+    /// does not lose its place in the list.
+    /// </summary>
+    public List<string> PatchOrder { get; set; } = new();
+
+    /// <summary>
     /// Whether to deploy through the library proxy where injection would otherwise be used.
     /// Only meaningful on Windows; Linux uses the proxy regardless.
     /// </summary>
     public bool PreferLibraryProxy { get; set; }
+
+    /// <summary>
+    /// Whether a game whose hash is unrecognised may be identified by its build identity.
+    /// </summary>
+    public bool IdentifyUnrecognisedBuilds { get; set; }
 
     /// <summary>
     /// How to start the game when patches are deployed via proxy (Steam or a

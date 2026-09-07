@@ -1,6 +1,8 @@
 #include "CSWGuiText.h"
 #include "CSWGuiTextParams.h"
 #include "GameVersion.h"
+#include "CResGFF.h"
+#include "CExoString.h"
 
 bool CSWGuiText::functionsInitialized = false;
 bool CSWGuiText::offsetsInitialized = false;
@@ -11,6 +13,7 @@ CSWGuiText::GetIdealHeightFn CSWGuiText::getIdealHeight = nullptr;
 CSWGuiText::InitializeFn     CSWGuiText::initialize     = nullptr;
 CSWGuiText::SetExtentFn      CSWGuiText::setExtent      = nullptr;
 CSWGuiText::DrawFn           CSWGuiText::drawFn         = nullptr;
+CSWGuiText::LoadFn CSWGuiText::loadFn = nullptr;
 CSWGuiText::WrapTextFn       CSWGuiText::wrapTextFn      = nullptr;
 int CSWGuiText::classSize = -1;
 int CSWGuiText::offsetTextParams = -1;
@@ -37,6 +40,7 @@ void CSWGuiText::InitializeFunctions() {
         initialize     = reinterpret_cast<InitializeFn>    (GameVersion::GetFunctionAddress("CSWGuiText", "Initialize"));
         setExtent      = reinterpret_cast<SetExtentFn>     (GameVersion::GetFunctionAddress("CSWGuiText", "SetExtent"));
         drawFn         = reinterpret_cast<DrawFn>          (GameVersion::GetFunctionAddress("CSWGuiText", "Draw"));
+        loadFn = reinterpret_cast<LoadFn>(GameVersion::GetFunctionAddress("CSWGuiText", "Load"));
 
         functionsInitialized = true;
     }
@@ -152,4 +156,9 @@ void CSWGuiText::SetExtent(CSWGuiExtent* extent) {
 void CSWGuiText::Draw(float alpha) {
     if (!objectPtr || !drawFn) return;
     drawFn(objectPtr, alpha);
+}
+
+void CSWGuiText::Load(CResGFF* gff, CResStruct* item, CExoString* label) {
+    if (!objectPtr || !loadFn) return;
+    loadFn(objectPtr, gff ? gff->GetPtr() : nullptr, item, label ? label->GetPtr() : nullptr);
 }

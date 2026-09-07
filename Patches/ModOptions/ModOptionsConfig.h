@@ -18,7 +18,7 @@
 
 enum class ModOptionType {
 	Toggle,	// 0 or 1
-	Slider,	// integer in [min, max], min >= 0
+	Slider,	// integer in [min, max]; the control runs 0..(max - min)
 	List,	// one of `choices`, by value
 	Text,	// free-form string
 };
@@ -35,7 +35,8 @@ struct ModOption {
 	std::string function;
 	std::string patch;		// defaults to the [menu] `patch`
 
-	// Slider only.
+	// Slider only. The control has no minimum of its own, so `min` is an offset the
+	// UI applies -- which is also why it may be negative.
 	int min = 0;
 	int max = 0;
 
@@ -135,6 +136,12 @@ namespace ModOptionsConfigDetail {
 		if (lowered == "1" || lowered == "true" || lowered == "yes" || lowered == "on") { outValue = true; return true; }
 		if (lowered == "0" || lowered == "false" || lowered == "no" || lowered == "off") { outValue = false; return true; }
 		return false;
+	}
+
+	// A stored value's boolean reading, accepting the same spellings a `default` may use.
+	inline bool IsOn(const std::string& value) {
+		bool on = false;
+		return ParseBooleanText(value, on) && on;
 	}
 
 	// Requires the type-specific fields (min/max, choices) to already be parsed.
@@ -303,13 +310,15 @@ namespace ModOptionsConfigDetail {
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
-			if (*min < 0) {
-				debugLog("[ModOptions] %s: slider option %u has a negative `min`; skipping",
+			if (*max <= *min) {
+				debugLog("[ModOptions] %s: slider option %u has max <= min; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}
-			if (*max <= *min) {
-				debugLog("[ModOptions] %s: slider option %u has max <= min; skipping",
+			// `min` may be negative: the control never sees it. What the control is
+			// given is the span, so that is what has to fit in an int.
+			if (*min < INT32_MIN || *max > INT32_MAX || *max - *min > INT32_MAX) {
+				debugLog("[ModOptions] %s: slider option %u has a range too large to drive; skipping",
 					sourceName.c_str(), (unsigned)index);
 				return false;
 			}

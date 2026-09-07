@@ -111,9 +111,9 @@ void CSWGuiPanel::InitializeOffsets() {
 
 // Direct wrappers for the game functions (called by address, like the other panel
 // functions). Used to invoke the original behavior.
-void CSWGuiPanel::HandleInputEvent(int event, int param2) {
+void CSWGuiPanel::HandleInputEvent(int event, int inputPhase) {
     if (!objectPtr || !handleInputEvent) return;
-    handleInputEvent(objectPtr, event, param2);
+    handleInputEvent(objectPtr, event, inputPhase);
 }
 
 void CSWGuiPanel::Draw(float param1) {
@@ -132,17 +132,17 @@ void CSWGuiPanel::OnPanelRemoved() {
 }
 
 // Installed into the HandleInputEvent vtable slot. The game invokes it as
-// __thiscall (game object in ECX, (event, param2) on the stack); __fastcall is the
+// __thiscall (game object in ECX, (event, inputPhase) on the stack); __fastcall is the
 // stand-in (gameObj -> ECX, dummy -> EDX, args off the stack -- same trick as
 // CreateTestGui in exports.cpp). We recover the wrapper via the override's
 // back-pointer and forward to the registered handler with the wrapper as `this`,
 // so handler member functions resolve their members correctly.
-void __fastcall CSWGuiPanel::HandleInputEventThunk(void* gameObj, void* /*edx*/, int event, int param2) {
+void __fastcall CSWGuiPanel::HandleInputEventThunk(void* gameObj, void* /*edx*/, int event, int inputPhase) {
     CSWGuiPanel* self = static_cast<CSWGuiPanel*>(VTableOverride::GetOwner(gameObj));
     if (!self || !self->inputEventHandler) return;
 
     auto handler = reinterpret_cast<void(__thiscall*)(void*, int, int)>(self->inputEventHandler);
-    handler(self, event, param2);
+    handler(self, event, inputPhase);
 }
 
 void __fastcall CSWGuiPanel::DrawThunk(void* gameObj, void* /*edx*/, float param1) {

@@ -28,17 +28,22 @@ class Program
         }
         else
         {
-            // The deployment preference is machine configuration, and the CLI installs into and
-            // launches the same game the window does. Without reading it here a CLI install would
-            // quietly put a proxy deployment back on injection, and a CLI launch would inject into
-            // a game whose proxy already loads the patcher.
-            DeploymentPolicy.PreferLibraryProxy = AppSettings.Load().PreferLibraryProxy;
+            // Machine configuration, and the CLI installs into and launches the same game the
+            // window does. Without reading it here a CLI install would quietly put a proxy
+            // deployment back on injection, a CLI launch would inject into a game whose proxy
+            // already loads the patcher, and a game the window had been told to accept would be
+            // refused.
+            var settings = AppSettings.Load();
+            DeploymentPolicy.PreferLibraryProxy = settings.PreferLibraryProxy;
+            GameDetector.IdentifyUnrecognisedBuilds = settings.IdentifyUnrecognisedBuilds;
 
             if (!TryTakeDeploymentOption(ref args, out var deploymentError))
             {
                 Console.WriteLine($"ERROR: {deploymentError}");
                 return 1;
             }
+
+            TakeHashBypassOption(ref args);
 
             // CLI mode - launch game with patches
             return RunCli(args);
@@ -102,6 +107,27 @@ class Program
     }
 
     /// <summary>
+    /// Consumes "--bypass-hash" from <paramref name="args"/> and applies it for this run, leaving
+    /// what remains positional for the callers that index into it.
+    /// </summary>
+    /// <remarks>
+    /// Not written back to the settings file, for the reason --deployment is not. It only switches
+    /// the bypass on: a run that wants the hash enforced simply leaves the flag off, and says so by
+    /// not passing it.
+    /// </remarks>
+    private static void TakeHashBypassOption(ref string[] args)
+    {
+        var index = Array.FindIndex(args, a => a.Equals("--bypass-hash", StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+        {
+            return;
+        }
+
+        GameDetector.IdentifyUnrecognisedBuilds = true;
+        args = args.Where((_, i) => i != index).ToArray();
+    }
+
+    /// <summary>
     /// Run GUI mode (patch management interface)
     /// </summary>
     private static int RunGui()
@@ -134,6 +160,7 @@ class Program
         {
             Console.WriteLine("Usage: KPatchLauncher.exe <game_executable.exe> --patches <patches_directory> [patch_id]...");
             Console.WriteLine("       [--deployment proxy|injection]  how the patcher gets into the game");
+            Console.WriteLine("       [--bypass-hash]                 patch a game whose hash is not recognised");
             return 1;
         }
 
@@ -204,7 +231,7 @@ class Program
                 Console.WriteLine("ERROR: Could not find game executable.");
                 Console.WriteLine();
                 Console.WriteLine("Usage:");
-                Console.WriteLine("  KPatchLauncher.exe [game_executable.exe] [--deployment proxy|injection]");
+                Console.WriteLine("  KPatchLauncher.exe [game_executable.exe] [--deployment proxy|injection] [--bypass-hash]");
                 Console.WriteLine();
                 Console.WriteLine("Place this launcher in the same directory as the game executable,");
                 Console.WriteLine("or specify the game executable path as an argument.");
