@@ -62,6 +62,7 @@ public class MainViewModel : ViewModelBase
         _useCustomLaunch = _settings.LaunchMethod == LaunchMethod.Custom;
         _customLaunchCommand = _settings.CustomLaunchCommand;
         DeploymentPolicy.PreferLibraryProxy = _settings.PreferLibraryProxy;
+        GameDetector.IdentifyUnrecognisedBuilds = _settings.IdentifyUnrecognisedBuilds;
         ClearPersistedPatchSelection();
 
         // Create simple commands
@@ -69,6 +70,8 @@ public class MainViewModel : ViewModelBase
         BrowseGameFolderCommand = new SimpleCommand(async () => await BrowseGameFolder());
         BrowsePatchesCommand = new SimpleCommand(async () => await BrowsePatches());
         RefreshCommand = new SimpleCommand(async () => await Refresh());
+        ToggleIdentifyUnrecognisedBuildsCommand =
+            new SimpleCommand(() => IdentifyUnrecognisedBuilds = !IdentifyUnrecognisedBuilds);
         MoveUpCommand = new SimpleCommand(() => MoveUp());
         MoveDownCommand = new SimpleCommand(() => MoveDown());
         ApplyPatchesCommand = new SimpleCommand(async () => await ApplyPatches());
@@ -236,6 +239,38 @@ public class MainViewModel : ViewModelBase
             OnPropertyChanged();
         }
     }
+
+    /// <summary>
+    /// Whether a game the manager does not recognise may be matched to the build it was made
+    /// from. Changing it re-runs detection, since it decides what the current game is.
+    /// </summary>
+    public bool IdentifyUnrecognisedBuilds
+    {
+        get => GameDetector.IdentifyUnrecognisedBuilds;
+        set
+        {
+            if (GameDetector.IdentifyUnrecognisedBuilds == value)
+            {
+                return;
+            }
+
+            GameDetector.IdentifyUnrecognisedBuilds = value;
+            _settings.IdentifyUnrecognisedBuilds = value;
+            _settings.Save();
+            OnPropertyChanged();
+
+            if (!string.IsNullOrWhiteSpace(GamePath) && File.Exists(GamePath))
+            {
+                _ = CheckPatchStatusAsync(GamePath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Flips <see cref="IdentifyUnrecognisedBuilds"/>. The macOS menu bar needs this because
+    /// NativeMenuItem.IsChecked binds one way, so ticking the item cannot write the value back.
+    /// </summary>
+    public ICommand ToggleIdentifyUnrecognisedBuildsCommand { get; }
 
     /// <summary>
     /// Whether to offer the deployment choice at all. Hidden where there is nothing to choose:
