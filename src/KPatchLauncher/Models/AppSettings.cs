@@ -40,6 +40,11 @@ public class AppSettings
     public bool PreferLibraryProxy { get; set; }
 
     /// <summary>
+    /// Whether a game whose hash is unrecognised may be identified by its build identity.
+    /// </summary>
+    public bool IdentifyUnrecognisedBuilds { get; set; }
+
+    /// <summary>
     /// How to start the game when patches are deployed via proxy (Steam or a
     /// custom command). Unused by the injection method.
     /// </summary>
