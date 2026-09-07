@@ -136,7 +136,10 @@ public:
 
     void _HandleKeyPress(int key) {
         if (key == KEY_ESCAPE || key == KEY_RETURN || key == KEY_LINEFEED) {
-            ReleaseFocus();
+            // Through the menu, not ReleaseFocus directly: dropping focus also has
+            // to hand the panel's active control back, or the arrow keys keep
+            // arriving here and the list box stops navigating.
+            ReleaseToMenu();
             return;
         }
         HandleKeyPress(key);
@@ -176,6 +179,7 @@ public:
     bool IsFocused() const { return focused; }
 
     void CommitToMenu();
+    void ReleaseToMenu();
 
     CSWGuiPanel* owner;
 

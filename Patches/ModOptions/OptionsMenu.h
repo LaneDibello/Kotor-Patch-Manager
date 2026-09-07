@@ -554,6 +554,12 @@ inline void OptionsEditBox::CommitToMenu() {
 	}
 }
 
+inline void OptionsEditBox::ReleaseToMenu() {
+	if (menu) {
+		menu->releaseKeyboardFocus();
+	}
+}
+
 inline void OptionsSlider::CommitToMenu() {
 	if (menu) {
 		menu->commitOption(GetPtr());
