@@ -22,9 +22,21 @@ class OptionsMenu;
 // way in and out, and nothing below this class ever sees it.
 class OptionsSlider : public CSWGuiSlider {
 public:
-	// The game's own gamma slider is 24 tall. Matching it keeps the track from
-	// looking oversized beside the vanilla menus; the name takes what is left.
+	// Row layout, top to bottom: the name and value, the track, then a gap so the
+	// track does not sit right on the option below it.
+	//
+	// The track matches the game's own gamma slider at 24. The name gets a fraction
+	// of a proto row, which is comfortably more than the text needs.
 	static const int TRACK_HEIGHT = 24;
+	static const int NAME_HEIGHT_PERCENT = 70;   // of the proto item's height
+	static const int BOTTOM_MARGIN_PERCENT = 5;  // of the whole row
+
+	// Row height for a slider built against a proto item of `protoHeight`, sized so
+	// the split below lands on a full track and the margin it asks for.
+	static int RowHeight(int protoHeight) {
+		const int content = protoHeight * NAME_HEIGHT_PERCENT / 100 + TRACK_HEIGHT;
+		return content * 100 / (100 - BOTTOM_MARGIN_PERCENT);
+	}
 
 	explicit OptionsSlider(OptionsMenu* menu)
 		: CSWGuiSlider(), menu(menu)
@@ -36,8 +48,9 @@ public:
 	~OptionsSlider() {
 		RestoreVTable();
 
-		delete nameText;
+		// nameParams wraps memory inside nameText, so it goes first.
 		delete nameParams;
+		delete nameText;
 	}
 
 	void Initialize(CSWGuiExtent* rowExtent, CSWGuiTextParams* textParams,
@@ -59,15 +72,20 @@ public:
 		SetMaxValue(max - min);
 		SetStoredValue(value);
 
-		nameText = new CSWGuiText();
-		nameParams = new CSWGuiTextParams();
-		if (nameParams && textParams) {
-			*nameParams = *textParams;
-		}
-
 		// Bake the sub-object ONCE, here, while the caller still has the border art
 		// borrowed onto the proto item's params -- same reasoning as OptionsEditBox.
-		nameText->Initialize(&nameExtent, nameParams, 1.0f);
+		//
+		// CSWGuiText::Initialize copies the params into the text's own embedded set,
+		// so the block handed in here is only a seed: writing to it afterwards would
+		// change nothing on screen. Keep the copy the text made instead -- that is
+		// what Draw reads, and what RefreshLabel writes to so the readout tracks.
+		nameText = new CSWGuiText();
+		CSWGuiTextParams seed;
+		if (textParams) {
+			seed = *textParams;
+		}
+		nameText->Initialize(&nameExtent, &seed, 1.0f);
+		nameParams = nameText->GetTextParams();
 
 		RefreshLabel();
 		_SetExtent(rowExtent);
@@ -163,8 +181,11 @@ private:
 	CSWGuiTextParams* nameParams = nullptr;
 
 	void splitExtent(CSWGuiExtent* row, CSWGuiExtent* outName, CSWGuiExtent* outTrack) {
-		const int trackHeight = (row->height < TRACK_HEIGHT) ? row->height : TRACK_HEIGHT;
-		const int nameHeight = row->height - trackHeight;
+		const int margin = row->height * BOTTOM_MARGIN_PERCENT / 100;
+		const int available = row->height - margin;
+		const int trackHeight = (available < TRACK_HEIGHT) ? available : TRACK_HEIGHT;
+		const int nameHeight = available - trackHeight;
+
 		*outName  = { row->left, row->top, row->width, nameHeight };
 		*outTrack = { row->left, row->top + nameHeight, row->width, trackHeight };
 	}

@@ -510,10 +510,8 @@ private:
 			case ModOptionType::Slider: {
 				OptionsSlider* slider = new OptionsSlider(this);
 
-				// A stacked row needs two lines: a full proto row for the name and
-				// value, and a gamma-sized track under it.
 				CSWGuiExtent sliderExtent = optionExtent;
-				sliderExtent.height = optionExtent.height + OptionsSlider::TRACK_HEIGHT;
+				sliderExtent.height = OptionsSlider::RowHeight(optionExtent.height);
 
 				initializeSlider(slider, &sliderExtent, textParams, borderParams,
 					hilightParams, options[i], value);
