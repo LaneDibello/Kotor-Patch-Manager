@@ -53,11 +53,9 @@ public:
 		guiManager->AddPanel(new OptionsMenu(guiManager, config), 3, 1);
 	}
 	void onRefresh(void* control) {
-		debugLog("[ModOptions] Refresh Button Pressed");
 		populateOptionsListBox();
 	}
 	void onBack(void* control) {
-		debugLog("[ModOptions] Back Button Pressed");
 		_HandleInputEvent(CSWGuiControl::BButton, 1);
 	}
 
@@ -238,25 +236,21 @@ private:
 	// very keypress that opened it. Drop input until a phase 1 arrives.
 	bool sawInputStart = false;
 
-	bool ownsInput(int event, int phase) {
+	bool ownsInput(int phase) {
 		if (sawInputStart) {
 			return true;
 		}
 		if (phase == 0) {
-			debugLog("[ModOptions] %s dropped orphan event (%i, %i)", panelName(), event, phase);
 			return false;
 		}
 		sawInputStart = true;
 		return true;
 	}
 
-	static const char* panelName() { return "ModOptions"; }
-
 	void _HandleInputEvent(int event, int inputPhase) {
-		if (!ownsInput(event, inputPhase)) {
+		if (!ownsInput(inputPhase)) {
 			return;
 		}
-		debugLog("[ModOptions] ModOptions event (%i, %i) -> active control", event, inputPhase);
 		if (inputPhase && guiManager) {
 			switch (event) {
 			case CSWGuiControl::BButton:

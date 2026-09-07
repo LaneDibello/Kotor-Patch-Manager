@@ -43,8 +43,6 @@ public:
 			return false;
 		}
 
-		debugLog("[ModOptions] layout `%s` open, %i controls",
-			resref, gff->GetListCount(&controls));
 		return true;
 	}
 
@@ -55,8 +53,6 @@ public:
 			gff = nullptr;
 		}
 	}
-
-	bool IsOpen() const { return gff != nullptr; }
 
 	// Loads `control` from the CONTROLS entry tagged `tag`. `owner` becomes the
 	// control's gui object, which is the panel every mouse path resolves against.

@@ -58,7 +58,6 @@ public:
 
 	//Callbacks
 	void onBack(void* control) {
-		debugLog("[ModOptions] Back Button Pressed");
 		releaseKeyboardFocus();
 		_HandleInputEvent(CSWGuiControl::BButton, 1);
 	}
@@ -121,7 +120,6 @@ public:
 	}
 
 	void onDefault(void* control) {
-		debugLog("[ModOptions] Default Button Pressed");
 		releaseKeyboardFocus();
 
 		// Restore all options to their default states
@@ -505,25 +503,21 @@ private:
 	// paths never come through the panel, hence the reset to 1.
 	int currentInputPhase = 1;
 
-	bool ownsInput(int event, int phase) {
+	bool ownsInput(int phase) {
 		if (sawInputStart) {
 			return true;
 		}
 		if (phase == 0) {
-			debugLog("[ModOptions] %s dropped orphan event (%i, %i)", panelName(), event, phase);
 			return false;
 		}
 		sawInputStart = true;
 		return true;
 	}
 
-	static const char* panelName() { return "OptionsMenu"; }
-
 	void _HandleInputEvent(int event, int inputPhase) {
-		if (!ownsInput(event, inputPhase)) {
+		if (!ownsInput(inputPhase)) {
 			return;
 		}
-		debugLog("[ModOptions] OptionsMenu event (%i, %i) -> active control", event, inputPhase);
 		currentInputPhase = inputPhase;
 		if (inputPhase && guiManager) {
 			switch (event) {

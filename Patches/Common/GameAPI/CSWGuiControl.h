@@ -7,11 +7,8 @@ class CExoString;
 struct CResStruct;
 struct CResList;
 
-// CSWGuiControl virtual-function table layout for KotOR 1 (Windows): 38 entries /
-// 152 bytes.
-//
-// Like PanelVTableSlot, this is specific to K1/Windows. Used to index a copied
-// vtable when overriding control virtuals (see VTableOverride.h).
+// CSWGuiControl vtable layout, KotOR 1 (Windows): 38 entries / 152 bytes. Indexes a
+// copied vtable when overriding control virtuals (see VTableOverride.h).
 enum class ControlVTableSlot : int {
     Destructor = 0,
     SetExtent,
