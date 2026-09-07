@@ -13,7 +13,6 @@ bool CSWGuiControl::functionsInitialized = false;
 bool CSWGuiControl::offsetsInitialized = false;
 
 int CSWGuiControl::offsetParentControl = -1;
-int CSWGuiControl::offsetGuiObject = -1;
 int CSWGuiControl::offsetId = -1;
 int CSWGuiControl::offsetCustomValue = -1;
 int CSWGuiControl::offsetBitFlags = -1;
@@ -67,7 +66,6 @@ void CSWGuiControl::InitializeOffsets() {
 
     try {
         offsetParentControl = GameVersion::GetOffset("CSWGuiControl", "parent_control");
-        offsetGuiObject = GameVersion::GetOffset("CSWGuiControl", "gui_object");
         offsetId = GameVersion::GetOffset("CSWGuiControl", "id");
         offsetCustomValue = GameVersion::GetOffset("CSWGuiControl", "custom_value");
         offsetBitFlags = GameVersion::GetOffset("CSWGuiControl", "bit_flags");
@@ -390,9 +388,4 @@ void __fastcall CSWGuiControl::HandleLMouseDownThunk(void* gameObj, void* /*edx*
 
     auto handler = reinterpret_cast<void(__thiscall*)(void*)>(self->lMouseDownHandler);
     handler(self);
-}
-
-void CSWGuiControl::SetGuiObject(void* panel) {
-    if (!objectPtr || offsetGuiObject < 0) return;
-    setObjectProperty<void*>(objectPtr, offsetGuiObject, panel);
 }

@@ -22,8 +22,9 @@ class OptionsMenu;
 // way in and out, and nothing below this class ever sees it.
 class OptionsSlider : public CSWGuiSlider {
 public:
-	// Layout const, this is the percentage of the extent the `name` takes up
-	static const int NAME_HEIGHT_PERCENT = 40;
+	// The game's own gamma slider is 24 tall. Matching it keeps the track from
+	// looking oversized beside the vanilla menus; the name takes what is left.
+	static const int TRACK_HEIGHT = 24;
 
 	explicit OptionsSlider(OptionsMenu* menu)
 		: CSWGuiSlider(), menu(menu)
@@ -162,8 +163,9 @@ private:
 	CSWGuiTextParams* nameParams = nullptr;
 
 	void splitExtent(CSWGuiExtent* row, CSWGuiExtent* outName, CSWGuiExtent* outTrack) {
-		const int nameHeight = row->height * NAME_HEIGHT_PERCENT / 100;
+		const int trackHeight = (row->height < TRACK_HEIGHT) ? row->height : TRACK_HEIGHT;
+		const int nameHeight = row->height - trackHeight;
 		*outName  = { row->left, row->top, row->width, nameHeight };
-		*outTrack = { row->left, row->top + nameHeight, row->width, row->height - nameHeight };
+		*outTrack = { row->left, row->top + nameHeight, row->width, trackHeight };
 	}
 };

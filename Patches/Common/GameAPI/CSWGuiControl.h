@@ -88,12 +88,6 @@ public:
 
     // Accessors
     CSWGuiControl* GetParentControl();
-    // The panel a control resolves mouse coordinates against (offset 0x34). Every
-    // mouse entry point -- HandleLMouseDown, HandleMouseCapturedMovement -- hands
-    // this straight to CSWGuiPanel::GetLocalMouseCoords, which walks it as a panel
-    // and reads its `manager`. A control whose owner is a list box rather than the
-    // panel will fault there, so a runtime-built row has to be pointed at the panel.
-    void SetGuiObject(void* panel);
     int GetId();
     // Scratch field the game leaves to the implementer. Controls built at
     // runtime use it to point back at whatever data they represent.
@@ -153,7 +147,6 @@ protected:
     static bool offsetsInitialized;
 
     static int offsetParentControl;
-    static int offsetGuiObject;
     static int offsetId;
     static int offsetCustomValue;
     static int offsetBitFlags;

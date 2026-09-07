@@ -201,6 +201,14 @@ public:
 		}
 		}
 
+		// Every input path reaches here more than once: the panel sees an input event
+		// twice (doPanelEvents 1 then 0), and a mouse-up commits alongside the list
+		// box's own AButton. Writing an ini file and calling into the owning patch
+		// twice per change is worth avoiding -- a mod's handler need not be
+		// idempotent. A toggle always changes value, so it is unaffected.
+		if (values[index] == value) {
+			return;
+		}
 		values[index] = value;
 
 		// INI first, so a handler that re-reads its settings sees the new value.
@@ -401,8 +409,10 @@ private:
 		CSWGuiBorderParams* hilightParams, const ModOption& option,
 		const std::string& value)
 	{
-		BorrowedBorderImages frame(borderParams, "blueborder", "blueborder01", "blackfill");
-		BorrowedBorderImages hilightFrame(hilightParams, "yellowborder", "yellowborder01", "blackfill");
+		// The slider art is a single fill; a corner and edge would draw a frame
+		// around the track on top of it.
+		BorrowedBorderImages frame(borderParams, "", "", "lbl_optslider");
+		BorrowedBorderImages hilightFrame(hilightParams, "", "", "lbl_optslider2");
 
 		slider->Initialize(extent, textParams, borderParams, hilightParams,
 			option.name, option.min, option.max, atoi(value.c_str()));
@@ -500,9 +510,10 @@ private:
 			case ModOptionType::Slider: {
 				OptionsSlider* slider = new OptionsSlider(this);
 
-				// A stacked row needs two lines: the name and value above the track.
+				// A stacked row needs two lines: a full proto row for the name and
+				// value, and a gamma-sized track under it.
 				CSWGuiExtent sliderExtent = optionExtent;
-				sliderExtent.height = optionExtent.height * TEXT_ROW_HEIGHT_PERCENT / 100;
+				sliderExtent.height = optionExtent.height + OptionsSlider::TRACK_HEIGHT;
 
 				initializeSlider(slider, &sliderExtent, textParams, borderParams,
 					hilightParams, options[i], value);
@@ -571,18 +582,10 @@ private:
 
 		debugLog("[ModOptions] `%s` produced %i options", config.GetName().c_str(), listOptions.GetSize());
 
-		// varyItemHeights only matters once Text rows stop matching the toggle height;
-		// while they match, the uniform path is the better-trodden one.
-		optionsListBox.AddControls(&listOptions, 1, 0,
-			TEXT_ROW_HEIGHT_PERCENT != 100 ? 1 : 0);
+		// Text and Slider rows are both taller than the toggle the proto item is
+		// sized for, so the rows never share a height.
+		optionsListBox.AddControls(&listOptions, 1, 0, 1);
 
-		// AddControls leaves each row owned by the list box. The slider's mouse
-		// handling resolves coordinates through that owner as a panel, so it has to
-		// be the menu -- which is also the space AddControls just laid the rows out
-		// in, the same one CSWGuiListBox::HitCheckMouseLocal hit-tests against.
-		for (OptionsSlider* slider : sliders) {
-			slider->SetGuiObject(GetPtr());
-		}
 	}
 
 	void _HandleInputEvent(int event, int doPanelEvents) {
