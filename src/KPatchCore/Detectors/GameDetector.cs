@@ -28,7 +28,8 @@ public static class GameDetector
             Architecture = Architecture.x86,
             Title = GameTitle.KOTOR1,
             FileSize = 0x3db00,
-            Hash = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+            Hash = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+            BuildIdentity = "pe:402BC2D9:46D000:4"
         },
 
         // KOTOR 1 - HellSpawn CD Crack version 1.0.3
@@ -41,6 +42,8 @@ public static class GameDetector
             Title = GameTitle.KOTOR1,
             FileSize = 0x3db00,
             Hash = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"
+            // No BuildIdentity: headers identical to the GOG build above, which claims it.
+            // This is that build with a 16-byte tool watermark in header padding.
         },
 
         // KOTOR 1 - Steam version 1.0.3
@@ -52,7 +55,8 @@ public static class GameDetector
             Architecture = Architecture.x86,
             Title = GameTitle.KOTOR1,
             FileSize = 0x431000,
-            Hash = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88"
+            Hash = "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88",
+            BuildIdentity = "pe:402BC2D9:4C3000:5"
         },
 
         // KOTOR 1 - Steam Aspyr macOS build (thin x86_64 Mach-O, signed)
@@ -66,7 +70,8 @@ public static class GameDetector
             Architecture = Architecture.x86_64,
             Title = GameTitle.KOTOR1,
             FileSize = 0x60A3F0,
-            Hash = "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"
+            Hash = "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71",
+            BuildIdentity = "macho:05EFCB7E4FCB3536B278E10F812BB06C"
         },
 
         // KOTOR 2 - GOG version Aspyr
@@ -78,7 +83,8 @@ public static class GameDetector
             Architecture = Architecture.x86,
             Title = GameTitle.KOTOR2,
             FileSize = 0x648f98,
-            Hash = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"
+            Hash = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914",
+            BuildIdentity = "pe:61395EE0:6B0000:4"
         },
 
         // KOTOR 2 - Steam version Aspyr
@@ -90,7 +96,8 @@ public static class GameDetector
             Architecture = Architecture.x86,
             Title = GameTitle.KOTOR2,
             FileSize = 0x648800,
-            Hash = "6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"
+            Hash = "6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF",
+            BuildIdentity = "pe:5603005D:6B9000:4"
         },
 
         // KOTOR 2 - Steam Aspyr native Linux build (ELF, build-id b0ac5acb)
@@ -102,7 +109,8 @@ public static class GameDetector
             Architecture = Architecture.x86,
             Title = GameTitle.KOTOR2,
             FileSize = 0x8A9534,
-            Hash = "ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"
+            Hash = "ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3",
+            BuildIdentity = "elf:b0ac5acb8c6263ec1c6098503fc5ff044aa01a35"
         },
 
         // KOTOR 2 - Steam Aspyr macOS build (universal Mach-O, unsigned)
@@ -117,7 +125,8 @@ public static class GameDetector
             Architecture = Architecture.x86_64,
             Title = GameTitle.KOTOR2,
             FileSize = 0x118E6CC,
-            Hash = "1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77"
+            Hash = "1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77",
+            BuildIdentity = "macho:D7B3E9F5C1693FDE8DF40A83518C1123+398BB67DC6C83DCEAB962A15F25E4259"
         },
 
         // KOTOR 2 - Legacy 1.0
@@ -129,7 +138,8 @@ public static class GameDetector
             Architecture = Architecture.x86,
             Title = GameTitle.KOTOR2,
             FileSize = 0x45de00,
-            Hash = "92D7800687A0119A1A81527DB875673228C891A3EA241EE130F22567BF34A501"
+            Hash = "92D7800687A0119A1A81527DB875673228C891A3EA241EE130F22567BF34A501",
+            BuildIdentity = "pe:41E9FBB1:4F2000:4"
         },
 
         // KOTOR 2 - Legacy 1.0b
@@ -142,8 +152,26 @@ public static class GameDetector
             Title = GameTitle.KOTOR2,
             FileSize = 0x45de00,
             Hash = "0912D1942DE4EE849F06588CB738A0E78B6D5FFE92960B9567196D54B7E808D0"
+            // No BuildIdentity: headers identical to Legacy 1.0 above, which claims it. The two
+            // differ only by a "CARBON!" marker zeroed out of header padding.
         }
     };
+
+    /// <summary>
+    /// The entries above indexed by build identity. ToDictionary throws on a duplicate key, which
+    /// is why an entry sharing another's identity leaves it null rather than repeating it.
+    /// </summary>
+    private static readonly Dictionary<string, GameVersion> VersionsByBuildIdentity =
+        KnownVersions.Values
+            .Where(v => v.BuildIdentity is not null)
+            .ToDictionary(v => v.BuildIdentity!);
+
+    /// <summary>
+    /// Whether an executable whose hash is unrecognised may be identified by its build identity
+    /// instead. Off unless the user asks for it: it accepts files the manager has never seen,
+    /// including ones another tool has modified.
+    /// </summary>
+    public static bool IdentifyUnrecognisedBuilds { get; set; }
 
     /// <summary>
     /// Detects game version from executable path.
@@ -199,6 +227,20 @@ public static class GameDetector
                 }
             }
 
+            // Failing the hash, the linker's own stamp says which build this is. A byte patch
+            // leaves it alone, so a modified copy still resolves to the build it came from.
+            var buildIdentity = ReadBuildIdentity(exePath);
+
+            if (IdentifyUnrecognisedBuilds && buildIdentity is not null &&
+                VersionsByBuildIdentity.TryGetValue(buildIdentity, out var inferred))
+            {
+                return PatchResult<GameVersion>.Ok(
+                    inferred,
+                    $"Identified as {inferred.DisplayName} by build identity {buildIdentity}; " +
+                    $"this file does not match it byte for byte."
+                );
+            }
+
             // Read rather than assumed: DeploymentPolicy picks the patcher module and the load
             // mechanism from these two.
             var targetResult = ExecutableFormatDetector.DetectTarget(exePath);
@@ -221,7 +263,9 @@ public static class GameDetector
 
             return PatchResult<GameVersion>.Ok(
                 unknownVersion,
-                $"Unknown version (hash: {PreviewHash(hash)}...)"
+                buildIdentity is null
+                    ? $"Unknown version (hash: {PreviewHash(hash)}...)"
+                    : $"Unknown version (hash: {PreviewHash(hash)}..., build identity {buildIdentity})"
             );
         }
         catch (Exception ex)
@@ -483,6 +527,13 @@ public static class GameDetector
         {
             return PatchResult<(string, long)>.Fail($"Failed to get executable info: {ex.Message}");
         }
+    }
+
+
+    private static string? ReadBuildIdentity(string exePath)
+    {
+        var image = ExecutableImage.Open(exePath);
+        return image.Success ? image.Data?.BuildIdentity : null;
     }
 
     private static bool TryGetKnownVersion(string hash, out GameVersion version)

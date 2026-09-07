@@ -82,6 +82,14 @@ public sealed class GameVersion
     public required string Hash { get; init; }
 
     /// <summary>
+    /// The <see cref="KPatchCore.Parsers.IExecutableImage.BuildIdentity"/> this build was linked
+    /// with. Detection reports it for any executable it does not recognise, which is where a new
+    /// entry's value comes from. Null where another entry already claims the same one, since no
+    /// two may share it.
+    /// </summary>
+    public string? BuildIdentity { get; init; }
+
+    /// <summary>
     /// Human-readable display name
     /// </summary>
     public string DisplayName =>
