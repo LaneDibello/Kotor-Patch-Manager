@@ -25,9 +25,12 @@ public:
 			return false;
 		}
 
-		// Demand is what actually loads the resource; without it every lookup below
-		// comes back empty.
-		gff->Demand();
+		// Demand is what loads the resource; without it every lookup comes back empty.
+		if (!gff->Demand()) {
+			debugLog("[ModOptions] layout `%s` could not be demanded", resref);
+			Close();
+			return false;
+		}
 
 		if (!gff->GetTopLevelStruct(&root)) {
 			debugLog("[ModOptions] layout `%s` has no top level struct", resref);

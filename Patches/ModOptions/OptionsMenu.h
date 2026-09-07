@@ -37,10 +37,6 @@ public:
 
 	CSWGuiManager* guiManager;
 
-	// Held open for the menu's lifetime; the panel's own GFF dies with
-	// StopLoadFromLayout, and rows are still built after that and on every Defaults.
-	OptionsLayout layout;
-
 	CSWGuiLabel titleLabel;
 	OptionsListBox optionsListBox;
 	CSWGuiLabel descriptionLabel;
@@ -280,12 +276,6 @@ public:
 		this->InitControl(&defaultButton, &defaultTag, 1);
 		this->StopLoadFromLayout();
 
-		// After StopLoadFromLayout, so this is the only live CResGFF on the resource.
-		// Two at once and the second parses nothing, leaving every lookup empty.
-		if (!layout.Open("modoptionmenu")) {
-			debugLog("[ModOptions] could not open the modoptionmenu layout");
-		}
-
 		// After the layout: the override goes on the control the layout populated.
 		optionsListBox.HookMouse(this);
 
@@ -388,7 +378,11 @@ private:
 		optionsListBox.ClearItems();
 		values.assign(config.OptionCount(), std::string());
 
-		if (!layout.IsOpen()) {
+		// Scoped to the build. AddPanel takes ownership of the panel and our wrapper
+		// is never destroyed, so a longer-lived layout would hold its Demand forever
+		// and every later open of this menu would read an empty GFF.
+		OptionsLayout layout;
+		if (!layout.Open("modoptionmenu")) {
 			debugLog("[ModOptions] no layout to build option rows from");
 			return;
 		}

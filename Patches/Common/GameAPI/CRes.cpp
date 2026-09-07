@@ -153,10 +153,11 @@ void CRes::CancelRequest() {
     }
 }
 
-void CRes::Demand() {
-    if (objectPtr && demand) {
-        demand(objectPtr);
+int CRes::Demand() {
+    if (!objectPtr || !demand) {
+        return 0;
     }
+    return demand(objectPtr);
 }
 
 void CRes::Release() {
