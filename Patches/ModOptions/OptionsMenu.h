@@ -5,6 +5,7 @@
 #include "ModOptionIni.h"
 #include "ModOptionsConfig.h"
 #include "OptionsEditBox.h"
+#include "OptionsLayout.h"
 #include "OptionsListBox.h"
 #include "OptionsSlider.h"
 
@@ -36,6 +37,10 @@ public:
 
 	CSWGuiManager* guiManager;
 
+	// Held open for the menu's lifetime; the panel's own GFF dies with
+	// StopLoadFromLayout, and rows are still built after that and on every Defaults.
+	OptionsLayout layout;
+
 	CSWGuiLabel titleLabel;
 	OptionsListBox optionsListBox;
 	CSWGuiLabel descriptionLabel;
@@ -46,9 +51,6 @@ public:
 	// Authoritative option state, indexed like config.options, in INI text form.
 	std::vector<std::string> values;
 
-
-	// Height of a stacked Text Row as a percentage of the provided extent
-	static const int TEXT_ROW_HEIGHT_PERCENT = 130;
 
 	// Wrappers for the Text options currently in optionsListBox
 	std::vector<OptionsEditBox*> editBoxes;
@@ -281,6 +283,14 @@ public:
 		this->InitControl(&defaultButton, &defaultTag, 1);
 		this->StopLoadFromLayout();
 
+		// Only now, with the panel's own GFF released: two CResGFF objects on one
+		// resource do not coexist. The second to Demand an already-demanded resource
+		// never parses its own header pointers, and then every lookup it makes comes
+		// back empty -- which shows up as a null PROTOITEM on the list boxes.
+		if (!layout.Open("modoptionmenu")) {
+			debugLog("[ModOptions] could not open the modoptionmenu layout");
+		}
+
 		// After the layout: the override goes on the control the layout populated.
 		optionsListBox.HookMouse(this);
 
@@ -336,83 +346,21 @@ private:
 		sliders.clear();
 	}
 
-	// Swaps a border params object's three images and remembers the originals, so a
-	// borrowed proto-item params block can be put back exactly as it was.
+	// The layout gives each row its height; the width comes from the list box, and
+	// the position is the list box's to assign.
 	//
-	// The proto item's params are shared with every row, and
-	// CSWGuiBorder::Initialize copies whatever it is handed into the border -- so
-	// without the restore, every toggle built after an edit box inherits the edit
-	// box's art (which is also why the highlight border was drawing the checkbox
-	// circle: it was still carrying the toggle's fill image).
-	struct BorrowedBorderImages {
-		BorrowedBorderImages(CSWGuiBorderParams* params, const char* corner,
-			const char* edge, const char* fill) : params(params)
-		{
-			if (!params) {
-				return;
-			}
-			savedCorner = CResRef::ToStdString(params->GetCornerImageResRef());
-			savedEdge   = CResRef::ToStdString(params->GetEdgeImageResRef());
-			savedFill   = CResRef::ToStdString(params->GetFillImageResRef());
-			apply(corner, edge, fill);
+	// Goes through LayoutExtent, not CSWGuiObject::SetExtent -- the latter only
+	// writes the field, leaving the control's border and text at whatever width the
+	// template was authored at.
+	void sizeRow(CSWGuiControl* control, int rowWidth) {
+		if (!control) {
+			return;
 		}
-
-		~BorrowedBorderImages() {
-			if (params) {
-				apply(savedCorner.c_str(), savedEdge.c_str(), savedFill.c_str());
-			}
-		}
-
-		void apply(const char* corner, const char* edge, const char* fill) {
-			CResRef cornerRef(corner);
-			CResRef edgeRef(edge);
-			CResRef fillRef(fill);
-			params->SetCornerImage(&cornerRef, 1);
-			params->SetEdgeImage(&edgeRef, 1);
-			params->SetFillImage(&fillRef, 1);
-		}
-
-		CSWGuiBorderParams* params;
-		std::string savedCorner, savedEdge, savedFill;
-	};
-
-	// Builds one Text row: thin blue frame at rest, brighter frame when hovered or
-	// focused, and the same flat fill for both so neither picks up the toggle art.
-	void initializeEditBox(OptionsEditBox* editBox, CSWGuiExtent* extent,
-		CSWGuiTextParams* textParams, CSWGuiBorderParams* borderParams,
-		CSWGuiBorderParams* hilightParams, const std::string& name,
-		const std::string& value)
-	{
-		{
-			BorrowedBorderImages frame(borderParams, "blueborder", "blueborder01", "blackfill");
-			BorrowedBorderImages hilightFrame(hilightParams, "yellowborder", "yellowborder01", "blackfill");
-
-
-			editBox->Initialize(extent, textParams, borderParams, hilightParams, name);
-		}
-
-		CSWGuiEditText* editText = editBox->GetEditText();
-		if (editText) {
-			CExoString textValue(const_cast<char*>(value.c_str()));
-			editText->SetText(&textValue);
-			delete editText;
-		}
-	}
-
-	// Builds one Slider row, on the game's own slider art rather than whatever the
-	// proto item is carrying.
-	void initializeSlider(OptionsSlider* slider, CSWGuiExtent* extent,
-		CSWGuiTextParams* textParams, CSWGuiBorderParams* borderParams,
-		CSWGuiBorderParams* hilightParams, const ModOption& option,
-		const std::string& value)
-	{
-		// The slider art is a single fill; a corner and edge would draw a frame
-		// around the track on top of it.
-		BorrowedBorderImages frame(borderParams, "", "", "lbl_optslider");
-		BorrowedBorderImages hilightFrame(hilightParams, "", "", "lbl_optslider2");
-
-		slider->Initialize(extent, textParams, borderParams, hilightParams,
-			option.name, option.min, option.max, atoi(value.c_str()));
+		CSWGuiExtent row = control->GetExtent();
+		row.left = 0;
+		row.top = 0;
+		row.width = rowWidth;
+		control->LayoutExtent(&row);
 	}
 
 	// GetText/GetTextParams hand back caller-owned wrappers.
@@ -448,33 +396,14 @@ private:
 		optionsListBox.ClearItems();
 		values.assign(config.OptionCount(), std::string());
 
-		CSWGuiControl* protoItem = optionsListBox.GetProtoItem();
-		if (!protoItem) {
-			debugLog("[ModOptions] LB_OPTIONS has no proto item");
+		if (!layout.IsOpen()) {
+			debugLog("[ModOptions] no layout to build option rows from");
 			return;
 		}
 
-		// Will likely make this more generic in the future...
-		CSWGuiButtonToggle proto(protoItem->GetPtr());
-		delete protoItem;
-
-		// Caller-owned wrappers, and the same for every option, so hoisted out.
-		CSWGuiText* protoText = proto.GetText();
-		CSWGuiBorder* protoBorder = proto.GetBorder();
-		CSWGuiBorder* protoHilight = proto.GetHilight();
-		CSWGuiBorder* protoSelectedBorder = proto.GetSelectedBorder();
-		CSWGuiBorder* protoHilightSelected = proto.GetHilightSelectedBorder();
-		CSWGuiTextParams* textParams = protoText ? protoText->GetTextParams() : nullptr;
-		CSWGuiBorderParams* borderParams = protoBorder ? protoBorder->GetBorderParams() : nullptr;
-		CSWGuiBorderParams* hilightParams = protoHilight ? protoHilight->GetBorderParams() : nullptr;
-		CSWGuiBorderParams* selectedParams = protoSelectedBorder ? protoSelectedBorder->GetBorderParams() : nullptr;
-		CSWGuiBorderParams* hilightSelectedParams = protoHilightSelected ? protoHilightSelected->GetBorderParams() : nullptr;
-
-		CSWGuiExtent optionExtent;
-		optionExtent.top = 0;
-		optionExtent.left = 0;
-		optionExtent.width = optionsListBox.GetViewportWidth() - 2 * optionsListBox.GetPadding();
-		optionExtent.height = proto.GetExtent().height;
+		// Every row type styles and sizes itself from its own template control in
+		// the layout, so the only thing left to decide here is the width.
+		const int rowWidth = optionsListBox.GetViewportWidth() - 2 * optionsListBox.GetPadding();
 
 		CExoArrayList<CSWGuiControl*> listOptions;
 		const std::vector<ModOption>& options = config.GetOptions();
@@ -487,9 +416,12 @@ private:
 				CSWGuiButtonToggle* toggle = new CSWGuiButtonToggle();
 				toggle->SetOptionsCheckbox();
 
-				toggle->Initialize(&optionExtent, textParams,
-					borderParams, hilightParams,
-					selectedParams, hilightSelectedParams);
+				if (!layout.Load(toggle, this, "OPT_TOGGLE")) {
+					delete toggle;
+					break;
+				}
+				sizeRow(toggle, rowWidth);
+
 				toggle->SetToggleEvent((CSWGuiControl::GuiEvent)-1);
 				toggle->SetSelected((value == "1") ? 1 : 0);
 				SetControlText(toggle, options[i].name);
@@ -507,11 +439,11 @@ private:
 			case ModOptionType::Slider: {
 				OptionsSlider* slider = new OptionsSlider(this);
 
-				CSWGuiExtent sliderExtent = optionExtent;
-				sliderExtent.height = OptionsSlider::RowHeight(optionExtent.height);
-
-				initializeSlider(slider, &sliderExtent, textParams, borderParams,
-					hilightParams, options[i], value);
+				if (!layout.Load(slider, this, "OPT_SLIDER")) {
+					delete slider;
+					break;
+				}
+				slider->Configure(rowWidth, options[i], atoi(value.c_str()));
 
 				// The gamma slider's wiring. The arrow and track events are the ones
 				// CSWGuiSlider::HandleInputEvent acts on for a horizontal slider; it
@@ -542,12 +474,11 @@ private:
 			case ModOptionType::Text: {
 				OptionsEditBox* editBox = new OptionsEditBox(this, this);
 
-				// A stacked row needs two lines: the name above the field.
-				CSWGuiExtent textExtent = optionExtent;
-				textExtent.height = optionExtent.height * TEXT_ROW_HEIGHT_PERCENT / 100;
-
-				initializeEditBox(editBox, &textExtent, textParams, borderParams,
-					hilightParams, options[i].name, value);
+				if (!layout.Load(editBox, this, "OPT_TEXT")) {
+					delete editBox;
+					break;
+				}
+				editBox->Configure(rowWidth, options[i].name, value);
 
 				editBox->AddEvent(CSWGuiControl::AButton, this,
 					memberThunkAddr<OptionsMenu, &OptionsMenu::setEditFocus>());
@@ -563,13 +494,6 @@ private:
 			}
 		}
 
-		delete hilightParams;
-		delete borderParams;
-		delete textParams;
-		delete protoHilight;
-		delete protoBorder;
-		delete protoText;
-
 		if (listOptions.GetSize() == 0) {
 			debugLog("[ModOptions] `%s` produced no usable controls", config.GetName().c_str());
 			return;
@@ -577,8 +501,7 @@ private:
 
 		debugLog("[ModOptions] `%s` produced %i options", config.GetName().c_str(), listOptions.GetSize());
 
-		// Text and Slider rows are both taller than the toggle the proto item is
-		// sized for, so the rows never share a height.
+		// Each row type takes its height from its own template, so heights vary.
 		optionsListBox.AddControls(&listOptions, 1, 0, 1);
 
 	}

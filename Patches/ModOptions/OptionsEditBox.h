@@ -1,5 +1,6 @@
 #pragma once
 #include "Common.h"
+#include "GameAPI/CResGFF.h"
 #include "GameAPI/CSWGuiBorder.h"
 #include "GameAPI/CSWGuiBorderParams.h"
 #include "GameAPI/CSWGuiEditBox.h"
@@ -25,6 +26,12 @@ public:
     explicit OptionsEditBox(CSWGuiPanel* owner, OptionsMenu* menu)
         : CSWGuiEditBox(), owner(owner), menu(menu)
     {
+        // Built here, not in Configure: Load runs before anything else and needs
+        // somewhere to put the name text and the HILIGHT block.
+        nameText = new CSWGuiText();
+        hilight  = new CSWGuiBorder();
+
+        OverrideLoad(memberFuncAddr(&OptionsEditBox::_Load));
         OverrideHandleFocusChange(memberFuncAddr(&OptionsEditBox::_HandleFocusChange));
         OverrideHandleKeyPress(memberFuncAddr(&OptionsEditBox::_HandleKeyPress));
         OverrideSetExtent(memberFuncAddr(&OptionsEditBox::_SetExtent));
@@ -37,42 +44,54 @@ public:
         delete editText;
         delete border;
         delete hilight;
-        delete nameText;
+        // nameParams wraps memory inside nameText, so it goes first.
         delete nameParams;
+        delete nameText;
     }
 
 
-    void Initialize(CSWGuiExtent* rowExtent, CSWGuiTextParams* textParams,
-                    CSWGuiBorderParams* borderParams, CSWGuiBorderParams* hilightBorderParams,
-                    const std::string& optionName)
-    {
-        // Lay the game's own parts out first, so GetBorder/GetEditText are valid.
-        CSWGuiEditBox::Initialize(rowExtent, textParams, borderParams);
+    // CSWGuiEditbox::Load reads TEXT and BORDER but has no notion of a focus frame,
+    // so it ignores HILIGHT. Pick that up, and the name line's params with it.
+    void _Load(CResGFF* gff, CResStruct* item) {
+        CSWGuiEditBox::LoadFromGff(gff, item);
 
         border   = GetBorder();
         editText = GetEditText();
 
-        nameText   = new CSWGuiText();
-        nameParams = new CSWGuiTextParams();
-        if (nameParams && textParams) {
-            *nameParams = *textParams;
+        if (nameText) {
+            CExoString textLabel(const_cast<char*>("TEXT"));
+            nameText->Load(gff, item, &textLabel);
+            // Load copies the block into the text's own embedded params; that copy
+            // is what Draw reads, so it is what the name has to be written to.
+            delete nameParams;
+            nameParams = nameText->GetTextParams();
+        }
+
+        if (hilight) {
+            CExoString hilightLabel(const_cast<char*>("HILIGHT"));
+            hilight->Load(gff, item, &hilightLabel);
+        }
+    }
+
+    // Applies the option to a control the layout has already styled and sized.
+    void Configure(int rowWidth, const std::string& optionName, const std::string& value) {
+        if (nameParams) {
             CExoString name(const_cast<char*>(optionName.c_str()));
             nameParams->SetText(&name);
         }
 
-        hilight = new CSWGuiBorder();
+        // Height and art came from the layout; only the width is ours, because rows
+        // stretch to the list box viewport. Position is the list box's business.
+        CSWGuiExtent row = GetExtent();
+        row.left = 0;
+        row.top = 0;
+        row.width = rowWidth;
+        _SetExtent(&row);
 
-        // Bake the sub-objects ONCE, here, while the caller still has the border art
-        // borrowed onto the proto item's params. CSWGuiBorder::Initialize copies those
-        // params into the border, so from here the highlight owns its own art -- if a
-        // relayout re-ran Initialize it would re-read the proto's params, which the
-        // caller has by then put back, and the toggle's checkbox fill would return.
-        CSWGuiExtent nameExtent, fieldExtent;
-        splitExtent(rowExtent, &nameExtent, &fieldExtent);
-        nameText->Initialize(&nameExtent, nameParams, 1.0f);
-        hilight->Initialize(&fieldExtent, hilightBorderParams);
-
-        _SetExtent(rowExtent);
+        if (editText) {
+            CExoString textValue(const_cast<char*>(value.c_str()));
+            editText->SetText(&textValue);
+        }
     }
 
     void _SetExtent(CSWGuiExtent* extent) {
@@ -80,13 +99,17 @@ public:
             return;
         }
 
-        CSWGuiExtent nameExtent, fieldExtent;
-        splitExtent(extent, &nameExtent, &fieldExtent);
-        SetExtent(&fieldExtent);
-        CSWGuiObject::SetExtent(*extent);
+        // Copy before anything else: the base SetExtent writes control.extent, and
+        // a caller is free to pass a pointer to that very field.
+        CSWGuiExtent row = *extent;
 
-        // Move, do not re-Initialize: the art is already baked in and re-running
-        // Initialize would re-read params that no longer hold our images.
+        CSWGuiExtent nameExtent, fieldExtent;
+        splitExtent(&row, &nameExtent, &fieldExtent);
+        SetExtent(&fieldExtent);
+        CSWGuiObject::SetExtent(row);
+
+        // Move, do not re-Load: the art is already baked in and re-running Load
+        // would re-read the layout for no reason.
         if (nameText) {
             nameText->SetExtent(&nameExtent);
         }

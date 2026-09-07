@@ -1,12 +1,15 @@
 #include "CSWGuiBorder.h"
 #include "CSWGuiBorderParams.h"
 #include "GameVersion.h"
+#include "CResGFF.h"
+#include "CExoString.h"
 
 CSWGuiBorder::FillCenterFn CSWGuiBorder::fillCenter = nullptr;
 CSWGuiBorder::FillTileFn   CSWGuiBorder::fillTile   = nullptr;
 CSWGuiBorder::InitializeFn     CSWGuiBorder::initialize     = nullptr;
 CSWGuiBorder::GetInnerExtentFn CSWGuiBorder::getInnerExtent = nullptr;
 CSWGuiBorder::DrawFn           CSWGuiBorder::drawFn         = nullptr;
+CSWGuiBorder::LoadFn CSWGuiBorder::loadFn = nullptr;
 CSWGuiBorder::ConstructorFn CSWGuiBorder::constructor = nullptr;
 CSWGuiBorder::DestructorFn  CSWGuiBorder::destructor  = nullptr;
 int CSWGuiBorder::classSize = -1;
@@ -33,6 +36,7 @@ void CSWGuiBorder::InitializeFunctions() {
         initialize     = reinterpret_cast<InitializeFn>    (GameVersion::GetFunctionAddress("CSWGuiBorder", "Initialize"));
         getInnerExtent = reinterpret_cast<GetInnerExtentFn>(GameVersion::GetFunctionAddress("CSWGuiBorder", "GetInnerExtent"));
         drawFn         = reinterpret_cast<DrawFn>          (GameVersion::GetFunctionAddress("CSWGuiBorder", "Draw"));
+        loadFn = reinterpret_cast<LoadFn>(GameVersion::GetFunctionAddress("CSWGuiBorder", "Load"));
         constructor = reinterpret_cast<ConstructorFn>(GameVersion::GetFunctionAddress("CSWGuiBorder", "Constructor"));
         destructor  = reinterpret_cast<DestructorFn> (GameVersion::GetFunctionAddress("CSWGuiBorder", "Destructor"));
 
@@ -145,4 +149,9 @@ void CSWGuiBorder::GetInnerExtent(CSWGuiExtent* outExtent) {
 void CSWGuiBorder::Draw(float alpha) {
     if (!objectPtr || !drawFn) return;
     drawFn(objectPtr, alpha);
+}
+
+void CSWGuiBorder::Load(CResGFF* gff, CResStruct* item, CExoString* label) {
+    if (!objectPtr || !loadFn) return;
+    loadFn(objectPtr, gff ? gff->GetPtr() : nullptr, item, label ? label->GetPtr() : nullptr);
 }

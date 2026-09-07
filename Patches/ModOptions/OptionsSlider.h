@@ -1,13 +1,12 @@
 #pragma once
 #include "Common.h"
 #include "GameAPI/CExoString.h"
-#include "GameAPI/CResRef.h"
-#include "GameAPI/CSWGuiBorderParams.h"
+#include "GameAPI/CResGFF.h"
 #include "GameAPI/CSWGuiExtent.h"
-#include "GameAPI/CSWGuiImage.h"
 #include "GameAPI/CSWGuiSlider.h"
 #include "GameAPI/CSWGuiText.h"
 #include "GameAPI/CSWGuiTextParams.h"
+#include "ModOptionsConfig.h"
 
 #include <string>
 
@@ -22,25 +21,20 @@ class OptionsMenu;
 // way in and out, and nothing below this class ever sees it.
 class OptionsSlider : public CSWGuiSlider {
 public:
-	// Row layout, top to bottom: the name and value, the track, then a gap so the
-	// track does not sit right on the option below it.
-	//
-	// The track matches the game's own gamma slider at 24. The name gets a fraction
-	// of a proto row, which is comfortably more than the text needs.
+	// The track matches the game's own gamma slider at 24. The rest of the row --
+	// its total height comes from OPT_SLIDER's EXTENT in the layout -- goes to the
+	// name line, less a small gap so the track does not sit on the option below.
 	static const int TRACK_HEIGHT = 24;
-	static const int NAME_HEIGHT_PERCENT = 70;   // of the proto item's height
-	static const int BOTTOM_MARGIN_PERCENT = 5;  // of the whole row
-
-	// Row height for a slider built against a proto item of `protoHeight`, sized so
-	// the split below lands on a full track and the margin it asks for.
-	static int RowHeight(int protoHeight) {
-		const int content = protoHeight * NAME_HEIGHT_PERCENT / 100 + TRACK_HEIGHT;
-		return content * 100 / (100 - BOTTOM_MARGIN_PERCENT);
-	}
+	static const int BOTTOM_MARGIN_PERCENT = 5;
 
 	explicit OptionsSlider(OptionsMenu* menu)
 		: CSWGuiSlider(), menu(menu)
 	{
+		// Built here, not in Configure: Load runs before anything else and needs
+		// somewhere to put the TEXT block.
+		nameText = new CSWGuiText();
+
+		OverrideLoad(memberFuncAddr(&OptionsSlider::_Load));
 		OverrideDraw(memberFuncAddr(&OptionsSlider::_Draw));
 		OverrideSetExtent(memberFuncAddr(&OptionsSlider::_SetExtent));
 	}
@@ -53,42 +47,41 @@ public:
 		delete nameText;
 	}
 
-	void Initialize(CSWGuiExtent* rowExtent, CSWGuiTextParams* textParams,
-	                CSWGuiBorderParams* borderParams, CSWGuiBorderParams* hilightParams,
-	                const std::string& optionName, int min, int max, int value)
-	{
-		optionMin = min;
-		name = optionName;
+	// CSWGuiSlider::Load reads BORDER, HILIGHT, THUMB and MAXVALUE, but a slider has
+	// no text of its own, so it ignores TEXT. Pick that up for the name line.
+	void _Load(CResGFF* gff, CResStruct* item) {
+		CSWGuiSlider::LoadFromGff(gff, item);
 
-		CSWGuiExtent nameExtent;
-		splitExtent(rowExtent, &nameExtent, &trackExtent);
+		if (nameText) {
+			CExoString label(const_cast<char*>("TEXT"));
+			nameText->Load(gff, item, &label);
 
-		// Lay the game's own parts out first, so the border/image members are valid.
-		CResRef thumb("lbl_optslidera");
-		CSWGuiSlider::Initialize(&trackExtent, borderParams, hilightParams, &thumb);
+			// Load copies the block into the text's own embedded params. That copy is
+			// what Draw reads, so it is also what RefreshLabel has to write to.
+			delete nameParams;
+			nameParams = nameText->GetTextParams();
+		}
+	}
+
+	// Applies the option to a control the layout has already styled and sized.
+	void Configure(int rowWidth, const ModOption& option, int value) {
+		optionMin = option.min;
+		name = option.name;
 
 		// Range before value: CSWGuiSlider::SetExtent divides by max_value to place
 		// the thumb, so a max of 0 on the first layout puts it in the wrong place.
-		SetMaxValue(max - min);
+		SetMaxValue(option.max - option.min);
+
+		// Height and art came from the layout; only the width is ours, because rows
+		// stretch to the list box viewport. Position is the list box's business.
+		CSWGuiExtent row = GetExtent();
+		row.left = 0;
+		row.top = 0;
+		row.width = rowWidth;
+		_SetExtent(&row);
+
 		SetStoredValue(value);
-
-		// Bake the sub-object ONCE, here, while the caller still has the border art
-		// borrowed onto the proto item's params -- same reasoning as OptionsEditBox.
-		//
-		// CSWGuiText::Initialize copies the params into the text's own embedded set,
-		// so the block handed in here is only a seed: writing to it afterwards would
-		// change nothing on screen. Keep the copy the text made instead -- that is
-		// what Draw reads, and what RefreshLabel writes to so the readout tracks.
-		nameText = new CSWGuiText();
-		CSWGuiTextParams seed;
-		if (textParams) {
-			seed = *textParams;
-		}
-		nameText->Initialize(&nameExtent, &seed, 1.0f);
-		nameParams = nameText->GetTextParams();
-
 		RefreshLabel();
-		_SetExtent(rowExtent);
 	}
 
 	// The value as the option means it. The control only ever holds value - min.
@@ -112,8 +105,8 @@ public:
 	// SetCurValue and SetMaxValue both end in a tail call to the virtual SetExtent,
 	// passing &this->control.extent -- so the argument ALIASES the field the base
 	// SetExtent is about to write. Copy it before anything else runs, or the split
-	// track extent gets read back as the row extent and the row loses 40% of its
-	// height on every value change.
+	// track extent gets read back as the row extent and the row loses height on
+	// every value change.
 	void _SetExtent(CSWGuiExtent* extent) {
 		if (!extent) {
 			return;
@@ -129,7 +122,7 @@ public:
 		SetExtent(&trackExtent);
 		CSWGuiObject::SetExtent(row);
 
-		// Move, do not re-Initialize: the art is already baked in.
+		// Move, do not re-Load: the art is already baked in.
 		if (nameText) {
 			nameText->SetExtent(&nameExtent);
 		}

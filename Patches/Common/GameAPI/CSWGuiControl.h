@@ -2,6 +2,11 @@
 #include "../Common.h"
 #include "CSWGuiObject.h"
 
+class CResGFF;
+class CExoString;
+struct CResStruct;
+struct CResList;
+
 // CSWGuiControl virtual-function table layout for KotOR 1 (Windows): 38 entries /
 // 152 bytes.
 //
@@ -112,12 +117,29 @@ public:
     void HandleLMouseDown();
     void HandleLMouseUp();
 
+    // Loads this control from a layout GFF by tag. Walks `controls` (a panel's
+    // CONTROLS list) comparing each element's TAG, then dispatches the control's own
+    // virtual Load against the struct it found. Also points the control's gui object
+    // (offset 0x34) at `owner`, which is where every mouse entry point resolves its
+    // coordinates from.
+    void LoadFromLayout(CSWGuiObject* owner, CResGFF* gff, CResList* controls, CExoString* tag);
+
+    // The control's own virtual Load, by way of the original vtable slot -- so a
+    // class that has overridden Load can still reach the game's implementation.
+    void LoadFromGff(CResGFF* gff, CResStruct* item);
+
+    // Sets the extent through the object's CURRENT vtable, so a type that lays its
+    // sub-parts out on SetExtent still does -- and any override installed on this
+    // instance runs too. CSWGuiObject::SetExtent only writes the field.
+    void LayoutExtent(CSWGuiExtent* extent);
+
     void OverrideHandleFocusChange(void* handler);
     void OverrideDraw(void* handler);
     void OverrideSetExtent(void* handler);
     void OverrideHandleMouseCapturedMovement(void* handler);
     void OverrideHandleLMouseDown(void* handler);
     void OverrideHandleLMouseUp(void* handler);
+    void OverrideLoad(void* handler);
 
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -127,6 +149,7 @@ public:
 protected:
     typedef void  (__thiscall* AddChildControlFn)(void* thisPtr, void* child);
     typedef void  (__thiscall* AddEventFn)(void* thisPtr, int eventFlag, void* guiObject, void* menuFunc);
+    typedef void  (__thiscall* LoadFromLayoutFn)(void* thisPtr, void* owner, void* gff, void* controls, void* tag);
     typedef bool  (__thiscall* GetIsChildFn)(void* thisPtr, void* child);
     typedef bool  (__thiscall* GetIsSelectableFn)(void* thisPtr);
     typedef void* (__thiscall* GetSelectableParentFn)(void* thisPtr);
@@ -137,6 +160,7 @@ protected:
 
     static AddChildControlFn addChildControl;
     static AddEventFn addEvent;
+    static LoadFromLayoutFn loadFromLayout;
     static GetIsChildFn getIsChild;
     static GetIsSelectableFn getIsSelectable;
     static GetSelectableParentFn getSelectableParent;
@@ -163,6 +187,7 @@ protected:
     void* mouseCapturedMovementHandler = nullptr;
     void* lMouseDownHandler = nullptr;
     void* lMouseUpHandler = nullptr;
+    void* loadHandler = nullptr;
 
     // Installed into ControlVTableSlot::HandleFocusChange. The game calls this as
     // __thiscall (game object in ECX)
@@ -174,6 +199,7 @@ protected:
     static int __fastcall HandleMouseCapturedMovementThunk(void* gameObj, void* edx, int x, int y);
     static void __fastcall HandleLMouseDownThunk(void* gameObj, void* edx);
     static void __fastcall HandleLMouseUpThunk(void* gameObj, void* edx);
+    static void __fastcall LoadThunk(void* gameObj, void* edx, void* gff, void* item);
 
     void* originalVirtual(ControlVTableSlot slot);
 };
