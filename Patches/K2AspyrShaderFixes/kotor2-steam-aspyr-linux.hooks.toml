@@ -360,10 +360,7 @@ replacement_bytes = [
 # material's alpha is allowed to force the flat path.
 #
 # Stock branches on alpha first: anything below 1.0 returns path 1 and never reaches the
-# bumpy-shiny test. Water is translucent, so on this build it always went flat. The Windows
-# patch hoists the path 2 test above that gate (its tail begins with the test at 0x0088DD1E
-# and consults the stored alpha flag only at 0x0088DD49); this port had kept stock's order,
-# which is why the EMBM path was reachable on Windows and dead here.
+# bumpy-shiny test, and water is translucent. The Windows patch tests path 2 first.
 #
 # The reorder fits the same 50 bytes at 0x083D51F3, so everything from 0x083D5225 on is
 # byte-identical and every branch into it still lands where it did.
