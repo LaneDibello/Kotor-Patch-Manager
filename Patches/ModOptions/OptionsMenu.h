@@ -20,6 +20,7 @@
 #include "GameAPI/CSWGuiListBox.h"
 #include "GameAPI/CSWGuiManager.h"
 #include "GameAPI/CSWGuiPanel.h"
+#include "GameAPI/CSWGuiSlider.h"
 #include "GameAPI/CSWGuiText.h"
 #include "GameAPI/CSWGuiTextParams.h"
 
@@ -152,6 +153,8 @@ public:
 		}
 		case ModOptionType::Slider:
 			// TODO
+			CSWGuiSlider slider(control);
+
 			return;
 		case ModOptionType::List:
 			// TODO
@@ -293,21 +296,6 @@ private:
 		editBoxes.clear();
 	}
 
-	// Reads a caller-owned CResRef wrapper into a string and disposes of both.
-	static std::string resRefText(CResRef* ref) {
-		std::string out;
-		if (!ref) {
-			return out;
-		}
-		char* text = ref->GetCStr();
-		if (text) {
-			out = text;
-			free(text);
-		}
-		delete ref;
-		return out;
-	}
-
 	// Swaps a border params object's three images and remembers the originals, so a
 	// borrowed proto-item params block can be put back exactly as it was.
 	//
@@ -323,9 +311,9 @@ private:
 			if (!params) {
 				return;
 			}
-			savedCorner = resRefText(params->GetCornerImageResRef());
-			savedEdge   = resRefText(params->GetEdgeImageResRef());
-			savedFill   = resRefText(params->GetFillImageResRef());
+			savedCorner = CResRef::ToStdString(params->GetCornerImageResRef());
+			savedEdge   = CResRef::ToStdString(params->GetEdgeImageResRef());
+			savedFill   = CResRef::ToStdString(params->GetFillImageResRef());
 			apply(corner, edge, fill);
 		}
 
