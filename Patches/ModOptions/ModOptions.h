@@ -2,6 +2,7 @@
 #include "Common.h"
 #include "MemberFunctionThunk.h"
 #include "ModOptionsConfig.h"
+#include "PathCasing.h"
 #include "OptionsMenu.h"
 
 #include "GameAPI/CExoArrayList.h"
@@ -145,7 +146,14 @@ private:
 	void loadModOptionConfigs() {
 		modOptionConfigs.clear();
 
-		std::filesystem::path directory("Mod Options");
+		// Matched without regard to casing: the directory is the user's to create,
+		// and not every filesystem we will target treats the spelling as we do.
+		std::filesystem::path directory;
+		if (!PathCasing::FindDirectory(".", "Mod Options", directory)) {
+			debugLog("[ModOptions] no `Mod Options` directory beside the game");
+			return;
+		}
+
 		std::error_code ec;
 		std::filesystem::directory_iterator entries(directory, ec);
 		if (ec) {
@@ -154,7 +162,7 @@ private:
 		}
 
 		for (const auto& entry : entries) {
-			if (!entry.is_regular_file() || entry.path().extension() != ".toml") {
+			if (!entry.is_regular_file() || !PathCasing::HasExtension(entry.path(), ".toml")) {
 				continue;
 			}
 
