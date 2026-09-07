@@ -1,4 +1,0 @@
-LIBRARY ShaderSwap
-EXPORTS
-    KPatch_Initialize
-    ShaderSwap_RegisterProvider

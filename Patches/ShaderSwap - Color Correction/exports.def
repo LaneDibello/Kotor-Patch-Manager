@@ -1,3 +1,0 @@
-LIBRARY ShaderSwapColorCorrection
-EXPORTS
-    KPatch_Initialize
