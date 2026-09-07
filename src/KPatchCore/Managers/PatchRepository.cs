@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using KPatchCore.Launcher;
 using KPatchCore.Models;
 using KPatchCore.Parsers;
 
@@ -175,19 +176,17 @@ public class PatchRepository
             // Verify binary exists only if DETOUR hooks are present
             if (hasDetourHooks)
             {
-                var binaryPath = "binaries/windows_x86.dll";
-                var binaryEntry = archive.GetEntry(binaryPath);
+                // The scan runs before a game is selected, so which binary is needed is not yet
+                // known. Any of them satisfies the check here; the install asks for the one the
+                // detected game's platform needs and fails there if it is missing.
+                var hasBinary = DeploymentPolicy.AllPatchBinaryFileNames.Any(
+                    name => FindBinaryEntry(archive, name) != null);
 
-                // Try backslash path if forward slash didn't work (Windows ZIP compatibility)
-                if (binaryEntry == null)
+                if (!hasBinary)
                 {
-                    binaryPath = "binaries\\windows_x86.dll";
-                    binaryEntry = archive.GetEntry(binaryPath);
-                }
-
-                if (binaryEntry == null)
-                {
-                    return PatchResult<PatchEntry>.Fail($"Missing binaries/windows_x86.dll in patch archive (required for DETOUR hooks)");
+                    var expected = string.Join(" or ", DeploymentPolicy.AllPatchBinaryFileNames);
+                    return PatchResult<PatchEntry>.Fail(
+                        $"Missing binaries/{expected} in patch archive (required for DETOUR hooks)");
                 }
             }
 
@@ -232,12 +231,15 @@ public class PatchRepository
     }
 
     /// <summary>
-    /// Extracts a patch DLL to a target directory
+    /// Extracts the patch's runtime module for a game's platform. The extracted file keeps the
+    /// archived binary's extension, which is what patch_config.toml records and the engine loads,
+    /// so a native game gets a .so or .dylib rather than something named .dll.
     /// </summary>
     /// <param name="patchId">Patch ID</param>
-    /// <param name="targetDirectory">Where to extract the DLL</param>
-    /// <returns>Result containing path to extracted DLL or error</returns>
-    public PatchResult<string> ExtractPatchDll(string patchId, string targetDirectory)
+    /// <param name="targetDirectory">Where to extract the module</param>
+    /// <param name="gameVersion">The game being patched</param>
+    /// <returns>Result containing path to the extracted module or error</returns>
+    public PatchResult<string> ExtractPatchDll(string patchId, string targetDirectory, GameVersion gameVersion)
     {
         var patchResult = GetPatch(patchId);
         if (!patchResult.Success || patchResult.Data == null)
@@ -251,24 +253,19 @@ public class PatchRepository
         {
             using var archive = ZipFile.OpenRead(patch.KPatchPath);
 
-            // Try both forward slash and backslash (Windows ZIP compatibility)
-            var binaryPath = "binaries/windows_x86.dll";
-            var binaryEntry = archive.GetEntry(binaryPath);
+            var binaryName = DeploymentPolicy.PatchBinaryFileName(gameVersion);
+            var binaryEntry = FindBinaryEntry(archive, binaryName);
 
             if (binaryEntry == null)
             {
-                binaryPath = "binaries\\windows_x86.dll";
-                binaryEntry = archive.GetEntry(binaryPath);
-            }
-
-            if (binaryEntry == null)
-            {
-                // Not an error - patch may not have a DLL (SIMPLE patch or will be handled by caller)
-                return PatchResult<string>.Fail($"No DLL found in patch archive");
+                // Not an error - patch may carry no module at all (SIMPLE patch), which the caller
+                // tells apart from a patch that needs one for this platform and does not ship it.
+                return PatchResult<string>.Fail($"No binaries/{binaryName} found in patch archive");
             }
 
             Directory.CreateDirectory(targetDirectory);
-            var targetPath = Path.Combine(targetDirectory, $"{patchId}.dll");
+            var targetName = $"{patchId}{Path.GetExtension(binaryName)}";
+            var targetPath = Path.Combine(targetDirectory, targetName);
 
             using (var sourceStream = binaryEntry.Open())
             using (var targetStream = File.Create(targetPath))
@@ -276,13 +273,20 @@ public class PatchRepository
                 sourceStream.CopyTo(targetStream);
             }
 
-            return PatchResult<string>.Ok(targetPath, $"Extracted {patchId}.dll");
+            return PatchResult<string>.Ok(targetPath, $"Extracted {targetName}");
         }
         catch (Exception ex)
         {
-            return PatchResult<string>.Fail($"Failed to extract DLL: {ex.Message}");
+            return PatchResult<string>.Fail($"Failed to extract patch binary: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Finds a binary in the archive, accepting either separator. A .kpatch built on Windows can
+    /// carry backslash entry names.
+    /// </summary>
+    private static ZipArchiveEntry? FindBinaryEntry(ZipArchive archive, string binaryName) =>
+        archive.GetEntry($"binaries/{binaryName}") ?? archive.GetEntry($"binaries\\{binaryName}");
 
     /// <summary>
     /// Gets patches that match specific criteria
