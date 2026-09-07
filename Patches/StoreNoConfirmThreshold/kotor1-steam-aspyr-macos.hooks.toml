@@ -1,0 +1,38 @@
+[metadata]
+target_versions = [
+    "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71",
+]
+
+# KOTOR 1, Steam Aspyr macOS build (KOTOR_Exe 1.4.0, x86_64).
+#
+# Both store paths work the same way as on Windows: compute a confirmation
+# threshold, compare the item's value against it, and branch to a direct
+# transaction when the value is under it. Forcing that branch skips the
+# confirmation box while leaving the value and threshold calculations alone.
+#
+# The Windows build uses a six-byte JBE rel32 here and so does this one, which
+# leaves room for a five-byte JMP rel32 plus a NOP. The displacement gains one
+# because the jump is a byte shorter than the branch it replaces.
+#
+# Addresses are absolute virtual addresses. The executable is non-PIE, so it
+# always loads at 0x100000000 and these match what Ghidra shows.
+
+# Sell path, CSWGuiStore::OnControlInvAButton at 0x1002D7D4C. Compares the sell
+# value against min(level * 50, 250).
+#   JBE 0x1002D7F7A  ->  JMP 0x1002D7F7A
+[[hooks]]
+address = 0x1002D7E43
+type = "simple"
+original_bytes    = [0x0F, 0x86, 0x31, 0x01, 0x00, 0x00]
+replacement_bytes = [0xE9, 0x32, 0x01, 0x00, 0x00, 0x90]
+
+# Buy path, CSWGuiStore::OnControlStoreAButton at 0x1002D7FC4. Compares the buy
+# value against level * 50, or against 50 when there is no player creature.
+# The affordability check is a separate, earlier comparison against the party's
+# credits, so an item the player cannot afford is still refused.
+#   JBE 0x1002D8212  ->  JMP 0x1002D8212
+[[hooks]]
+address = 0x1002D80DC
+type = "simple"
+original_bytes    = [0x0F, 0x86, 0x30, 0x01, 0x00, 0x00]
+replacement_bytes = [0xE9, 0x31, 0x01, 0x00, 0x00, 0x90]
