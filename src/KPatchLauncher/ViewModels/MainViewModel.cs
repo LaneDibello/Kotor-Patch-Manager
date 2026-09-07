@@ -1272,7 +1272,9 @@ public class MainViewModel : ViewModelBase
                 && !string.IsNullOrWhiteSpace(GamePath)
                 && File.Exists(GamePath))
             {
-                await CheckPatchStatusAsync(GamePath, adoptInstalledAsSelection: true);
+                // Loading a patch directory is not an install, so the ticks restored above stand.
+                // A first run has nothing to keep and adopts the installed set inside the sync.
+                await CheckPatchStatusAsync(GamePath, adoptInstalledAsSelection: false);
             }
         }
         catch (Exception ex)
