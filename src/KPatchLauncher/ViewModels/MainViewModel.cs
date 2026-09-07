@@ -59,8 +59,8 @@ public class MainViewModel : ViewModelBase
         // syncs explicitly as well.
         AllPatches.CollectionChanged += (_, _) => SyncVisiblePatches();
 
-        // Load settings. Pending patch selections are intentionally not restored at startup;
-        // installed patch state is reloaded from the selected game's patch_config.toml.
+        // Load settings. The selection is restored as the user left it; a tick that does not match
+        // what is installed is a pending change, which is what the pending-changes count is for.
         _settings = AppSettings.Load();
         _gamePath = _settings.GamePath;
         _patchesPath = _settings.PatchesPath;
@@ -68,7 +68,6 @@ public class MainViewModel : ViewModelBase
         _customLaunchCommand = _settings.CustomLaunchCommand;
         DeploymentPolicy.PreferLibraryProxy = _settings.PreferLibraryProxy;
         GameDetector.IdentifyUnrecognisedBuilds = _settings.IdentifyUnrecognisedBuilds;
-        ClearPersistedPatchSelection();
 
         // Create simple commands
         BrowseGameCommand = new SimpleCommand(async () => await BrowseGame());
@@ -830,7 +829,14 @@ public class MainViewModel : ViewModelBase
         UpdatePendingChanges();
     }
 
-    private void SyncPatchSelectionWithInstalledPatches(IEnumerable<string> installedPatchIds)
+    /// <param name="adoptInstalledAsSelection">
+    /// True after installing or uninstalling, where what is on disk is the authority and the ticks
+    /// should match it. False for a plain status check, which must leave the user's pending ticks
+    /// alone; on a first run there are none to keep, so the installed set is adopted regardless.
+    /// </param>
+    private void SyncPatchSelectionWithInstalledPatches(
+        IEnumerable<string> installedPatchIds,
+        bool adoptInstalledAsSelection)
     {
         var normalizedInstalledIds = installedPatchIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -848,17 +854,20 @@ public class MainViewModel : ViewModelBase
         HasInstalledPatches = _installedPatchIds.Count > 0;
         RemoveOrphanedPatches();
 
-        _isBulkUpdatingPatchChecks = true;
-        try
+        if (adoptInstalledAsSelection || _settings.CheckedPatchIds.Count == 0)
         {
-            foreach (var patch in AllPatches)
+            _isBulkUpdatingPatchChecks = true;
+            try
             {
-                patch.IsChecked = _installedPatchIds.Contains(patch.Id);
+                foreach (var patch in AllPatches)
+                {
+                    patch.IsChecked = _installedPatchIds.Contains(patch.Id);
+                }
             }
-        }
-        finally
-        {
-            _isBulkUpdatingPatchChecks = false;
+            finally
+            {
+                _isBulkUpdatingPatchChecks = false;
+            }
         }
 
         foreach (var patchId in normalizedInstalledIds)
@@ -1021,7 +1030,7 @@ public class MainViewModel : ViewModelBase
                 {
                     if (uninstallResult.Success)
                     {
-                        SyncPatchSelectionWithInstalledPatches(Array.Empty<string>());
+                        SyncPatchSelectionWithInstalledPatches(Array.Empty<string>(), adoptInstalledAsSelection: true);
                         SetOperationInProgress(false, "All patches uninstalled successfully");
                     }
                     else
@@ -1069,7 +1078,7 @@ public class MainViewModel : ViewModelBase
             });
 
             // Refresh installed status
-            await CheckPatchStatusAsync(GamePath);
+            await CheckPatchStatusAsync(GamePath, adoptInstalledAsSelection: true);
         }
         catch (Exception ex)
         {
@@ -1263,7 +1272,7 @@ public class MainViewModel : ViewModelBase
                 && !string.IsNullOrWhiteSpace(GamePath)
                 && File.Exists(GamePath))
             {
-                await CheckPatchStatusAsync(GamePath);
+                await CheckPatchStatusAsync(GamePath, adoptInstalledAsSelection: true);
             }
         }
         catch (Exception ex)
@@ -1278,7 +1287,10 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private async Task CheckPatchStatusAsync(string gameExePath, bool isAutoRefresh = true)
+    private async Task CheckPatchStatusAsync(
+        string gameExePath,
+        bool isAutoRefresh = true,
+        bool adoptInstalledAsSelection = false)
     {
         if (_repository == null)
             return;
@@ -1309,13 +1321,13 @@ public class MainViewModel : ViewModelBase
 
                 if (!installInfo.Success || installInfo.Data == null)
                 {
-                    SyncPatchSelectionWithInstalledPatches(Array.Empty<string>());
+                    SyncPatchSelectionWithInstalledPatches(Array.Empty<string>(), adoptInstalledAsSelection);
                     SetOperationInProgress(false, isAutoRefresh ? null : "No patches detected", isAutoRefresh);
                     return;
                 }
 
                 var info = installInfo.Data;
-                SyncPatchSelectionWithInstalledPatches(info.InstalledPatches);
+                SyncPatchSelectionWithInstalledPatches(info.InstalledPatches, adoptInstalledAsSelection);
 
                 var installedCount = _installedPatchIds.Count;
                 SetOperationInProgress(
@@ -1336,7 +1348,9 @@ public class MainViewModel : ViewModelBase
                 if (!IsPatchStatusRequestCurrent(requestVersion, gameExePath))
                     return;
 
-                SyncPatchSelectionWithInstalledPatches(Array.Empty<string>());
+                // Failing to read the status says nothing about what the user selected, so the
+                // caller's authority still decides whether the ticks are rewritten.
+                SyncPatchSelectionWithInstalledPatches(Array.Empty<string>(), adoptInstalledAsSelection);
                 SetOperationInProgress(false, isAutoRefresh ? null : $"Could not check patch status: {ex.Message}", isAutoRefresh);
             });
         }
