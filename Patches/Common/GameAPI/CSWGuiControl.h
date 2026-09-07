@@ -71,6 +71,11 @@ public:
         RightArrow   = 64,
         RightMouseUp = 68,
         Tab          = 206,
+        // Synthesised by CSWGuiSlider::HandleLMouseDown for a click on the track
+        // either side of the thumb; it feeds them straight back into its own
+        // HandleInputEvent. Not Ok/Cancel, which are 502/503.
+        SliderTrackUp   = 500,
+        SliderTrackDown = 501,
         MenuLeft     = 243,
         MenuRight    = 244,
         Ok           = 502,
@@ -83,6 +88,12 @@ public:
 
     // Accessors
     CSWGuiControl* GetParentControl();
+    // The panel a control resolves mouse coordinates against (offset 0x34). Every
+    // mouse entry point -- HandleLMouseDown, HandleMouseCapturedMovement -- hands
+    // this straight to CSWGuiPanel::GetLocalMouseCoords, which walks it as a panel
+    // and reads its `manager`. A control whose owner is a list box rather than the
+    // panel will fault there, so a runtime-built row has to be pointed at the panel.
+    void SetGuiObject(void* panel);
     int GetId();
     // Scratch field the game leaves to the implementer. Controls built at
     // runtime use it to point back at whatever data they represent.
@@ -102,10 +113,17 @@ public:
     void SetActive(UINT active);
     void SetEnabled(UINT enabled);
     void HandleFocusChange(int hasFocus);
+    // Fired every mouse-move frame while this control holds the mouse capture.
+    int HandleMouseCapturedMovement(int x, int y);
+    void HandleLMouseDown();
+    void HandleLMouseUp();
 
     void OverrideHandleFocusChange(void* handler);
     void OverrideDraw(void* handler);
     void OverrideSetExtent(void* handler);
+    void OverrideHandleMouseCapturedMovement(void* handler);
+    void OverrideHandleLMouseDown(void* handler);
+    void OverrideHandleLMouseUp(void* handler);
 
     void InitializeFunctions() override;
     void InitializeOffsets() override;
@@ -135,6 +153,7 @@ protected:
     static bool offsetsInitialized;
 
     static int offsetParentControl;
+    static int offsetGuiObject;
     static int offsetId;
     static int offsetCustomValue;
     static int offsetBitFlags;
@@ -148,12 +167,20 @@ protected:
     void* focusChangeHandler = nullptr;
     void* drawHandler = nullptr;
     void* setExtentHandler = nullptr;
+    void* mouseCapturedMovementHandler = nullptr;
+    void* lMouseDownHandler = nullptr;
+    void* lMouseUpHandler = nullptr;
 
     // Installed into ControlVTableSlot::HandleFocusChange. The game calls this as
     // __thiscall (game object in ECX)
     static void __fastcall HandleFocusChangeThunk(void* gameObj, void* edx, int hasFocus);
     static void __fastcall DrawThunk(void* gameObj, void* edx, float alpha);
     static void __fastcall SetExtentThunk(void* gameObj, void* edx, void* extent);
+    // Unlike the others this one returns a value, so the no-handler path has to
+    // hand back what the game's own implementation does rather than fall through.
+    static int __fastcall HandleMouseCapturedMovementThunk(void* gameObj, void* edx, int x, int y);
+    static void __fastcall HandleLMouseDownThunk(void* gameObj, void* edx);
+    static void __fastcall HandleLMouseUpThunk(void* gameObj, void* edx);
 
     void* originalVirtual(ControlVTableSlot slot);
 };

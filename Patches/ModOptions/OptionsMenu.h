@@ -5,6 +5,8 @@
 #include "ModOptionIni.h"
 #include "ModOptionsConfig.h"
 #include "OptionsEditBox.h"
+#include "OptionsListBox.h"
+#include "OptionsSlider.h"
 
 #include "GameAPI/CExoArrayList.h"
 #include "GameAPI/CExoString.h"
@@ -35,7 +37,7 @@ public:
 	CSWGuiManager* guiManager;
 
 	CSWGuiLabel titleLabel;
-	CSWGuiListBox optionsListBox;
+	OptionsListBox optionsListBox;
 	CSWGuiLabel descriptionLabel;
 	CSWGuiListBox descriptionListBox;
 	CSWGuiButton backButton;
@@ -50,6 +52,9 @@ public:
 
 	// Wrappers for the Text options currently in optionsListBox
 	std::vector<OptionsEditBox*> editBoxes;
+
+	// Wrappers for the Slider options currently in optionsListBox
+	std::vector<OptionsSlider*> sliders;
 
 	// Control the last suppressed SetActiveControl was for
 
@@ -105,6 +110,18 @@ public:
 		return nullptr;
 	}
 
+	// The retained wrapper for a slider's game pointer. Re-wrapping the raw pointer
+	// would read cur_value fine but lose the option's `min` and its label, both of
+	// which live on the subclass.
+	OptionsSlider* findSlider(void* control) {
+		for (OptionsSlider* slider : sliders) {
+			if (slider->GetPtr() == control) {
+				return slider;
+			}
+		}
+		return nullptr;
+	}
+
 	void onDefault(void* control) {
 		debugLog("[ModOptions] Default Button Pressed");
 		releaseKeyboardFocus();
@@ -151,11 +168,18 @@ public:
 			toggle.SetSelected(wasOn ? 0 : 1);
 			break;
 		}
-		case ModOptionType::Slider:
-			// TODO
-			CSWGuiSlider slider(control);
-			// Set `value` based on the current value
-			return;
+		case ModOptionType::Slider: {
+			OptionsSlider* slider = findSlider(control);
+			if (!slider) {
+				debugLog("[ModOptions] no slider wrapper registered for %X", control);
+				return;
+			}
+			// The game has already moved the thumb by the time an event reaches us.
+			slider->RefreshLabel();
+			value = std::to_string(slider->StoredValue());
+			debugLog("[ModOptions] slider `%s` commit %s", opt->name.c_str(), value.c_str());
+			break;
+		}
 		case ModOptionType::List:
 			// TODO
 			return;
@@ -250,6 +274,9 @@ public:
 		this->InitControl(&defaultButton, &defaultTag, 1);
 		this->StopLoadFromLayout();
 
+		// After the layout: the override goes on the control the layout populated.
+		optionsListBox.HookMouse(this);
+
 		SetControlText(&titleLabel, config.GetName());
 
 		//Description Logic
@@ -279,13 +306,13 @@ public:
 	}
 
 	~OptionsMenu() {
-		releaseEditBoxes();
+		releaseControls();
 		ThunkRegistry::Unregister(this);
 	}
 
 private:
-	// Tears down the Text-option wrappers.
-	void releaseEditBoxes() {
+	// Tears down the wrappers we hold on to across a repopulate.
+	void releaseControls() {
 		// Keyboard mode is global; drop it before the boxes holding it go away.
 		releaseKeyboardFocus();
 
@@ -294,6 +321,12 @@ private:
 			delete box;
 		}
 		editBoxes.clear();
+
+		for (OptionsSlider* slider : sliders) {
+			slider->ReleaseOwnership();
+			delete slider;
+		}
+		sliders.clear();
 	}
 
 	// Swaps a border params object's three images and remembers the originals, so a
@@ -359,6 +392,22 @@ private:
 		}
 	}
 
+	// Builds one Slider row, with the same frame treatment as a Text row so the
+	// track does not inherit the toggle's checkbox art.
+	// TODO: the track would read better with dedicated groove art than with the
+	// edit box's flat frame.
+	void initializeSlider(OptionsSlider* slider, CSWGuiExtent* extent,
+		CSWGuiTextParams* textParams, CSWGuiBorderParams* borderParams,
+		CSWGuiBorderParams* hilightParams, const ModOption& option,
+		const std::string& value)
+	{
+		BorrowedBorderImages frame(borderParams, "blueborder", "blueborder01", "blackfill");
+		BorrowedBorderImages hilightFrame(hilightParams, "yellowborder", "yellowborder01", "blackfill");
+
+		slider->Initialize(extent, textParams, borderParams, hilightParams,
+			option.name, option.min, option.max, atoi(value.c_str()));
+	}
+
 	// GetText/GetTextParams hand back caller-owned wrappers.
 	template <typename ControlT>
 	void SetControlText(ControlT* control, const std::string& text) {
@@ -387,7 +436,7 @@ private:
 
 		// Before ClearItems: each wrapper's destructor writes the game's vtable back
 		// into its game object, which ClearItems is about to destroy.
-		releaseEditBoxes();
+		releaseControls();
 
 		optionsListBox.ClearItems();
 		values.assign(config.OptionCount(), std::string());
@@ -448,15 +497,39 @@ private:
 				listOptions.Add(toggle);
 				break;
 			}
-			case ModOptionType::Slider:
-				CSWGuiSlider* slider = new CSWGuiSlider();
-				CResRef image("lbl_optslidera");
-				// Possibly swap around some border params things
-				slider->Initialize(&optionExtent, borderParams, hilightParams, &image);
-				
-				// We need events for HoverEnter, HoverExit, Left and right Arrow, and AButton
+			case ModOptionType::Slider: {
+				OptionsSlider* slider = new OptionsSlider(this);
 
+				// A stacked row needs two lines: the name and value above the track.
+				CSWGuiExtent sliderExtent = optionExtent;
+				sliderExtent.height = optionExtent.height * TEXT_ROW_HEIGHT_PERCENT / 100;
+
+				initializeSlider(slider, &sliderExtent, textParams, borderParams,
+					hilightParams, options[i], value);
+
+				// The gamma slider's wiring. The arrow and track events are the ones
+				// CSWGuiSlider::HandleInputEvent acts on for a horizontal slider; it
+				// calls SetCurValue and only then chains to CSWGuiNavigable, which is
+				// what dispatches these, so cur_value is already current here.
+				slider->AddEvent(CSWGuiControl::AButton, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
+				slider->AddEvent(CSWGuiControl::LeftArrow, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
+				slider->AddEvent(CSWGuiControl::RightArrow, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
+				slider->AddEvent(CSWGuiControl::SliderTrackUp, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
+				slider->AddEvent(CSWGuiControl::SliderTrackDown, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onOption>());
+				slider->AddEvent(CSWGuiControl::HoverEnter, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::SetDescription>());
+
+				slider->SetCustomValue((DWORD)i);
+
+				sliders.push_back(slider);
+				listOptions.Add(slider);
 				break;
+			}
 			case ModOptionType::List:
 				// TODO
 				break;
@@ -502,6 +575,14 @@ private:
 		// while they match, the uniform path is the better-trodden one.
 		optionsListBox.AddControls(&listOptions, 1, 0,
 			TEXT_ROW_HEIGHT_PERCENT != 100 ? 1 : 0);
+
+		// AddControls leaves each row owned by the list box. The slider's mouse
+		// handling resolves coordinates through that owner as a panel, so it has to
+		// be the menu -- which is also the space AddControls just laid the rows out
+		// in, the same one CSWGuiListBox::HitCheckMouseLocal hit-tests against.
+		for (OptionsSlider* slider : sliders) {
+			slider->SetGuiObject(GetPtr());
+		}
 	}
 
 	void _HandleInputEvent(int event, int doPanelEvents) {
@@ -531,5 +612,81 @@ private:
 inline void OptionsEditBox::CommitToMenu() {
 	if (menu) {
 		menu->commitOption(GetPtr());
+	}
+}
+
+inline void OptionsSlider::CommitToMenu() {
+	if (menu) {
+		menu->commitOption(GetPtr());
+	}
+}
+
+inline bool OptionsListBox::LocalContentCoords(int* outX, int* outY) {
+	if (!menu) {
+		return false;
+	}
+	menu->GetLocalMouseCoords(outX, outY);
+	*outX -= GetViewportX();
+	*outY -= GetViewportY();
+	return true;
+}
+
+inline void OptionsListBox::_HandleLMouseDown() {
+	// Base first, for the selection bookkeeping and its own mouse capture -- which
+	// it keeps, so the drag below is driven from here rather than from the slider.
+	CSWGuiListBox::HandleLMouseDown();
+	dragging = nullptr;
+
+	int index = 0;
+	CSWGuiControl* hit = HitCheckMouseLocal(&index);
+	if (!hit) {
+		return;
+	}
+	OptionsSlider* slider = menu ? menu->findSlider(hit->GetPtr()) : nullptr;
+	delete hit;
+
+	int x = 0, y = 0;
+	if (!slider || !LocalContentCoords(&x, &y)) {
+		return;
+	}
+
+	// The two track events are the ones CSWGuiSlider::HandleLMouseDown would have
+	// raised; they step the value and reach commitOption through the events the row
+	// registered. Only the thumb starts a drag.
+	switch (slider->HitTest(x, y)) {
+	case 1:
+		dragging = slider;
+		break;
+	case 2:
+		slider->HandleInputEvent(CSWGuiControl::SliderTrackDown, 1);
+		break;
+	case 3:
+		slider->HandleInputEvent(CSWGuiControl::SliderTrackUp, 1);
+		break;
+	default:
+		break;
+	}
+}
+
+inline int OptionsListBox::_HandleMouseCapturedMovement(int x, int y) {
+	if (!dragging) {
+		return CSWGuiListBox::HandleMouseCapturedMovement(x, y);
+	}
+
+	// Label only while the button is down; a commit writes an ini file to disk and
+	// calls into the owning patch, and this runs every mouse-move frame.
+	int localX = 0, localY = 0;
+	if (LocalContentCoords(&localX, &localY)) {
+		dragging->SetValueFromTrackX(localX);
+	}
+	return 1;
+}
+
+inline void OptionsListBox::_HandleLMouseUp() {
+	CSWGuiListBox::HandleLMouseUp();
+
+	if (dragging) {
+		dragging->CommitToMenu();
+		dragging = nullptr;
 	}
 }

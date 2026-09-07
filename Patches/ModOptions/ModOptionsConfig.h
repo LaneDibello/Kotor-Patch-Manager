@@ -18,7 +18,7 @@
 
 enum class ModOptionType {
 	Toggle,	// 0 or 1
-	Slider,	// integer in [min, max], min >= 0
+	Slider,	// integer in [min, max], min >= 0; the control runs 0..(max - min)
 	List,	// one of `choices`, by value
 	Text,	// free-form string
 };
@@ -35,7 +35,9 @@ struct ModOption {
 	std::string function;
 	std::string patch;		// defaults to the [menu] `patch`
 
-	// Slider only.
+	// Slider only. The game's slider control has no minimum of its own -- it runs
+	// 0..max_value -- so `min` is a storage/display offset the UI applies, never
+	// something the control is told about.
 	int min = 0;
 	int max = 0;
 

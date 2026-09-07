@@ -13,6 +13,7 @@ bool CSWGuiControl::functionsInitialized = false;
 bool CSWGuiControl::offsetsInitialized = false;
 
 int CSWGuiControl::offsetParentControl = -1;
+int CSWGuiControl::offsetGuiObject = -1;
 int CSWGuiControl::offsetId = -1;
 int CSWGuiControl::offsetCustomValue = -1;
 int CSWGuiControl::offsetBitFlags = -1;
@@ -66,6 +67,7 @@ void CSWGuiControl::InitializeOffsets() {
 
     try {
         offsetParentControl = GameVersion::GetOffset("CSWGuiControl", "parent_control");
+        offsetGuiObject = GameVersion::GetOffset("CSWGuiControl", "gui_object");
         offsetId = GameVersion::GetOffset("CSWGuiControl", "id");
         offsetCustomValue = GameVersion::GetOffset("CSWGuiControl", "custom_value");
         offsetBitFlags = GameVersion::GetOffset("CSWGuiControl", "bit_flags");
@@ -312,4 +314,85 @@ void __fastcall CSWGuiControl::SetExtentThunk(void* gameObj, void* /*edx*/, void
 
     auto handler = reinterpret_cast<void(__thiscall*)(void*, void*)>(self->setExtentHandler);
     handler(self, extent);
+}
+
+int CSWGuiControl::HandleMouseCapturedMovement(int x, int y) {
+    void* fn = originalVirtual(ControlVTableSlot::HandleMouseCapturedMovement);
+    if (!fn) {
+        return 1;
+    }
+    return reinterpret_cast<int(__thiscall*)(void*, int, int)>(fn)(objectPtr, x, y);
+}
+
+void CSWGuiControl::OverrideHandleMouseCapturedMovement(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    mouseCapturedMovementHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleMouseCapturedMovement),
+                             reinterpret_cast<void*>(&CSWGuiControl::HandleMouseCapturedMovementThunk));
+}
+
+int __fastcall CSWGuiControl::HandleMouseCapturedMovementThunk(void* gameObj, void* /*edx*/, int x, int y) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    // 1 is what the game's own implementation returns on every path.
+    if (!self || !self->mouseCapturedMovementHandler) return 1;
+
+    auto handler = reinterpret_cast<int(__thiscall*)(void*, int, int)>(self->mouseCapturedMovementHandler);
+    return handler(self, x, y);
+}
+
+void CSWGuiControl::HandleLMouseUp() {
+    void* fn = originalVirtual(ControlVTableSlot::HandleLMouseUp);
+    if (!fn) {
+        return;
+    }
+    reinterpret_cast<void(__thiscall*)(void*)>(fn)(objectPtr);
+}
+
+void CSWGuiControl::OverrideHandleLMouseUp(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    lMouseUpHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleLMouseUp),
+                             reinterpret_cast<void*>(&CSWGuiControl::HandleLMouseUpThunk));
+}
+
+void __fastcall CSWGuiControl::HandleLMouseUpThunk(void* gameObj, void* /*edx*/) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->lMouseUpHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*)>(self->lMouseUpHandler);
+    handler(self);
+}
+
+void CSWGuiControl::HandleLMouseDown() {
+    void* fn = originalVirtual(ControlVTableSlot::HandleLMouseDown);
+    if (!fn) {
+        return;
+    }
+    reinterpret_cast<void(__thiscall*)(void*)>(fn)(objectPtr);
+}
+
+void CSWGuiControl::OverrideHandleLMouseDown(void* handler) {
+    if (!EnsureVTableOverride()) {
+        return;
+    }
+    lMouseDownHandler = handler;
+    vtableOverride->Override(static_cast<int>(ControlVTableSlot::HandleLMouseDown),
+                             reinterpret_cast<void*>(&CSWGuiControl::HandleLMouseDownThunk));
+}
+
+void __fastcall CSWGuiControl::HandleLMouseDownThunk(void* gameObj, void* /*edx*/) {
+    CSWGuiControl* self = static_cast<CSWGuiControl*>(VTableOverride::GetOwner(gameObj));
+    if (!self || !self->lMouseDownHandler) return;
+
+    auto handler = reinterpret_cast<void(__thiscall*)(void*)>(self->lMouseDownHandler);
+    handler(self);
+}
+
+void CSWGuiControl::SetGuiObject(void* panel) {
+    if (!objectPtr || offsetGuiObject < 0) return;
+    setObjectProperty<void*>(objectPtr, offsetGuiObject, panel);
 }
