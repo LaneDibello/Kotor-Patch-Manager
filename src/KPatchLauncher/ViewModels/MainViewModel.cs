@@ -29,6 +29,7 @@ public class MainViewModel : ViewModelBase
     private string _statusMessage = "Ready";
     private string _kotorVersion = "Unknown";
     private GameVersion? _detectedGameVersion;
+    private GameIdentity _gameIdentity = GameIdentity.Unknown;
     private PatchItemViewModel? _selectedPatch;
     private PatchRepository? _repository;
     private readonly HashSet<string> _installedPatchIds = new(StringComparer.OrdinalIgnoreCase);
@@ -271,6 +272,19 @@ public class MainViewModel : ViewModelBase
     /// NativeMenuItem.IsChecked binds one way, so ticking the item cannot write the value back.
     /// </summary>
     public ICommand ToggleIdentifyUnrecognisedBuildsCommand { get; }
+
+    /// <summary>
+    /// Whether the detected game was matched on something weaker than its hash.
+    /// </summary>
+    public bool ShowIdentityWarning => _gameIdentity == GameIdentity.Inferred;
+
+    /// <summary>
+    /// What the version shown rests on. Empty unless <see cref="ShowIdentityWarning"/>.
+    /// </summary>
+    public string IdentityWarningDetail => _gameIdentity == GameIdentity.Inferred
+        ? $"This file was detected as modified. Identified as {_detectedGameVersion?.DisplayName}. " +
+          $"Patches are still checked against it before installing, and may fail to apply."
+        : string.Empty;
 
     /// <summary>
     /// Whether to offer the deployment choice at all. Hidden where there is nothing to choose:
@@ -1223,7 +1237,7 @@ public class MainViewModel : ViewModelBase
             var (installInfo, versionInfo) = await Task.Run(() =>
             {
                 var install = PatchRemover.GetInstallationInfo(gameExePath);
-                var version = GameDetector.DetectVersion(
+                var version = GameDetector.Identify(
                     gameExePath,
                     allowManagedInstallState: true);
                 return (install, version);
@@ -1296,14 +1310,17 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void ApplyDetectedGameVersion(PatchResult<GameVersion> versionInfo)
+    private void ApplyDetectedGameVersion(PatchResult<DetectedGame> versionInfo)
     {
         if (versionInfo.Success && versionInfo.Data != null)
         {
-            var v = versionInfo.Data;
+            var v = versionInfo.Data.Version;
             _detectedGameVersion = v;
+            _gameIdentity = versionInfo.Data.Identity;
             KotorVersion = v.DisplayName;
             OnPropertyChanged(nameof(ShowDeploymentOption));
+            OnPropertyChanged(nameof(ShowIdentityWarning));
+            OnPropertyChanged(nameof(IdentityWarningDetail));
             NotifyLaunchControlsChanged();
 
             // Switch theme based on detected game title
@@ -1321,8 +1338,11 @@ public class MainViewModel : ViewModelBase
     private void ApplyUnknownGameVersion()
     {
         _detectedGameVersion = null;
+        _gameIdentity = GameIdentity.Unknown;
         KotorVersion = "Unknown";
         OnPropertyChanged(nameof(ShowDeploymentOption));
+        OnPropertyChanged(nameof(ShowIdentityWarning));
+        OnPropertyChanged(nameof(IdentityWarningDetail));
         NotifyLaunchControlsChanged();
 
         // Load default theme (KOTOR 1) for unknown games
@@ -1350,11 +1370,14 @@ public class MainViewModel : ViewModelBase
                 continue;
             }
 
-            // If game version is unknown, show all patches as compatible
-            if (_detectedGameVersion == null || _detectedGameVersion.Version == "Unknown")
+            // Nothing recognised the game, so no hooks and no address database exist for it and
+            // no patch can install. Saying otherwise offers a click that always ends in an error.
+            if (_detectedGameVersion == null || _gameIdentity == GameIdentity.Unknown)
             {
-                patchViewModel.IsCompatible = true;
-                patchViewModel.CompatibilityStatus = "Unknown game version - compatibility not verified";
+                patchViewModel.IsCompatible = false;
+                patchViewModel.CompatibilityStatus =
+                    "Game version not recognised. Options > Bypass hash verification lets the " +
+                    "manager match it to the build it was made from.";
                 continue;
             }
 

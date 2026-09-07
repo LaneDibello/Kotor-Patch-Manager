@@ -194,9 +194,33 @@ public static class GameDetector
         bool allowManagedInstallState = false,
         bool requireKnownManagedStateHash = false)
     {
+        var identified = Identify(exePath, allowManagedInstallState, requireKnownManagedStateHash);
+        if (!identified.Success || identified.Data is null)
+        {
+            return PatchResult<GameVersion>.Fail(identified.Error!);
+        }
+
+        var result = PatchResult<GameVersion>.Ok(identified.Data.Version);
+        result.Messages.AddRange(identified.Messages);
+        return result;
+    }
+
+    /// <summary>
+    /// Detects the game and reports what the answer rests on. <see cref="DetectVersion"/> is this
+    /// without the second half, for callers that only need to know which game it is.
+    /// </summary>
+    /// <param name="exePath">Path to game executable</param>
+    /// <param name="allowManagedInstallState">See <see cref="DetectVersion"/></param>
+    /// <param name="requireKnownManagedStateHash">See <see cref="DetectVersion"/></param>
+    /// <returns>Result containing DetectedGame or error</returns>
+    public static PatchResult<DetectedGame> Identify(
+        string exePath,
+        bool allowManagedInstallState = false,
+        bool requireKnownManagedStateHash = false)
+    {
         if (!File.Exists(exePath))
         {
-            return PatchResult<GameVersion>.Fail($"Executable not found: {exePath}");
+            return PatchResult<DetectedGame>.Fail($"Executable not found: {exePath}");
         }
 
         try
@@ -207,8 +231,8 @@ public static class GameDetector
             // Look up in known versions
             if (TryGetKnownVersion(hash, out var gameVersion))
             {
-                return PatchResult<GameVersion>.Ok(
-                    gameVersion,
+                return PatchResult<DetectedGame>.Ok(
+                    new DetectedGame(gameVersion, GameIdentity.Hash),
                     $"Detected: {gameVersion.DisplayName}"
                 );
             }
@@ -223,7 +247,10 @@ public static class GameDetector
                     requireKnownManagedStateHash);
                 if (managedResult.Success && managedResult.Data != null)
                 {
-                    return managedResult;
+                    var managed = PatchResult<DetectedGame>.Ok(
+                        new DetectedGame(managedResult.Data, GameIdentity.ManagedState));
+                    managed.Messages.AddRange(managedResult.Messages);
+                    return managed;
                 }
             }
 
@@ -234,8 +261,8 @@ public static class GameDetector
             if (IdentifyUnrecognisedBuilds && buildIdentity is not null &&
                 VersionsByBuildIdentity.TryGetValue(buildIdentity, out var inferred))
             {
-                return PatchResult<GameVersion>.Ok(
-                    inferred,
+                return PatchResult<DetectedGame>.Ok(
+                    new DetectedGame(inferred, GameIdentity.Inferred),
                     $"Identified as {inferred.DisplayName} by build identity {buildIdentity}; " +
                     $"this file does not match it byte for byte."
                 );
@@ -246,7 +273,7 @@ public static class GameDetector
             var targetResult = ExecutableFormatDetector.DetectTarget(exePath);
             if (!targetResult.Success)
             {
-                return PatchResult<GameVersion>.Fail(targetResult.Error!);
+                return PatchResult<DetectedGame>.Fail(targetResult.Error!);
             }
 
             var target = targetResult.Data;
@@ -261,8 +288,8 @@ public static class GameDetector
                 Hash = hash
             };
 
-            return PatchResult<GameVersion>.Ok(
-                unknownVersion,
+            return PatchResult<DetectedGame>.Ok(
+                new DetectedGame(unknownVersion, GameIdentity.Unknown),
                 buildIdentity is null
                     ? $"Unknown version (hash: {PreviewHash(hash)}...)"
                     : $"Unknown version (hash: {PreviewHash(hash)}..., build identity {buildIdentity})"
@@ -270,7 +297,7 @@ public static class GameDetector
         }
         catch (Exception ex)
         {
-            return PatchResult<GameVersion>.Fail($"Failed to detect version: {ex.Message}");
+            return PatchResult<DetectedGame>.Fail($"Failed to detect version: {ex.Message}");
         }
     }
 
