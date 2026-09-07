@@ -749,7 +749,7 @@ public class MainViewModel : ViewModelBase
     /// <summary>
     /// Moves a patch one place up or down the list the user can actually see.
     /// </summary>
-    /// <param name="target">
+    /// <param name="patch">
     /// The row the button belongs to, or null when the command came from somewhere without a row,
     /// in which case the list selection is used.
     /// </param>
@@ -1245,9 +1245,13 @@ public class MainViewModel : ViewModelBase
                 // Restore checked state from settings
                 var checkedIds = _settings.CheckedPatchIds.ToHashSet();
 
-                var savedOrder = _settings.PatchOrder
-                    .Select((id, position) => (id, position))
-                    .ToDictionary(x => x.id, x => x.position, StringComparer.OrdinalIgnoreCase);
+                // TryAdd rather than ToDictionary: settings.json is editable by hand, and a
+                // repeated id would otherwise throw out of the load and leave no patches at all.
+                var savedOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (var position = 0; position < _settings.PatchOrder.Count; position++)
+                {
+                    savedOrder.TryAdd(_settings.PatchOrder[position], position);
+                }
 
                 patchViewModels = patchViewModels
                     .OrderBy(p => savedOrder.TryGetValue(p.Id, out var position) ? position : int.MaxValue)

@@ -24,7 +24,8 @@ public class SimpleCommand : ICommand
     /// </summary>
     public SimpleCommand(Action<object?> execute, Func<bool>? canExecute = null)
     {
-        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+        ArgumentNullException.ThrowIfNull(execute);
+        _execute = execute;
         _canExecute = canExecute;
     }
 
