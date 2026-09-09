@@ -26,6 +26,10 @@ public:
     CSWGuiBorder* GetHilight();
 
     // Functions
+    void Draw(float alpha);
+    // The game's own layout of border, hilight and text against `extent`. Exposed so
+    // an override can lay the base out against a sub-rect of the row it was given.
+    void SetExtent(CSWGuiExtent* extent);
     void ReSetFont();
     void SetActive(UINT active);
     void SetEnabled(UINT enabled);
@@ -41,6 +45,8 @@ public:
     int VTableSlotCount() override;
 
 protected:
+    typedef void (__thiscall* DrawFn)(void* thisPtr, float alpha);
+    typedef void (__thiscall* SetExtentFn)(void* thisPtr, void* extent);
     typedef void (__thiscall* ReSetFontFn)(void* thisPtr);
     typedef void (__thiscall* SetActiveFn)(void* thisPtr, UINT active);
     typedef void (__thiscall* SetEnabledFn)(void* thisPtr, UINT enabled);
@@ -50,6 +56,8 @@ protected:
     typedef void* (__thiscall* ConstructorFn)(void* thisPtr);
     typedef void* (__thiscall* DestructorFn)(void* thisPtr);
 
+    static DrawFn draw;
+    static SetExtentFn setExtent;
     static ReSetFontFn reSetFont;
     static SetActiveFn setActive;
     static SetEnabledFn setEnabled;

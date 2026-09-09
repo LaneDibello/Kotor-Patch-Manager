@@ -7,6 +7,7 @@
 #include "OptionsEditBox.h"
 #include "OptionsLayout.h"
 #include "OptionsListBox.h"
+#include "OptionsListSelect.h"
 #include "OptionsSlider.h"
 
 #include "GameAPI/CExoArrayList.h"
@@ -53,6 +54,9 @@ public:
 
 	// Wrappers for the Slider options currently in optionsListBox
 	std::vector<OptionsSlider*> sliders;
+
+	// Wrappers for the List options currently in optionsListBox
+	std::vector<OptionsListSelect*> listSelects;
 
 	// Control the last suppressed SetActiveControl was for
 
@@ -119,11 +123,77 @@ public:
 		return nullptr;
 	}
 
+	// Same reason as findSlider: a re-wrapped raw pointer would lose the option's
+	// `choices` and the index it is currently showing.
+	OptionsListSelect* findListSelect(void* control) {
+		for (OptionsListSelect* listSelect : listSelects) {
+			if (listSelect->GetPtr() == control) {
+				return listSelect;
+			}
+		}
+		return nullptr;
+	}
+
+	// The arrow keys, for the row that is the list box's active control. A keypress
+	// fires these twice, and a step is not idempotent.
+	void onListLeft(void* control) {
+		if (currentInputPhase == 0) {
+			return;
+		}
+		stepListSelect(control, -1);
+	}
+	void onListRight(void* control) {
+		if (currentInputPhase == 0) {
+			return;
+		}
+		stepListSelect(control, 1);
+	}
+
+	// Step commits through commitOption itself, so there is nothing to do after.
+	void stepListSelect(void* control, int delta) {
+		releaseKeyboardFocus(control);
+
+		OptionsListSelect* listSelect = findListSelect(control);
+		if (!listSelect) {
+			debugLog("[ModOptions] no list select wrapper registered for %X", control);
+			return;
+		}
+		listSelect->Step(delta);
+	}
+
+	// A button stores nothing, so it never goes through commitOption -- a press is
+	// the whole option. Fires twice per keypress, and a mod's handler need not be
+	// idempotent, so the tail half is dropped.
+	void onButton(void* control) {
+		if (currentInputPhase == 0) {
+			return;
+		}
+		releaseKeyboardFocus(control);
+
+		CSWGuiControl button(control);
+		size_t index = (size_t)button.GetCustomValue();
+		const ModOption* opt = config.GetOption(index);
+		if (!opt) {
+			debugLog("[ModOptions] mod option button has out-of-range custom value %u", (unsigned)index);
+			return;
+		}
+
+		// A button carries no value; the handler gets its key and an empty string.
+		if (!InvokeModOptionHandler(*opt, std::string())) {
+			debugLog("[ModOptions] `%s` could not run `%s`",
+				opt->GetName().c_str(), opt->GetFunction().c_str());
+		}
+	}
+
 	void onDefault(void* control) {
 		releaseKeyboardFocus();
 
 		// Restore all options to their default states
 		for (const ModOption& option : config.options) {
+			// A button has no default, and firing its function is not a restore.
+			if (option.type == ModOptionType::Button) {
+				continue;
+			}
 			if (option.HasIni()) {
 				WriteOptionValue(option, option.defaultString);
 			}
@@ -180,8 +250,18 @@ public:
 			value = std::to_string(slider->StoredValue());
 			break;
 		}
-		case ModOptionType::List:
-			// TODO
+		case ModOptionType::List: {
+			OptionsListSelect* listSelect = findListSelect(control);
+			if (!listSelect) {
+				debugLog("[ModOptions] no list select wrapper registered for %X", control);
+				return;
+			}
+			// Step has already moved the control by the time this runs.
+			value = listSelect->Value();
+			break;
+		}
+		case ModOptionType::Button:
+			// Never reached: a button's only event goes straight to onButton.
 			return;
 		case ModOptionType::Text: {
 			CSWGuiEditBox editBox(control);
@@ -227,7 +307,15 @@ public:
 			return;
 		}
 
-		SetControlText(&descriptionLabel, opt->GetDescription());
+		// A list select has no room for the option's name -- its own text is the
+		// current choice -- so the name leads the description instead.
+		std::string description = opt->GetDescription();
+		if (opt->type == ModOptionType::List) {
+			description = description.empty()
+				? opt->GetName()
+				: opt->GetName() + "\n" + description;
+		}
+		SetControlText(&descriptionLabel, description);
 
 		descriptionListBox.ClearItems();
 
@@ -332,6 +420,14 @@ private:
 			delete slider;
 		}
 		sliders.clear();
+
+		// ReleaseOwnership covers the row itself, which the list box frees; the two
+		// arrows it owns were never handed over, and its destructor frees those.
+		for (OptionsListSelect* listSelect : listSelects) {
+			listSelect->ReleaseOwnership();
+			delete listSelect;
+		}
+		listSelects.clear();
 	}
 
 	// Height comes from the layout, width from the list box, position from AddControls.
@@ -456,9 +552,31 @@ private:
 				listOptions.Add(slider);
 				break;
 			}
-			case ModOptionType::List:
-				// TODO
+			case ModOptionType::List: {
+				OptionsListSelect* listSelect = new OptionsListSelect(this);
+
+				if (!layout.Load(listSelect, this, "OPT_LIST")
+					|| !listSelect->LoadChildren(layout, this)) {
+					delete listSelect;
+					break;
+				}
+				listSelect->Configure(rowWidth, options[i], value);
+
+				// No AButton: a click on the label itself must not change a setting.
+				// The arrows are driven from OptionsListBox::_HandleLMouseDown.
+				listSelect->AddEvent(CSWGuiControl::LeftArrow, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onListLeft>());
+				listSelect->AddEvent(CSWGuiControl::RightArrow, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onListRight>());
+				listSelect->AddEvent(CSWGuiControl::HoverEnter, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::SetDescription>());
+
+				listSelect->SetCustomValue((DWORD)i);
+
+				listSelects.push_back(listSelect);
+				listOptions.Add(listSelect);
 				break;
+			}
 			case ModOptionType::Text: {
 				OptionsEditBox* editBox = new OptionsEditBox(this, this);
 
@@ -477,6 +595,26 @@ private:
 
 				editBoxes.push_back(editBox);
 				listOptions.Add(editBox);
+				break;
+			}
+			case ModOptionType::Button: {
+				CSWGuiButton* button = new CSWGuiButton();
+
+				if (!layout.Load(button, this, "OPT_BUTTON")) {
+					delete button;
+					break;
+				}
+				sizeRow(button, rowWidth);
+				SetControlText(button, options[i].name);
+
+				button->AddEvent(CSWGuiControl::AButton, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onButton>());
+				button->AddEvent(CSWGuiControl::HoverEnter, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::SetDescription>());
+
+				button->SetCustomValue((DWORD)i);
+
+				listOptions.Add(button);
 				break;
 			}
 			}
@@ -561,6 +699,23 @@ inline void OptionsSlider::CommitToMenu() {
 	}
 }
 
+inline void OptionsListSelect::CommitToMenu() {
+	if (menu) {
+		menu->commitOption(GetPtr());
+	}
+}
+
+inline bool OptionsListSelect::RowMouseCoords(int* outX, int* outY) {
+	return menu ? menu->optionsListBox.LocalContentCoords(outX, outY) : false;
+}
+
+inline void OptionsListSelect::PlayStepSound() {
+	// Sound 1, as vanilla's OnAnisotropyLeft/Right play.
+	if (menu && menu->guiManager) {
+		menu->guiManager->PlayGuiSound(1);
+	}
+}
+
 inline bool OptionsListBox::LocalContentCoords(int* outX, int* outY) {
 	if (!menu) {
 		return false;
@@ -583,25 +738,42 @@ inline void OptionsListBox::_HandleLMouseDown() {
 		return;
 	}
 	OptionsSlider* slider = menu ? menu->findSlider(hit->GetPtr()) : nullptr;
+	OptionsListSelect* listSelect = menu ? menu->findListSelect(hit->GetPtr()) : nullptr;
 	delete hit;
 
 	int x = 0, y = 0;
-	if (!slider || !LocalContentCoords(&x, &y)) {
+	if ((!slider && !listSelect) || !LocalContentCoords(&x, &y)) {
 		return;
 	}
 
-	// The two track events are the ones CSWGuiSlider::HandleLMouseDown would have
-	// raised; they step the value and reach commitOption through the events the row
-	// registered. Only the thumb starts a drag.
-	switch (slider->HitTest(x, y)) {
-	case 1:
-		dragging = slider;
+	if (slider) {
+		// The two track events are the ones CSWGuiSlider::HandleLMouseDown would have
+		// raised; they step the value and reach commitOption through the events the row
+		// registered. Only the thumb starts a drag.
+		switch (slider->HitTest(x, y)) {
+		case 1:
+			dragging = slider;
+			break;
+		case 2:
+			slider->HandleInputEvent(CSWGuiSlider::EVENT_TRACK_DOWN, 1);
+			break;
+		case 3:
+			slider->HandleInputEvent(CSWGuiSlider::EVENT_TRACK_UP, 1);
+			break;
+		default:
+			break;
+		}
+		return;
+	}
+
+	// A list select has nothing to drag, so the capture the base took is left alone
+	// and the step happens here and now.
+	switch (listSelect->HitTest(x, y)) {
+	case OptionsListSelect::HIT_LEFT:
+		listSelect->Step(-1);
 		break;
-	case 2:
-		slider->HandleInputEvent(CSWGuiSlider::EVENT_TRACK_DOWN, 1);
-		break;
-	case 3:
-		slider->HandleInputEvent(CSWGuiSlider::EVENT_TRACK_UP, 1);
+	case OptionsListSelect::HIT_RIGHT:
+		listSelect->Step(1);
 		break;
 	default:
 		break;

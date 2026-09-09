@@ -21,6 +21,7 @@ enum class ModOptionType {
 	Slider,	// integer in [min, max]; the control runs 0..(max - min)
 	List,	// one of `choices`, by value
 	Text,	// free-form string
+	Button,	// stores nothing; a press runs the option's function
 };
 
 struct ModOption {
@@ -116,6 +117,7 @@ namespace ModOptionsConfigDetail {
 		if (text == "slider") { outType = ModOptionType::Slider; return true; }
 		if (text == "list") { outType = ModOptionType::List; return true; }
 		if (text == "text") { outType = ModOptionType::Text; return true; }
+		if (text == "button") { outType = ModOptionType::Button; return true; }
 		return false;
 	}
 
@@ -241,6 +243,9 @@ namespace ModOptionsConfigDetail {
 				sourceName.c_str(), (unsigned)index);
 			return false;
 		}
+		case ModOptionType::Button:
+			// Never reached: ParseOption does not ask a button for a default.
+			return true;
 		case ModOptionType::Text: {
 			if (auto text = node->value<std::string>()) {
 				outOption.defaultString = *text;
@@ -292,6 +297,24 @@ namespace ModOptionsConfigDetail {
 		if (!outOption.function.empty() && outOption.patch.empty()) {
 			debugLog("[ModOptions] %s: option %u names function `%s` but no `patch`",
 				sourceName.c_str(), (unsigned)index, outOption.function.c_str());
+		}
+
+		// A button is nothing but its function, and it has no value to store, so the
+		// ini fields are dropped rather than half-honoured by the code below.
+		if (outOption.type == ModOptionType::Button) {
+			if (!outOption.HasFunction()) {
+				debugLog("[ModOptions] %s: button option %u has no resolvable function; skipping",
+					sourceName.c_str(), (unsigned)index);
+				return false;
+			}
+			if (!outOption.ini.empty() || !outOption.category.empty() || !outOption.key.empty()) {
+				debugLog("[ModOptions] %s: button option %u names an ini entry, which a button does not use; ignoring it",
+					sourceName.c_str(), (unsigned)index);
+				outOption.ini.clear();
+				outOption.category.clear();
+				outOption.key.clear();
+			}
+			return true;
 		}
 
 		// An option that neither stores a value nor calls anything does nothing.
