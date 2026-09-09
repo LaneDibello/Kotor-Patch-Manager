@@ -11,11 +11,11 @@ patch = "mod-options-gui"
 # This will be what appears in the UI
 name = "Toggle Option"
 
-# One of: `toggle`, `slider`, `list`, `text`
+# One of: `toggle`, `slider`, `list`, `text`, `button`
 # toggle will supply a value of 0 or 1
 type = "toggle"
 
-# All options need a default value
+# Every option needs a default value, except a `button` -- it stores nothing
 default = 0
 
 # Having an INI is optional
@@ -79,3 +79,15 @@ ini = "sample.ini"
 category = "Configurations"
 key = "textOption"
 description = "Free-form sample text."
+
+[[options]]
+name = "Button Option"
+
+# button stores no value at all: it has no `default` and no ini entry, and a press
+# simply runs its function. `key` is still what the handler is passed as its first
+# argument (the `name` when there is no `key`); the value is always an empty string.
+type = "button"
+
+key = "buttonOption"
+function = "ModOptions_DebugHandler"
+description = "Runs the sample handler straight away."

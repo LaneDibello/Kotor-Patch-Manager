@@ -161,11 +161,39 @@ public:
 		listSelect->Step(delta);
 	}
 
+	// A button stores nothing, so it never goes through commitOption -- a press is
+	// the whole option. Fires twice per keypress, and a mod's handler need not be
+	// idempotent, so the tail half is dropped.
+	void onButton(void* control) {
+		if (currentInputPhase == 0) {
+			return;
+		}
+		releaseKeyboardFocus(control);
+
+		CSWGuiControl button(control);
+		size_t index = (size_t)button.GetCustomValue();
+		const ModOption* opt = config.GetOption(index);
+		if (!opt) {
+			debugLog("[ModOptions] mod option button has out-of-range custom value %u", (unsigned)index);
+			return;
+		}
+
+		// A button carries no value; the handler gets its key and an empty string.
+		if (!InvokeModOptionHandler(*opt, std::string())) {
+			debugLog("[ModOptions] `%s` could not run `%s`",
+				opt->GetName().c_str(), opt->GetFunction().c_str());
+		}
+	}
+
 	void onDefault(void* control) {
 		releaseKeyboardFocus();
 
 		// Restore all options to their default states
 		for (const ModOption& option : config.options) {
+			// A button has no default, and firing its function is not a restore.
+			if (option.type == ModOptionType::Button) {
+				continue;
+			}
 			if (option.HasIni()) {
 				WriteOptionValue(option, option.defaultString);
 			}
@@ -232,6 +260,9 @@ public:
 			value = listSelect->Value();
 			break;
 		}
+		case ModOptionType::Button:
+			// Never reached: a button's only event goes straight to onButton.
+			return;
 		case ModOptionType::Text: {
 			CSWGuiEditBox editBox(control);
 			CSWGuiEditText* editText = editBox.GetEditText();
@@ -564,6 +595,26 @@ private:
 
 				editBoxes.push_back(editBox);
 				listOptions.Add(editBox);
+				break;
+			}
+			case ModOptionType::Button: {
+				CSWGuiButton* button = new CSWGuiButton();
+
+				if (!layout.Load(button, this, "OPT_BUTTON")) {
+					delete button;
+					break;
+				}
+				sizeRow(button, rowWidth);
+				SetControlText(button, options[i].name);
+
+				button->AddEvent(CSWGuiControl::AButton, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::onButton>());
+				button->AddEvent(CSWGuiControl::HoverEnter, this,
+					memberThunkAddr<OptionsMenu, &OptionsMenu::SetDescription>());
+
+				button->SetCustomValue((DWORD)i);
+
+				listOptions.Add(button);
 				break;
 			}
 			}
