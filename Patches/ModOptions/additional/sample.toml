@@ -13,7 +13,6 @@ name = "Toggle Option"
 
 # One of: `toggle`, `slider`, `list`, `text`
 # toggle will supply a value of 0 or 1
-# NOTE: `list` is not implemented yet; it parses but is skipped.
 type = "toggle"
 
 # All options need a default value

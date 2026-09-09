@@ -6,6 +6,8 @@
 #include "CSWGuiTextParams.h"
 #include "CSWGuiBorderParams.h"
 
+CSWGuiButton::DrawFn       CSWGuiButton::draw       = nullptr;
+CSWGuiButton::SetExtentFn  CSWGuiButton::setExtent  = nullptr;
 CSWGuiButton::ReSetFontFn  CSWGuiButton::reSetFont  = nullptr;
 CSWGuiButton::SetActiveFn  CSWGuiButton::setActive  = nullptr;
 CSWGuiButton::SetEnabledFn CSWGuiButton::setEnabled = nullptr;
@@ -35,6 +37,8 @@ void CSWGuiButton::InitializeFunctions() {
     }
 
     try {
+        draw       = reinterpret_cast<DrawFn>      (GameVersion::GetFunctionAddress("CSWGuiButton", "Draw"));
+        setExtent  = reinterpret_cast<SetExtentFn> (GameVersion::GetFunctionAddress("CSWGuiButton", "SetExtent"));
         reSetFont  = reinterpret_cast<ReSetFontFn> (GameVersion::GetFunctionAddress("CSWGuiButton", "ReSetFont"));
         setActive  = reinterpret_cast<SetActiveFn> (GameVersion::GetFunctionAddress("CSWGuiButton", "SetActive"));
         setEnabled = reinterpret_cast<SetEnabledFn>(GameVersion::GetFunctionAddress("CSWGuiButton", "SetEnabled"));
@@ -143,6 +147,16 @@ CSWGuiBorder* CSWGuiButton::GetHilight() {
     }
     // Inline CSWGuiBorder member: wrap its in-place address.
     return new CSWGuiBorder((char*)objectPtr + offsetHilight);
+}
+
+void CSWGuiButton::Draw(float alpha) {
+    if (!objectPtr || !draw) return;
+    draw(objectPtr, alpha);
+}
+
+void CSWGuiButton::SetExtent(CSWGuiExtent* extent) {
+    if (!objectPtr || !setExtent) return;
+    setExtent(objectPtr, extent);
 }
 
 void CSWGuiButton::ReSetFont() {
