@@ -5,11 +5,71 @@ description = "Vanilla sound options that aren't usually accessible in-game."
 patch = "expanded-vanilla-options"
 
 [[options]]
-name = "Toggle Option"
+name = "Include Player BIC in Save"
 type = "toggle"
 default = 0
-ini = "sample.ini"
-category = "Configurations"
-key = "toggleOption"
-function = "ModOptions_DebugHandler"
-description = "Description string for what this option does"
+ini = "additional-options.ini"
+category = "Debug"
+key = "SavePlayerBIC"
+function = "AdditionalOptions_DebugHandler"
+description = ""
+
+[[options]]
+name = "Render Walkmesh"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Debug"
+key = "RenderWalkmesh"
+function = "AdditionalOptions_DebugHandler"
+description = ""
+
+[[options]]
+name = "Render Wire Frame"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Debug"
+key = "RenderWireFrame"
+function = "AdditionalOptions_DebugHandler"
+description = ""
+
+[[options]]
+name = "Render Triggers"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Debug"
+key = "RenderTriggers"
+function = "AdditionalOptions_DebugHandler"
+description = ""
+
+[[options]]
+name = "Render Personal Space"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Debug"
+key = "RenderPersonalSpace"
+function = "AdditionalOptions_DebugHandler"
+description = ""
+
+[[options]]
+name = "Render Bounding Boxes"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Debug"
+key = "RenderBoundingBoxes"
+function = "AdditionalOptions_DebugHandler"
+description = ""
+
+[[options]]
+name = "Render Collision"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Debug"
+key = "Render Collision"
+function = "AdditionalOptions_DebugHandler"
+description = ""

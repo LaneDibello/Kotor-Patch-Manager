@@ -45,9 +45,9 @@ In engine:
 
 ## Debug Options
 - SavePlayerBIC `00831fe0`
-- RenderingWalkmesh `007fbf5c`
-- RenderingWireFrame `007bb4f0`
-- RenderingTrigger `007b92e4` and `0083285c`
+- RenderWalkmesh `007fbf5c`
+- RenderWireFrame `007bb4f0`
+- RenderTriggers `007b92e4` and `0083285c`
 - RenderPersonalSpace `007b9314`
 - RenderBoundingBoxes `0082805c`
 - RenderCollision `0083286c`
