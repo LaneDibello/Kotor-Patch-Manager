@@ -1,0 +1,14 @@
+[patch]
+id = "expanded-vanilla-options"
+name = "Expanded Vanilla Options"
+version = "0.0.0"
+author = "Lane"
+description = "Utilizes the Mod Options patch to include additional menus for various vanilla settings that are typically hidden from the user."
+
+requires = ["mod-options-gui"]
+
+conflicts = []
+
+[patch.supported_versions]
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+kotor1_cdcrack_103 = "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886"

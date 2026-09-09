@@ -1,0 +1,15 @@
+[menu]
+name = "Additional Game Options"
+description = "Vanilla game options that aren't usually accessible in-game."
+
+patch = "expanded-vanilla-options"
+
+[[options]]
+name = "Toggle Option"
+type = "toggle"
+default = 0
+ini = "sample.ini"
+category = "Configurations"
+key = "toggleOption"
+function = "ModOptions_DebugHandler"
+description = "Description string for what this option does"

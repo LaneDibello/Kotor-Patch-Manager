@@ -1,0 +1,12 @@
+
+# In game Options Button Construction
+[[hooks]]
+address = 0x0
+type = "detour"
+original_bytes = []
+function = ""
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "esi"
+type = "pointer" # ESI is `this`

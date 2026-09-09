@@ -1,0 +1,136 @@
+[menu]
+name = "Additional Graphics Options"
+description = "Vanilla graphics options that aren't usually accessible in-game."
+
+patch = "expanded-vanilla-options"
+
+[[options]]
+name = "Emitters"
+type = "toggle"
+default = 1
+ini = "swkotor.ini"
+category = "Graphics Options"
+key = "Emitters"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Full Screen"
+type = "toggle"
+default = 1
+ini = "swkotor.ini"
+category = "Graphics Options"
+key = "FullScreen"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Disable Vertex Buffer Objects"
+type = "toggle"
+default = 1
+ini = "swkotor.ini"
+category = "Graphics Options"
+key = "Disable Vertex Buffer Objects"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Allow Windowed Mode"
+type = "toggle"
+default = 1
+ini = "swkotor.ini"
+category = "Graphics Options"
+key = "AllowWindowedMode"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Disable GUI"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Graphics Options"
+key = "DisableGUI"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Render Level"
+type = "list"
+choices = ["0", "1", "2"]
+default = "2"
+ini = "additional-options.ini"
+category = "Graphics Options"
+key = "RenderLevel"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Do 3D Gui"
+type = "toggle"
+default = 1
+ini = "additional-options.ini"
+category = "Graphics Options"
+key = "Do3dGui"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Visibility Graph"
+type = "toggle"
+default = 1
+ini = "additional-options.ini"
+category = "Graphics Options"
+key = "VisibilityGraph"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Disable Saturation"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Graphics Options"
+key = "DisableSaturation"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Scan Noise"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Graphics Options"
+key = "ScanNoise"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Film Noise"
+type = "toggle"
+default = 0
+ini = "additional-options.ini"
+category = "Graphics Options"
+key = "FilmNoise"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Beams"
+type = "toggle"
+default = 1
+ini = "additional-options.ini"
+category = "Graphics Options"
+key = "Beams"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
+name = "Do Grass Wind"
+type = "toggle"
+default = 1
+ini = "additional-options.ini"
+category = "Graphics Options"
+key = "DoGrassWind"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
