@@ -5,11 +5,65 @@ description = "Vanilla sound options that aren't usually accessible in-game."
 patch = "expanded-vanilla-options"
 
 [[options]]
-name = "Toggle Option"
+name = "Disable Sound"
 type = "toggle"
 default = 0
-ini = "sample.ini"
-category = "Configurations"
-key = "toggleOption"
-function = "ModOptions_DebugHandler"
-description = "Description string for what this option does"
+ini = "swkotor.ini"
+category = "Sound Options"
+key = "Disable Sound"
+function = "AdditionalOptions_SoundHandler"
+description = ""
+
+[[options]]
+name = "Number 3D Voices"
+type = "slider"
+default = 16
+min = 16
+max = 64
+ini = "swkotor.ini"
+category = "Sound Options"
+key = "Number 3D Voices"
+function = "AdditionalOptions_SoundHandler"
+description = ""
+
+[[options]]
+name = "Number 2D Voices"
+type = "slider"
+default = 24
+min = 24
+max = 64
+ini = "swkotor.ini"
+category = "Sound Options"
+key = "Number 2D Voices"
+function = "AdditionalOptions_SoundHandler"
+description = ""
+
+[[options]]
+name = "2D/3D Bias"
+type = "text"
+default = "1.5"
+ini = "swkotor.ini"
+category = "Sound Options"
+key = "2D3D Bias"
+function = "AdditionalOptions_SoundHandler"
+description = ""
+
+[[options]]
+name = "Environment Effects Nonstreaming"
+type = "toggle"
+default = 1
+ini = "swkotor.ini"
+category = "Sound Options"
+key = "Environment Effects Nonstreaming"
+function = "AdditionalOptions_SoundHandler"
+description = ""
+
+[[options]]
+name = "Environment Effects Streaming"
+type = "toggle"
+default = 1
+ini = "swkotor.ini"
+category = "Sound Options"
+key = "Environment Effects Streaming"
+function = "AdditionalOptions_SoundHandler"
+description = ""

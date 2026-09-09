@@ -5,11 +5,91 @@ description = "Vanilla game options that aren't usually accessible in-game."
 patch = "expanded-vanilla-options"
 
 [[options]]
-name = "Toggle Option"
+name = "GUIs In Screen Shot"
 type = "toggle"
 default = 0
-ini = "sample.ini"
-category = "Configurations"
-key = "toggleOption"
-function = "ModOptions_DebugHandler"
-description = "Description string for what this option does"
+ini = "swkotor.ini"
+category = "Game Options"
+key = "GUIsInScreenShot"
+function = "AdditionalOptions_GameHandler"
+description = ""
+
+[[options]]
+name = "Enable Screen Shot"
+type = "toggle"
+default = 1
+ini = "swkotor.ini"
+category = "Game Options"
+key = "EnableScreenShot"
+function = "AdditionalOptions_GameHandler"
+description = ""
+
+[[options]]
+name = "Keyboard Camera Deceleration"
+type = "text"
+default = "2000.0"
+ini = "swkotor.ini"
+category = "Game Options"
+key = "Keyboard Camera Deceleration"
+function = "AdditionalOptions_GameHandler"
+description = ""
+
+[[options]]
+name = "Keyboard Camera Acceleration"
+type = "text"
+default = "500.0"
+ini = "swkotor.ini"
+category = "Game Options"
+key = "Keyboard Camera Acceleration"
+function = "AdditionalOptions_GameHandler"
+description = ""
+
+[[options]]
+name = "Keyboard Camera DPS"
+type = "text"
+default = "200.0"
+ini = "swkotor.ini"
+category = "Game Options"
+key = "Keyboard Camera DPS"
+function = "AdditionalOptions_GameHandler"
+description = ""
+
+[[options]]
+name = "Enable Mouse Teleporting To Buttons"
+type = "toggle"
+default = 0
+ini = "swkotor.ini"
+category = "Game Options"
+key = "Enable Mouse Teleporting To Buttons"
+function = "AdditionalOptions_GameHandler"
+description = ""
+
+[[options]]
+name = "Tooltip Delay Seconds"
+type = "text"
+default = "1.0"
+ini = "swkotor.ini"
+category = "Game Options"
+key = "TooltipDelay Sec"
+function = "AdditionalOptions_GameHandler"
+description = ""
+
+[[options]]
+name = "Disable Movies"
+type = "toggle"
+default = 0
+ini = "swkotor.ini"
+category = "Game Options"
+key = "Disable Movies"
+function = "AdditionalOptions_GameHandler"
+description = ""
+
+[[options]]
+name = "EnableCheats"
+type = "toggle"
+default = 0
+ini = "swkotor.ini"
+category = "Game Options"
+key = "EnableCheats"
+function = "AdditionalOptions_GameHandler"
+description = ""
