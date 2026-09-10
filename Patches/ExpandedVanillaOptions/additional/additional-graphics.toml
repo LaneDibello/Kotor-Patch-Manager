@@ -35,6 +35,16 @@ function = "AdditionalOptions_GraphicsHandler"
 description = ""
 
 [[options]]
+name = "Disable Write-Only VBO"
+type = "toggle"
+default = 0
+ini = "swkotor.ini"
+category = "Graphics Options"
+key = "Disable Write-Only VBO"
+function = "AdditionalOptions_GraphicsHandler"
+description = ""
+
+[[options]]
 name = "Allow Windowed Mode"
 type = "toggle"
 default = 1

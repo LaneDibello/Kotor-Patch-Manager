@@ -1,12 +1,48 @@
 
-# In game Options Button Construction
+# LoadOptions Detour
 [[hooks]]
-address = 0x0
+address = 0x0061f73c
 type = "detour"
-original_bytes = []
-function = ""
+original_bytes = [0xc7, 0x44, 0x24, 0x44, 0xff, 0xff, 0xff, 0xff]
+function = "LoadOptions_Hook"
 skip_original_bytes = false
 exclude_from_restore = []
 [[hooks.parameters]]
-source = "esi"
-type = "pointer" # ESI is `this`
+source = "ecx"
+type = "pointer" # The CExoIni *
+
+# ReadVideoModeSettings Deatour
+[[hooks]]
+address = 0x005f0fed
+type = "detour"
+original_bytes = [0xc6, 0x44, 0x24, 0x44, 0x00]
+function = "ReadVideoModeSettings_Hook"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # The CExoIni *
+
+# InitializeSoundOptions Deatour
+[[hooks]]
+address = 0x005f295f
+type = "detour"
+original_bytes = [0xc7, 0x44, 0x24, 0x64, 0xff, 0xff, 0xff, 0xff]
+function = "InitializeSoundOptions_Hook"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # The CExoIni *
+
+# StartServices Deatour
+[[hooks]]
+address = 0x005f94ad
+type = "detour"
+original_bytes = [0xc7, 0x44, 0x24, 0x5c, 0xff, 0xff, 0xff, 0xff]
+function = "StartServices_Hook"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # The CExoIni *

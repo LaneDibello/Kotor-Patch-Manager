@@ -3,6 +3,7 @@ Already in ini:
 - Emitters (currently inert, should tie to `enableEmitters`)
 - FullScreen
 - Disable Vertex Buffer Objects
+- Disable Write-Only VBO
 - AllowWindowedMode
 
 In engine:

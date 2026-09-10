@@ -1,0 +1,10 @@
+LIBRARY ExpandedVanillaOptions 
+EXPORTS 
+    AdditionalOptions_GraphicsHandler 
+    AdditionalOptions_SoundHandler 
+    AdditionalOptions_GameHandler 
+    AdditionalOptions_DebugHandler 
+    LoadOptions_Hook 
+    ReadVideoModeSettings_Hook 
+    InitializeSoundOptions_Hook 
+    StartServices_Hook 

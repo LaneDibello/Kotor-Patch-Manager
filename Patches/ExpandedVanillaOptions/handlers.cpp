@@ -1,8 +1,20 @@
 #include "Common.h"
+#include "GameAPI/CExoIni.h"
+#include "GameAPI/CExoString.h"
 
+CExoString SWKOTOR_INI("swkotor.ini");
+CExoString ADDL_INI("additional-options.ini");
+
+CExoString GRAPHICS_CAT("Graphics Options");
+CExoString SOUND_CAT("Sound Options");
+CExoString GAME_CAT("Game Options");
+CExoString DEBUG_CAT("Debug");
+
+// Menu Handlers
 extern "C" void __cdecl AdditionalOptions_GraphicsHandler(const char* key, const char* value) {
     if (key == "Emitters") {
-
+        bool* enabled = static_cast<bool*>(GameVersion::GetGlobalPointer("enableEmitters"));
+        *enabled = atoi(value) == 1;
     }
     else if (key == "FullScreen") {
 
@@ -127,6 +139,33 @@ extern "C" void __cdecl AdditionalOptions_DebugHandler(const char* key, const ch
     else {
         debugLog("[ExpandedVanillaOptions] Unknown Debug key %s", key);
     }
+}
+
+// Options Hooks
+extern "C" void __cdecl LoadOptions_Hook(void* iniPtr) {
+    CExoIni ini(iniPtr);
+
+}
+
+extern "C" void __cdecl ReadVideoModeSettings_Hook(void* iniPtr) {
+    CExoIni ini(iniPtr);
+    CExoString value;
+
+    CExoString emitters("Emitters");
+    if (ini.ReadIniEntry(&value, &SWKOTOR_INI, &GRAPHICS_CAT, &emitters)) {
+        AdditionalOptions_GraphicsHandler(emitters.GetCStr(), value.GetCStr());
+    }
+
+}
+
+extern "C" void __cdecl InitializeSoundOptions_Hook(void* iniPtr) {
+    CExoIni ini(iniPtr);
+
+}
+
+extern "C" void __cdecl StartServices_Hook(void* iniPtr) {
+    CExoIni ini(iniPtr);
+
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
