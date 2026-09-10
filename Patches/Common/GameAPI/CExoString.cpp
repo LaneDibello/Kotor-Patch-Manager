@@ -154,6 +154,17 @@ char* CExoString::GetCStr() {
     }
     return getObjectProperty<char*>(objectPtr, offsetCStr);
 }
+
+char* CExoString::GetCStrSafe() {
+    if (!objectPtr || offsetCStr < 0) {
+        return nullptr;
+    }
+    char* str = getObjectProperty<char*>(objectPtr, offsetCStr);
+    str[GetLength()] == '\0';
+    return str;
+}
+
+
 std::string CExoString::ToStdString() {
     char* text = GetCStr();
     const DWORD length = GetLength();

@@ -2,17 +2,16 @@
 #include "GameAPI/CExoIni.h"
 #include "GameAPI/CExoString.h"
 
-CExoString SWKOTOR_INI("swkotor.ini");
-CExoString ADDL_INI("additional-options.ini");
-
-CExoString GRAPHICS_CAT("Graphics Options");
-CExoString SOUND_CAT("Sound Options");
-CExoString GAME_CAT("Game Options");
-CExoString DEBUG_CAT("Debug");
+static CExoString& SwkotorIni()  { static CExoString s("swkotor.ini"); return s; }
+static CExoString& AddlIni()     { static CExoString s("additional-options.ini"); return s; }
+static CExoString& GraphicsCat() { static CExoString s("Graphics Options"); return s; }
+static CExoString& SoundCat()    { static CExoString s("Sound Options"); return s; }
+static CExoString& GameCat()     { static CExoString s("Game Options"); return s; }
+static CExoString& DebugCat()    { static CExoString s("Debug"); return s; }
 
 // Menu Handlers
 extern "C" void __cdecl AdditionalOptions_GraphicsHandler(const char* key, const char* value) {
-    if (key == "Emitters") {
+    if (!strcmp(key, "Emitters")) {
         bool* enabled = static_cast<bool*>(GameVersion::GetGlobalPointer("enableEmitters"));
         *enabled = atoi(value) == 1;
     }
@@ -53,7 +52,7 @@ extern "C" void __cdecl AdditionalOptions_GraphicsHandler(const char* key, const
 
     }
     else {
-        debugLog("[ExpandedVanillaOptions] Unknown graphics key %s", key);
+        debugLog("[ExpandedVanillaOptions] Unknown graphics key %s, with length %u", key, strlen(key));
     }
 }
 
@@ -152,8 +151,8 @@ extern "C" void __cdecl ReadVideoModeSettings_Hook(void* iniPtr) {
     CExoString value;
 
     CExoString emitters("Emitters");
-    if (ini.ReadIniEntry(&value, &SWKOTOR_INI, &GRAPHICS_CAT, &emitters)) {
-        AdditionalOptions_GraphicsHandler(emitters.GetCStr(), value.GetCStr());
+    if (ini.ReadIniEntry(&value, &SwkotorIni(), &GraphicsCat(), &emitters)) {
+        AdditionalOptions_GraphicsHandler(emitters.GetCStrSafe(), value.GetCStrSafe());
     }
 
 }
