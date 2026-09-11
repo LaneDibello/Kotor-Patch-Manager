@@ -63,7 +63,8 @@ extern "C" void __cdecl AdditionalOptions_GraphicsHandler(const char* key, const
 
 extern "C" void __cdecl AdditionalOptions_SoundHandler(const char* key, const char* value) {
     if (key == "Disable Sound") {
-
+        int* disabled = static_cast<int*>(GameVersion::GetGlobalPointer("disableSound"));
+        *disabled = atoi(value);
     }
     else if (key == "Number 3D Voices") {
 
@@ -183,7 +184,6 @@ extern "C" void __cdecl ReadVideoModeSettings_Hook(void* iniPtr) {
     if (ini.ReadIniEntry(&value, &AddlIni(), &GraphicsCat(), &doGrassWind)) {
         AdditionalOptions_GraphicsHandler(doGrassWind.GetCStrSafe(), value.GetCStrSafe());
     }
-
 }
 
 extern "C" void __cdecl InitializeSoundOptions_Hook(void* iniPtr) {

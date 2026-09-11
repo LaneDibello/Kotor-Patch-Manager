@@ -1,6 +1,6 @@
 [menu]
-name = "Additional Sound Options"
-description = "Vanilla sound options that aren't usually accessible in-game."
+name = "Debug Options"
+description = "Vanilla debug options that aren't usually accessible in-game."
 
 patch = "expanded-vanilla-options"
 
