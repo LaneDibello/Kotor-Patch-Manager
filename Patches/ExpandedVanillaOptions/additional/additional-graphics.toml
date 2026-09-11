@@ -96,36 +96,6 @@ function = "AdditionalOptions_GraphicsHandler"
 description = ""
 
 [[options]]
-name = "Disable Saturation"
-type = "toggle"
-default = 0
-ini = "additional-options.ini"
-category = "Graphics Options"
-key = "DisableSaturation"
-function = "AdditionalOptions_GraphicsHandler"
-description = ""
-
-[[options]]
-name = "Scan Noise"
-type = "toggle"
-default = 0
-ini = "additional-options.ini"
-category = "Graphics Options"
-key = "ScanNoise"
-function = "AdditionalOptions_GraphicsHandler"
-description = ""
-
-[[options]]
-name = "Film Noise"
-type = "toggle"
-default = 0
-ini = "additional-options.ini"
-category = "Graphics Options"
-key = "FilmNoise"
-function = "AdditionalOptions_GraphicsHandler"
-description = ""
-
-[[options]]
 name = "Beams"
 type = "toggle"
 default = 1
