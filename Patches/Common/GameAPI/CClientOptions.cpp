@@ -44,61 +44,33 @@ void CClientOptions::InitializeFunctions() {
         return;
     }
 
-    try {
-        setCameraMode = reinterpret_cast<SetCameraModeFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetCameraMode"));
-        getCameraKeyboardAcceleration = reinterpret_cast<GetCameraKeyboardAccelerationFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "GetCameraKeyboardAcceleration"));
-        getCameraKeyboardDeceleration = reinterpret_cast<GetCameraKeyboardDecelerationFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "GetCameraKeyboardDeceleration"));
-        getCameraKeyboardDPS = reinterpret_cast<GetCameraKeyboardDPSFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "GetCameraKeyboardDPS"));
+    GameVersion::ResolveFunction(setCameraMode, "CClientOptions", "SetCameraMode");
+    GameVersion::ResolveFunction(getCameraKeyboardAcceleration, "CClientOptions", "GetCameraKeyboardAcceleration");
+    GameVersion::ResolveFunction(getCameraKeyboardDeceleration, "CClientOptions", "GetCameraKeyboardDeceleration");
+    GameVersion::ResolveFunction(getCameraKeyboardDPS, "CClientOptions", "GetCameraKeyboardDPS");
 
-        getGammaSetting = reinterpret_cast<GetGammaSettingFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "GetGammaSetting"));
-        setAnisotropy = reinterpret_cast<SetAnisotropyFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetAnisotropy"));
-        setAntiAlias = reinterpret_cast<SetAntiAliasFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetAntiAlias"));
-        setFrameBuffer = reinterpret_cast<SetFrameBufferFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetFrameBuffer"));
-        setFullScreenEnabled = reinterpret_cast<SetFullScreenEnabledFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetFullScreenEnabled"));
-        setGrass = reinterpret_cast<SetGrassFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetGrass"));
-        setShadows = reinterpret_cast<SetShadowsFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetShadows"));
-        setSoftShadows = reinterpret_cast<SetSoftShadowsFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetSoftShadows"));
-        setTexQual = reinterpret_cast<SetTexQualFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetTexQual"));
-        setUseSmallFonts = reinterpret_cast<SetUseSmallFontsFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetUseSmallFonts"));
-        setVSync = reinterpret_cast<SetVSyncFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetVSync"));
+    GameVersion::ResolveFunction(getGammaSetting, "CClientOptions", "GetGammaSetting");
+    GameVersion::ResolveFunction(setAnisotropy, "CClientOptions", "SetAnisotropy");
+    GameVersion::ResolveFunction(setAntiAlias, "CClientOptions", "SetAntiAlias");
+    GameVersion::ResolveFunction(setFrameBuffer, "CClientOptions", "SetFrameBuffer");
+    GameVersion::ResolveFunction(setFullScreenEnabled, "CClientOptions", "SetFullScreenEnabled");
+    GameVersion::ResolveFunction(setGrass, "CClientOptions", "SetGrass");
+    GameVersion::ResolveFunction(setShadows, "CClientOptions", "SetShadows");
+    GameVersion::ResolveFunction(setSoftShadows, "CClientOptions", "SetSoftShadows");
+    GameVersion::ResolveFunction(setTexQual, "CClientOptions", "SetTexQual");
+    GameVersion::ResolveFunction(setUseSmallFonts, "CClientOptions", "SetUseSmallFonts");
+    GameVersion::ResolveFunction(setVSync, "CClientOptions", "SetVSync");
 
-        getMouseSenSetting = reinterpret_cast<GetMouseSenSettingFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "GetMouseSenSetting"));
-        setEnableHardwareMouseCursor = reinterpret_cast<SetEnableHardwareMouseCursorFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetEnableHardwareMouseCursor"));
+    GameVersion::ResolveFunction(getMouseSenSetting, "CClientOptions", "GetMouseSenSetting");
+    GameVersion::ResolveFunction(setEnableHardwareMouseCursor, "CClientOptions", "SetEnableHardwareMouseCursor");
 
-        getMovieShown = reinterpret_cast<GetMovieShownFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "GetMovieShown"));
-        setMovieShown = reinterpret_cast<SetMovieShownFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetMovieShown"));
+    GameVersion::ResolveFunction(getMovieShown, "CClientOptions", "GetMovieShown");
+    GameVersion::ResolveFunction(setMovieShown, "CClientOptions", "SetMovieShown");
 
-        setAutoLevelUpNPCs = reinterpret_cast<SetAutoLevelUpNPCsFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SetAutoLevelUpNPCs"));
+    GameVersion::ResolveFunction(setAutoLevelUpNPCs, "CClientOptions", "SetAutoLevelUpNPCs");
 
-        loadOptions = reinterpret_cast<LoadOptionsFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "LoadOptions"));
-        saveOptions = reinterpret_cast<SaveOptionsFn>(
-            GameVersion::GetFunctionAddress("CClientOptions", "SaveOptions"));
-    }
-    catch (const GameVersionException& e) {
-        debugLog("[CClientOptions] ERROR: %s\n", e.what());
-        return;
-    }
+    GameVersion::ResolveFunction(loadOptions, "CClientOptions", "LoadOptions");
+    GameVersion::ResolveFunction(saveOptions, "CClientOptions", "SaveOptions");
 
     functionsInitialized = true;
 }
