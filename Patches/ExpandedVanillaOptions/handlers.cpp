@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "GameAPI/CExoIni.h"
 #include "GameAPI/CExoString.h"
+#include "GameAPI/CClientOptions.h"
 
 static CExoString& SwkotorIni()  { static CExoString s("swkotor.ini"); return s; }
 static CExoString& AddlIni()     { static CExoString s("additional-options.ini"); return s; }
@@ -15,40 +16,44 @@ extern "C" void __cdecl AdditionalOptions_GraphicsHandler(const char* key, const
         bool* enabled = static_cast<bool*>(GameVersion::GetGlobalPointer("enableEmitters"));
         *enabled = atoi(value) == 1;
     }
-    else if (key == "FullScreen") {
+    else if (!strcmp(key, "FullScreen")) {
+        CClientOptions clientOptions;
+        clientOptions.SetFullScreenEnabled(atoi(value));
+    }
+    else if (!strcmp(key, "Disable Vertex Buffer Objects") {
+        BYTE* disabled = static_cast<BYTE*>(GameVersion::GetGlobalPointer("disableVertexBufferObjects"));
+        *disabled = static_cast<BYTE>(atoi(value));
+
+        //probably need to re-init aurora here
+    }
+    else if (!strcmp(key, "AllowWindowedMode")) {
 
     }
-    else if (key == "Disable Vertex Buffer Objects") {
+    else if (!strcmp(key, "DisableGUI")) {
 
     }
-    else if (key == "AllowWindowedMode") {
+    else if (!strcmp(key, "RenderLevel")) {
 
     }
-    else if (key == "DisableGUI") {
+    else if (!strcmp(key, "Do3dGui")) {
 
     }
-    else if (key == "RenderLevel") {
+    else if (!strcmp(key, "VisibilityGraph")) {
 
     }
-    else if (key == "Do3dGui") {
+    else if (!strcmp(key, "DisableSaturation")) {
 
     }
-    else if (key == "VisibilityGraph") {
+    else if (!strcmp(key, "ScanNoise")) {
 
     }
-    else if (key == "DisableSaturation") {
+    else if (!strcmp(key, "FilmNoise")) {
 
     }
-    else if (key == "ScanNoise") {
+    else if (!strcmp(key, "Beams")) {
 
     }
-    else if (key == "FilmNoise") {
-
-    }
-    else if (key == "Beams") {
-
-    }
-    else if (key == "DoGrassWind") {
+    else if (!strcmp(key, "DoGrassWind")) {
 
     }
     else {
