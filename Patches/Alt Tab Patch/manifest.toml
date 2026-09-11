@@ -1,7 +1,7 @@
 [patch]
 id = "alt-tab-patch-v1"
 name = "Alt Tab Patch"
-version = "1.6.1"
+version = "1.8.1"
 author = "J"
 description = "Returns cleanly from Alt-Tab in exclusive fullscreen while preserving display resolution."
 
