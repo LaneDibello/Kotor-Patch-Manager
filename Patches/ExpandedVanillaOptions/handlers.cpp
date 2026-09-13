@@ -2,6 +2,8 @@
 #include "GameAPI/CExoIni.h"
 #include "GameAPI/CExoString.h"
 #include "GameAPI/CClientOptions.h"
+#include "GameAPI/CClientExoApp.h"
+#include "GameAPI/CSWGuiManager.h"
 
 static CExoString& SwkotorIni()  { static CExoString s("swkotor.ini"); return s; }
 static CExoString& AddlIni()     { static CExoString s("additional-options.ini"); return s; }
@@ -62,32 +64,36 @@ extern "C" void __cdecl AdditionalOptions_GraphicsHandler(const char* key, const
 }
 
 extern "C" void __cdecl AdditionalOptions_GameHandler(const char* key, const char* value) {
-    if (key == "GUIsInScreenShot") {
-
+    CClientOptions options;
+    if (!strcmp(key, "GUIsInScreenShot")) {
+        options.LoadOptions();
     }
-    else if (key == "EnableScreenShot") {
-
+    else if (!strcmp(key, "EnableScreenShot")) {
+        options.LoadOptions();
     }
-    else if (key == "Keyboard Camera Deceleration") {
-
+    else if (!strcmp(key, "Keyboard Camera Deceleration")) {
+        options.LoadOptions();
     }
-    else if (key == "Keyboard Camera Acceleration") {
-
+    else if (!strcmp(key, "Keyboard Camera Acceleration")) {
+        options.LoadOptions();
     }
-    else if (key == "Keyboard Camera DPS") {
-
+    else if (!strcmp(key, "Keyboard Camera DPS")) {
+        options.LoadOptions();
     }
-    else if (key == "Enable Mouse Teleporting To Buttons") {
-
+    else if (!strcmp(key, "Enable Mouse Teleporting To Buttons")) {
+        options.LoadOptions();
     }
-    else if (key == "TooltipDelay Sec") {
-
+    else if (!strcmp(key, "TooltipDelay Sec")) {
+        options.SetTooltipDelay((float)atof(value));
+        CSWGuiManager manager;
+        manager.SetTooltipAppearTime((float)atof(value));
     }
-    else if (key == "Disable Movies") {
-
+    else if (!strcmp(key, "Disable Movies")) {
+        CClientExoApp client;
+        client.SetDisableMovies(atoi(value));
     }
-    else if (key == "EnableCheats") {
-
+    else if (!strcmp(key, "EnableCheats")) {
+        options.LoadOptions();
     }
     else {
         debugLog("[ExpandedVanillaOptions] Unknown Game key %s", key);
@@ -95,25 +101,25 @@ extern "C" void __cdecl AdditionalOptions_GameHandler(const char* key, const cha
 }
 
 extern "C" void __cdecl AdditionalOptions_DebugHandler(const char* key, const char* value) {
-    if (key == "SavePlayerBIC") {
+    if (!strcmp(key, "SavePlayerBIC")) {
 
     }
-    else if (key == "RenderingWalkmesh") {
+    else if (!strcmp(key, "RenderingWalkmesh")) {
 
     }
-    else if (key == "RenderingWireFrame") {
+    else if (!strcmp(key, "RenderingWireFrame")) {
 
     }
-    else if (key == "RenderingTrigger") {
+    else if (!strcmp(key, "RenderingTrigger")) {
 
     }
-    else if (key == "RenderPersonalSpace") {
+    else if (!strcmp(key, "RenderPersonalSpace")) {
 
     }
-    else if (key == "RenderBoundingBoxes") {
+    else if (!strcmp(key, "RenderBoundingBoxes")) {
 
     }
-    else if (key == "RenderCollision") {
+    else if (!strcmp(key, "RenderCollision")) {
 
     }
     else {
@@ -124,7 +130,12 @@ extern "C" void __cdecl AdditionalOptions_DebugHandler(const char* key, const ch
 // Options Hooks
 extern "C" void __cdecl LoadOptions_Hook(void* iniPtr) {
     CExoIni ini(iniPtr);
+    CExoString value;
 
+    CExoString tooltipDelay("TooltipDelay Sec");
+    if (ini.ReadIniEntry(&value, &SwkotorIni(), &GameCat(), &tooltipDelay)) {
+        AdditionalOptions_GameHandler(tooltipDelay.GetCStrSafe(), value.GetCStrSafe());
+    }
 }
 
 extern "C" void __cdecl ReadVideoModeSettings_Hook(void* iniPtr) {

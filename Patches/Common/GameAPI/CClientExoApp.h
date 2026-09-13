@@ -115,6 +115,8 @@ public:
     void SetMouseX(int x);
     int GetMouseY();
     void SetMouseY(int y);
+    int GetDisableMovies();
+    void SetDisableMovies(int disabled);
 
     // Returned wrappers are heap allocated; caller owns them..
     CGameObjectArray* GetGameObjectArray();
@@ -286,4 +288,5 @@ private:
     static int offsetGuiManager;
     static int offsetCachedCreature;
     static int offsetRunScript;
+    static int offsetDisableMovies;
 };

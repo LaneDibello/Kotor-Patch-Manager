@@ -1,7 +1,6 @@
 LIBRARY ExpandedVanillaOptions 
 EXPORTS 
-    AdditionalOptions_GraphicsHandler 
-    AdditionalOptions_SoundHandler 
+    AdditionalOptions_GraphicsHandler
     AdditionalOptions_GameHandler 
     AdditionalOptions_DebugHandler 
     LoadOptions_Hook 

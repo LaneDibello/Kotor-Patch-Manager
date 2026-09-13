@@ -34,6 +34,8 @@ CClientOptions::SaveOptionsFn CClientOptions::saveOptions = nullptr;
 bool CClientOptions::functionsInitialized = false;
 bool CClientOptions::offsetsInitialized = false;
 
+int CClientOptions::offsetTooltipDelay = -1;
+
 void CClientOptions::InitializeFunctions() {
     if (functionsInitialized) {
         return;
@@ -76,7 +78,21 @@ void CClientOptions::InitializeFunctions() {
 }
 
 void CClientOptions::InitializeOffsets() {
-    // CClientOptions has no offsets
+    if (offsetsInitialized) {
+        return;
+    }
+
+    if (!GameVersion::IsInitialized()) {
+        OutputDebugStringA("[CClientOptions] ERROR: GameVersion not initialized\n");
+        return;
+    }
+
+    // GetOffset throws on a miss, and tooltip_delay is only recorded for some
+    // versions, so gate the lookup rather than log an error on every other build.
+    if (GameVersion::HasOffset("CClientOptions", "tooltip_delay")) {
+        offsetTooltipDelay = GameVersion::GetOffset("CClientOptions", "tooltip_delay");
+    }
+
     offsetsInitialized = true;
 }
 
@@ -263,6 +279,20 @@ void CClientOptions::SetAutoLevelUpNPCs(int autoLevel) {
         return;
     }
     setAutoLevelUpNPCs(objectPtr, autoLevel);
+}
+
+float CClientOptions::GetTooltipDelay() {
+    if (!objectPtr || offsetTooltipDelay < 0) {
+        return 0.0f;
+    }
+    return getObjectProperty<float>(objectPtr, offsetTooltipDelay);
+}
+
+void CClientOptions::SetTooltipDelay(float delay) {
+    if (!objectPtr || offsetTooltipDelay < 0) {
+        return;
+    }
+    setObjectProperty<float>(objectPtr, offsetTooltipDelay, delay);
 }
 
 int CClientOptions::LoadOptions() {

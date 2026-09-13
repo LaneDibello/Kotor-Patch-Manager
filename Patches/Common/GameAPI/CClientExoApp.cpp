@@ -91,6 +91,7 @@ int CClientExoApp::offsetAnimationTimer = -1;
 int CClientExoApp::offsetGuiManager = -1;
 int CClientExoApp::offsetCachedCreature = -1;
 int CClientExoApp::offsetRunScript = -1;
+int CClientExoApp::offsetDisableMovies = -1;
 
 bool CClientExoApp::functionsInitialized = false;
 bool CClientExoApp::offsetsInitialized = false;
@@ -259,6 +260,7 @@ void CClientExoApp::InitializeOffsets() {
         offsetGuiManager          = GameVersion::GetOffset("CClientExoAppInternal", "gui_manager");
         offsetCachedCreature      = GameVersion::GetOffset("CClientExoAppInternal", "cached_creature");
         offsetRunScript           = GameVersion::GetOffset("CClientExoAppInternal", "run_script");
+        offsetDisableMovies       = GameVersion::GetOffset("CClientExoAppInternal", "disable_movies");
 
         offsetsInitialized = true;
     }
@@ -863,6 +865,22 @@ void CClientExoApp::SetMouseY(int y) {
         return;
     }
     setObjectProperty<int>(internalPtr, offsetMouseY, y);
+}
+
+int CClientExoApp::GetDisableMovies() {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetDisableMovies < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(internalPtr, offsetDisableMovies);
+}
+
+void CClientExoApp::SetDisableMovies(int disabled) {
+    void* internalPtr = GetInternal();
+    if (!internalPtr || offsetDisableMovies < 0) {
+        return;
+    }
+    setObjectProperty<int>(internalPtr, offsetDisableMovies, disabled);
 }
 
 CGameObjectArray* CClientExoApp::GetGameObjectArray() {

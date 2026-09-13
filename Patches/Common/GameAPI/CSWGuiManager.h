@@ -23,6 +23,9 @@ public:
     void SetViewportWidth(short width);
     short GetViewportHeight();
     void SetViewportHeight(short height);
+    // Seconds the cursor must rest on a control before its tooltip appears.
+    float GetTooltipAppearTime();
+    void SetTooltipAppearTime(float appearTime);
     // Returned wrapper is heap allocated; caller owns it.
     CExoArrayList<CSWGuiPanel*>* GetPanels();
     void* GetFocusedEditBox();
@@ -53,4 +56,5 @@ protected:
     static int offsetViewportHeight;
     static int offsetPanels;
     static int offsetFocusedEditBox;
+    static int offsetTooltipAppearTime;
 };

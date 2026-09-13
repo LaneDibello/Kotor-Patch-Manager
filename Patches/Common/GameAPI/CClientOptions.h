@@ -50,6 +50,12 @@ public:
     // Gameplay
     void SetAutoLevelUpNPCs(int autoLevel);
 
+    // Interface
+    // Seconds the cursor must rest on a control before its tooltip shows.
+    // Read/written directly; the game exposes no accessor for it.
+    float GetTooltipDelay();
+    void SetTooltipDelay(float delay);
+
     // Persistence
     int LoadOptions();
     int SaveOptions();
@@ -117,4 +123,6 @@ private:
 
     static bool functionsInitialized;
     static bool offsetsInitialized;
+
+    static int offsetTooltipDelay;
 };

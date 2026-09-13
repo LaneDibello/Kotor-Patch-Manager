@@ -46,3 +46,10 @@ exclude_from_restore = []
 [[hooks.parameters]]
 source = "ecx"
 type = "pointer" # The CExoIni *
+
+# Scratch Tooltip delay write for init client options
+[[hooks]]
+address = 0x005f1d63
+type = "simple"
+original_bytes = [0xe8, 0x68, 0x4a, 0xff, 0xff] # CALL CExoIni::WriteIniEntry
+replacement_bytes = [0x83, 0xc4, 0x10, 0x90, 0x90] # ADD ESP, 0x10 ; NOP ; NOP
