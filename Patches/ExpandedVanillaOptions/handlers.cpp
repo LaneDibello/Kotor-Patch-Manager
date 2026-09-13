@@ -80,9 +80,6 @@ extern "C" void __cdecl AdditionalOptions_GameHandler(const char* key, const cha
     else if (!strcmp(key, "Keyboard Camera DPS")) {
         options.LoadOptions();
     }
-    else if (!strcmp(key, "Enable Mouse Teleporting To Buttons")) {
-        options.LoadOptions();
-    }
     else if (!strcmp(key, "TooltipDelay Sec")) {
         options.SetTooltipDelay((float)atof(value));
         CSWGuiManager manager;

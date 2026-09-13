@@ -55,16 +55,6 @@ function = "AdditionalOptions_GameHandler"
 description = ""
 
 [[options]]
-name = "Mouse Teleport To Buttons"
-type = "toggle"
-default = 0
-ini = "swkotor.ini"
-category = "Game Options"
-key = "Enable Mouse Teleporting To Buttons"
-function = "AdditionalOptions_GameHandler"
-description = ""
-
-[[options]]
 name = "Tooltip Delay Seconds"
 type = "text"
 default = "1.0"
