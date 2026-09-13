@@ -70,6 +70,6 @@ type = "toggle"
 default = 0
 ini = "additional-options.ini"
 category = "Debug"
-key = "Render Collision"
+key = "RenderCollision"
 function = "AdditionalOptions_DebugHandler"
 description = ""

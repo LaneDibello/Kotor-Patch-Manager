@@ -67,7 +67,7 @@ extern "C" void __cdecl AdditionalOptions_GameHandler(const char* key, const cha
     CClientOptions options;
     CClientExoApp client;
 
-    else if (!strcmp(key, "Keyboard Camera Deceleration")) {
+    if (!strcmp(key, "Keyboard Camera Deceleration")) {
         options.LoadOptions();
     }
     else if (!strcmp(key, "Keyboard Camera Acceleration")) {
@@ -94,25 +94,34 @@ extern "C" void __cdecl AdditionalOptions_GameHandler(const char* key, const cha
 
 extern "C" void __cdecl AdditionalOptions_DebugHandler(const char* key, const char* value) {
     if (!strcmp(key, "SavePlayerBIC")) {
-
+        int* enabled = static_cast<int*>(GameVersion::GetGlobalPointer("savePlayerBIC"));
+        *enabled = atoi(value);
     }
-    else if (!strcmp(key, "RenderingWalkmesh")) {
-
+    else if (!strcmp(key, "RenderWalkmesh")) {
+        int* enabled = static_cast<int*>(GameVersion::GetGlobalPointer("renderAABBs"));
+        *enabled = atoi(value);
     }
-    else if (!strcmp(key, "RenderingWireFrame")) {
-
+    else if (!strcmp(key, "RenderWireFrame")) {
+        int* enabled = static_cast<int*>(GameVersion::GetGlobalPointer("renderWireFrame"));
+        *enabled = atoi(value);
     }
-    else if (!strcmp(key, "RenderingTrigger")) {
-
+    else if (!strcmp(key, "RenderTriggers")) {
+        int* enabled = static_cast<int*>(GameVersion::GetGlobalPointer("enableRenderTriggers"));
+        *enabled = atoi(value);
+        enabled = static_cast<int*>(GameVersion::GetGlobalPointer("renderQAtriggers"));
+        *enabled = atoi(value);
     }
     else if (!strcmp(key, "RenderPersonalSpace")) {
-
+        int* enabled = static_cast<int*>(GameVersion::GetGlobalPointer("renderPersonalSpace"));
+        *enabled = atoi(value);
     }
     else if (!strcmp(key, "RenderBoundingBoxes")) {
-
+        int* enabled = static_cast<int*>(GameVersion::GetGlobalPointer("renderGobBBox"));
+        *enabled = atoi(value);
     }
     else if (!strcmp(key, "RenderCollision")) {
-
+        int* enabled = static_cast<int*>(GameVersion::GetGlobalPointer("renderCollisionBoxes"));
+        *enabled = atoi(value);
     }
     else {
         debugLog("[ExpandedVanillaOptions] Unknown Debug key %s", key);
@@ -166,12 +175,42 @@ extern "C" void __cdecl ReadVideoModeSettings_Hook(void* iniPtr) {
 
 extern "C" void __cdecl InitializeSoundOptions_Hook(void* iniPtr) {
     CExoIni ini(iniPtr);
-
+    // Nothing for now
+    // I may add sound settings in the future
 }
 
 extern "C" void __cdecl StartServices_Hook(void* iniPtr) {
     CExoIni ini(iniPtr);
+    CExoString value;
 
+    CExoString savePlayerBIC("SavePlayerBIC");
+    if (ini.ReadIniEntry(&value, &AddlIni(), &DebugCat(), &savePlayerBIC)) {
+        AdditionalOptions_DebugHandler(savePlayerBIC.GetCStrSafe(), value.GetCStrSafe());
+    }
+    CExoString renderWalkmesh("RenderWalkmesh");
+    if (ini.ReadIniEntry(&value, &AddlIni(), &DebugCat(), &renderWalkmesh)) {
+        AdditionalOptions_DebugHandler(renderWalkmesh.GetCStrSafe(), value.GetCStrSafe());
+    }
+    CExoString renderWireFrame("RenderWireFrame");
+    if (ini.ReadIniEntry(&value, &AddlIni(), &DebugCat(), &renderWireFrame)) {
+        AdditionalOptions_DebugHandler(renderWireFrame.GetCStrSafe(), value.GetCStrSafe());
+    }
+    CExoString renderTrigger("RenderTrigger");
+    if (ini.ReadIniEntry(&value, &AddlIni(), &DebugCat(), &renderTrigger)) {
+        AdditionalOptions_DebugHandler(renderTrigger.GetCStrSafe(), value.GetCStrSafe());
+    }
+    CExoString renderPersonalSpace("RenderPersonalSpace");
+    if (ini.ReadIniEntry(&value, &AddlIni(), &DebugCat(), &renderPersonalSpace)) {
+        AdditionalOptions_DebugHandler(renderPersonalSpace.GetCStrSafe(), value.GetCStrSafe());
+    }
+    CExoString renderBoundingBoxes("RenderBoundingBoxes");
+    if (ini.ReadIniEntry(&value, &AddlIni(), &DebugCat(), &renderBoundingBoxes)) {
+        AdditionalOptions_DebugHandler(renderBoundingBoxes.GetCStrSafe(), value.GetCStrSafe());
+    }
+    CExoString renderCollision("RenderCollision");
+    if (ini.ReadIniEntry(&value, &AddlIni(), &DebugCat(), &renderCollision)) {
+        AdditionalOptions_DebugHandler(renderCollision.GetCStrSafe(), value.GetCStrSafe());
+    }
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
