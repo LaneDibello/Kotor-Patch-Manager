@@ -100,6 +100,8 @@ public:
 
     // Misc
     int GetClientLanguage();
+    // Repopulates the client's event description table.
+    void SetEventDescriptions();
     // Returns the world timer (heap-allocated wrapper; caller owns it)
     CWorldTimer* GetWorldTimer();
 
@@ -115,6 +117,8 @@ public:
     void SetMouseX(int x);
     int GetMouseY();
     void SetMouseY(int y);
+    int GetDisableMovies();
+    void SetDisableMovies(int disabled);
 
     // Returned wrappers are heap allocated; caller owns them..
     CGameObjectArray* GetGameObjectArray();
@@ -201,6 +205,7 @@ private:
     typedef void(__thiscall* StopCreditSequenceFn)(void* thisPtr);
 
     typedef int(__thiscall* GetClientLanguageFn)(void* thisPtr);
+    typedef void(__thiscall* SetEventDescriptionsFn)(void* thisPtr);
     typedef void* (__thiscall* GetWorldTimerFn)(void* thisPtr);
 
     static GetClientOptionsFn getClientOptions;
@@ -269,6 +274,7 @@ private:
     static StopCreditSequenceFn stopCreditSequence;
 
     static GetClientLanguageFn getClientLanguage;
+    static SetEventDescriptionsFn setEventDescriptions;
     static GetWorldTimerFn getWorldTimer;
 
     static bool functionsInitialized;
@@ -286,4 +292,5 @@ private:
     static int offsetGuiManager;
     static int offsetCachedCreature;
     static int offsetRunScript;
+    static int offsetDisableMovies;
 };

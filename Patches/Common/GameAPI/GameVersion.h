@@ -33,6 +33,22 @@ public:
     static GamePlatform GetPlatform();
 
     static void* GetFunctionAddress(const std::string& className, const std::string& functionName);
+
+    // Populates fn with the address of className::functionName, or leaves it
+    // untouched when this version's database has no entry. Returns true when the
+    // pointer was populated. Non-throwing, unlike GetFunctionAddress: coverage
+    // differs between game versions, so a wrapper can resolve whatever exists and
+    // null-guard the rest rather than abandoning every later lookup.
+    template<typename Fn>
+    static bool ResolveFunction(Fn& fn, const std::string& className, const std::string& functionName) {
+        void* address = TryGetFunctionAddress(className, functionName);
+        if (!address) {
+            return false;
+        }
+
+        fn = reinterpret_cast<Fn>(address);
+        return true;
+    }
     static void* GetGlobalPointer(const std::string& pointerName);
 
     static int GetOffset(const std::string& className, const std::string& propertyName);
@@ -52,6 +68,11 @@ public:
     static void Reset(bool force = false);
 
 private:
+    // Non-throwing GetFunctionAddress: logs and returns nullptr when the function
+    // is absent. Backs the ResolveFunction template, keeping the logging
+    // dependency out of this header.
+    static void* TryGetFunctionAddress(const std::string& className, const std::string& functionName);
+
     static bool initialized;
     static std::string versionSha;
     static GameTitle gameTitle;

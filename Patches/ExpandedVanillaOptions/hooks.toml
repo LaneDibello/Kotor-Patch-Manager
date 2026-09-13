@@ -1,0 +1,55 @@
+
+# LoadOptions Detour
+[[hooks]]
+address = 0x0061f73c
+type = "detour"
+original_bytes = [0xc7, 0x44, 0x24, 0x44, 0xff, 0xff, 0xff, 0xff]
+function = "LoadOptions_Hook"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # The CExoIni *
+
+# ReadVideoModeSettings Detour
+[[hooks]]
+address = 0x005f0fed
+type = "detour"
+original_bytes = [0xc6, 0x44, 0x24, 0x44, 0x00]
+function = "ReadVideoModeSettings_Hook"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # The CExoIni *
+
+# InitializeSoundOptions Detour
+[[hooks]]
+address = 0x005f295f
+type = "detour"
+original_bytes = [0xc7, 0x44, 0x24, 0x64, 0xff, 0xff, 0xff, 0xff]
+function = "InitializeSoundOptions_Hook"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # The CExoIni *
+
+# StartServices Detour
+[[hooks]]
+address = 0x005f94ad
+type = "detour"
+original_bytes = [0xc7, 0x44, 0x24, 0x5c, 0xff, 0xff, 0xff, 0xff]
+function = "StartServices_Hook"
+skip_original_bytes = false
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer" # The CExoIni *
+
+# Scratch Tooltip delay write for init client options
+[[hooks]]
+address = 0x005f1d63
+type = "simple"
+original_bytes = [0xe8, 0x68, 0x4a, 0xff, 0xff] # CALL CExoIni::WriteIniEntry
+replacement_bytes = [0x83, 0xc4, 0x10, 0x90, 0x90] # ADD ESP, 0x10 ; NOP ; NOP

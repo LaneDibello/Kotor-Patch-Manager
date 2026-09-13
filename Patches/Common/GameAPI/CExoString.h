@@ -15,6 +15,7 @@ public:
 
     DWORD GetLength();
     char* GetCStr();
+    char* GetCStrSafe();
 
     // Copies the text out using the length field; game strings are not reliably
     // NUL terminated. Empty if the string is unset or its length is implausible.

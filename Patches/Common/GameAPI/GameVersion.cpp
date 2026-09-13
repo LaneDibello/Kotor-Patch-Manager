@@ -1,4 +1,5 @@
 #include "GameVersion.h"
+#include "../Common.h"
 #include <windows.h>
 #include <sqlite3.h>
 #include <sstream>
@@ -393,6 +394,21 @@ void* GameVersion::GetClassVtable(const std::string& className) {
 
     sqlite3_int64 address = sqlite3_column_int64(stmt_class_vtable, 0);
     return reinterpret_cast<void*>(static_cast<uintptr_t>(address));
+}
+
+void* GameVersion::TryGetFunctionAddress(const std::string& className, const std::string& functionName) {
+    if (!HasFunction(className, functionName)) {
+        debugLog("[GameVersion] %s::%s not present in this version", className.c_str(), functionName.c_str());
+        return nullptr;
+    }
+
+    try {
+        return GetFunctionAddress(className, functionName);
+    }
+    catch (const GameVersionException& e) {
+        debugLog("[GameVersion] ERROR: %s", e.what());
+        return nullptr;
+    }
 }
 
 bool GameVersion::HasFunction(const std::string& className, const std::string& functionName) {

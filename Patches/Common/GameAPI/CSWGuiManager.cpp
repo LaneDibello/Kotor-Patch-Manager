@@ -13,6 +13,7 @@ int CSWGuiManager::offsetViewportWidth  = -1;
 int CSWGuiManager::offsetViewportHeight = -1;
 int CSWGuiManager::offsetPanels         = -1;
 int CSWGuiManager::offsetFocusedEditBox = -1;
+int CSWGuiManager::offsetTooltipAppearTime = -1;
 
 void CSWGuiManager::InitializeFunctions() {
     if (functionsInitialized) {
@@ -52,6 +53,7 @@ void CSWGuiManager::InitializeOffsets() {
         offsetViewportHeight = GameVersion::GetOffset("CSWGuiManager", "viewport_height");
         offsetPanels         = GameVersion::GetOffset("CSWGuiManager", "panels");
         offsetFocusedEditBox = GameVersion::GetOffset("CSWGuiManager", "focused_edit_box");
+        offsetTooltipAppearTime = GameVersion::GetOffset("CSWGuiManager", "tooltip_appear_time");
 
         offsetsInitialized = true;
     }
@@ -119,6 +121,20 @@ void CSWGuiManager::SetViewportHeight(short height) {
         return;
     }
     setObjectProperty<short>(objectPtr, offsetViewportHeight, height);
+}
+
+float CSWGuiManager::GetTooltipAppearTime() {
+    if (!objectPtr || offsetTooltipAppearTime < 0) {
+        return 0.0f;
+    }
+    return getObjectProperty<float>(objectPtr, offsetTooltipAppearTime);
+}
+
+void CSWGuiManager::SetTooltipAppearTime(float appearTime) {
+    if (!objectPtr || offsetTooltipAppearTime < 0) {
+        return;
+    }
+    setObjectProperty<float>(objectPtr, offsetTooltipAppearTime, appearTime);
 }
 
 CExoArrayList<CSWGuiPanel*>* CSWGuiManager::GetPanels() {
