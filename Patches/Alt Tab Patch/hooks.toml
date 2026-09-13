@@ -1,4 +1,4 @@
-# Filter activation messages during fullscreen restoration.
+# Install one activation filter outside OpenGL after window reconstruction.
 [[hooks]]
 address = 0x00403C03
 type = "detour"
