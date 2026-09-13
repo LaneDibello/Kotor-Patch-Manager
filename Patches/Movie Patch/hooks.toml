@@ -1,23 +1,24 @@
-# Keep Bink movies in the current game window. ChangeResolutionForMovie still
-# saves the active mode and updates its nesting counter, then follows the
-# existing no-mode-switch cleanup path without disabling AA or rebuilding GL.
+[metadata]
+target_versions = [
+    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
+    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+]
+
+# Keep movies in the current game window without changing resolution or rebuilding OpenGL.
 [[hooks]]
 address = 0x00403D2C
 type = "simple"
 original_bytes = [0x0F, 0x84, 0x8E, 0x00, 0x00, 0x00]
 replacement_bytes = [0xE9, 0x8F, 0x00, 0x00, 0x00, 0x90]
 
-# Initialize the configured video mode instead of forcing the 640x480 startup
-# movie mode. This uses the game's normal validated resolution-loading path.
+# Start movies in the configured video mode instead of forcing 640x480.
 [[hooks]]
 address = 0x005F904E
 type = "simple"
 original_bytes = [0xB8, 0x01, 0x00, 0x00, 0x00]
 replacement_bytes = [0x31, 0xC0, 0x90, 0x90, 0x90]
 
-# Fullscreen startup normally defers AA initialization until the movie player
-# restores the pre-movie resolution. Since movies no longer switch modes, use
-# the existing ReInitAurora block once after the configured AA value is loaded.
+# Initialize fullscreen anti-aliasing after loading its setting because movies no longer switch resolutions.
 [[hooks]]
 address = 0x005F929A
 type = "simple"
@@ -35,15 +36,7 @@ replacement_bytes = [
     0x90, 0x90, 0x90, 0x90, 0x90, 0x90
 ]
 
-# Resume the game window after the movie tears down so mouse and keyboard input keep working.
-[[hooks]]
-address = 0x00404C10
-type = "detour"
-function = "postMovieCleanup"
-original_bytes = [0x89, 0x7E, 0x24, 0x5F, 0x5E]
-exclude_from_restore = []
-
-# Replace the final Bink offset call with aspect-preserving scale and centering.
+# Scale the movie without stretching it and center it in the game window.
 [[hooks]]
 address = 0x00405855
 type = "detour"
@@ -61,3 +54,27 @@ exclude_from_restore = []
 [[hooks.parameters]]
 source = "esi"
 type = "pointer"
+
+# Draw each native-resolution frame with bicubic filtering.
+[[hooks]]
+address = 0x00404D06
+type = "detour"
+function = "blitMovieMitchellNetravali"
+original_bytes = [
+    0x8B, 0x56, 0x48,
+    0x50,
+    0x8B, 0x46, 0x4C,
+    0x83, 0xC2, 0x34,
+    0x52, 0x50,
+    0xFF, 0x15, 0x60, 0xD4, 0x73, 0x00
+]
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "eax"
+type = "uint"

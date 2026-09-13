@@ -2,14 +2,19 @@
 
 using namespace BetterMoviePlayback;
 
-extern "C" void __cdecl postMovieCleanup() {
-    __try {
-        typedef void(__cdecl *ResumeGameWindowFn)();
-        ResumeGameWindowFn resumeGameWindow = reinterpret_cast<ResumeGameWindowFn>(0x00401E00);
-        resumeGameWindow();
+namespace {
+
+void* movieFromKotor2Frame(void* framePointer) {
+    DWORD movie = 0;
+    if (!framePointer ||
+        !safeReadDword(
+            static_cast<char*>(framePointer) - Kotor2MoviePointerFrameOffset,
+            movie)) {
+        return nullptr;
     }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-    }
+    return reinterpret_cast<void*>(movie);
+}
+
 }
 
 extern "C" void __cdecl applyMovieAspectScale(void* movie) {
@@ -20,8 +25,8 @@ extern "C" void __cdecl applyMovieAspectScale(void* movie) {
     __try {
         DWORD bink = 0;
         DWORD buffer = 0;
-        if (!safeReadDword(static_cast<char*>(movie) + 0x48, bink) ||
-            !safeReadDword(static_cast<char*>(movie) + 0x4C, buffer) ||
+        if (!safeReadDword(static_cast<char*>(movie) + MovieBinkOffset, bink) ||
+            !safeReadDword(static_cast<char*>(movie) + MovieBufferOffset, buffer) ||
             bink == 0 ||
             buffer == 0) {
             return;
@@ -52,13 +57,15 @@ extern "C" void __cdecl applyMovieAspectScale(void* movie) {
         const int offsetX = (targetWidth - scaledWidth) / 2;
         const int offsetY = (targetHeight - scaledHeight) / 2;
 
-        *reinterpret_cast<int*>(static_cast<char*>(movie) + 0x84) = offsetX;
-        *reinterpret_cast<int*>(static_cast<char*>(movie) + 0x88) = offsetY;
+        *reinterpret_cast<int*>(static_cast<char*>(movie) + MovieOffsetXOffset) = offsetX;
+        *reinterpret_cast<int*>(static_cast<char*>(movie) + MovieOffsetYOffset) = offsetY;
 
         typedef void(__stdcall *BinkBufferSetScaleFn)(DWORD, int, int);
         typedef void(__stdcall *BinkBufferSetOffsetFn)(DWORD, int, int);
-        BinkBufferSetScaleFn setScale = *reinterpret_cast<BinkBufferSetScaleFn*>(0x0073D484);
-        BinkBufferSetOffsetFn setOffset = *reinterpret_cast<BinkBufferSetOffsetFn*>(0x0073D480);
+        BinkBufferSetScaleFn setScale =
+            *reinterpret_cast<BinkBufferSetScaleFn*>(BinkBufferSetScaleIatAddress);
+        BinkBufferSetOffsetFn setOffset =
+            *reinterpret_cast<BinkBufferSetOffsetFn*>(BinkBufferSetOffsetIatAddress);
         if (setScale && setOffset) {
             setScale(buffer, scaledWidth, scaledHeight);
             setOffset(buffer, offsetX, offsetY);
@@ -68,9 +75,37 @@ extern "C" void __cdecl applyMovieAspectScale(void* movie) {
     }
 }
 
-BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
-    UNREFERENCED_PARAMETER(instance);
-    UNREFERENCED_PARAMETER(reason);
-    UNREFERENCED_PARAMETER(reserved);
-    return TRUE;
+extern "C" void __cdecl blitMovieMitchellNetravali(void* movie, unsigned int rectCount) {
+    __try {
+        if (!prepareMovieContext(movie)) {
+            blitMovieOriginalImpl(movie, rectCount, Kotor1MovieFilterAddresses);
+            return;
+        }
+        blitMovieFilteredImpl(
+            movie, rectCount, Kotor1MovieFilterAddresses);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        blitMovieOriginalImpl(movie, rectCount, Kotor1MovieFilterAddresses);
+    }
+}
+
+extern "C" void __cdecl blitMovieMitchellNetravaliKotor2(
+    void* framePointer,
+    unsigned int rectCount) {
+    void* movie = movieFromKotor2Frame(framePointer);
+    __try {
+        if (!prepareMovieContext(movie)) {
+            blitMovieOriginalImpl(movie, rectCount, Kotor2GogMovieFilterAddresses);
+            return;
+        }
+        blitMovieFilteredImpl(
+            movie, rectCount, Kotor2GogMovieFilterAddresses);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        blitMovieOriginalImpl(movie, rectCount, Kotor2GogMovieFilterAddresses);
+    }
+}
+
+extern "C" void __cdecl releaseMovieFilterKotor2() {
+    releaseMovieContext();
 }

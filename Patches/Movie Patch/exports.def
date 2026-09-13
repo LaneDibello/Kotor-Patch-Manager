@@ -1,4 +1,6 @@
 LIBRARY MoviePatch
 EXPORTS
-    postMovieCleanup
     applyMovieAspectScale
+    blitMovieMitchellNetravali
+    blitMovieMitchellNetravaliKotor2
+    releaseMovieFilterKotor2
