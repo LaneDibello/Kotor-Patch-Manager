@@ -11,7 +11,7 @@ exclude_from_restore = []
 source = "ecx"
 type = "pointer" # The CExoIni *
 
-# ReadVideoModeSettings Deatour
+# ReadVideoModeSettings Detour
 [[hooks]]
 address = 0x005f0fed
 type = "detour"
@@ -23,7 +23,7 @@ exclude_from_restore = []
 source = "ecx"
 type = "pointer" # The CExoIni *
 
-# InitializeSoundOptions Deatour
+# InitializeSoundOptions Detour
 [[hooks]]
 address = 0x005f295f
 type = "detour"
@@ -35,7 +35,7 @@ exclude_from_restore = []
 source = "ecx"
 type = "pointer" # The CExoIni *
 
-# StartServices Deatour
+# StartServices Detour
 [[hooks]]
 address = 0x005f94ad
 type = "detour"

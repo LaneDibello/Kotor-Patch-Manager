@@ -61,31 +61,6 @@ extern "C" void __cdecl AdditionalOptions_GraphicsHandler(const char* key, const
     }
 }
 
-extern "C" void __cdecl AdditionalOptions_SoundHandler(const char* key, const char* value) {
-    if (key == "Disable Sound") {
-        int* disabled = static_cast<int*>(GameVersion::GetGlobalPointer("disableSound"));
-        *disabled = atoi(value);
-    }
-    else if (key == "Number 3D Voices") {
-
-    }
-    else if (key == "Number 2D Voices") {
-
-    }
-    else if (key == "2D3D Bias") {
-
-    }
-    else if (key == "Environment Effects Nonstreaming") {
-
-    }
-    else if (key == "Environment Effects Streaming") {
-
-    }
-    else {
-        debugLog("[ExpandedVanillaOptions] Unknown Sound key %s", key);
-    }
-}
-
 extern "C" void __cdecl AdditionalOptions_GameHandler(const char* key, const char* value) {
     if (key == "GUIsInScreenShot") {
 
