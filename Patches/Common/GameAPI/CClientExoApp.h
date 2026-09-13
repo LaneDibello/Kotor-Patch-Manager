@@ -100,6 +100,8 @@ public:
 
     // Misc
     int GetClientLanguage();
+    // Repopulates the client's event description table.
+    void SetEventDescriptions();
     // Returns the world timer (heap-allocated wrapper; caller owns it)
     CWorldTimer* GetWorldTimer();
 
@@ -203,6 +205,7 @@ private:
     typedef void(__thiscall* StopCreditSequenceFn)(void* thisPtr);
 
     typedef int(__thiscall* GetClientLanguageFn)(void* thisPtr);
+    typedef void(__thiscall* SetEventDescriptionsFn)(void* thisPtr);
     typedef void* (__thiscall* GetWorldTimerFn)(void* thisPtr);
 
     static GetClientOptionsFn getClientOptions;
@@ -271,6 +274,7 @@ private:
     static StopCreditSequenceFn stopCreditSequence;
 
     static GetClientLanguageFn getClientLanguage;
+    static SetEventDescriptionsFn setEventDescriptions;
     static GetWorldTimerFn getWorldTimer;
 
     static bool functionsInitialized;

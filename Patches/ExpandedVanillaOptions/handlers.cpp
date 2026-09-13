@@ -65,12 +65,8 @@ extern "C" void __cdecl AdditionalOptions_GraphicsHandler(const char* key, const
 
 extern "C" void __cdecl AdditionalOptions_GameHandler(const char* key, const char* value) {
     CClientOptions options;
-    if (!strcmp(key, "GUIsInScreenShot")) {
-        options.LoadOptions();
-    }
-    else if (!strcmp(key, "EnableScreenShot")) {
-        options.LoadOptions();
-    }
+    CClientExoApp client;
+
     else if (!strcmp(key, "Keyboard Camera Deceleration")) {
         options.LoadOptions();
     }
@@ -86,7 +82,6 @@ extern "C" void __cdecl AdditionalOptions_GameHandler(const char* key, const cha
         manager.SetTooltipAppearTime((float)atof(value));
     }
     else if (!strcmp(key, "Disable Movies")) {
-        CClientExoApp client;
         client.SetDisableMovies(atoi(value));
     }
     else if (!strcmp(key, "EnableCheats")) {

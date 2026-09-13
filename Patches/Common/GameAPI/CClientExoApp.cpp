@@ -77,6 +77,7 @@ CClientExoApp::GetCreditSequenceInProgressFn CClientExoApp::getCreditSequenceInP
 CClientExoApp::StopCreditSequenceFn CClientExoApp::stopCreditSequence = nullptr;
 
 CClientExoApp::GetClientLanguageFn CClientExoApp::getClientLanguage = nullptr;
+CClientExoApp::SetEventDescriptionsFn CClientExoApp::setEventDescriptions = nullptr;
 CClientExoApp::GetWorldTimerFn CClientExoApp::getWorldTimer = nullptr;
 
 int CClientExoApp::offsetInternal = -1;
@@ -228,6 +229,8 @@ void CClientExoApp::InitializeFunctions() {
             GameVersion::GetFunctionAddress("CClientExoApp", "GetClientLanguage"));
         getWorldTimer = reinterpret_cast<GetWorldTimerFn>(
             GameVersion::GetFunctionAddress("CClientExoApp", "GetWorldTimer"));
+        setEventDescriptions = reinterpret_cast<SetEventDescriptionsFn>(
+            GameVersion::GetFunctionAddress("CClientExoApp", "SetEventDescriptions"));
     }
     catch (const GameVersionException& e) {
         debugLog("[CClientExoApp] ERROR: %s\n", e.what());
@@ -770,6 +773,13 @@ int CClientExoApp::GetClientLanguage() {
         return 0;
     }
     return getClientLanguage(objectPtr);
+}
+
+void CClientExoApp::SetEventDescriptions() {
+    if (!objectPtr || !setEventDescriptions) {
+        return;
+    }
+    setEventDescriptions(objectPtr);
 }
 
 CWorldTimer* CClientExoApp::GetWorldTimer() {

@@ -5,22 +5,12 @@ description = "Vanilla game options that aren't usually accessible in-game."
 patch = "expanded-vanilla-options"
 
 [[options]]
-name = "GUIs In Screen Shot"
+name = "Disable Movies"
 type = "toggle"
 default = 0
 ini = "swkotor.ini"
 category = "Game Options"
-key = "GUIsInScreenShot"
-function = "AdditionalOptions_GameHandler"
-description = ""
-
-[[options]]
-name = "Enable Screen Shot"
-type = "toggle"
-default = 1
-ini = "swkotor.ini"
-category = "Game Options"
-key = "EnableScreenShot"
+key = "Disable Movies"
 function = "AdditionalOptions_GameHandler"
 description = ""
 
@@ -61,16 +51,6 @@ default = "1.0"
 ini = "swkotor.ini"
 category = "Game Options"
 key = "TooltipDelay Sec"
-function = "AdditionalOptions_GameHandler"
-description = ""
-
-[[options]]
-name = "Disable Movies"
-type = "toggle"
-default = 0
-ini = "swkotor.ini"
-category = "Game Options"
-key = "Disable Movies"
 function = "AdditionalOptions_GameHandler"
 description = ""
 
