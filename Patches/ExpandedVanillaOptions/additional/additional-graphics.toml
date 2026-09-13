@@ -12,7 +12,7 @@ ini = "swkotor.ini"
 category = "Graphics Options"
 key = "Emitters"
 function = "AdditionalOptions_GraphicsHandler"
-description = ""
+description = "Enables to the Emitter bucket rendering. Makes a subtle difference in some areas."
 
 [[options]]
 name = "Full Screen"
@@ -22,27 +22,7 @@ ini = "swkotor.ini"
 category = "Graphics Options"
 key = "FullScreen"
 function = "AdditionalOptions_GraphicsHandler"
-description = ""
-
-[[options]]
-name = "Disable Vertex Buffer Objects"
-type = "toggle"
-default = 1
-ini = "swkotor.ini"
-category = "Graphics Options"
-key = "Disable Vertex Buffer Objects"
-function = "AdditionalOptions_GraphicsHandler"
-description = ""
-
-[[options]]
-name = "Disable Write-Only VBO"
-type = "toggle"
-default = 0
-ini = "swkotor.ini"
-category = "Graphics Options"
-key = "Disable Write-Only VBO"
-function = "AdditionalOptions_GraphicsHandler"
-description = ""
+description = "Will toggle the current full screen state."
 
 [[options]]
 name = "Allow Windowed Mode"
@@ -52,7 +32,27 @@ ini = "swkotor.ini"
 category = "Graphics Options"
 key = "AllowWindowedMode"
 function = "AdditionalOptions_GraphicsHandler"
-description = ""
+description = "If set, then disabling Full Screen will allow the game to switch to Windowed Mode."
+
+[[options]]
+name = "Disable Vertex Buffer Objects"
+type = "toggle"
+default = 1
+ini = "swkotor.ini"
+category = "Graphics Options"
+key = "Disable Vertex Buffer Objects"
+function = "AdditionalOptions_GraphicsHandler"
+description = "VBO handling can cause crashing on some hardware"
+
+[[options]]
+name = "Disable Write-Only VBO"
+type = "toggle"
+default = 0
+ini = "swkotor.ini"
+category = "Graphics Options"
+key = "Disable Write-Only VBO"
+function = "AdditionalOptions_GraphicsHandler"
+description = "Write-Only VBO handling can cause crashing on some hardware"
 
 [[options]]
 name = "Disable GUI"
@@ -62,7 +62,7 @@ ini = "additional-options.ini"
 category = "Graphics Options"
 key = "DisableGUI"
 function = "AdditionalOptions_GraphicsHandler"
-description = ""
+description = "Turns off GUI rendering. NOTE: This may make using menus quite difficult. If you are stuck, disable this from additional-options.ini"
 
 [[options]]
 name = "Render Level"
@@ -73,7 +73,7 @@ ini = "additional-options.ini"
 category = "Graphics Options"
 key = "RenderLevel"
 function = "AdditionalOptions_GraphicsHandler"
-description = ""
+description = "A render level of 2 will attempt to render with all features (as made available by other graphics settings). Lower values will bypass certain aspects of texture bump-mapping, and shininess."
 
 [[options]]
 name = "Do 3D Gui"
@@ -83,7 +83,7 @@ ini = "additional-options.ini"
 category = "Graphics Options"
 key = "Do3dGui"
 function = "AdditionalOptions_GraphicsHandler"
-description = ""
+description = "Determines whether certain 3D GUI elements (such as the player model on the character sheet) will render."
 
 [[options]]
 name = "Visibility Graph"
@@ -93,7 +93,7 @@ ini = "additional-options.ini"
 category = "Graphics Options"
 key = "VisibilityGraph"
 function = "AdditionalOptions_GraphicsHandler"
-description = ""
+description = "Determines if rooms consider non visible (according to the current module's `.vis` file) will be culled or not."
 
 [[options]]
 name = "Beams"
@@ -103,7 +103,7 @@ ini = "additional-options.ini"
 category = "Graphics Options"
 key = "Beams"
 function = "AdditionalOptions_GraphicsHandler"
-description = ""
+description = "Determines whether static mesh beams will render. Makes a subtle difference in some areas."
 
 [[options]]
 name = "Do Grass Wind"
@@ -113,4 +113,4 @@ ini = "additional-options.ini"
 category = "Graphics Options"
 key = "DoGrassWind"
 function = "AdditionalOptions_GraphicsHandler"
-description = ""
+description = "Determines whether grass will sway in the wind. Requires grass be enabled."

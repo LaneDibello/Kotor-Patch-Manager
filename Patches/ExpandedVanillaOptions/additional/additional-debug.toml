@@ -12,7 +12,7 @@ ini = "additional-options.ini"
 category = "Debug"
 key = "SavePlayerBIC"
 function = "AdditionalOptions_DebugHandler"
-description = ""
+description = "Includes a GFF formatted `.bic` file representing the player creature in the save folder when saving the game."
 
 [[options]]
 name = "Render Walkmesh"
@@ -22,7 +22,7 @@ ini = "additional-options.ini"
 category = "Debug"
 key = "RenderWalkmesh"
 function = "AdditionalOptions_DebugHandler"
-description = ""
+description = "Renders a colorful view of the walkmesh materials in the area"
 
 [[options]]
 name = "Render Wire Frame"
@@ -32,7 +32,7 @@ ini = "additional-options.ini"
 category = "Debug"
 key = "RenderWireFrame"
 function = "AdditionalOptions_DebugHandler"
-description = ""
+description = "Reduces all rendered elements to a wire frame. Can be useful for testing models. NOTE: this will wire frame some GUI components, which can cause difficultly disabling this feature. If you are stuck you can disable it from: additional-options.ini"
 
 [[options]]
 name = "Render Triggers"
@@ -42,7 +42,7 @@ ini = "additional-options.ini"
 category = "Debug"
 key = "RenderTriggers"
 function = "AdditionalOptions_DebugHandler"
-description = ""
+description = "Visually displays UTT triggers in the module. Note: You may have to save/reload to get the triggers to appear."
 
 [[options]]
 name = "Render Personal Space"
@@ -52,7 +52,7 @@ ini = "additional-options.ini"
 category = "Debug"
 key = "RenderPersonalSpace"
 function = "AdditionalOptions_DebugHandler"
-description = ""
+description = "Shows the personal space octagon, that represents simple collision checking, around creatures"
 
 [[options]]
 name = "Render Bounding Boxes"
@@ -62,7 +62,7 @@ ini = "additional-options.ini"
 category = "Debug"
 key = "RenderBoundingBoxes"
 function = "AdditionalOptions_DebugHandler"
-description = ""
+description = "Shows Game Object bounding boxes, used for simple cull checks."
 
 [[options]]
 name = "Render Collision"
@@ -72,4 +72,4 @@ ini = "additional-options.ini"
 category = "Debug"
 key = "RenderCollision"
 function = "AdditionalOptions_DebugHandler"
-description = ""
+description = "Renders the more complex collision diagnostic. Showing where and how objects collide."

@@ -1,7 +1,7 @@
 [patch]
 id = "expanded-vanilla-options"
 name = "Expanded Vanilla Options"
-version = "0.0.0"
+version = "0.1.0"
 author = "Lane"
 description = "Utilizes the Mod Options patch to include additional menus for various vanilla settings that are typically hidden from the user."
 
