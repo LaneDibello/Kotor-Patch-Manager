@@ -60,6 +60,22 @@ jobs:
       - name: Build KotorPatcher.dll
         run: msbuild KotorPatchManager.sln /p:Configuration=Release /p:Platform=x86 /t:KotorPatcher /m
 
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build the managed projects
+        run: dotnet build KotorPatchManager.Managed.slnf -c Release
+
+      - name: Build the patcher dylib
+        run: make -C src/KotorPatcher dylib CXX_MAC=clang++
+
   patches:
     name: Patch metadata
     runs-on: ubuntu-latest
