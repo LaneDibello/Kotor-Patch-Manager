@@ -25,7 +25,7 @@ extern "C" void __cdecl InjectOptionsButton(void* thisPanel) {
 extern "C" void __cdecl AddCreateEvent(void* thisPanel) {
     debugLog("Adding Event to Test Options Button");
     CSWGuiPanel panel(thisPanel);
-    testButton->AddEvent(0x27, &panel, &CreateTestGui);
+    testButton->AddEvent(0x27, &panel, funcAddr(&CreateTestGui));
     debugLog("Added Event to Test Options Button");
 }
 

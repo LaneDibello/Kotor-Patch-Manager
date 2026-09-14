@@ -25,7 +25,7 @@ extern "C" void __cdecl ModOptions_DebugHandler(const char* key, const char* val
 
 extern "C" void __cdecl AddCreateEvent(void* thisPanel) {
     CSWGuiPanel panel(thisPanel);
-    modOptionsButton->AddEvent(0x27, &panel, &CreateModOptionsGui);
+    modOptionsButton->AddEvent(0x27, &panel, funcAddr(&CreateModOptionsGui));
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
