@@ -1,7 +1,7 @@
 [patch]
 id = "shader-debug"
 name = "Shader Debug"
-version = "1.5"
+version = "1.5.0"
 author = "J"
 description = "Debugs ARB shaders with hash-named dumps and in-game overlay."
 
