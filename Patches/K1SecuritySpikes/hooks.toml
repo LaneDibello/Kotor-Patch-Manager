@@ -4,5 +4,44 @@ target_versions = [
     "34E6D971C034222A417995D8E1E8FDD9F8781795C9C289BD86C499A439F34C88",
     "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
 ]
-# DLL-only profile. K1SecuritySpikes.cpp installs and restores its own two
-# inline jumps after the stock Security action icon has been written.
+
+# Both sites sit just past the stock Security action icon, and both hold a relative jump.
+# The wrapper copies displaced bytes verbatim, so a relative jump cannot be re-executed from
+# it: the bytes are skipped and consumed_exit_address resumes where the jump went. EAX
+# carries the handler's return value for that test; the game does not read it across.
+
+# CSWGuiInterfaceDoor, after the Security icon is written.
+[[hooks]]
+address = 0x00683919
+type = "detour"
+function = "K1AppendSecuritySpikes"
+original_bytes = [0xE9, 0x68, 0x02, 0x00, 0x00]
+skip_original_bytes = true
+consumed_exit_address = 0x00683B86
+exclude_from_restore = ["eax"]
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+116"
+type = "pointer"
+
+# CSWGuiInterfacePlaceable, the same point in the placeable list.
+[[hooks]]
+address = 0x00684559
+type = "detour"
+function = "K1AppendSecuritySpikes"
+original_bytes = [0xE9, 0xD6, 0x00, 0x00, 0x00]
+skip_original_bytes = true
+consumed_exit_address = 0x00684634
+exclude_from_restore = ["eax"]
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+92"
+type = "pointer"
