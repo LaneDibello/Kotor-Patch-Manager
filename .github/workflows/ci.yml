@@ -42,6 +42,13 @@ jobs:
       - name: Build the KProxy
         run: src/KProxy/build-mingw.sh "$RUNNER_TEMP/binkw32.dll"
 
+      - name: Publish the manager
+        run: |
+          dotnet publish src/KPatchLauncher/KPatchLauncher.csproj \
+            -c Release -r linux-x64 --self-contained \
+            -p:PublishSingleFile=false \
+            -o "$RUNNER_TEMP/manager"
+
   windows:
     name: Windows
     runs-on: windows-latest
@@ -60,6 +67,10 @@ jobs:
       - name: Build KotorPatcher.dll
         run: msbuild KotorPatchManager.sln /p:Configuration=Release /p:Platform=x86 /t:KotorPatcher /m
 
+      - name: Publish the manager
+        run: |
+          dotnet publish src\KPatchLauncher\KPatchLauncher.csproj -c Release -r win-x86 --self-contained -p:PublishSingleFile=true -o "$env:RUNNER_TEMP\manager"
+
   macos:
     name: macOS
     runs-on: macos-latest
@@ -75,6 +86,18 @@ jobs:
 
       - name: Build the patcher dylib
         run: make -C src/KotorPatcher dylib CXX_MAC=clang++
+
+      - name: Publish the manager
+        run: |
+          for rid in osx-x64 osx-arm64; do
+            # Every RID shares one obj/, apphost included, so a second publish
+            # reuses the first architecture's binary unless it is cleared.
+            rm -rf src/KPatchLauncher/obj src/KPatchCore/obj
+            dotnet publish src/KPatchLauncher/KPatchLauncher.csproj \
+              -c Release -r "$rid" --self-contained \
+              -p:PublishSingleFile=false \
+              -o "$RUNNER_TEMP/manager-$rid"
+          done
 
   patches:
     name: Patch metadata
