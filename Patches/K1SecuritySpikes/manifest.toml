@@ -1,8 +1,8 @@
 [patch]
 id = "k1-security-spikes"
 name = "KOTOR 1 Security Spikes"
-version = "1.0.0"
-author = "Vriff"
+version = "1.1.0"
+author = "Vriff, Synchro"
 description = "Restores Security Spike actions for locked doors and placeables in KOTOR1 PC."
 requires = []
 conflicts = []
