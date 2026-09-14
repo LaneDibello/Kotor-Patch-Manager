@@ -43,9 +43,9 @@ void CServerExoApp::InitializeFunctions() {
             GameVersion::GetFunctionAddress("CServerExoApp", "GetCreatureByGameObjectID")
         );
 
-        getPlayerCreature = reinterpret_cast<GetPlayerCreatureFn>(
-            GameVersion::GetFunctionAddress("CServerExoApp", "GetPlayerCreature")
-        );
+        // K2 has no CServerExoApp::GetPlayerCreature; GetPlayerCreature() falls back
+        // to GetPlayerCreatureId + GetCreatureByGameObjectID when this stays null.
+        GameVersion::ResolveFunction(getPlayerCreature, "CServerExoApp", "GetPlayerCreature");
 
         getGlobalVariableTable = reinterpret_cast<GetGlobalVariableTableFn>(
             GameVersion::GetFunctionAddress("CServerExoApp", "GetGlobalVariableTable")
@@ -161,18 +161,34 @@ CSWSCreature* CServerExoApp::GetCreatureByGameObjectID(DWORD objectId) {
 }
 
 CSWSCreature* CServerExoApp::GetPlayerCreature() {
-    if (!objectPtr || !getPlayerCreature) {
-        debugLog("[CServerExoApp] Error: no objectPtr or no getPlayerCreature");
+    if (!objectPtr) {
+        debugLog("[CServerExoApp] Error: no objectPtr");
         return nullptr;
     }
 
-    void* creaturePtr = getPlayerCreature(objectPtr);
-    if (!creaturePtr) {
-        debugLog("[CServerExoApp] Error: Bad creaturePtr");
+    if (getPlayerCreature) {
+        void* creaturePtr = getPlayerCreature(objectPtr);
+        if (!creaturePtr) {
+            debugLog("[CServerExoApp] Error: Bad creaturePtr");
+            return nullptr;
+        }
+
+        return new CSWSCreature(creaturePtr);
+    }
+
+    // K2 dropped the one-shot accessor; go the long way round instead.
+    if (!getPlayerCreatureId || !getCreatureByGameObjectID) {
+        debugLog("[CServerExoApp] Error: no getPlayerCreature and no fallback route");
         return nullptr;
     }
 
-    return new CSWSCreature(creaturePtr);
+    DWORD playerId = GetPlayerCreatureId();
+    if (playerId == 0x7F000000) {
+        debugLog("[CServerExoApp] Error: Bad player creature id");
+        return nullptr;
+    }
+
+    return GetCreatureByGameObjectID(playerId);
 }
 
 void* CServerExoApp::GetGlobalVariableTable() {
