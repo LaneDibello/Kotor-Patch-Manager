@@ -59,3 +59,12 @@ jobs:
 
       - name: Build the managed projects
         run: dotnet build KotorPatchManager.Managed.slnf -c Release
+
+  patches:
+    name: Patch metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate every patch manifest and hook
+        run: python3 tools/validate-patches.py
