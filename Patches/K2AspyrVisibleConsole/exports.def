@@ -1,3 +1,4 @@
 LIBRARY K2AspyrVisibleConsole
 EXPORTS
     DrawConsoleBitmapTextHook
+    DrawPostedStringHook

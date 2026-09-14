@@ -1,0 +1,84 @@
+# AurPrintString(text, column, row) is a bare RET at 0x0837C9C4 here, the same empty
+# function it is on Windows. The glyph table it used to draw from survived at 0x088CF3F4,
+# byte-for-byte the 8x13 font the Windows build carries at 0x009F5508, so the module can
+# rebuild the display lists from it.
+
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# The console prompt's cursor, drawn from the main loop at column consoleInputLength + 2.
+# Clang writes cdecl arguments to [ESP+n] instead of pushing them, so all three land in
+# the slots the Windows call site pushes them into.
+[[hooks]]
+address = 0x08199AA5
+function = "DrawConsoleBitmapTextHook"
+original_bytes = [0xE8, 0x1A, 0x2F, 0x1E, 0x00]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+4"
+type = "int"
+
+[[hooks.parameters]]
+source = "esp+8"
+type = "int"
+
+# The frame-rate readout, gated on the MacShowFPS preference.
+[[hooks]]
+address = 0x08199CF9
+function = "DrawConsoleBitmapTextHook"
+original_bytes = [0xE8, 0xC6, 0x2C, 0x1E, 0x00]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+4"
+type = "int"
+
+[[hooks.parameters]]
+source = "esp+8"
+type = "int"
+
+# PostedString::Post, which draws everything the console and the game post through
+# AurPostString. There is no call left to take over. The stub is in the same translation
+# unit, so the compiler inlined its empty body and the argument setup with it, and what
+# it left behind is the colour save and restore that used to bracket the call: a round
+# trip that loads the two saved-colour globals, spills them to stack slots nothing reads,
+# and writes the same values straight back.
+#
+# The span below is that round trip. Taking all of it keeps the hook on instruction
+# boundaries and leaves no half-executed remnant. Nothing branches into it, and execution
+# resumes at 0x0837CCFE, which reloads XMM0 before using it.
+#
+# The object is live in ESI, so the hook reads the column and row from it.
+[[hooks]]
+address = 0x0837CCC6
+function = "DrawPostedStringHook"
+original_bytes = [
+    0xF2, 0x0F, 0x10, 0x05, 0xAC, 0xC3, 0x93, 0x08,
+    0xF2, 0x0F, 0x11, 0x44, 0x24, 0x20,
+    0xF2, 0x0F, 0x10, 0x05, 0xA4, 0xC3, 0x93, 0x08,
+    0xF2, 0x0F, 0x11, 0x44, 0x24, 0x18,
+    0xF2, 0x0F, 0x10, 0x44, 0x24, 0x18,
+    0xF2, 0x0F, 0x10, 0x4C, 0x24, 0x20,
+    0xF2, 0x0F, 0x11, 0x0D, 0xAC, 0xC3, 0x93, 0x08,
+    0xF2, 0x0F, 0x11, 0x05, 0xA4, 0xC3, 0x93, 0x08,
+]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
