@@ -1,77 +1,55 @@
 // K1SecuritySpikes.cpp
-// Source-only KotorPatchManager DLL patch for KOTOR1 GOG 1.03.
+// Source-only KotorPatchManager patch for KOTOR1 1.03.
+//
+// KOTOR1 ships Security Spikes as items and implements the mechanic on the server:
+// CSWSObject::AIActionUnlockObject looks up the item that came with the unlock action, adds
+// its property bonus to the character's Security rank, and spends one spike from the stack.
+// Nothing in the interface ever sends an item. The stock Security entry on a locked door or
+// container calls SendPlayerToServerInput_UnlockObject with OBJECT_INVALID in the item slot,
+// so the spikes sit in the inventory with no way to use them.
+//
+// This patch supplies the missing menu entries. Both hooks sit at the tail of the Security
+// block in CSWCPlaceable::GetTargetActions and CSWCDoor::GetTargetActions, so they run only
+// once the game has decided the object is locked and the character can use Security. One
+// action is appended per spike the character carries, tagged with that spike's object id,
+// and choosing it sends the unlock message with the id in place of OBJECT_INVALID.
+//
+// Doors only. HandlePlayerToServerInputMessage forwards the item id for a door but replaces
+// it with OBJECT_INVALID for a placeable at 0x00525C9C, so a spike used on a container is
+// resolved as a plain Security check and is not spent.
 
-#if defined(_WIN64) || !defined(_M_IX86)
-#error K1SecuritySpikes must be compiled as a 32-bit x86 DLL.
+#if defined(_WIN64) || (defined(_M_IX86) == 0 && defined(__i386__) == 0)
+#error K1SecuritySpikes must be compiled as a 32-bit x86 module.
 #endif
+
+#include "Common.h"
+#include "GameAPI/GameVersion.h"
 
 typedef unsigned char  u8;
 typedef unsigned short u16;
 typedef unsigned int   u32;
 typedef unsigned int   usize;
-typedef int            BOOL;
-typedef void*          HANDLE;
-typedef void*          HMODULE;
-typedef void*          LPVOID;
-typedef const void*    LPCVOID;
-typedef const char*    LPCSTR;
-typedef char*          LPSTR;
-typedef u32            DWORD;
 
-#define WINAPI __stdcall
-#define TRUE 1
-#define FALSE 0
-#define DLL_PROCESS_DETACH 0u
-#define DLL_PROCESS_ATTACH 1u
-#define PAGE_EXECUTE_READWRITE 0x40u
-
-extern "C" {
-__declspec(dllimport) BOOL    WINAPI VirtualProtect(LPVOID, usize, DWORD, DWORD*);
-__declspec(dllimport) BOOL    WINAPI FlushInstructionCache(HANDLE, LPCVOID, usize);
-__declspec(dllimport) HANDLE  WINAPI GetCurrentProcess(void);
-__declspec(dllimport) HMODULE WINAPI GetModuleHandleA(LPCSTR);
-__declspec(dllimport) DWORD   WINAPI GetEnvironmentVariableA(LPCSTR, LPSTR, DWORD);
-__declspec(dllimport) void    WINAPI OutputDebugStringA(LPCSTR);
-__declspec(dllimport) BOOL    WINAPI DisableThreadLibraryCalls(HMODULE);
-}
-
-void DoorSecuritySpikePostIconStub();
-void PlaceableSecuritySpikePostIconStub();
-void MenuActionUseSecuritySpike_Thunk();
+void __fastcall MenuActionUseSecuritySpike_Thunk(void*, void*, u32, void*);
 
 namespace {
 
-#define KOTOR1_GOG_SHA256 \
-    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
-
-constexpr u32 GAME_PREFERRED_BASE = 0x00400000u;
-constexpr u32 APP_MANAGER_PTR = 0x007A39FCu;
-
-constexpr u32 VA_DOOR_POST_SECURITY_ICON = 0x00683919u;
-constexpr u32 VA_DOOR_TARGET_EXIT        = 0x00683B86u;
-constexpr u32 VA_PLACE_POST_SECURITY_ICON = 0x00684559u;
-constexpr u32 VA_PLACE_TARGET_EXIT        = 0x00684634u;
-
-constexpr u32 CClientExoApp_GetSWCMessage = 0x005ED6F0u;
-constexpr u32 CClientExoApp_GetTlkString = 0x005EDEB0u;
-constexpr u32 CSWCMessage_SendUnlockObject = 0x00677DE0u;
-constexpr u32 CSWCObject_ClearAllActions = 0x0063D470u;
-constexpr u32 CSWCObject_GetServerObject = 0x0063D4B0u;
-constexpr u32 CSWSCreature_GetItemRepository = 0x004EF770u;
-constexpr u32 CItemRepository_GetItem = 0x005560B0u;
-constexpr u32 CItemRepository_GetItemObjectID = 0x005560E0u;
-constexpr u32 CSWSItem_GetIcon = 0x005556B0u;
-constexpr u32 CSWSItem_GetPropertyByTypeExists = 0x005539C0u;
-constexpr u32 CExoArrayList_SetSize = 0x004FDDD0u;
-constexpr u32 CExoString_FromCStr = 0x005E5A90u;
-constexpr u32 CExoString_Destructor = 0x005E5C20u;
-constexpr u32 CExoString_Assign = 0x005E5C50u;
-
 constexpr u32 OBJECT_ID_INVALID = 0x7F000000u;
+
+// The game puts a small constant in an action's id field for its own entries, 0x3F3 for
+// Security and 0x3F5 for Bash. A spike entry stores the item's object id there instead and
+// sets bit 30, so a later pass over the list can tell its own entries apart.
 constexpr u32 ACTION_ITEM_FLAG = 0x40000000u;
 constexpr u32 ACTION_ITEM_MASK = 0xBFFFFFFFu;
+
+// Marks an item as a spike. The u16 at +0x06 of the property is the bonus the server adds
+// to the Security rank, so finding the property is also the test for whether an item counts.
 constexpr u16 SECURITY_SPIKE_PROPERTY_TYPE = 0x25u;
+
+// CSWSItem field. The database carries no offsets for the item classes.
 constexpr u32 CSWSITEM_LOCALIZED_NAME_STRREF_OFFSET = 0x284u;
+
+// dialog.tlk names for the two spike items, used when the item has no name of its own.
 constexpr u32 TLK_SECURITY_SPIKE = 5980u;
 constexpr u32 TLK_SECURITY_SPIKE_TUNNELER = 5982u;
 
@@ -100,12 +78,6 @@ struct CSWGuiInterfaceActionList {
     int capacity;
 };
 
-struct JumpPatch {
-    u8* target;
-    u8 original[5];
-    int installed;
-};
-
 typedef void* (__thiscall *GetSWCMessageFn)(void* client);
 typedef void  (__thiscall *SendUnlockObjectFn)(void* message, u32 target_id, u32 item_id);
 typedef void  (__thiscall *ClearAllActionsFn)(void* creature);
@@ -114,126 +86,50 @@ typedef void* (__thiscall *GetItemRepositoryFn)(void* server_creature, int repos
 typedef void* (__thiscall *GetItemFn)(void* repository, int index);
 typedef u32   (__thiscall *GetItemObjectIdFn)(void* repository, int index);
 typedef CResRef* (__thiscall *GetIconFn)(void* server_item, CResRef* out_icon);
-typedef CExoString* (__thiscall *GetTlkStringFn)(void* client, CExoString* out_text, u32 strref);
-typedef int   (__thiscall *GetPropertyByTypeExistsFn)(void* server_item, void** out_property, u16 property_type, u16 sub_type);
+typedef CExoString* (__thiscall *GetGUIStringFn)(void* client, CExoString* out_text, u32 strref);
+typedef int   (__thiscall *GetPropertyByTypeFn)(void* server_item, void** out_property, u16 property_type, u16 sub_type);
 typedef void* (__thiscall *SetSizeFn)(CSWGuiInterfaceActionList* list, int size);
 typedef CExoString* (__thiscall *StringFromCStrFn)(CExoString* str, const char* text);
 typedef void  (__thiscall *StringDestructorFn)(CExoString* str);
 typedef CExoString* (__thiscall *StringAssignFn)(CExoString* dst, const CExoString* src);
 
-u8* g_game_base = 0;
-JumpPatch g_door_patch = {};
-JumpPatch g_placeable_patch = {};
+void** g_app_manager = 0;
+GetSWCMessageFn g_get_swc_message = 0;
+GetGUIStringFn g_get_gui_string = 0;
+SendUnlockObjectFn g_send_unlock_object = 0;
+ClearAllActionsFn g_clear_all_actions = 0;
+GetServerObjectFn g_get_server_object = 0;
+GetItemRepositoryFn g_get_item_repository = 0;
+GetItemFn g_item_list_get_item = 0;
+GetItemObjectIdFn g_item_list_get_item_id = 0;
+GetIconFn g_get_icon = 0;
+GetPropertyByTypeFn g_get_property_by_type = 0;
+SetSizeFn g_set_size = 0;
+StringFromCStrFn g_string_from_cstr = 0;
+StringDestructorFn g_string_destroy = 0;
+StringAssignFn g_string_assign = 0;
 
-u8* GameAddress(u32 preferred_va) {
-    return g_game_base + (preferred_va - GAME_PREFERRED_BASE);
-}
+// A lookup is a database query, so everything resolves once at load and the rest of the
+// patch calls through the pointers. CExoString::Destructor is a thunk in the database;
+// _2 is the body the game itself calls.
+bool ResolveGameAddresses() {
+    g_app_manager = (void**)GameVersion::GetGlobalPointer("APP_MANAGER_PTR");
 
-void Log(const char* text) {
-    OutputDebugStringA(text);
-}
-
-char UpperAscii(char ch) {
-    return (ch >= 'a' && ch <= 'z') ? (char)(ch - ('a' - 'A')) : ch;
-}
-
-int StringEqualsNoCase(const char* left, const char* right) {
-    if (!left || !right) {
-        return 0;
-    }
-    while (*left && *right) {
-        if (UpperAscii(*left) != UpperAscii(*right)) {
-            return 0;
-        }
-        ++left;
-        ++right;
-    }
-    return *left == '\0' && *right == '\0';
-}
-
-int IsSupportedVersion(void) {
-    char hash[80];
-    DWORD length;
-
-    hash[0] = '\0';
-    length = GetEnvironmentVariableA("KOTOR_VERSION_SHA", hash, (DWORD)sizeof(hash));
-    return length > 0u && length < (DWORD)sizeof(hash) &&
-        StringEqualsNoCase(hash, KOTOR1_GOG_SHA256);
-}
-
-void CopyBytes(u8* dst, const u8* src, u32 count) {
-    for (u32 i = 0u; i < count; ++i) {
-        dst[i] = src[i];
-    }
-}
-
-int BytesEqual(const u8* left, const u8* right, u32 count) {
-    for (u32 i = 0u; i < count; ++i) {
-        if (left[i] != right[i]) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-void WriteU32(u8* dst, u32 value) {
-    dst[0] = (u8)(value & 0xffu);
-    dst[1] = (u8)((value >> 8) & 0xffu);
-    dst[2] = (u8)((value >> 16) & 0xffu);
-    dst[3] = (u8)((value >> 24) & 0xffu);
-}
-
-void WriteRelativeJump(u8* source, const void* destination) {
-    u32 source_address = (u32)(usize)source;
-    u32 destination_address = (u32)(usize)destination;
-    source[0] = 0xE9u;
-    WriteU32(source + 1, destination_address - (source_address + 5u));
-}
-
-int InstallJump(JumpPatch* patch, u32 target_va, void* destination, const u8 expected[5]) {
-    DWORD old_protection = 0u;
-    DWORD ignored = 0u;
-
-    if (!patch || !destination || !expected) {
-        return 0;
-    }
-
-    patch->target = GameAddress(target_va);
-    patch->installed = 0;
-    if (!BytesEqual(patch->target, expected, 5u)) {
-        Log("[K1SecuritySpikes] Hook-byte verification failed.\n");
-        return 0;
-    }
-
-    CopyBytes(patch->original, patch->target, 5u);
-    if (!VirtualProtect(patch->target, 5u, PAGE_EXECUTE_READWRITE, &old_protection)) {
-        Log("[K1SecuritySpikes] VirtualProtect failed.\n");
-        return 0;
-    }
-
-    WriteRelativeJump(patch->target, destination);
-    FlushInstructionCache(GetCurrentProcess(), patch->target, 5u);
-    VirtualProtect(patch->target, 5u, old_protection, &ignored);
-    patch->installed = 1;
-    return 1;
-}
-
-void RemoveJump(JumpPatch* patch) {
-    DWORD old_protection = 0u;
-    DWORD ignored = 0u;
-
-    if (!patch || !patch->installed) {
-        return;
-    }
-
-    if (VirtualProtect(patch->target, 5u, PAGE_EXECUTE_READWRITE, &old_protection)) {
-        CopyBytes(patch->target, patch->original, 5u);
-        FlushInstructionCache(GetCurrentProcess(), patch->target, 5u);
-        VirtualProtect(patch->target, 5u, old_protection, &ignored);
-    }
-
-    patch->target = 0;
-    patch->installed = 0;
+    return g_app_manager
+        && GameVersion::ResolveFunction(g_get_swc_message, "CClientExoApp", "GetSWCMessage")
+        && GameVersion::ResolveFunction(g_get_gui_string, "CClientExoApp", "GetGUIString")
+        && GameVersion::ResolveFunction(g_send_unlock_object, "CSWCMessage", "SendPlayerToServerInput_UnlockObject")
+        && GameVersion::ResolveFunction(g_clear_all_actions, "CSWCObject", "ClearAllActions")
+        && GameVersion::ResolveFunction(g_get_server_object, "CSWCObject", "GetServerObject")
+        && GameVersion::ResolveFunction(g_get_item_repository, "CSWSCreature", "GetItemRepository")
+        && GameVersion::ResolveFunction(g_item_list_get_item, "CItemRepository", "ItemListGetItem")
+        && GameVersion::ResolveFunction(g_item_list_get_item_id, "CItemRepository", "ItemListGetItemObjectID")
+        && GameVersion::ResolveFunction(g_get_icon, "CSWSItem", "GetIcon")
+        && GameVersion::ResolveFunction(g_get_property_by_type, "CSWSItem", "GetPropertyByType")
+        && GameVersion::ResolveFunction(g_set_size, "CExoArrayList__", "SetSize")
+        && GameVersion::ResolveFunction(g_string_from_cstr, "CExoString", "CStrConstructor")
+        && GameVersion::ResolveFunction(g_string_destroy, "CExoString", "Destructor_2")
+        && GameVersion::ResolveFunction(g_string_assign, "CExoString", "operator=_2");
 }
 
 void* ReadPtr(void* base, u32 offset) {
@@ -253,16 +149,12 @@ int ValidObjectId(u32 object_id) {
 }
 
 void* ClientExoApp(void) {
-    void* app_manager = *(void**)GameAddress(APP_MANAGER_PTR);
-    return ReadPtr(app_manager, 0x04u);
+    return ReadPtr(*g_app_manager, 0x04u);  // CAppManager::client
 }
 
 int SetActionLabelFromStrRef(CSWGuiInterfaceAction* action, u32 strref) {
     CExoString temp;
     void* client;
-    GetTlkStringFn get_text;
-    StringAssignFn assign;
-    StringDestructorFn destroy;
 
     if (!action || strref == 0xFFFFFFFFu) {
         return 0;
@@ -275,27 +167,20 @@ int SetActionLabelFromStrRef(CSWGuiInterfaceAction* action, u32 strref) {
 
     temp.text = 0;
     temp.allocation_size = 0u;
-    get_text = (GetTlkStringFn)GameAddress(CClientExoApp_GetTlkString);
-    assign = (StringAssignFn)GameAddress(CExoString_Assign);
-    destroy = (StringDestructorFn)GameAddress(CExoString_Destructor);
-
-    get_text(client, &temp, strref);
+    g_get_gui_string(client, &temp, strref);
     if (!temp.text || temp.text[0] == '\0') {
-        destroy(&temp);
+        g_string_destroy(&temp);
         return 0;
     }
 
-    assign(&action->label, &temp);
-    destroy(&temp);
+    g_string_assign(&action->label, &temp);
+    g_string_destroy(&temp);
     return 1;
 }
 
 void SetActionLabel(CSWGuiInterfaceAction* action, void* item, u16 bonus) {
     u32 strref;
     CExoString temp;
-    StringFromCStrFn from_cstr;
-    StringAssignFn assign;
-    StringDestructorFn destroy;
 
     if (!action) {
         return;
@@ -314,25 +199,19 @@ void SetActionLabel(CSWGuiInterfaceAction* action, void* item, u16 bonus) {
 
     temp.text = 0;
     temp.allocation_size = 0u;
-    from_cstr = (StringFromCStrFn)GameAddress(CExoString_FromCStr);
-    assign = (StringAssignFn)GameAddress(CExoString_Assign);
-    destroy = (StringDestructorFn)GameAddress(CExoString_Destructor);
-
-    from_cstr(&temp, bonus >= 10u ? "Security Spike Tunneler" : "Security Spike");
-    assign(&action->label, &temp);
-    destroy(&temp);
+    g_string_from_cstr(&temp, bonus >= 10u ? "Security Spike Tunneler" : "Security Spike");
+    g_string_assign(&action->label, &temp);
+    g_string_destroy(&temp);
 }
 
 u16 SecuritySpikeBonus(void* item) {
     void* property = 0;
-    GetPropertyByTypeExistsFn has_property;
 
     if (!item) {
         return 0u;
     }
 
-    has_property = (GetPropertyByTypeExistsFn)GameAddress(CSWSItem_GetPropertyByTypeExists);
-    if (has_property(item, &property, SECURITY_SPIKE_PROPERTY_TYPE, 0) == 0 || !property) {
+    if (g_get_property_by_type(item, &property, SECURITY_SPIKE_PROPERTY_TYPE, 0) == 0 || !property) {
         return 0u;
     }
 
@@ -362,8 +241,6 @@ int AlreadyAdded(CSWGuiInterfaceActionList* actions, u32 item_id, u32 target_id)
 void AddSpikeAction(CSWGuiInterfaceActionList* actions, u32 target_id, void* item, u32 item_id, u16 bonus) {
     int index;
     CSWGuiInterfaceAction* action;
-    SetSizeFn set_size;
-    GetIconFn get_icon;
 
     if (!actions || !ValidObjectId(target_id) || !ValidObjectId(item_id) ||
         AlreadyAdded(actions, item_id, target_id)) {
@@ -375,8 +252,7 @@ void AddSpikeAction(CSWGuiInterfaceActionList* actions, u32 target_id, void* ite
         return;
     }
 
-    set_size = (SetSizeFn)GameAddress(CExoArrayList_SetSize);
-    set_size(actions, index + 1);
+    g_set_size(actions, index + 1);
     if (!actions->data || actions->size <= index) {
         return;
     }
@@ -390,8 +266,7 @@ void AddSpikeAction(CSWGuiInterfaceActionList* actions, u32 target_id, void* ite
     action->action_function[3] = 0u;
     action->target_object_id = target_id;
 
-    get_icon = (GetIconFn)GameAddress(CSWSItem_GetIcon);
-    get_icon(item, &action->icon);
+    g_get_icon(item, &action->icon);
 }
 
 void AppendSecuritySpikes(CSWGuiInterfaceActionList* actions, void* client_creature) {
@@ -399,10 +274,6 @@ void AppendSecuritySpikes(CSWGuiInterfaceActionList* actions, void* client_creat
     void* server_creature;
     void* repository;
     int count;
-    GetServerObjectFn get_server_object;
-    GetItemRepositoryFn get_repository;
-    GetItemFn get_item;
-    GetItemObjectIdFn get_item_id;
 
     if (!actions || !actions->data || actions->size <= 0 || actions->size > 256 || !client_creature) {
         return;
@@ -413,19 +284,18 @@ void AppendSecuritySpikes(CSWGuiInterfaceActionList* actions, void* client_creat
         return;
     }
 
-    get_server_object = (GetServerObjectFn)GameAddress(CSWCObject_GetServerObject);
-    server_creature = get_server_object(client_creature);
+    server_creature = g_get_server_object(client_creature);
     if (!server_creature) {
         return;
     }
 
-    get_repository = (GetItemRepositoryFn)GameAddress(CSWSCreature_GetItemRepository);
-    repository = get_repository(server_creature, 1);
+    // Repository 1 is the inventory, the same one the server empties the spike from.
+    repository = g_get_item_repository(server_creature, 1);
     if (!repository) {
         return;
     }
 
-    count = *(int*)((u8*)repository + 0x10u);
+    count = *(int*)((u8*)repository + 0x10u);  // CItemRepository item count
     if (count <= 0) {
         return;
     }
@@ -433,16 +303,13 @@ void AppendSecuritySpikes(CSWGuiInterfaceActionList* actions, void* client_creat
         count = 512;
     }
 
-    get_item = (GetItemFn)GameAddress(CItemRepository_GetItem);
-    get_item_id = (GetItemObjectIdFn)GameAddress(CItemRepository_GetItemObjectID);
-
     for (int i = 0; i < count; ++i) {
-        void* item = get_item(repository, i);
+        void* item = g_item_list_get_item(repository, i);
         u16 bonus = SecuritySpikeBonus(item);
         if (bonus == 0u) {
             continue;
         }
-        AddSpikeAction(actions, target_id, item, get_item_id(repository, i), bonus);
+        AddSpikeAction(actions, target_id, item, g_item_list_get_item_id(repository, i), bonus);
     }
 }
 
@@ -451,8 +318,6 @@ void UseSecuritySpike(void* target_object, u32 action_id, void* creature) {
     u32 target_id;
     void* client;
     void* message;
-    GetSWCMessageFn get_message;
-    SendUnlockObjectFn send_unlock;
 
     if (!target_object) {
         return;
@@ -464,8 +329,7 @@ void UseSecuritySpike(void* target_object, u32 action_id, void* creature) {
     }
 
     if (creature) {
-        ClearAllActionsFn clear_actions = (ClearAllActionsFn)GameAddress(CSWCObject_ClearAllActions);
-        clear_actions(creature);
+        g_clear_all_actions(creature);
     }
 
     client = ClientExoApp();
@@ -473,87 +337,36 @@ void UseSecuritySpike(void* target_object, u32 action_id, void* creature) {
         return;
     }
 
-    get_message = (GetSWCMessageFn)GameAddress(CClientExoApp_GetSWCMessage);
-    message = get_message(client);
+    message = g_get_swc_message(client);
     if (!message) {
         return;
     }
 
-    target_id = ReadU32(target_object, 0x04u);
+    target_id = ReadU32(target_object, 0x04u);  // CSWCObject::object.id
     if (!ValidObjectId(target_id)) {
         return;
     }
 
-    send_unlock = (SendUnlockObjectFn)GameAddress(CSWCMessage_SendUnlockObject);
-    send_unlock(message, target_id, item_id);
-}
-
-void RemoveAllHooks(void) {
-    RemoveJump(&g_placeable_patch);
-    RemoveJump(&g_door_patch);
-}
-
-int InstallAllHooks(void) {
-    static const u8 expected_door_jump[5] = { 0xE9u, 0x68u, 0x02u, 0x00u, 0x00u };
-    static const u8 expected_placeable_jump[5] = { 0xE9u, 0xD6u, 0x00u, 0x00u, 0x00u };
-
-    if (!InstallJump(&g_door_patch, VA_DOOR_POST_SECURITY_ICON,
-            (void*)::DoorSecuritySpikePostIconStub, expected_door_jump)) {
-        RemoveAllHooks();
-        return 0;
-    }
-
-    if (!InstallJump(&g_placeable_patch, VA_PLACE_POST_SECURITY_ICON,
-            (void*)::PlaceableSecuritySpikePostIconStub, expected_placeable_jump)) {
-        RemoveAllHooks();
-        return 0;
-    }
-
-    Log("[K1SecuritySpikes] Hooks installed.\n");
-    return 1;
+    g_send_unlock_object(message, target_id, item_id);
 }
 
 } // namespace
 
-extern "C" void __cdecl K1AppendSecuritySpikes(void* actions, void* client_creature) {
-    AppendSecuritySpikes((CSWGuiInterfaceActionList*)actions, client_creature);
+// Both hook sites land here. The creature is the party member whose action menu is open. A
+// stack parameter arrives as the slot's address, hence the indirection on it. Returning
+// non-zero takes the hook's consumed exit.
+extern "C" int __cdecl K1AppendSecuritySpikes(void* actions, void* const* creature_slot) {
+    if (actions && creature_slot) {
+        AppendSecuritySpikes((CSWGuiInterfaceActionList*)actions, *creature_slot);
+    }
+    return 1;
 }
 
-void __declspec(naked) DoorSecuritySpikePostIconStub() {
-    __asm {
-        pushad
-        push dword ptr [esp + 94h]
-        push esi
-        call K1AppendSecuritySpikes
-        add  esp, 8
-        popad
-        mov  eax, 00683B86h
-        jmp  eax
-    }
-}
-
-void __declspec(naked) PlaceableSecuritySpikePostIconStub() {
-    __asm {
-        pushad
-        push dword ptr [esp + 7Ch]
-        push esi
-        call K1AppendSecuritySpikes
-        add  esp, 8
-        popad
-        mov  eax, 00684634h
-        jmp  eax
-    }
-}
-
-void __declspec(naked) MenuActionUseSecuritySpike_Thunk() {
-    __asm {
-        push dword ptr [esp + 8]
-        push dword ptr [esp + 8]
-        push ecx
-        call UseSecuritySpike
-        add  esp, 12
-        ret  8
-    }
+// The game stores this in its action structure and calls it __thiscall. __fastcall has the
+// same shape once EDX is ignored, as in Common/MemberFunctionThunk.h.
+void __fastcall MenuActionUseSecuritySpike_Thunk(void* target_object, void* /*edx*/,
+                                                 u32 action_id, void* creature) {
+    UseSecuritySpike(target_object, action_id, creature);
 }
 
 extern "C" BOOL WINAPI DllMain(HMODULE module, DWORD reason, LPVOID reserved) {
@@ -561,17 +374,16 @@ extern "C" BOOL WINAPI DllMain(HMODULE module, DWORD reason, LPVOID reserved) {
 
     if (reason == DLL_PROCESS_ATTACH) {
         DisableThreadLibraryCalls(module);
-        g_game_base = (u8*)GetModuleHandleA(0);
-        if (!g_game_base || !IsSupportedVersion()) {
-            Log("[K1SecuritySpikes] Unsupported executable.\n");
+        if (!GameVersion::Initialize()) {
+            debugLog("[K1SecuritySpikes] GameVersion::Initialize failed.\n");
             return FALSE;
         }
-        if (!InstallAllHooks()) {
-            Log("[K1SecuritySpikes] Initialization failed.\n");
+        if (!ResolveGameAddresses()) {
+            debugLog("[K1SecuritySpikes] The address database is missing an entry this patch needs.\n");
             return FALSE;
         }
     } else if (reason == DLL_PROCESS_DETACH) {
-        RemoveAllHooks();
+        GameVersion::Reset();
     }
 
     return TRUE;
