@@ -1,0 +1,10 @@
+{
+  "solution": {
+    "path": "KotorPatchManager.sln",
+    "projects": [
+      "src\\KPatchCore\\KPatchCore.csproj",
+      "src\\KPatchLauncher\\KPatchLauncher.csproj",
+      "tools\\SqliteTools\\SqliteTools.csproj"
+    ]
+  }
+}

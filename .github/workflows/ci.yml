@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install the cross and 32-bit toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++-multilib \
+            g++-mingw-w64-i686-posix
+
+      - name: Build the managed projects
+        run: dotnet build KotorPatchManager.Managed.slnf -c Release
+
+      - name: Build the patcher engine
+        run: make -C src/KotorPatcher all
+
+      - name: Run the code generator tests
+        run: make -C src/KotorPatcher test
+
+      - name: Build the KProxy
+        run: src/KProxy/build-mingw.sh "$RUNNER_TEMP/binkw32.dll"
+
+      - name: Publish the manager
+        run: |
+          dotnet publish src/KPatchLauncher/KPatchLauncher.csproj \
+            -c Release -r linux-x64 --self-contained \
+            -p:PublishSingleFile=false \
+            -o "$RUNNER_TEMP/manager"
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build the managed projects
+        run: dotnet build KotorPatchManager.Managed.slnf -c Release
+
+      - name: Build KotorPatcher.dll
+        run: msbuild KotorPatchManager.sln /p:Configuration=Release /p:Platform=x86 /t:KotorPatcher /m
+
+      - name: Publish the manager
+        run: |
+          dotnet publish src\KPatchLauncher\KPatchLauncher.csproj -c Release -r win-x86 --self-contained -p:PublishSingleFile=true -o "$env:RUNNER_TEMP\manager"
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build the managed projects
+        run: dotnet build KotorPatchManager.Managed.slnf -c Release
+
+      - name: Build the patcher dylib
+        run: make -C src/KotorPatcher dylib CXX_MAC=clang++
+
+      - name: Publish the manager
+        run: |
+          for rid in osx-x64 osx-arm64; do
+            # Every RID shares one obj/, apphost included, so a second publish
+            # reuses the first architecture's binary unless it is cleared.
+            rm -rf src/KPatchLauncher/obj src/KPatchCore/obj
+            dotnet publish src/KPatchLauncher/KPatchLauncher.csproj \
+              -c Release -r "$rid" --self-contained \
+              -p:PublishSingleFile=false \
+              -o "$RUNNER_TEMP/manager-$rid"
+          done
+
+  patches:
+    name: Patch metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate every patch manifest and hook
+        run: python3 tools/validate-patches.py
