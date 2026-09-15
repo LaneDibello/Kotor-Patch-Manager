@@ -155,6 +155,7 @@ For more details on this app see the [KPatchLauncher README](src/KPatchLauncher/
 
 ## See Also
 KOTOR Patch Manager development takes place mainly in the OpenKotOR discord, if you have any questions or want to work on patching join:
+
 [![OpenKotOR Discord](https://discordapp.com/api/guilds/739590575359262792/widget.png?style=banner2)](https://discord.gg/openkotor)
 
 You can contact Lane on Discord @lane_d
