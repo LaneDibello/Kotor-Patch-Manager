@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <algorithm>
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
@@ -604,7 +605,8 @@ namespace {
         DrawTextLine(12.0f, 24.0f, "Shader Debug  F10 hide  Up/Down nav  Enter toggle  Shift+Enter off");
 
         float y = 52.0f;
-        const int maxIndex = min(static_cast<int>(entries.size()), g_scrollOffset + kVisibleRows);
+        // Parenthesised so the min macro MSVC's windows.h defines cannot expand here.
+        const int maxIndex = (std::min)(static_cast<int>(entries.size()), g_scrollOffset + kVisibleRows);
         for (int i = g_scrollOffset; i < maxIndex; ++i) {
             const ShaderEntry& entry = entries[i];
             const bool selected = (i == g_selectedIndex);
