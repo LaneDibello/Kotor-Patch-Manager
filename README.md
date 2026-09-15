@@ -154,8 +154,13 @@ The C# Avalonia project is the basic UI that leverages the patching framework. A
 For more details on this app see the [KPatchLauncher README](src/KPatchLauncher/README.md).
 
 ## See Also
+KOTOR Patch Manager development takes place mainly in the OpenKotOR discord, if you have any questions or want to work on patching join:
+[![OpenKotOR Discord](https://discordapp.com/api/guilds/739590575359262792/widget.png?style=banner2)](https://discord.gg/openkotor)
+
 You can contact Lane on Discord @lane_d
+
 Related [DeadlyStream thread](https://deadlystream.com/topic/11948-kotor-1-gog-reverse-engineering/)
+
 My [YouTube Channel](https://www.youtube.com/@lane_m)
 
 ## License
