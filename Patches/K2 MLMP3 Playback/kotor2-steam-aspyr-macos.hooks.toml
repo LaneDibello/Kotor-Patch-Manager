@@ -1,0 +1,178 @@
+[metadata]
+target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77"]
+
+# KOTOR 2 Mac MP3 Playback Fix
+#
+# KOTOR 2 for Mac has always had the ability to play mp3's with Apple's native audio engine. However, there were two issues: The game only searached for .wav files ... and, even when that was changed, it turned out the game ould insist on treating an .mp3 file as a .wav file, sending it to the wrong player.
+
+# At 0x1004e855d , there are 3 lines of instruction in a row: .wav\0 || mp3\0 || wav\0. Notably missing is ".mp3\stop"; unfortunately, there are only four bytes on the mp3\0 line. Fortunately, the second "wav" is redundant: everything it does can be done by directing all referenes to it to instead look to the second byte of ".wav\stop" (at 0x1004e855e, skipping the period). Similarly, any function that needs to only grab "mp3" can point to the second byte of .mp3 (at 0x1004e8563). So, the code is changed to: .wav\0 || .mp3 || \0\0\0\0.
+
+# Note: AI was used to generate Step 4 and refine Step 5 in this code.
+
+
+# Step 1: Add a period to the start of "mp3" 
+# and zero out the subsequent "wav" line.
+
+[[hooks]]
+address = 0x1004e8562
+type = "simple"
+original_bytes = [0x6D, 0x70, 0x33, 0x00, 0x77, 0x61, 0x76] #mp3\0 wav\0
+replacement_bytes = [0x2E, 0x6D, 0x70, 0x33, 0x00, 0x00, 0x00] #.mp3 \0\0\0\0
+
+
+# Step 2: Redirecting 3 out of 4 of the references to the old "wav" string 
+# by subtracting 8 bytes (pointing to 0x1004e855e).
+
+# First one pointed to 0x1002bf7a0 + 7 + 228dBF. Need to add 228DB7 instead.
+[[hooks]]
+address = 0x1002bf7a3
+type = "simple"
+original_bytes = [0xBF]
+replacement_bytes = [0xB7]
+
+# Second pointed to 0x100077b0f + 7 + 470a50. Changing to 470a48.
+[[hooks]]
+address = 0x100077b12
+type = "simple"
+original_bytes = [0x50]
+replacement_bytes = [0x48]
+
+# Third pointed to 0x1002e44b6 + 7 + 2040a9. Changing to 2040a1
+[[hooks]]
+address = 0x1002e44b9
+type = "simple"
+original_bytes = [0xA9]
+replacement_bytes = [0xA1]
+
+
+# Step 3: Redirecting the referenes to the old "mp3" 
+# (which now has a period in front of it) by adding 1 byte.
+
+#First pointed to 0x1002bfacd + 7 + 228a8e. 8e -> 8f.
+[[hooks]]
+address = 0x1002bfad0
+type = "simple"
+original_bytes = [0x8E]
+replacement_bytes = [0x8F]
+
+#Second pointed to 0x100077ae0 + 7 + 470a7b. Changing to 470a7c.
+[[hooks]]
+address = 0x100077ae3
+type = "simple"
+original_bytes = [0x7B]
+replacement_bytes = [0x7C]
+
+
+# Step 4: Search and Find .mp3 files ... if found, set RSI to "mp3\0"; 
+# else: search for .wav files ... if found, set RSI to "wav\0"
+
+# This is subtly different than Windows behavior, which prioritizes .wav files.
+# All vanilla files are .wav. If there is a .mp3 file, a mod introduced it.
+# In the very rare examples I've seen of same-named .mp3 and .wav files,
+# the .mp3 should have played. (TSLRCM's Bao Dur-Tien Tien conversation comes to mind.)
+
+[[hooks]]
+address = 0x1002e43f2
+type = "replace"
+original_bytes = [0x48, 0x8D, 0x35, 0x6D, 0x41, 0x20, 0x00]
+replacement_bytes = [
+    0x48, 0x8B, 0xB5, 0xA8, 0x75, 0xFF, 0xFF, # MOV RSI, [RBP - 0x8a58] (Loading file basename)
+    0x48, 0x85, 0xF6,                         # TEST RSI, RSI (Testing if null)
+    0x0F, 0x84, 0x83, 0x00, 0x00, 0x00,       # JZ .use_wav (If null, go to the .wav fallback, which already handles null pointers) 
+    0x48, 0x81, 0xEC, 0x00, 0x02, 0x00, 0x00, # SUB RSP, 512 (stack probe buffer)
+    0x48, 0x89, 0xE7,                         # MOV RDI, RSP
+    0x8B, 0x06,                               # MOV EAX, dword ptr [RSI]
+    0x0D, 0x20, 0x20, 0x00, 0x00,             # OR EAX, 0x00002020 (lowercase 'h','d')
+    0x3D, 0x68, 0x64, 0x30, 0x3A,             # CMP EAX, 0x3A306468 ("hd0:") skipping 
+    0x75, 0x13,                               # JNE .copy_loop
+    0x48, 0x83, 0xC6, 0x04,                   # ADD RSI, 4 (skip "HD0:")
+    0x80, 0x3E, 0x2F,                         # CMP byte ptr [RSI], '/' checking if HDO was followed by slashes
+    0x74, 0x05,                               # JE .inc_slash
+    #.skip_slash
+    0x80, 0x3E, 0x5C,                         # CMP byte ptr [RSI], '\'
+    0x75, 0x05,                               # JNE .copy_loop
+    # .inc_slash:
+    0x48, 0xFF, 0xC6,                         # INC RSI
+    0xEB, 0xF1,                               # JMP .skip_slash
+    # .copy_loop:                             # Copies the file path and converts backslash to forward slash             
+    0x8A, 0x06,                               # MOV AL, byte ptr [RSI]
+    0x48, 0xFF, 0xC6,                         # INC RSI
+    0x84, 0xC0,                               # TEST AL, AL
+    0x74, 0x0D,                               # JZ .check_dot
+    0x3C, 0x5C,                               # CMP AL, '\'
+    0x75, 0x02,                               # JNE .store_char
+    0xB0, 0x2F,                               # MOV AL, '/'
+    # .store_char:
+    0x88, 0x07,                               # MOV byte ptr [RDI], AL
+    0x48, 0xFF, 0xC7,                         # INC RDI
+    0xEB, 0xEA,                               # JMP .copy_loop
+    # .check_dot:
+    0x80, 0x7F, 0xFF, 0x2E,                   # CMP byte ptr [RDI - 1], '.'
+    0x74, 0x06,                               # JE .append_ext
+    0xC6, 0x07, 0x2E,                         # MOV byte ptr [RDI], '.'
+    0x48, 0xFF, 0xC7,                         # INC RDI
+    # .append_ext:
+    0xC7, 0x07, 0x6D, 0x70, 0x33, 0x00,       # MOV dword ptr [RDI], "mp3\0"
+    0xB8, 0x21, 0x00, 0x00, 0x02,             # MOV EAX, 0x2000021 (SYS_access)
+    0x48, 0x89, 0xE7,                         # MOV RDI, RSP
+    0x31, 0xF6,                               # XOR ESI, ESI (mode F_OK)
+    0x0F, 0x05,                               # SYSCALL
+    0x0F, 0x93, 0xC2,                         # SETNC DL (DL = 1 if CF == 0)
+    0x85, 0xC0,                               # TEST EAX, EAX
+    0x0F, 0x94, 0xC0,                         # SETZ AL (AL = 1 if EAX == 0)
+    0x20, 0xC2,                               # AND DL, AL
+    0x48, 0x81, 0xC4, 0x00, 0x02, 0x00, 0x00, # ADD RSP, 512 (restore stack)
+    0x84, 0xD2,                               # TEST DL, DL
+    0x74, 0x0F,                               # JZ .use_wav
+    # .use_mp3:
+    0x49, 0xBB, 0x63, 0x85, 0x4E, 0x00, 0x01, # MOV R11, 0x1004e8563 ("mp3\0")
+    0x00, 0x00, 0x00,
+    0x4C, 0x89, 0xDE,                         # MOV RSI, R11
+    0xEB, 0x0D,                               # JMP .done
+    # .use_wav:
+    0x49, 0xBB, 0x5E, 0x85, 0x4E, 0x00, 0x01, # MOV R11, 0x1004e855e ("wav\0")
+    0x00, 0x00, 0x00,
+    0x4C, 0x89, 0xDE                          # MOV RSI, R11
+    # .done:
+]
+
+# Step 5: Directing the Miles Soundsystem to the Right Player (SampleAVAudioPlayer for mp3,
+# SampleOpenAL for wav) by appending an extension (using the .wav\0 and .mp3\0 from above).
+# based on path.
+
+# This section was hand written and then sent to AI for improvements/adjustments based on the above.
+# In short, finds the null terminator and then checks what letter is 3 behind it: m or p
+[[hooks]]
+address = 0x1002e484b
+type = "replace"
+original_bytes = [0x48, 0x8D, 0x35, 0x0B, 0x3D, 0x20, 0x00]
+replacement_bytes = [
+    0x48, 0x8B, 0xBD, 0xB8, 0x75, 0xFF, 0xFF, # MOV RDI, [RBP - 0x8a48] (Finds what was opened, local_8a50)
+    0x48, 0x85, 0xFF,                         # TEST RDI, RDI (Is it null? AI added this as a safety check)
+    0x74, 0x32,                               # JZ (jump to the wav fallback)
+    # Previously I had MOV EAX, 0. This is fewer bytes and faster.
+    0x31, 0xC0,                               # XOR EAX, EAX
+    0x48, 0xC7, 0xC1, 0xFF, 0xFF, 0xFF, 0xFF, # MOV RCX, -1
+    0xF2, 0xAE,                               # REPNE SCASB (scan to null terminator)
+    # AI change: I had MOV EAX, dword ptr [RDI - 4] ... CMP EAX, 0x0033706D.
+    # Gemini said to change it to this for case sensitivity reasons.
+    0x8A, 0x47, 0xFC,                         # MOV AL, byte ptr [RDI - 4] ('m')
+    0x0C, 0x20,                               # OR AL, 0x20 (case-insensitive)
+    0x3C, 0x6D,                               # CMP AL, 'm'
+    0x75, 0x1E,                               # JNE (jump to the wav fallback)
+    0x8A, 0x47, 0xFD,                         # MOV AL, byte ptr [RDI - 3] ('p')
+    0x0C, 0x20,                               # OR AL, 0x20 (case-insensitive)
+    0x3C, 0x70,                               # CMP AL, 'p'
+    0x75, 0x15,                               # JNE (jump to the wav fallback)
+    0x80, 0x7F, 0xFE, 0x33,                   # CMP byte ptr [RDI - 2], '3'
+    0x75, 0x0F,                               # JNE (jump to the wav fallback)
+    # if mp3, put mp3 in the register that was previously blindly set to .wav (and then appended to the basename)
+    0x49, 0xBB, 0x62, 0x85, 0x4E, 0x00, 0x01, # MOV R11, 0x1004e8562 (".mp3\0")
+    0x00, 0x00, 0x00,
+    0x4C, 0x89, 0xDE,                         # MOV RSI, R11
+    0xEB, 0x0D,                               # JMP to the end
+    # else: set it to wav.
+    0x49, 0xBB, 0x5D, 0x85, 0x4E, 0x00, 0x01, # MOV R11, 0x1004e855d (".wav\0")
+    0x00, 0x00, 0x00,
+    0x4C, 0x89, 0xDE                          # MOV RSI, R11
+]
