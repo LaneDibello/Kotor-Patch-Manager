@@ -38,38 +38,34 @@ extern "C" void __cdecl preserveAreaMapAspect(void* framePointer) {
         return;
     }
 
-    __try {
-        auto* frame = static_cast<unsigned char*>(framePointer);
-        auto* map = *reinterpret_cast<unsigned char**>(frame + MapObjectFrameOffset);
-        auto* xScale = reinterpret_cast<float*>(frame + MapXScaleFrameOffset);
-        if (map == nullptr || xScale == nullptr) {
-            return;
-        }
-
-        const Rect root =
-            *reinterpret_cast<const Rect*>(map + ControlRectOffset);
-        auto* mapControl = map + MapControlOffset;
-        Rect mapRect =
-            *reinterpret_cast<const Rect*>(mapControl + ControlRectOffset);
-        if (mapRect.height <= 0 || mapRect.width <= 0) {
-            return;
-        }
-
-        const int aspectWidth = mapRect.height * NativeMapWidth / NativeMapHeight;
-        const float aspectScale =
-            static_cast<float>(aspectWidth) / static_cast<float>(NativeMapWidth);
-        if (*xScale <= aspectScale + ScaleTolerance) {
-            return;
-        }
-
-        *xScale = aspectScale;
-        if (mapRect.width > aspectWidth + PixelTolerance) {
-            mapRect.left = root.left + (root.width - aspectWidth) / 2;
-            mapRect.width = aspectWidth;
-            setControlRect(mapControl, mapRect);
-        }
+    auto* frame = static_cast<unsigned char*>(framePointer);
+    auto* map = *reinterpret_cast<unsigned char**>(frame + MapObjectFrameOffset);
+    auto* xScale = reinterpret_cast<float*>(frame + MapXScaleFrameOffset);
+    if (map == nullptr || xScale == nullptr) {
+        return;
     }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
+
+    const Rect root =
+        *reinterpret_cast<const Rect*>(map + ControlRectOffset);
+    auto* mapControl = map + MapControlOffset;
+    Rect mapRect =
+        *reinterpret_cast<const Rect*>(mapControl + ControlRectOffset);
+    if (mapRect.height <= 0 || mapRect.width <= 0) {
+        return;
+    }
+
+    const int aspectWidth = mapRect.height * NativeMapWidth / NativeMapHeight;
+    const float aspectScale =
+        static_cast<float>(aspectWidth) / static_cast<float>(NativeMapWidth);
+    if (*xScale <= aspectScale + ScaleTolerance) {
+        return;
+    }
+
+    *xScale = aspectScale;
+    if (mapRect.width > aspectWidth + PixelTolerance) {
+        mapRect.left = root.left + (root.width - aspectWidth) / 2;
+        mapRect.width = aspectWidth;
+        setControlRect(mapControl, mapRect);
     }
 }
 
@@ -78,15 +74,11 @@ extern "C" void __cdecl preserveAreaMapProjection(void* framePointer) {
         return;
     }
 
-    __try {
-        auto* frame = static_cast<unsigned char*>(framePointer);
-        auto* xScale = reinterpret_cast<float*>(frame + MapXScaleFrameOffset);
-        const float yScale = *reinterpret_cast<float*>(frame + MapYScaleFrameOffset);
-        if (yScale > 0.0f && *xScale > yScale) {
-            *xScale = yScale;
-        }
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
+    auto* frame = static_cast<unsigned char*>(framePointer);
+    auto* xScale = reinterpret_cast<float*>(frame + MapXScaleFrameOffset);
+    const float yScale = *reinterpret_cast<float*>(frame + MapYScaleFrameOffset);
+    if (yScale > 0.0f && *xScale > yScale) {
+        *xScale = yScale;
     }
 }
 
@@ -95,27 +87,23 @@ extern "C" void __cdecl preserveMiniMapAspect(void* framePointer) {
         return;
     }
 
-    __try {
-        auto* frame = static_cast<unsigned char*>(framePointer);
-        auto* mainInterface =
-            *reinterpret_cast<unsigned char**>(frame + MainInterfaceFrameOffset);
-        if (mainInterface == nullptr) {
-            return;
-        }
-
-        const int height =
-            *reinterpret_cast<const int*>(mainInterface + MiniMapScaledHeightOffset);
-        if (height <= 0) {
-            return;
-        }
-
-        const int aspectWidth = height * NativeMapWidth / NativeMapHeight;
-        *reinterpret_cast<int*>(mainInterface + MiniMapScaledWidthOffset) = aspectWidth;
-        reinterpret_cast<Rect*>(
-            mainInterface + MiniMapControlOffset + ControlRectOffset)->width = aspectWidth;
+    auto* frame = static_cast<unsigned char*>(framePointer);
+    auto* mainInterface =
+        *reinterpret_cast<unsigned char**>(frame + MainInterfaceFrameOffset);
+    if (mainInterface == nullptr) {
+        return;
     }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
+
+    const int height =
+        *reinterpret_cast<const int*>(mainInterface + MiniMapScaledHeightOffset);
+    if (height <= 0) {
+        return;
     }
+
+    const int aspectWidth = height * NativeMapWidth / NativeMapHeight;
+    *reinterpret_cast<int*>(mainInterface + MiniMapScaledWidthOffset) = aspectWidth;
+    reinterpret_cast<Rect*>(
+        mainInterface + MiniMapControlOffset + ControlRectOffset)->width = aspectWidth;
 }
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved) {
