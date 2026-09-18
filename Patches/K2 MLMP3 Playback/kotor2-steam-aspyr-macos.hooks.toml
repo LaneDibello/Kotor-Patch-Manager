@@ -137,11 +137,11 @@ replacement_bytes = [
 ]
 
 # Step 5: Directing the Miles Soundsystem to the Right Player (SampleAVAudioPlayer for mp3,
-# SampleOpenAL for wav) by appending an extension (using the .wav\0 and .mp3\0 from above).
-# based on path.
+# SampleOpenAL for wav) by appending an extension (using the .wav\0 and .mp3\0 instruction
+# lines from Step 1) based on path.
 
-# This section was hand written and then sent to AI for improvements/adjustments based on the above.
-# In short, finds the null terminator and then checks what letter is 3 behind it: m or p
+# This section was hand written and then sent to AI for improvements/adjustments related to Step 4.
+# In short, it finds the null terminator of the file path and then checks what letters are behind it.
 [[hooks]]
 address = 0x1002e484b
 type = "replace"
@@ -155,7 +155,7 @@ replacement_bytes = [
     0x48, 0xC7, 0xC1, 0xFF, 0xFF, 0xFF, 0xFF, # MOV RCX, -1
     0xF2, 0xAE,                               # REPNE SCASB (scan to null terminator)
     # AI change: I had MOV EAX, dword ptr [RDI - 4] ... CMP EAX, 0x0033706D.
-    # Gemini said to change it to this for case sensitivity reasons.
+    # Gemini said to change it to this for case-sensitivity reasons.
     0x8A, 0x47, 0xFC,                         # MOV AL, byte ptr [RDI - 4] ('m')
     0x0C, 0x20,                               # OR AL, 0x20 (case-insensitive)
     0x3C, 0x6D,                               # CMP AL, 'm'
