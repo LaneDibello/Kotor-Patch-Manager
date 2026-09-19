@@ -46,6 +46,7 @@ bld/
 [Ll]ogs/
 *.dll
 *.so
+*.dylib
 # KotorPatcher Makefile output (KotorPatcher.dll + KotorPatcher.so + objects)
 src/KotorPatcher/build/
 *.pdb
