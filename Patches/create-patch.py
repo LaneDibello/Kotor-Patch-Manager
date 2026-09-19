@@ -129,6 +129,23 @@ def generate_exports_def(patch_dir: Path, cpp_files: list[Path], name: str) -> P
     return out
 
 
+def pragma_libraries(cpp_files: list[Path]) -> list[str]:
+    """Link flags for the libraries the sources request with #pragma comment(lib).
+
+    MSVC acts on that pragma and GCC ignores it, so a patch that names opengl32
+    there compiles under both and links only under MSVC. Reading the pragma keeps
+    the dependency declared in one place, next to the code that needs it.
+    """
+    names = []
+    for source in cpp_files:
+        for match in re.finditer(r'#pragma\s+comment\s*\(\s*lib\s*,\s*"([^"]+)"',
+                                 source.read_text(errors="replace")):
+            name = re.sub(r"\.lib$", "", match.group(1), flags=re.IGNORECASE)
+            if name not in names:
+                names.append(name)
+    return [f"-l{name}" for name in names]
+
+
 def toolchain_tag(compiler: str) -> str:
     """Identify the compiler closely enough to key a cache of its object files."""
     parts = []
@@ -250,7 +267,7 @@ def compile_dll(patch_dir: Path, name: str, compiler: str) -> Path:
              # After the patch objects: the linker resolves left to right, and only
              # the archive members those objects need are pulled in.
              str(common_lib),
-             "-L", tmp, "-lsqlite3", "-lkernel32"],
+             "-L", tmp, "-lsqlite3", "-lkernel32", *pragma_libraries(cpp_files)],
             capture_output=True, text=True)
         if result.returncode != 0:
             fail("ERROR: DLL compilation failed!", result.stderr)
