@@ -1,0 +1,13 @@
+[patch]
+id = "mp3-playback-patch"
+name = "Mac MP3 Playback Patch"
+version = "0.0.1"
+author = "FTD, Synchro, Vriff, Lane"
+description = "This patch allows loose files ending in .mp3 to be played on the Mac native K2. (Linux patch forthcoming.)"
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor2_steam_aspyr_macos = "1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77"
