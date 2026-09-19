@@ -27,6 +27,7 @@ Usage: run from inside a patch directory, e.g. `python3 ../create-patch.py`.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import os
 import re
 import shutil
@@ -48,6 +49,10 @@ COMPILE_FLAGS = [
     "-static", "-static-libgcc", "-static-libstdc++",
     "-DWIN32", "-DNDEBUG", "-D_WINDOWS", "-D_USRDLL",
 ]
+
+# The same flags for a compile-only step. -shared and -s only mean something to the
+# linker, and -s would strip the objects the archive is built from.
+OBJECT_FLAGS = [flag for flag in COMPILE_FLAGS if flag not in ("-shared", "-s")]
 
 
 def fail(*lines: str) -> None:
@@ -83,25 +88,25 @@ def find_compiler() -> str | None:
     return shutil.which(CXX)
 
 
-def dlltool_for(compiler: str) -> str:
-    """Find the dlltool that matches the C++ cross-compiler.
+def tool_for(compiler: str, tool: str) -> str:
+    """Find the binutils program that matches the C++ cross-compiler.
 
-    Prefers `compiler -print-prog-name=dlltool`, which the compiler answers with its
+    Prefers `compiler -print-prog-name=<tool>`, which the compiler answers with its
     own tool regardless of cross prefix, version suffix, or install path. Falls back
     to swapping the compiler's name suffix. Exits (via fail) if neither resolves,
-    rather than silently returning a bare "dlltool" that will not exist.
+    rather than silently returning a bare name that will not exist.
     """
-    probe = subprocess.run([compiler, "-print-prog-name=dlltool"],
+    probe = subprocess.run([compiler, f"-print-prog-name={tool}"],
                            capture_output=True, text=True)
     printed = probe.stdout.strip()
-    # gcc/clang print an absolute path when they resolve the tool, else bare "dlltool".
-    if printed and printed != "dlltool" and Path(printed).exists():
+    # gcc/clang print an absolute path when they resolve the tool, else the bare name.
+    if printed and printed != tool and Path(printed).exists():
         return printed
-    guess = re.sub(r"(g\+\+|gcc|c\+\+|clang\+\+)$", "dlltool", compiler)
+    guess = re.sub(r"(g\+\+|gcc|c\+\+|clang\+\+)$", tool, compiler)
     found = shutil.which(guess)
     if found:
         return found
-    fail(f"ERROR: could not find dlltool for {compiler}.",
+    fail(f"ERROR: could not find {tool} for {compiler}.",
          "Install the matching binutils (e.g. mingw32-binutils on Fedora).")
 
 
@@ -124,6 +129,90 @@ def generate_exports_def(patch_dir: Path, cpp_files: list[Path], name: str) -> P
     return out
 
 
+def toolchain_tag(compiler: str) -> str:
+    """Identify the compiler closely enough to key a cache of its object files."""
+    parts = []
+    for flag in ("-dumpmachine", "-dumpversion"):
+        probe = subprocess.run([compiler, flag], capture_output=True, text=True)
+        parts.append(probe.stdout.strip() or "unknown")
+    return "-".join(parts)
+
+
+def common_cache_key(common_dir: Path) -> str:
+    """The compile flags, then every file under Common with its size and mtime.
+
+    Editing, adding or deleting any source or header changes a line, which is what
+    makes the cache notice. Timestamps rather than content hashes because the tree
+    is large and a stat is enough to catch an edit.
+    """
+    lines = [" ".join(OBJECT_FLAGS)]
+    for path in sorted(common_dir.rglob("*")):
+        if path.is_file():
+            info = path.stat()
+            lines.append(f"{path.relative_to(common_dir)} {info.st_size} {info.st_mtime_ns}")
+    return "\n".join(lines) + "\n"
+
+
+def ensure_common_library(patch_dir: Path, common_dir: Path, lib_dir: Path,
+                          compiler: str) -> Path:
+    """Build Common/GameAPI into a static library once and reuse it across patches.
+
+    Every DETOUR patch links the same translation units, and recompiling them per
+    patch dominated the build. Archiving them keeps the "only pay for what you use"
+    property: the linker pulls a member in only to resolve an undefined symbol, so
+    the DLL is unchanged and this is purely a compile-time saving.
+
+    The cache lives in Patches/build rather than under Common, whose tree the key
+    walks -- a cache stored there would contain its own outputs and never hit.
+    """
+    cache_dir = patch_dir.parent / "build" / "common" / toolchain_tag(compiler)
+    library = cache_dir / "libcommon.a"
+    stamp = cache_dir / "sources.stamp"
+    key = common_cache_key(common_dir)
+
+    try:
+        if library.is_file() and stamp.read_text() == key:
+            return library
+    except OSError:
+        pass  # An unreadable stamp costs a rebuild, never correctness.
+
+    sources = [*sorted(common_dir.glob("*.cpp")),
+               *sorted((common_dir / "GameAPI").glob("*.cpp"))]
+    print(f"  Building the shared Common/GameAPI library ({len(sources)} sources)...")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    # Staged inside the cache directory so the rename below stays on one filesystem.
+    with tempfile.TemporaryDirectory(dir=cache_dir) as tmp:
+        def compile_one(source: Path):
+            # Common/Foo.cpp and Common/GameAPI/Foo.cpp share a stem, so the object
+            # name carries the directory too.
+            obj = Path(tmp) / f"{source.parent.name}-{source.stem}.o"
+            return obj, subprocess.run(
+                [compiler, *OBJECT_FLAGS, "-I", str(common_dir), "-I", str(lib_dir),
+                 "-c", str(source), "-o", str(obj)],
+                capture_output=True, text=True)
+
+        objects = []
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            for obj, result in pool.map(compile_one, sources):
+                if result.returncode != 0:
+                    fail("ERROR: Common library compilation failed!", result.stderr)
+                objects.append(obj)
+
+        archive = Path(tmp) / library.name
+        result = subprocess.run(
+            [tool_for(compiler, "ar"), "rcs", str(archive), *(str(o) for o in objects)],
+            capture_output=True, text=True)
+        if result.returncode != 0:
+            fail("ERROR: Common library archiving failed!", result.stderr)
+        # Atomic, so two patches building in parallel cannot read a half-written
+        # archive: each writes its own copy and the last rename wins.
+        os.replace(archive, library)
+
+    stamp.write_text(key)
+    return library
+
+
 def compile_dll(patch_dir: Path, name: str, compiler: str) -> Path:
     """Cross-compile windows_x86.dll for a DETOUR patch with MinGW-w64.
 
@@ -137,9 +226,7 @@ def compile_dll(patch_dir: Path, name: str, compiler: str) -> Path:
              "The MinGW build expects the standard Patches/ layout.")
 
     cpp_files = find_sources(patch_dir)
-    sources = [*cpp_files,
-               *sorted(common_dir.glob("*.cpp")),
-               *sorted((common_dir / "GameAPI").glob("*.cpp"))]
+    common_lib = ensure_common_library(patch_dir, common_dir, lib_dir, compiler)
     exports = generate_exports_def(patch_dir, cpp_files, name)
     out = patch_dir / "windows_x86.dll"
 
@@ -149,7 +236,7 @@ def compile_dll(patch_dir: Path, name: str, compiler: str) -> Path:
         # used at runtime.
         import_lib = Path(tmp) / "libsqlite3.a"
         result = subprocess.run(
-            [dlltool_for(compiler), "-d", str(lib_dir / "sqlite3.def"),
+            [tool_for(compiler, "dlltool"), "-d", str(lib_dir / "sqlite3.def"),
              "-D", "sqlite3.dll", "-l", str(import_lib)],
             capture_output=True, text=True)
         if result.returncode != 0:
@@ -158,8 +245,11 @@ def compile_dll(patch_dir: Path, name: str, compiler: str) -> Path:
         result = subprocess.run(
             [compiler, *COMPILE_FLAGS,
              "-I", str(common_dir), "-I", str(lib_dir),
-             *(str(s) for s in sources), str(exports),
+             *(str(s) for s in cpp_files), str(exports),
              "-o", str(out),
+             # After the patch objects: the linker resolves left to right, and only
+             # the archive members those objects need are pulled in.
+             str(common_lib),
              "-L", tmp, "-lsqlite3", "-lkernel32"],
             capture_output=True, text=True)
         if result.returncode != 0:
