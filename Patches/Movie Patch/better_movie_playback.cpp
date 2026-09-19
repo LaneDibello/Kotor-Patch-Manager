@@ -1,7 +1,7 @@
 #include "better_movie_playback.h"
 #include "mitchell_netravali_filter.h"
 
-#include <gl/GL.h>
+#include <GL/gl.h>
 #include <cstring>
 #include <limits>
 
@@ -671,15 +671,15 @@ int screenHeight() {
     return height > 0 ? height : BaseHeight;
 }
 
+// Reading through the kernel reports an unreadable address instead of raising.
 bool safeReadDword(const void* address, DWORD& value) {
-    __try {
-        value = *reinterpret_cast<const DWORD*>(address);
-        return true;
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
+    SIZE_T read = 0;
+    if (!ReadProcessMemory(GetCurrentProcess(), address, &value, sizeof(value), &read) ||
+        read != sizeof(value)) {
         value = 0;
         return false;
     }
+    return true;
 }
 
 bool prepareMovieContext(void* movie) {
