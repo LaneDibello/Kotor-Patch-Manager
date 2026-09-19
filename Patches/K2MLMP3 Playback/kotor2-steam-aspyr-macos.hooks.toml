@@ -3,89 +3,19 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 
 # KOTOR 2 Mac MP3 Playback Fix
 
-# KOTOR 2 for Mac has always had the ability to play mp3's with Apple's native audio engine. But it didn't. Two issues: 
+# KOTOR 2 for Mac has always had the ability to play mp3's with Apple's native audio engine. But it didn't. Why?
 
-#       [1] File Discovery (InitializeSource):
+#       File Discovery (InitializeSource):
 #               The vanilla code would only search the file system by 
 #               appending "wav," so no file ending in "mp3" would be 
 #               discovered.
-#       [2] Audio Player Selection (_AIL_open_stream):
-#               Separately (but again, blindly) appending ".wav," the vanilla code 
-#               forced Miles to send all audio files to SampleOpenAL, which can 
-#               play wav files but not mp3 files, despite having the ability to 
-#               also send files to SampleAVAudioPlayer (an mp3 player).
-
-# This patch fixes both issues: It allows the native Mac K2 to play mp3 and 
-# wav files, prioritizing mp3 files in the event of a conflict. 
-
-# Step 1: Add a period to the start of "mp3" & zero out the subsequent "wav" line.
-#               At 0x1004e855d , there are 3 lines of instruction in a 
-#               row: .wav\0 || mp3\0 || wav\0. Notably missing is 
-#               ".mp3\stop"; unfortunately, there are only four bytes on the 
-#               mp3\0 line. Fortunately, the second "wav" is redundant. So, 
-#               the code is changed to: .wav\0 || .mp3 || \0\0\0\0.
-
-[[hooks]]
-address = 0x1004e8562
-type = "simple"
-original_bytes = [0x6D, 0x70, 0x33, 0x00, 0x77, 0x61, 0x76] #mp3\0 wav\0
-replacement_bytes = [0x2E, 0x6D, 0x70, 0x33, 0x00, 0x00, 0x00] #.mp3 \0\0\0\0
-
-
-# Step 2: Redirecting 3 out of 4 of the references to the old "wav" string 
-#               References to the now-zeroed-out "wav\0" string were used for 
-#               file discovery. They can remain unbroken by a mere 
-#               redirection to the second byte of ".wav\0" (i.e. 0x1004e855e, 
-#               skipping the period). That position is 8 bytes behind the old 
-#               "wav\0."
-
-# First one pointed to 0x1002bf7a0 + 7 + 228dBF. Need to add 228DB7 instead.
-[[hooks]]
-address = 0x1002bf7a3
-type = "simple"
-original_bytes = [0xBF]
-replacement_bytes = [0xB7]
-
-# Second pointed to 0x100077b0f + 7 + 470a50. Changing to 470a48.
-[[hooks]]
-address = 0x100077b12
-type = "simple"
-original_bytes = [0x50]
-replacement_bytes = [0x48]
-
-# Third pointed to 0x1002e44b6 + 7 + 2040a9. Changing to 2040a1
-[[hooks]]
-address = 0x1002e44b9
-type = "simple"
-original_bytes = [0xA9]
-replacement_bytes = [0xA1]
-
-
-# Step 3: Redirecting the references to the old "mp3" 
-#               Similarly, any file-discovery function that needs to only grab 
-#               "mp3\0" can now just be pointed to the second byte of .mp3 (at 
-#               0x1004e8563), one byte (the period) ahead of where they used to 
-#               point.
-
-#First pointed to 0x1002bfacd + 7 + 228a8e. 8e -> 8f.
-[[hooks]]
-address = 0x1002bfad0
-type = "simple"
-original_bytes = [0x8E]
-replacement_bytes = [0x8F]
-
-#Second pointed to 0x100077ae0 + 7 + 470a7b. Changing to 470a7c.
-[[hooks]]
-address = 0x100077ae3
-type = "simple"
-original_bytes = [0x7B]
-replacement_bytes = [0x7C]
-
-
-# Step 4: File Discovery (InitializeSource) Patch.
-#               Searches for .mp3 files ... if found, sets RSI to "mp3\0".
-#               This step involves modifying a Windows-style file path to unix 
-#               conventions.
+#      
+#       This replace hook searches for .mp3 files ... if found, RSI is 
+#       set to "mp3\0". It handles modifying the Windows-style file 
+#       path to a unix-friendly one on its own.  
+             
+# In short: With this patch, the native Mac K2 can play mp3 and wav 
+# files, prioritizing mp3 files in the event of a conflict. 
 
 [[hooks]]
 address = 0x1002e43f2
@@ -141,7 +71,7 @@ replacement_bytes = [
     0x84, 0xD2,                               # TEST DL, DL
     0x74, 0x0F,                               # JZ .use_wav
     # .use_mp3:
-    0x49, 0xBB, 0x63, 0x85, 0x4E, 0x00, 0x01, # MOV R11, 0x1004e8563 ("mp3\0")
+    0x49, 0xBB, 0x62, 0x85, 0x4E, 0x00, 0x01, # MOV R11, 0x1004e8562 ("mp3\0")
     0x00, 0x00, 0x00,
     0x4C, 0x89, 0xDE,                         # MOV RSI, R11
     0xEB, 0x0D,                               # JMP .done
@@ -150,53 +80,4 @@ replacement_bytes = [
     0x00, 0x00, 0x00,
     0x4C, 0x89, 0xDE                          # MOV RSI, R11
     # .done:
-]
-
-
-# Step 5: Audio Player Selection (_AIL_open_stream) Patch
-#       Fixes the portion of code that directs the Miles Soundsystem to the correct 
-#       player by determining the extension of the open file path (local_8a50).
-
-[[hooks]]
-address = 0x1002e484b
-type = "replace"
-original_bytes = [0x48, 0x8D, 0x35, 0x0B, 0x3D, 0x20, 0x00]
-replacement_bytes = [
-    0x48, 0x8B, 0xBD, 0xB8, 0x75, 0xFF, 0xFF, # MOV RDI, [RBP - 0x8a48]
-    0x48, 0x85, 0xFF,                         # TEST RDI, RDI
-    0x74, 0x32,                               # JZ
-    0x31, 0xC0,                               # XOR EAX, EAX
-    
-    # RCX = loop counter; essentially setting it to infinity to scan even the 
-    #       longest file names. ...... probably overkill. Scans for the null 
-    #       terminator (\0).
-    0x48, 0xC7, 0xC1, 0xFF, 0xFF, 0xFF, 0xFF, # MOV RCX, -1
-    0xF2, 0xAE,                               # REPNE SCASB (scan to null terminator)
-    
-    # Moving 4 characters back from the end of the null terminator to see the
-    #       3-character extension and case-insensitively compare it, one letter 
-    #       at a time, to mp3. If not mp3 --> wav fallback.
-    0x8A, 0x47, 0xFC,                         # MOV AL, byte ptr [RDI - 4] ('m')
-    0x0C, 0x20,                               # OR AL, 0x20
-    0x3C, 0x6D,                               # CMP AL, 'm'
-    0x75, 0x1E,                               # JNE
-    0x8A, 0x47, 0xFD,                         # MOV AL, byte ptr [RDI - 3] ('p')
-    0x0C, 0x20,                               # OR AL, 0x20
-    0x3C, 0x70,                               # CMP AL, 'p'
-    0x75, 0x15,                               # JNE
-    0x80, 0x7F, 0xFE, 0x33,                   # CMP byte ptr [RDI - 2], '3'
-    0x75, 0x0F,                               # JNE
-    
-    # If mp3 is a match, sets RSI (which the vanilla code will append to the 
-    #       basename) to 0x1004e8562 (".mp3\0" from step 1).
-    0x49, 0xBB, 0x62, 0x85, 0x4E, 0x00, 0x01, # MOV R11, 0x1004e8562 (".mp3\0")
-    0x00, 0x00, 0x00,
-    0x4C, 0x89, 0xDE,                         # MOV RSI, R11
-    0xEB, 0x0D,                               # JMP to the end
-
-    # The wav fallback: does what the code blindly did for everything, 
-    #       attach .wav\0.
-    0x49, 0xBB, 0x5D, 0x85, 0x4E, 0x00, 0x01, # MOV R11, 0x1004e855d (".wav\0")
-    0x00, 0x00, 0x00,
-    0x4C, 0x89, 0xDE                          # MOV RSI, R11
 ]
