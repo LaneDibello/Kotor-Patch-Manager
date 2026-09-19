@@ -1,7 +1,7 @@
 [patch]
 id = "better-movie-playback-v1"
 name = "Movie Patch"
-version = "1.5.2"
+version = "1.5.3"
 author = "J"
 description = "Keeps movies in the configured game window, preserves aspect ratio, and applies Mitchell-Netravali bicubic scaling."
 

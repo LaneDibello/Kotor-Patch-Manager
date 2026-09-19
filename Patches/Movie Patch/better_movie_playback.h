@@ -20,6 +20,7 @@ constexpr DWORD BinkBufferBlitIatAddress = 0x0073D460;
 constexpr DWORD BinkCopyToBufferIatAddress = 0x0073D46C;
 constexpr DWORD BinkBufferSetOffsetIatAddress = 0x0073D480;
 constexpr DWORD BinkBufferSetScaleIatAddress = 0x0073D484;
+constexpr DWORD ActivateRenderWindowAddress = 0x00401E00;
 constexpr DWORD ScreenWidthAddress = 0x0078D1D4;
 constexpr DWORD ScreenHeightAddress = 0x0078D1D8;
 

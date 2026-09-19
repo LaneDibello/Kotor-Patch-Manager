@@ -36,6 +36,14 @@ replacement_bytes = [
     0x90, 0x90, 0x90, 0x90, 0x90, 0x90
 ]
 
+# Resume the game window after the movie tears down so mouse and keyboard input keep working.
+[[hooks]]
+address = 0x00404C10
+type = "detour"
+function = "postMovieCleanup"
+original_bytes = [0x89, 0x7E, 0x24, 0x5F, 0x5E]
+exclude_from_restore = []
+
 # Scale the movie without stretching it and center it in the game window.
 [[hooks]]
 address = 0x00405855
