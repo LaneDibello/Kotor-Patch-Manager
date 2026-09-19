@@ -17,6 +17,14 @@ void* movieFromKotor2Frame(void* framePointer) {
 
 }
 
+// Keeping movies in the game window skips the resolution-restore path, and with it the
+// unpause and SetInputActive the game would have run when the movie ended. Calling its own
+// ActivateRenderWindow here puts input back.
+extern "C" void __cdecl postMovieCleanup() {
+    typedef void(__cdecl* ActivateRenderWindowFn)();
+    reinterpret_cast<ActivateRenderWindowFn>(ActivateRenderWindowAddress)();
+}
+
 extern "C" void __cdecl applyMovieAspectScale(void* movie) {
     if (!movie) {
         return;
