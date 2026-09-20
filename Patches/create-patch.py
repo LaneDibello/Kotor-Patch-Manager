@@ -771,7 +771,9 @@ def build(patch_dir: Path, name: str, out_dir: Path | None = None,
                     print(f"  [OK] {target.module} (prebuilt; no toolchain here)")
                 else:
                     print(f"  [WARN] no toolchain for {target_name}; this package "
-                          f"will not carry {target.module}")
+                          f"will not carry {target.module}.")
+                    print(f"         Build it on a host that can, and put it in "
+                          f"binaries/ to include it from here.")
                 continue
             toolchain, compiler = selected
             try:
