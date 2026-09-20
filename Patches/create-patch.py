@@ -334,7 +334,7 @@ class MsvcDriver:
                      includes: list, output: Path,
                      game_api: GameApi | None = None) -> None:
         environment = self.environment()
-        build_dir = output.parent / "build" / "obj"
+        build_dir = output.parent / "obj"
         build_dir.mkdir(parents=True, exist_ok=True)
         # Everything after /link goes to the linker, and /OUT: only means anything
         # there: cl ignores it as an unknown option and names the DLL after the
@@ -410,6 +410,14 @@ TARGETS = {
         links_game_api=False),
 }
 
+# Which development package a header comes from, for the compilers that look for
+# one and do not find it. OpenGL is the only library a patch needs beyond what the
+# game already loads.
+MISSING_HEADER = re.compile(r"fatal error: ([^:\n]+): No such file or directory")
+HEADER_PACKAGES = {
+    "GL/gl.h": "libgl-dev on Debian and Ubuntu, mesa-libGL-devel on Fedora",
+}
+
 SHA256 = re.compile(r"[0-9A-Fa-f]{64}")
 DETOUR_HOOK = re.compile(r'^\s*type\s*=\s*"detour"', re.MULTILINE)
 FIRST_HOOK = re.compile(r"^\s*\[\[hooks\]\]", re.MULTILINE)
@@ -428,10 +436,13 @@ def find_sources(patch_dir: Path) -> list[Path]:
 
 
 def find_prebuilt_binary(patch_dir: Path, name: str) -> Path | None:
-    for candidate in (patch_dir / name, patch_dir / "binaries" / name):
-        if candidate.is_file():
-            return candidate
-    return None
+    """A module an author built elsewhere and left in binaries/.
+
+    Only binaries/, never the patch root: the root is where a build used to leave
+    its output, so looking there would let a stale module stand in for one this
+    host cannot build."""
+    candidate = patch_dir / "binaries" / name
+    return candidate if candidate.is_file() else None
 
 
 def platform_of_version(patches_dir: Path) -> dict:
@@ -690,9 +701,10 @@ def compile_module(patch_dir: Path, name: str, target_name: str,
     target = TARGETS[target_name]
     sources = find_sources(patch_dir)
 
+    out = patch_dir / "build" / target.module
+    out.parent.mkdir(parents=True, exist_ok=True)
+
     if not target.links_game_api:
-        out = patch_dir / "binaries" / target.module
-        out.parent.mkdir(parents=True, exist_ok=True)
         toolchain.driver.build_module(compiler, toolchain.flags, sources, [], out)
         return out
 
@@ -707,7 +719,6 @@ def compile_module(patch_dir: Path, name: str, target_name: str,
                                       toolchain, compiler),
         lib_dir=lib_dir,
         exports=generate_exports_def(patch_dir, sources, name))
-    out = patch_dir / target.module
     toolchain.driver.build_module(compiler, toolchain.flags, sources,
                                   [common_dir, lib_dir], out, game_api)
     return out
@@ -771,6 +782,12 @@ def build(patch_dir: Path, name: str, out_dir: Path | None = None,
                 print(f"  [FAIL] {target.module}")
                 for line in str(failure).splitlines():
                     print(f"         {line}")
+                for header in MISSING_HEADER.findall(str(failure)):
+                    header = header.strip()
+                    package = HEADER_PACKAGES.get(header)
+                    hint = (f"{header} comes from {package}." if package
+                            else f"install the package providing {header}.")
+                    print(f"         {hint}")
                 continue
             print(f"  [OK] {target.module} ({Path(compiler).name})")
         if broken:
@@ -829,6 +846,8 @@ def build(patch_dir: Path, name: str, out_dir: Path | None = None,
     with zipfile.ZipFile(out) as archive:
         for entry in archive.namelist():
             print(f"      {entry}")
+    shutil.rmtree(patch_dir / "build", ignore_errors=True)
+
     print()
     print(BANNER)
     print("  SUCCESS! Patch created successfully.")
