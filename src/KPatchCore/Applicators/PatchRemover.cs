@@ -147,11 +147,10 @@ public static class PatchRemover
             var patchesDir = Path.Combine(gameDir, "patches");
             if (Directory.Exists(patchesDir))
             {
-                var dllFiles = Directory.GetFiles(patchesDir, "*.dll");
-                foreach (var dll in dllFiles)
+                foreach (var module in GetPatchModules(patchesDir))
                 {
-                    File.Delete(dll);
-                    removedFiles.Add(Path.GetFileName(dll));
+                    File.Delete(module);
+                    removedFiles.Add(Path.GetFileName(module));
                 }
 
                 if (Directory.GetFiles(patchesDir).Length == 0 &&
@@ -319,7 +318,7 @@ public static class PatchRemover
             // Check for patches directory
             var patchesDir = Path.Combine(gameDir, "patches");
             var hasPatchesDir = Directory.Exists(patchesDir) &&
-                                Directory.GetFiles(patchesDir, "*.dll").Length > 0;
+                                GetPatchModules(patchesDir).Count > 0;
 
             // Check if launcher exists
             var launcherPath = Path.Combine(gameDir, "KPatchLauncher.exe");
@@ -343,6 +342,21 @@ public static class PatchRemover
             return PatchResult<bool>.Fail($"Failed to check patch status: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Every patch module installed in <paramref name="patchesDir"/>, whichever platform put it
+    /// there. Returns an empty list when the directory holds nothing we installed.
+    /// </summary>
+    /// <remarks>
+    /// A module is named for its patch and carries the extension of the game it was installed for,
+    /// so matching one extension finds only the games that use it. Uninstall runs against a game
+    /// folder without knowing that platform, and a Windows build under Wine sits next to a native
+    /// build in the same library, so it asks for all of them.
+    /// </remarks>
+    private static List<string> GetPatchModules(string patchesDir) =>
+        DeploymentPolicy.AllPatchBinaryExtensions
+            .SelectMany(extension => Directory.GetFiles(patchesDir, "*" + extension))
+            .ToList();
 
     private static List<string> ReadInstalledPatchIdsFromConfig(string configPath)
     {
@@ -436,7 +450,7 @@ public static class PatchRemover
             var patchesDir = Path.Combine(gameDir, "patches");
             if (Directory.Exists(patchesDir))
             {
-                info.PatchDlls = Directory.GetFiles(patchesDir, "*.dll")
+                info.PatchDlls = GetPatchModules(patchesDir)
                     .Select(Path.GetFileName)
                     .Where(name => name != null)
                     .Cast<string>()

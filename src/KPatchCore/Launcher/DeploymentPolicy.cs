@@ -234,6 +234,20 @@ public static class DeploymentPolicy
             .Distinct()
             .ToArray();
 
+    /// <summary>
+    /// Every extension an installed patch module can have. A module is named for its patch rather
+    /// than its platform, so the extension is all that distinguishes one, and uninstall has only
+    /// that to go on.
+    /// </summary>
+    /// <remarks>
+    /// Asking for all of them follows <see cref="LinkedModuleFileNames"/>: uninstall and detection
+    /// run against a game folder without knowing which platform installed it, and the extension
+    /// follows the game rather than the host, so a folder can hold modules this host would never
+    /// load.
+    /// </remarks>
+    public static IReadOnlyList<string> AllPatchBinaryExtensions { get; } =
+        Enum.GetValues<Platform>().Select(PatchBinaryExtension).Distinct().ToArray();
+
     private static string PlatformTag(Platform platform) => platform switch
     {
         Platform.Windows => "windows",
