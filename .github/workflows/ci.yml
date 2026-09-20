@@ -15,7 +15,7 @@ concurrency:
 jobs:
   linux:
     name: Linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -119,11 +119,11 @@ jobs:
             os: windows-latest
             target: windows_x86
           - label: MinGW
-            os: ubuntu-latest
+            os: ubuntu-22.04
             target: windows_x86
             packages: g++-mingw-w64-i686-posix
           - label: Linux
-            os: ubuntu-latest
+            os: ubuntu-22.04
             target: linux_x86
             packages: g++-multilib libgl-dev
           - label: macOS
