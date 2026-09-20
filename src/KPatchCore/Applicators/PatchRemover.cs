@@ -450,7 +450,7 @@ public static class PatchRemover
             var patchesDir = Path.Combine(gameDir, "patches");
             if (Directory.Exists(patchesDir))
             {
-                info.PatchDlls = GetPatchModules(patchesDir)
+                info.PatchModules = GetPatchModules(patchesDir)
                     .Select(Path.GetFileName)
                     .Where(name => name != null)
                     .Cast<string>()
@@ -500,9 +500,11 @@ public static class PatchRemover
         public List<string> InstalledPatches { get; set; } = new();
 
         /// <summary>
-        /// List of patch DLL files in patches directory
+        /// File names of the patch modules in the patches directory. The extension follows the
+        /// game rather than the host, so these are .dll for a Windows build, .so for a native
+        /// Linux one and .dylib on macOS.
         /// </summary>
-        public List<string> PatchDlls { get; set; } = new();
+        public List<string> PatchModules { get; set; } = new();
 
         /// <summary>
         /// Whether patch_config.toml exists
