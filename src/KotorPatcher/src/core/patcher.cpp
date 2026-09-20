@@ -9,12 +9,18 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <thread>
 #include <vector>
 
 namespace KotorPatcher {
     static std::vector<void*> g_loadedPatches;
     static std::vector<PatchInfo> g_patches;
+
+    // The directory this patcher was loaded from, which is the game directory the
+    // config's paths are relative to. Kept from Initialize so the patch modules it
+    // names can be resolved the same way the config itself was.
+    static std::string g_moduleDir;
 
     // REPLACE hooks allocate a code block that must be released at cleanup, and
     // FreeExec needs the length, so the size is tracked alongside the pointer.
@@ -88,11 +94,12 @@ namespace KotorPatcher {
         Platform::Log(platformMsg);
 
         // Get the directory holding this patcher module; the config sits beside it.
-        std::string moduleDir = Platform::SelfModuleDir();
-        if (moduleDir.empty()) {
+        g_moduleDir = Platform::SelfModuleDir();
+        if (g_moduleDir.empty()) {
             Platform::Log("[KotorPatcher] Failed to resolve module directory\n");
             return false;
         }
+        const std::string& moduleDir = g_moduleDir;
 
         // moduleDir is a '\' path on Windows, but Win32 file I/O canonicalizes '/'
         // to '\', so appending a '/' separator opens the config on both platforms.
@@ -180,10 +187,43 @@ namespace KotorPatcher {
         return true;
     }
 
+    // A patch module's path is written relative to the game directory, which is the
+    // directory this patcher sits in. Handing it to the loader as-is would resolve it
+    // against the working directory instead, and nothing guarantees what that is: macOS
+    // starts an app bundle from "/", so a relative path lands in /patches and the module
+    // silently fails to load. An absolute path, or a dyld directive such as
+    // @loader_path, is already anchored and passes through untouched.
+    static std::string ModulePath(const std::string& path) {
+        if (path.empty() || path[0] == '/' || path[0] == '@' || path[0] == '\\') {
+            return path;
+        }
+        // "C:\..." and "C:/..." are anchored too.
+        if (path.size() >= 2 && path[1] == ':') {
+            return path;
+        }
+        if (g_moduleDir.empty()) {
+            return path;
+        }
+
+        // The config writes '/', and SelfModuleDir reports whatever the platform uses.
+        // File I/O takes either, but the module loaders are stricter, so the joined path
+        // is made to agree with the separator the platform handed back.
+        const bool backslash = g_moduleDir.find('\\') != std::string::npos;
+        std::string full = g_moduleDir + (backslash ? '\\' : '/') + path;
+        if (backslash) {
+            for (char& c : full) {
+                if (c == '/') {
+                    c = '\\';
+                }
+            }
+        }
+        return full;
+    }
+
     bool ApplyPatch(const PatchInfo& patch) {
         // Handle DLL_ONLY patches (load DLL, no hooks)
         if (patch.type == HookType::DLL_ONLY) {
-            void* hPatch = Platform::LoadModule(patch.dllPath.c_str());
+            void* hPatch = Platform::LoadModule(ModulePath(patch.dllPath).c_str());
             if (!hPatch) {
                 Platform::Log(("[KotorPatcher] Failed to load DLL-only patch: " + patch.dllPath +
                     " (" + Platform::LastLoadError() + ")\n").c_str());
@@ -209,7 +249,7 @@ namespace KotorPatcher {
 
         // DETOUR hook - load DLL and create wrapper
         // Load patch DLL
-        void* hPatch = Platform::LoadModule(patch.dllPath.c_str());
+        void* hPatch = Platform::LoadModule(ModulePath(patch.dllPath).c_str());
         if (!hPatch) {
             Platform::Log(("[KotorPatcher] Failed to load: " + patch.dllPath +
                 " (" + Platform::LastLoadError() + ")\n").c_str());
