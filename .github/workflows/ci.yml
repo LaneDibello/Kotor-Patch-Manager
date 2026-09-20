@@ -107,3 +107,40 @@ jobs:
 
       - name: Validate every patch manifest and hook
         run: python3 tools/validate-patches.py
+
+  patch-builds:
+    name: Patches (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: MSVC
+            os: windows-latest
+            target: windows_x86
+          - label: MinGW
+            os: ubuntu-latest
+            target: windows_x86
+            packages: g++-mingw-w64-i686-posix
+          - label: Linux
+            os: ubuntu-latest
+            target: linux_x86
+            packages: g++-multilib libgl-dev
+          - label: macOS
+            os: macos-latest
+            target: macos_x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install the toolchain
+        if: matrix.packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ${{ matrix.packages }}
+
+      - name: Build ${{ matrix.target }} modules
+        run: python publish-patches.py --target ${{ matrix.target }}
