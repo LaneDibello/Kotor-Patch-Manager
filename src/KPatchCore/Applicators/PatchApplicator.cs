@@ -466,17 +466,20 @@ public class PatchApplicator
                     Directory.CreateDirectory(patchesDir);
                     extractedDlls[patchId] = extractResult.Data;
 
+                    // The name carries the extension the game's platform uses, so it is read
+                    // back rather than rebuilt from the patch id.
+                    var extractedName = Path.GetFileName(extractResult.Data);
                     if (hasDetourHooks)
                     {
-                        messages.Add($"  Extracted: {patchId}.dll (DETOUR hooks)");
+                        messages.Add($"  Extracted: {extractedName} (DETOUR hooks)");
                     }
                     else if (hasDllOnlyPatch)
                     {
-                        messages.Add($"  Extracted: {patchId}.dll (DLL-only patch)");
+                        messages.Add($"  Extracted: {extractedName} (DLL-only patch)");
                     }
                     else
                     {
-                        messages.Add($"  Extracted: {Path.GetFileName(extractResult.Data)}");
+                        messages.Add($"  Extracted: {extractedName}");
                     }
                 }
                 else
