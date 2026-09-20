@@ -2,8 +2,8 @@
 id = "k2-mp3-playback-fix"
 name = "MP3 Playback Fix for KOTOR2"
 version = "1.0.0"
-author = "FTD, Synchro, Vriff, Lane"
-description = "Lets KOTOR2 play loose .mp3 music. The engine forces every streaming candidate to the .wav spelling before it looks on disk, so an .mp3 next to the game is never found."
+author = "Synchro, FTD, Vriff, Lane"
+description = "Ensures loose .mp3 audio files can be played in KOTOR2, prioritizing those files over same-named .wav files in the event of a conflict."
 
 requires = []
 
