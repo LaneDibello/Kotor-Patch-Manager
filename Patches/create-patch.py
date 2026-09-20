@@ -369,9 +369,12 @@ WINDOWS_TOOLCHAINS = (
         flags=("/O2", "/MT", "/W3", "/EHsc", "/std:c++17")),
     Toolchain(
         driver=UNIX, env="CXX_WIN",
-        # The cross name first; on Windows a MinGW g++ is native and produces this
-        # target directly, while elsewhere the plain names are the host compiler.
-        compilers=("i686-w64-mingw32-g++", "g++", "clang++"),
+        # The posix variant first: MinGW's win32 threading model compiles <mutex>
+        # and <thread> but defines nothing in them, and a patch using either fails
+        # deep in the build. Then the plain cross name, then the bare ones, which
+        # are a native MinGW on Windows and the host compiler anywhere else.
+        compilers=("i686-w64-mingw32-g++-posix", "i686-w64-mingw32-g++",
+                   "g++", "clang++"),
         flags=("-std=c++17", "-shared", "-O2", "-s", "-static",
                "-static-libgcc", "-static-libstdc++",
                "-DWIN32", "-DNDEBUG", "-D_WINDOWS", "-D_USRDLL")),
@@ -771,7 +774,9 @@ def build(patch_dir: Path, name: str, out_dir: Path | None = None,
                     print(f"  [OK] {target.module} (prebuilt; no toolchain here)")
                 else:
                     print(f"  [WARN] no toolchain for {target_name}; this package "
-                          f"will not carry {target.module}")
+                          f"will not carry {target.module}.")
+                    print(f"         Build it on a host that can, and put it in "
+                          f"binaries/ to include it from here.")
                 continue
             toolchain, compiler = selected
             try:

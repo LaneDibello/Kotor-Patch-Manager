@@ -47,6 +47,9 @@ bld/
 *.dll
 *.so
 *.dylib
+# Where publish-patches.py collects the packaged patches.
+/build/
+
 # KotorPatcher Makefile output (KotorPatcher.dll + KotorPatcher.so + objects)
 src/KotorPatcher/build/
 *.pdb
