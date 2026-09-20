@@ -50,6 +50,8 @@ MACHO_MAGIC_64 = b"\xcf\xfa\xed\xfe"  # MH_MAGIC_64, little endian on disk
 MACHO_TYPE_DYLIB = 6                    # MH_DYLIB, loader.h
 MACHO_CPU_X86_64 = 0x01000007           # CPU_TYPE_X86_64, machine.h
 
+DATABASE_OVERRIDE = "KPATCH_ADDRESS_DATABASES"
+
 VSWHERE = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) \
     / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
 VS_CXX_COMPONENT = "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
@@ -448,24 +450,42 @@ def find_prebuilt_binary(patch_dir: Path, name: str) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-def platform_of_version(patches_dir: Path) -> dict:
-    """SHA-256 to platform, from the address databases beside the Patches tree.
+def database_directories() -> list:
+    """Where the address databases might sit, most likely first.
+
+    Anchored on this script rather than on the patch, because a patch can live
+    anywhere while the script sits in a layout it knows: Patches/ in the repo
+    with the databases at the root, tools/ in a release with them beside the
+    manager in bin/.
+    """
+    override = os.environ.get(DATABASE_OVERRIDE)
+    if override:
+        return [Path(override)]
+    here = Path(__file__).resolve().parent
+    return [here / "AddressDatabases",
+            here.parent / "AddressDatabases",
+            here.parent / "bin" / "AddressDatabases"]
+
+
+def platform_of_version() -> dict:
+    """SHA-256 to platform, from the address databases.
 
     The databases are where a build's identity is recorded; the manifests only
     quote it."""
-    databases = patches_dir.resolve().parent / "AddressDatabases"
     known = {}
-    for database in sorted(databases.glob("*.db")):
-        with contextlib.closing(
-                sqlite3.connect(f"file:{database}?mode=ro", uri=True)) as con:
-            for sha, platform in con.execute(
-                    "SELECT sha256_hash, platform FROM game_version"):
-                known[sha.upper()] = platform
-    if not known:
-        fail(f"ERROR: no game versions found in {databases}.",
-             "Which modules a patch needs is worked out from the games it supports,",
-             "so the address databases have to be reachable.")
-    return known
+    for directory in database_directories():
+        for database in sorted(directory.glob("*.db")):
+            with contextlib.closing(
+                    sqlite3.connect(f"file:{database}?mode=ro", uri=True)) as con:
+                for sha, platform in con.execute(
+                        "SELECT sha256_hash, platform FROM game_version"):
+                    known[sha.upper()] = platform
+        if known:
+            return known
+    fail("ERROR: no address databases found. Looked in:",
+         *(f"  {d}" for d in database_directories()),
+         "Which modules a patch needs is worked out from the games it supports,",
+         f"so they have to be reachable. Set {DATABASE_OVERRIDE} to name them.")
 
 
 def required_targets(patch_dir: Path) -> list:
@@ -490,7 +510,7 @@ def required_targets(patch_dir: Path) -> list:
         wanted |= set(SHA256.findall(head)) or supported
     versions = wanted if detoured else supported
 
-    platforms = platform_of_version(patch_dir.parent)
+    platforms = platform_of_version()
     needed = {platforms.get(v.upper()) for v in versions}
     targets = sorted(name for name, target in TARGETS.items()
                      if target.platform in needed)
