@@ -1,0 +1,6 @@
+LIBRARY K2MP3PlaybackFix
+EXPORTS
+    K2LooseMp3GogAspyr
+    K2LooseMp3SteamAspyr
+    K2Mp3RiffOffsetGogAspyr
+    K2Mp3RiffOffsetSteamAspyr
