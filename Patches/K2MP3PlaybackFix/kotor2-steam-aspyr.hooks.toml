@@ -1,0 +1,32 @@
+[metadata]
+target_versions = ["6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"]
+
+# InitializeSource is at 0x0070CAA0; its ResType_MP3 branch rewrites each candidate to
+# Left(name, len - 3) + "wav" (0x0099C338, used at 0x0070CB93 and 0x0070CCBB).
+#
+# The hook is the loop counter's initialiser: past the last rewrite, before the first
+# fopen. The primary is at EBP-0x13C, and 32 alternates 8 bytes apart at EBP-0x12C.
+[[hooks]]
+address = 0x0070CDCB
+function = "K2LooseMp3SteamAspyr"
+type = "detour"
+original_bytes = [0xC7, 0x85, 0xB8, 0xFE, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer"
+
+# The load of the RIFF size field, before the ADD that turns it into the audio offset.
+# Reached only for a candidate opening with RIFF, so raw mp3 never pays for it.
+# The field is at EBP-0x158, the opened candidate's path at EBP-0x14.
+[[hooks]]
+address = 0x0070CF34
+function = "K2Mp3RiffOffsetSteamAspyr"
+type = "detour"
+original_bytes = [0x8B, 0x85, 0xA8, 0xFE, 0xFF, 0xFF]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer"

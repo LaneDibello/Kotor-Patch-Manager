@@ -1,0 +1,35 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# InitializeSource is at 0x0845760E; its ResType_MP3 branch rewrites each candidate to
+# Left(name, len - 3) + "wav" (0x08781429, the tail of the ".wav" at 0x08781428).
+#
+# The hook is the LEA that loads the alternates for the first fopen, right after the
+# rewrite loop. Clang kept `this` in EBP and addressed the frame off ESP, so the hook
+# takes the stack pointer: the primary at ESP+0x8990, 32 alternates at ESP+0x8880.
+# ESP holds still across the function, each struct-returning call being followed by a
+# SUB ESP,4 that undoes the callee's RET 4.
+[[hooks]]
+address = 0x084577E8
+function = "K2LooseMp3SteamAspyrLinux"
+type = "detour"
+original_bytes = [0x8D, 0xB4, 0x24, 0x80, 0x88, 0x00, 0x00]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# The load of the RIFF size field, before the ADD that turns it into the audio offset.
+# Reached only for a candidate opening with RIFF, so raw mp3 never pays for it.
+# The field is the local at ESP+0x885C, `this` the argument at ESP+0x89B0.
+[[hooks]]
+address = 0x08457CBC
+function = "K2Mp3RiffOffsetLinux"
+type = "detour"
+original_bytes = [0x8B, 0xAC, 0x24, 0x5C, 0x88, 0x00, 0x00]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
