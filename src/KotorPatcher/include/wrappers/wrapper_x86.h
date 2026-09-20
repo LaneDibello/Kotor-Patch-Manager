@@ -53,7 +53,10 @@ namespace KotorPatcher {
             uint32_t CalculateRelativeOffset(void* from, void* to);
 
             // Helper: Extract parameter from source and push onto stack
-            void ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize);
+            // False when the source is one this generator cannot read. The caller has
+            // to abandon the wrapper on that: a parameter that is not pushed shifts
+            // every later argument down a slot rather than merely going missing.
+            bool ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize);
         };
 
     } // namespace Wrappers
