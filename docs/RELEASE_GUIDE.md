@@ -1,5 +1,96 @@
 # Release Guide
 
+Releases are cut two ways, and both stay. **Tag the repo** and CI builds and
+attaches every archive; **run a publish script** when you want a one-off or a
+special build from your own machine. The rest of this document describes the
+scripts, which remain the reference for what a release contains.
+
+---
+
+# Tagged Releases (CI)
+
+**Workflow**: `.github/workflows/release.yml`
+
+Push a `#.#.#` tag and it builds all four archives and opens a **draft** GitHub
+release with them attached. Draft, not published: review the assets, then publish
+by hand.
+
+```bash
+git tag 1.2.3
+git push origin 1.2.3
+```
+
+Tags are bare, with no leading `v`, matching every tag from 0.2.0 on. The
+archives inside are still named `KotorPatchManager-v1.2.3.zip` and so on, which
+is what the publish scripts produce and what past releases carry. A prerelease
+suffix works too (`1.2.3-rc1`), which is the safe way to rehearse a release.
+
+`workflow_dispatch` runs the same jobs with a version you type and stops before
+publishing. That is how to test a change to the workflow without burning a tag.
+
+## Why it is split across jobs
+
+No single runner has all four toolchains, so each piece is built where it can be
+and the last job lays them out:
+
+| Job | Runner | Produces |
+| --- | --- | --- |
+| `windows` | windows-latest | MSVC `KotorPatcher.dll`, `win-x86` manager |
+| `linux` | ubuntu-22.04 | MinGW `KotorPatcher.dll`, `binkw32.dll`, `KotorPatcher.so`, `linux-x64` manager |
+| `macos` | macos-latest | `KotorPatcher.dylib`, both macOS managers, the macOS **patch** modules |
+| `patches` | ubuntu-22.04 | the complete, multi-platform `.kpatch` set |
+| `package` | ubuntu-latest | the four archives, and the draft release |
+
+Each archive keeps the patcher its publish script used — MSVC for Windows, MinGW
+for Linux and macOS — so a tagged release ships what a scripted one always did.
+
+## How one patch ends up with every platform's module
+
+`create-patch.py` builds a module for every target **the host has a toolchain
+for**, and takes one from the patch's `binaries/` directory when it has none. A
+Linux runner covers `windows_x86` (MinGW) and `linux_x86` but not
+`macos_x86_64`, so the `macos` job builds those dylibs first, and the `patches`
+job drops each one into `Patches/<Name>/binaries/` before building. Nothing is
+merged after the fact — the packager picks the prebuilt up as if it had compiled
+it locally.
+
+`publish-patches.py --strict` then makes a patch packaged without a module it
+needs fail the release. Without `--strict` that is a warning, which is right on a
+developer's machine and wrong on a release host.
+
+## Two things the scripts need that CI does not
+
+- **osxcross.** `publish-macos.sh` cross-builds the dylib from Linux and needs the
+  macOS SDK. CI uses a real Mac runner and stock `clang++`.
+- **`tools/MachOAdHocSign` for the manager.** The .NET SDK ad hoc signs the macOS
+  apphost when it runs on macOS, which on a Mac runner it does. CI still signs
+  `KotorPatcher.dylib` with it, for the reason the macOS section below gives.
+
+## Where the packaging lives
+
+`tools/stage-release.sh` — the packaging half of the publish scripts with the
+building half removed. It takes already-built inputs and lays out the tree, the
+tools, the LICENSE, the README and the archive. The publish scripts do not call
+it; they keep their own copy of that logic because they interleave it with
+building.
+
+**These are parallel implementations on purpose.** A change to what a release
+*contains* has to be made in `tools/stage-release.sh` and in the publish script
+for that platform. A change to how something is *built* belongs in the Makefile
+or the `build-mingw.sh` shims, which both paths already share.
+
+## Artifacts on ordinary runs
+
+`.github/workflows/ci.yml` uploads its managers, modules and per-target patch
+sets on every push and pull request, under `ci-*` names and a 7-day retention.
+They are build output, not releases: the patch sets are single-target and carry
+one module each. They are there so a reviewer can download the actual manager
+from the run summary rather than trust a green check.
+
+---
+
+# Publish Scripts
+
 There are three release paths, one per host OS the manager runs on. They are
 independent and produce differently named artifacts in `releases/`, so they never
 collide.
@@ -40,7 +131,8 @@ native module loaded via `DT_NEEDED` instead of a proxy. See
 - KPatchLauncher.exe (single self-contained executable)
 - KotorPatcher.dll (runtime patcher, staged beside the launcher)
 - sqlite3.dll (address-database access for GameAPI patch DLLs, staged beside the launcher)
-- create-patch.bat (for users to create patches)
+- create-patch.bat + create-patch.py (for users to create patches)
+  macOS modules
 - Example patches (.kpatch files) - optional
 - README.txt
 
