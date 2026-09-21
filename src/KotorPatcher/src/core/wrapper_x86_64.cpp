@@ -142,17 +142,44 @@ namespace KotorPatcher {
                 e.Byte(static_cast<uint8_t>(0x58 | (reg & 7)));
             }
 
-            // `op` reg64, [base + disp32]. Only valid for a base that needs no SIB byte,
-            // which the callers satisfy by always using RBX.
-            void MemOp(Emitter& e, uint8_t op, int reg, int base, int32_t disp) {
-                Rex(e, true, reg, base);
+            // `op` reg, [base + disp32], 64-bit when `wide` and 32-bit otherwise. Only valid
+            // for a base that needs no SIB byte, which the callers satisfy by always using RBX.
+            void MemOp(Emitter& e, uint8_t op, int reg, int base, int32_t disp, bool wide) {
+                Rex(e, wide, reg, base);
                 e.Byte(op);
                 e.Byte(static_cast<uint8_t>(0x80 | ((reg & 7) << 3) | (base & 7)));
                 e.Dword(static_cast<uint32_t>(disp));
             }
 
-            void MovFromMem(Emitter& e, int dst, int base, int32_t disp) { MemOp(e, 0x8B, dst, base, disp); }
-            void LeaFromMem(Emitter& e, int dst, int base, int32_t disp) { MemOp(e, 0x8D, dst, base, disp); }
+            // MOVZX is 0F B6 / 0F B7, which the single-byte form above cannot express. The
+            // destination is always r32: writing the low half of a 64-bit register clears the
+            // upper half, which is the zero extension this wants.
+            void MovzxFromMem(Emitter& e, uint8_t op2, int dst, int base, int32_t disp) {
+                Rex(e, false, dst, base);
+                e.Byte(0x0F);
+                e.Byte(op2);
+                e.Byte(static_cast<uint8_t>(0x80 | ((dst & 7) << 3) | (base & 7)));
+                e.Dword(static_cast<uint32_t>(disp));
+            }
+
+            void MovFromMem(Emitter& e, int dst, int base, int32_t disp)   { MemOp(e, 0x8B, dst, base, disp, true); }
+            void MovFromMem32(Emitter& e, int dst, int base, int32_t disp) { MemOp(e, 0x8B, dst, base, disp, false); }
+            void LeaFromMem(Emitter& e, int dst, int base, int32_t disp)   { MemOp(e, 0x8D, dst, base, disp, true); }
+
+            // The saved copy is a whole 64-bit register. The declared type says how much of it
+            // the patch function takes, and each narrower load zeroes the rest.
+            void LoadIntArgument(Emitter& e, int dst, int base, int32_t disp, ParameterType type) {
+                switch (type) {
+                    case ParameterType::BYTE:    MovzxFromMem(e, 0xB6, dst, base, disp); break;
+                    case ParameterType::SHORT:   MovzxFromMem(e, 0xB7, dst, base, disp); break;
+                    case ParameterType::POINTER: MovFromMem(e, dst, base, disp);         break;
+                    // INT and UINT are both 32 bits; the difference lives in the callee's
+                    // declaration. FLOAT never arrives here, having gone to the SSE path.
+                    case ParameterType::INT:
+                    case ParameterType::UINT:
+                    case ParameterType::FLOAT:   MovFromMem32(e, dst, base, disp);       break;
+                }
+            }
 
             // LEA RSP, [RSP + disp32]. Deliberately LEA and not ADD/SUB: it leaves the
             // flags alone, which matters everywhere this is used outside the saved region.
@@ -245,10 +272,12 @@ namespace KotorPatcher {
                         return false;
                     }
                     if (wantsSse) {
-                        MovFromMem(e, RAX, RBX, SavedGprOffset(index));
+                        // A float is 32 bits, and MOVD takes the low half either way.
+                        MovFromMem32(e, RAX, RBX, SavedGprOffset(index));
                         MovdToXmm(e, sseArgIndex++, RAX);
                     } else {
-                        MovFromMem(e, kIntArgRegs[intArgIndex++], RBX, SavedGprOffset(index));
+                        LoadIntArgument(e, kIntArgRegs[intArgIndex++], RBX,
+                                        SavedGprOffset(index), param.type);
                     }
                     return true;
                 }
@@ -260,8 +289,12 @@ namespace KotorPatcher {
                     (source.compare(0, 3, "rsp") == 0 || source.compare(0, 3, "esp") == 0) &&
                     (source[3] == '+' || source[3] == '-');
                 if (stackSource) {
-                    if (wantsSse) {
-                        Platform::Log("[Wrapper] A stack source yields an address, not a float\n");
+                    // The address of a slot is pointer-width whatever the slot holds, so a
+                    // narrow type or a float describes something this is not passing.
+                    if (wantsSse || param.type == ParameterType::BYTE ||
+                        param.type == ParameterType::SHORT) {
+                        Platform::Log(("[Wrapper] A stack source yields an address, so " + source +
+                                       " cannot be read as a narrow type or a float\n").c_str());
                         return false;
                     }
                     int userOffset = 0;
