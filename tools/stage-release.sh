@@ -113,11 +113,7 @@ fi
 # --- Tools and LICENSE --------------------------------------------------------
 echo "[4/5] Staging the tools..."
 cp "$ROOT/Patches/create-patch.bat" "$RELEASE_DIR/tools/"
-# The Windows release ships the .bat alone, as publish.bat does; the others ship
-# the Python tool, which is what create-patch.bat drives anyway.
-if [ "$PLATFORM" != "windows" ]; then
-    cp "$ROOT/Patches/create-patch.py" "$RELEASE_DIR/tools/"
-fi
+cp "$ROOT/Patches/create-patch.py" "$RELEASE_DIR/tools/"
 cp "$ROOT/LICENSE" "$RELEASE_DIR/LICENSE.txt"
 echo "  [OK] tools and LICENSE.txt"
 
@@ -134,7 +130,9 @@ Contents:
   bin/binkw32.dll        - KProxy: loads the patcher when the game starts,
                            used when Options > "Use library proxy" is on
   bin/sqlite3.dll        - Address database access for GameAPI patch DLLs
-  tools/create-patch.bat - Patch creation tool
+  tools/create-patch.bat - Patch creation tool (MSVC; builds the Windows module)
+  tools/create-patch.py  - Patch creation tool (any toolchain on PATH; the one
+                           that can also build the Linux and macOS modules)
   patches/ - pre-built patches I've been developing with this project
   LICENSE.txt - MIT License
 

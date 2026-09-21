@@ -86,9 +86,10 @@ if /i "%INCLUDE_PATCHES%"=="y" (
 )
 
 
-REM Copy create-patch.bat
+REM Copy the patch creation tools.
 echo [4/5] Copying tools...
 copy "Patches\create-patch.bat" "%RELEASE_DIR%\tools\" >nul
+copy "Patches\create-patch.py" "%RELEASE_DIR%\tools\" >nul
 
 REM Copy LICENSE
 echo   Copying LICENSE...
@@ -113,7 +114,9 @@ set "README_FILE=%RELEASE_DIR%\README.txt"
   echo   bin/binkw32.dll        - KProxy: loads the patcher when the game starts,
   echo                            used when Options ^> "Use library proxy" is on
   echo   bin/sqlite3.dll        - Address database access for GameAPI patch DLLs
-  echo   tools/create-patch.bat - Patch creation tool
+  echo   tools/create-patch.bat - Patch creation tool ^(MSVC; builds the Windows module^)
+  echo   tools/create-patch.py  - Patch creation tool ^(any toolchain on PATH; the one
+  echo                            that can also build the Linux and macOS modules^)
   echo   patches/ - pre-built patches I've been developing with this project
   echo   LICENSE.txt - MIT License
   echo.

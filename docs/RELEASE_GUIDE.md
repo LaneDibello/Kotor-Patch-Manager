@@ -131,7 +131,8 @@ native module loaded via `DT_NEEDED` instead of a proxy. See
 - KPatchLauncher.exe (single self-contained executable)
 - KotorPatcher.dll (runtime patcher, staged beside the launcher)
 - sqlite3.dll (address-database access for GameAPI patch DLLs, staged beside the launcher)
-- create-patch.bat (for users to create patches)
+- create-patch.bat + create-patch.py (for users to create patches)
+  macOS modules
 - Example patches (.kpatch files) - optional
 - README.txt
 
