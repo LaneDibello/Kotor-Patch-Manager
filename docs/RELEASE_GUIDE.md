@@ -11,14 +11,19 @@ scripts, which remain the reference for what a release contains.
 
 **Workflow**: `.github/workflows/release.yml`
 
-Push a `v*` tag and it builds all four archives and opens a **draft** GitHub
+Push a `#.#.#` tag and it builds all four archives and opens a **draft** GitHub
 release with them attached. Draft, not published: review the assets, then publish
 by hand.
 
 ```bash
-git tag v1.2.3
-git push origin v1.2.3
+git tag 1.2.3
+git push origin 1.2.3
 ```
+
+Tags are bare, with no leading `v`, matching every tag from 0.2.0 on. The
+archives inside are still named `KotorPatchManager-v1.2.3.zip` and so on, which
+is what the publish scripts produce and what past releases carry. A prerelease
+suffix works too (`1.2.3-rc1`), which is the safe way to rehearse a release.
 
 `workflow_dispatch` runs the same jobs with a version you type and stops before
 publishing. That is how to test a change to the workflow without burning a tag.
