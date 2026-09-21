@@ -1,9 +1,9 @@
 [patch]
 id = "store-confirm-threshold-2500"
-name = "KOTOR 1/2 Store Confirmations: 2500 Credit Threshold"
+name = "Stores: 2500-Credit Confirmation Threshold"
 version = "1.0.0"
 author = "Vriff"
-description = "Changes KOTOR 1/2 store expensive-item confirmations so both buying and selling use a fixed 2500-credit prompt threshold."
+description = "Changes store expensive-item confirmations so both buying and selling use a fixed 2500-credit prompt threshold (K1 & K2 compatible)."
 
 requires = []
 conflicts = ["store-confirm-no-threshold"]
