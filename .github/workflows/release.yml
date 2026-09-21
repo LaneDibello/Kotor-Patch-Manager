@@ -76,6 +76,7 @@ jobs:
           name: modules-msvc
           path: modules/
           retention-days: 7
+          if-no-files-found: error
 
       - name: Publish the manager
         run: |
@@ -86,6 +87,7 @@ jobs:
           name: manager-win-x86
           path: manager/
           retention-days: 7
+          if-no-files-found: error
 
   linux:
     name: Linux
@@ -119,6 +121,7 @@ jobs:
           name: modules-mingw
           path: modules/
           retention-days: 7
+          if-no-files-found: error
 
       - name: Publish the manager
         run: |
@@ -131,6 +134,7 @@ jobs:
           name: manager-linux-x64
           path: manager/
           retention-days: 7
+          if-no-files-found: error
 
   macos:
     name: macOS
@@ -162,6 +166,7 @@ jobs:
           name: modules-macos
           path: modules/
           retention-days: 7
+          if-no-files-found: error
 
       # No macOS toolchain exists on a Linux runner, so the patch job cannot build
       # these. It picks them up as prebuilts instead: create-patch.py takes a module
@@ -172,22 +177,36 @@ jobs:
 
       - name: Collect them per patch
         run: |
+          set -euo pipefail
+          # nullglob, so a directory with no archives in it produces an empty loop
+          # rather than one pass over the literal pattern.
+          shopt -s nullglob
           mkdir -p patch-modules
+          found=0
           for archive in build/patches/*.kpatch; do
             name="$(basename "$archive" .kpatch)"
             if unzip -l "$archive" | grep -q 'binaries/macos_x86_64.dylib'; then
               mkdir -p "patch-modules/$name"
               unzip -p "$archive" binaries/macos_x86_64.dylib \
                 > "patch-modules/$name/macos_x86_64.dylib"
+              found=$((found + 1))
               echo "  [OK] $name"
             fi
           done
+          # The build step above selected the patches that need this module and
+          # succeeded, so at least one archive has to carry one. None means the
+          # archives are not where this step is looking.
+          [ "$found" -gt 0 ] || {
+            echo "  [ERROR] no macos_x86_64.dylib found in build/patches/" >&2
+            ls -laR build/patches || true
+            exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:
           name: patch-modules-macos
           path: patch-modules/
           retention-days: 7
+          if-no-files-found: error
 
       - name: Publish the managers
         run: |
@@ -205,12 +224,14 @@ jobs:
           name: manager-osx-x64
           path: manager-osx-x64/
           retention-days: 7
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
           name: manager-osx-arm64
           path: manager-osx-arm64/
           retention-days: 7
+          if-no-files-found: error
 
   # ---------------------------------------------------------------------------
   # One complete, multi-platform patch set, built once for every archive.
@@ -265,6 +286,7 @@ jobs:
           name: patches
           path: build/patches/
           retention-days: 7
+          if-no-files-found: error
 
   # ---------------------------------------------------------------------------
   # Lay the pieces out and publish.
@@ -328,6 +350,7 @@ jobs:
             releases/*.zip
             releases/*.tar.gz
           retention-days: 30
+          if-no-files-found: error
 
       # A manual run stops here: it exists to prove the workflow, not to publish.
       - name: Publish the release

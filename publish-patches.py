@@ -117,6 +117,11 @@ def main() -> int:
                              "needs. Off by default, because a developer host is "
                              "not expected to have every toolchain; a release is.")
     args = parser.parse_args()
+    # Resolved against the current directory once, here. create-patch.py runs with
+    # cwd set to the patch's own directory, so a relative -o would land inside
+    # every patch instead of in one shared place -- silently, since the summary
+    # then looks for the archives where they were asked for and finds none.
+    args.out_dir = args.out_dir.resolve()
 
     if not CREATE_PATCH.is_file():
         sys.exit(f"ERROR: {CREATE_PATCH} not found.")

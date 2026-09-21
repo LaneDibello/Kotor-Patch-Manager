@@ -54,12 +54,14 @@ jobs:
           name: ci-manager-linux-x64
           path: ${{ runner.temp }}/manager
           retention-days: 7
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
           name: ci-kproxy-binkw32
           path: ${{ runner.temp }}/binkw32.dll
           retention-days: 7
+          if-no-files-found: error
 
   windows:
     name: Windows
@@ -88,12 +90,14 @@ jobs:
           name: ci-manager-win-x86
           path: ${{ runner.temp }}\manager
           retention-days: 7
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
           name: ci-modules-msvc
           path: bin/Release/KotorPatcher.dll
           retention-days: 7
+          if-no-files-found: error
 
   macos:
     name: macOS
@@ -128,12 +132,14 @@ jobs:
           name: ci-manager-osx-x64
           path: ${{ runner.temp }}/manager-osx-x64
           retention-days: 7
+          if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
           name: ci-manager-osx-arm64
           path: ${{ runner.temp }}/manager-osx-arm64
           retention-days: 7
+          if-no-files-found: error
 
   patches:
     name: Patch metadata
@@ -186,3 +192,4 @@ jobs:
           name: ci-patches-${{ matrix.label }}
           path: build/patches
           retention-days: 7
+          if-no-files-found: error
