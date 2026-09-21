@@ -1,9 +1,9 @@
 [patch]
 id = "store-confirm-no-threshold"
-name = "KOTOR 1 & 2 Store Confirmations: No Threshold"
+name = "Stores: No Confirmation Prompts"
 version = "0.1.0"
 author = "Vriff"
-description = "Removes KOTOR 1 & 2 store confirmation popups for expensive item buying and selling."
+description = "Removes store confirmation popups for expensive item buying and selling (K1 & K2 compatible)."
 
 requires = []
 conflicts = ["store-confirm-threshold-2500"]
