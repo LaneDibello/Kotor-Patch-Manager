@@ -176,6 +176,48 @@ public static class HookValidator
     }
 
     /// <summary>
+    /// Checks every DETOUR parameter against what the target architecture's wrapper generator
+    /// can actually read.
+    /// </summary>
+    /// <param name="hooksByPatch">Hooks to check, keyed by the patch they came from</param>
+    /// <param name="architecture">Architecture of the game build being patched</param>
+    /// <returns>Failure naming every parameter its generator would refuse, success otherwise</returns>
+    /// <remarks>
+    /// Parsing can only ask whether some generator understands a source; see
+    /// <see cref="Parameter.IsValid"/> for why. Left to the generator, the narrower question
+    /// is answered by a log line and a hook that never installs. Answered here, it refuses.
+    /// </remarks>
+    public static PatchResult ValidateParameterSources(
+        IReadOnlyDictionary<string, List<Hook>> hooksByPatch,
+        Architecture architecture)
+    {
+        var errors = new List<string>();
+
+        foreach (var (patchId, hooks) in hooksByPatch)
+        {
+            foreach (var hook in hooks)
+            {
+                for (int i = 0; i < hook.Parameters.Count; i++)
+                {
+                    if (!hook.Parameters[i].IsValidFor(architecture, out var error))
+                    {
+                        errors.Add($"{patchId}:{hook.Function} parameter {i}: {error}");
+                    }
+                }
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            return PatchResult.Fail(
+                "These hooks read parameters from somewhere this build does not have:\n  - " +
+                string.Join("\n  - ", errors));
+        }
+
+        return PatchResult.Ok($"Parameter sources are readable on {architecture}");
+    }
+
+    /// <summary>
     /// Checks if a hook's function name is valid
     /// </summary>
     /// <param name="functionName">Function name to validate</param>
