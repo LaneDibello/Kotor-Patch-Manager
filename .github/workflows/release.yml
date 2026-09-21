@@ -1,0 +1,343 @@
+name: Release
+
+# Tagging v1.2.3 builds every archive the publish scripts build and attaches them
+# to a GitHub release. The scripts stay: they build and package in one pass on one
+# host, which is what a special or one-off build wants. This does the same work
+# split across the hosts that can each produce a piece, because no single runner
+# has all four toolchains.
+#
+# workflow_dispatch runs the whole thing without publishing anything, which is how
+# to test a change to this file.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to stamp the archives with (no leading v)'
+        required: true
+        default: '0.0.0-test'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # The version lives in one place so every job stamps the same string. A tag push
+  # takes it from the tag; a manual run takes it from the input.
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.pick.outputs.version }}
+    steps:
+      - id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building v$version"
+
+  # ---------------------------------------------------------------------------
+  # Game-side modules and managers, one job per host that can build them.
+  # ---------------------------------------------------------------------------
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: microsoft/setup-msbuild@v2
+
+      # The Windows release ships the MSVC build of KotorPatcher.dll, as publish.bat
+      # does. The Linux and macOS releases ship the MinGW one from the linux job.
+      # Both work; keeping each release on the compiler its script used means this
+      # workflow changes nothing about what users get.
+      - name: Build KotorPatcher.dll (MSVC)
+        run: msbuild KotorPatchManager.sln /p:Configuration=Release /p:Platform=x86 /t:KotorPatcher /m
+
+      - name: Collect the module
+        run: |
+          New-Item -ItemType Directory -Force modules | Out-Null
+          Copy-Item bin\Release\KotorPatcher.dll modules\
+          Copy-Item lib\sqlite3.dll modules\
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: modules-msvc
+          path: modules/
+          retention-days: 7
+
+      - name: Publish the manager
+        run: |
+          dotnet publish src\KPatchLauncher\KPatchLauncher.csproj -c Release -r win-x86 --self-contained -p:PublishSingleFile=true -o manager
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manager-win-x86
+          path: manager/
+          retention-days: 7
+
+  linux:
+    name: Linux
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install the cross and 32-bit toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++-multilib \
+            g++-mingw-w64-i686-posix
+
+      # binkw32.dll has no MSVC project, only this script, so the KProxy in every
+      # release -- the Windows one included -- is cross-compiled here.
+      - name: Build the game-side modules
+        run: |
+          mkdir -p modules
+          src/KotorPatcher/build-mingw.sh "$PWD/modules/KotorPatcher.dll"
+          src/KProxy/build-mingw.sh "$PWD/modules/binkw32.dll"
+          make -C src/KotorPatcher --no-print-directory so SO_OUT="$PWD/modules/KotorPatcher.so"
+          cp lib/sqlite3.dll modules/sqlite3.dll
+          ls -l modules/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: modules-mingw
+          path: modules/
+          retention-days: 7
+
+      - name: Publish the manager
+        run: |
+          dotnet publish src/KPatchLauncher/KPatchLauncher.csproj \
+            -c Release -r linux-x64 --self-contained \
+            -p:PublishSingleFile=false -o manager
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manager-linux-x64
+          path: manager/
+          retention-days: 7
+
+  macos:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # On a Mac runner the system clang builds the dylib, so osxcross and the
+      # macOS SDK that publish-macos.sh needs on a Linux host are not involved.
+      - name: Build KotorPatcher.dylib
+        run: |
+          mkdir -p modules
+          make -C src/KotorPatcher --no-print-directory dylib \
+            CXX_MAC=clang++ DYLIB_OUT="$PWD/modules/KotorPatcher.dylib"
+          # Signed for the same reason publish-macos.sh signs it: x86_64 does not
+          # require it, but a signed module settles the question if a hardened
+          # runtime ever turns up, and it costs nothing.
+          dotnet run --project tools/MachOAdHocSign/MachOAdHocSign.csproj \
+            -c Release --verbosity quiet -- modules/KotorPatcher.dylib KotorPatcher
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: modules-macos
+          path: modules/
+          retention-days: 7
+
+      # No macOS toolchain exists on a Linux runner, so the patch job cannot build
+      # these. It picks them up as prebuilts instead: create-patch.py takes a module
+      # from a patch's binaries/ when the host cannot build it, which is exactly the
+      # seam this needs. Built here, dropped in there.
+      - name: Build the macOS patch modules
+        run: python3 publish-patches.py --target macos_x86_64 -o build/patches
+
+      - name: Collect them per patch
+        run: |
+          mkdir -p patch-modules
+          for archive in build/patches/*.kpatch; do
+            name="$(basename "$archive" .kpatch)"
+            if unzip -l "$archive" | grep -q 'binaries/macos_x86_64.dylib'; then
+              mkdir -p "patch-modules/$name"
+              unzip -p "$archive" binaries/macos_x86_64.dylib \
+                > "patch-modules/$name/macos_x86_64.dylib"
+              echo "  [OK] $name"
+            fi
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: patch-modules-macos
+          path: patch-modules/
+          retention-days: 7
+
+      - name: Publish the managers
+        run: |
+          for rid in osx-x64 osx-arm64; do
+            # Every RID shares one obj/, apphost included, so a second publish
+            # reuses the first architecture's binary unless it is cleared.
+            rm -rf src/KPatchLauncher/obj src/KPatchCore/obj
+            dotnet publish src/KPatchLauncher/KPatchLauncher.csproj \
+              -c Release -r "$rid" --self-contained \
+              -p:PublishSingleFile=false -o "manager-$rid"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manager-osx-x64
+          path: manager-osx-x64/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manager-osx-arm64
+          path: manager-osx-arm64/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # One complete, multi-platform patch set, built once for every archive.
+  # ---------------------------------------------------------------------------
+  patches:
+    name: Patches
+    needs: macos
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install the cross and 32-bit toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++-multilib \
+            g++-mingw-w64-i686-posix \
+            libgl-dev
+
+      - name: Validate every patch manifest and hook
+        run: python3 tools/validate-patches.py
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: patch-modules-macos
+          path: patch-modules
+
+      # create-patch.py reads binaries/<module> when this host has no toolchain for
+      # that target, so the dylib the Mac runner built lands in the archive exactly
+      # as if it had been built here.
+      - name: Stage the macOS modules into each patch
+        run: |
+          for dir in patch-modules/*/; do
+            name="$(basename "$dir")"
+            [ -d "Patches/$name" ] || { echo "  [ERROR] no patch named $name"; exit 1; }
+            mkdir -p "Patches/$name/binaries"
+            cp "$dir/macos_x86_64.dylib" "Patches/$name/binaries/"
+            echo "  [OK] $name"
+          done
+
+      # MinGW builds the Windows modules and g++ -m32 the Linux ones. --strict makes
+      # a patch packaged without a module it needs fail the release rather than warn,
+      # which is the difference between a release host and a developer's.
+      - name: Build every patch
+        run: python3 publish-patches.py --strict -o build/patches
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: patches
+          path: build/patches/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Lay the pieces out and publish.
+  # ---------------------------------------------------------------------------
+  package:
+    name: Package
+    needs: [version, windows, linux, macos, patches]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: incoming
+
+      # An artifact is a zip, and a zip has no executable bit, so the manager comes
+      # back without one. stage-release.sh restores it on the launcher; nothing else
+      # in the tree needs it.
+      - name: Assemble every archive
+        run: |
+          set -eux
+          chmod +x tools/stage-release.sh
+
+          # The Windows release takes the MSVC patcher; the KProxy has no MSVC
+          # project, so it comes from the MinGW job either way.
+          mkdir -p modules-windows
+          cp incoming/modules-mingw/binkw32.dll modules-windows/
+          cp incoming/modules-msvc/KotorPatcher.dll incoming/modules-msvc/sqlite3.dll modules-windows/
+
+          # Linux and macOS take the MinGW patcher, as their publish scripts do.
+          mkdir -p modules-unix
+          cp -R incoming/modules-mingw/. modules-unix/
+          cp incoming/modules-macos/KotorPatcher.dylib modules-unix/
+
+          mkdir -p releases
+
+          tools/stage-release.sh --platform windows --version "$VERSION" \
+            --manager incoming/manager-win-x86 --modules modules-windows \
+            --patches incoming/patches --out releases
+
+          tools/stage-release.sh --platform linux --version "$VERSION" \
+            --manager incoming/manager-linux-x64 --modules modules-unix \
+            --patches incoming/patches --out releases
+
+          for arch in x64 arm64; do
+            tools/stage-release.sh --platform macos --version "$VERSION" --arch "$arch" \
+              --manager "incoming/manager-osx-$arch" --modules modules-unix \
+              --patches incoming/patches --out releases
+          done
+
+          ls -lh releases/*.zip releases/*.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-archives
+          path: |
+            releases/*.zip
+            releases/*.tar.gz
+          retention-days: 30
+
+      # A manual run stops here: it exists to prove the workflow, not to publish.
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --draft \
+            --title "KotOR Patch Manager v$VERSION" \
+            --generate-notes \
+            releases/*.zip releases/*.tar.gz
+          echo "Created a DRAFT release. Review it and publish when it looks right."

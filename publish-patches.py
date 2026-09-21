@@ -112,6 +112,10 @@ def main() -> int:
                              "that module alone, and fail if any is missing. "
                              "Without it every patch is built for whatever the "
                              "host can reach, which is what a release wants.")
+    parser.add_argument("--strict", action="store_true",
+                        help="fail when a patch is packaged without a module it "
+                             "needs. Off by default, because a developer host is "
+                             "not expected to have every toolchain; a release is.")
     args = parser.parse_args()
 
     if not CREATE_PATCH.is_file():
@@ -164,14 +168,18 @@ def main() -> int:
     if failed:
         print(f"  Failed: {', '.join(sorted(failed))}")
     if incomplete:
-        print("  Incomplete, this host has no toolchain for them:")
+        label = "Incomplete" if not args.strict else "ERROR: incomplete"
+        print(f"  {label}, this host has no toolchain for them:")
         for name in sorted(incomplete):
             print(f"    {name}: {', '.join(incomplete[name])}")
+        if args.strict:
+            print("  Build those modules on a host that can and drop them in the "
+                  "patch's binaries/ directory.")
     if owed:
         print("  Missing modules this host was expected to produce:")
         for name in sorted(owed):
             print(f"    {name}: {', '.join(owed[name])}")
-    return 1 if failed or owed else 0
+    return 1 if failed or owed or (args.strict and incomplete) else 0
 
 
 if __name__ == "__main__":
