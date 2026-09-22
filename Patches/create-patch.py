@@ -409,8 +409,12 @@ TARGETS = {
             # CXX_MAC.
             compilers=("o64-clang++", "clang++"),
             # KOTOR II asks for 10.9.5, so a patch module never raises the bar.
+            # Unlike a Linux .so, a dylib resolves its symbols at link time, so a
+            # module that draws needs the framework named here. dead_strip_dylibs
+            # drops it again from the modules that reference nothing in it.
             flags=("-arch", "x86_64", "-O2", "-fPIC", "-dynamiclib",
                    "-mmacosx-version-min=10.9", "-fno-exceptions", "-fno-rtti",
+                   "-framework", "OpenGL", "-Wl,-dead_strip_dylibs",
                    "-install_name", "@executable_path/macos_x86_64.dylib")),),
         links_game_api=False),
 }

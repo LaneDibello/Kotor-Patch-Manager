@@ -10,12 +10,13 @@
 // back without touching the console, by drawing the strings the game is already handing
 // to a function that discards them.
 //
-// Two hooks, because there are two shapes of call site. Where the game still calls the
-// stub, the arguments are on the stack and DrawConsoleBitmapTextHook reads them from
-// there. Where the compiler folded the empty call away, the hook has to land mid-function
-// with only the PostedString live in a register, and DrawPostedStringHook takes the
-// column and row off the object. Which sites exist is a property of the build, so the
-// hooks file for each one picks the entry it needs.
+// Three hooks, because there are three shapes of call site. Where the game still calls
+// the stub and passes on the stack, DrawConsoleBitmapTextHook reads the arguments from
+// there. Where it passes them in registers, DrawPrintStringHook takes them as they come.
+// Where the compiler folded the empty call away, the hook has to land mid-function with
+// only the PostedString live in a register, and DrawPostedStringHook takes the column and
+// row off the object. Which sites exist is a property of the build, so the hooks file for
+// each one picks the entry it needs.
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -24,7 +25,11 @@
 #pragma comment(lib, "opengl32.lib")
 #endif
 
+#if defined(__APPLE__)
+#include <OpenGL/gl.h>
+#else
 #include <GL/gl.h>
+#endif
 
 #include <cstdint>
 #include <cstring>
@@ -38,9 +43,11 @@ namespace {
 
 // The glyph table, still sitting where the drawing code used to read it.
 #if defined(_WIN32)
-constexpr uintptr_t kConsoleGlyphsAddress = 0x009F5508;  // KOTOR2 Aspyr, Windows
+constexpr uintptr_t kConsoleGlyphsAddress = 0x009F5508;   // KOTOR2 Aspyr, Windows
+#elif defined(__APPLE__)
+constexpr uintptr_t kConsoleGlyphsAddress = 0x10053DC70;  // KOTOR2 Aspyr, macOS
 #else
-constexpr uintptr_t kConsoleGlyphsAddress = 0x088CF3F4;  // KOTOR2 Aspyr, Linux
+constexpr uintptr_t kConsoleGlyphsAddress = 0x088CF3F4;   // KOTOR2 Aspyr, Linux
 #endif
 
 constexpr int kFirstGlyph = 32;
@@ -161,6 +168,11 @@ extern "C" void __cdecl DrawConsoleBitmapTextHook(
     }
 
     DrawConsoleBitmapText(*textSlot, *columnSlot, *rowSlot);
+}
+
+extern "C" void __cdecl DrawPrintStringHook(const char* text, int column, int row)
+{
+    DrawConsoleBitmapText(text, column, row);
 }
 
 extern "C" void __cdecl DrawPostedStringHook(const char* postedString)
