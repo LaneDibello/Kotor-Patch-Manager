@@ -17,3 +17,21 @@ type = "detour"
 function = "LoadControllerMappings"
 original_bytes = [0x55, 0x53, 0x57, 0x56, 0x81, 0xEC, 0x7C, 0x02, 0x00, 0x00]
 exclude_from_restore = []
+
+# SDL_JoystickClose @ 0x08672E80
+#   08672e80  55              PUSH EBP
+#   08672e81  89 E5           MOV EBP,ESP
+#   08672e83  83 EC 18        SUB ESP,0x18
+#   08672e86  8B 45 08        MOV EAX,[EBP+8]      ; the joystick argument
+#   08672e89  89 45 FC        MOV [EBP-4],EAX
+#   08672e8c  81 7D FC ..     CMP [EBP-4],0        ; the guard the hook uses
+[[hooks]]
+address = 0x08672E80
+type = "detour"
+function = "SkipOverReleasedJoystickClose"
+original_bytes = [0x55, 0x89, 0xE5, 0x83, 0xEC, 0x18]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+4"
+type = "pointer"
