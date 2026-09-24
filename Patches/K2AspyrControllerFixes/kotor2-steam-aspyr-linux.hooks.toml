@@ -49,3 +49,20 @@ type = "detour"
 function = "NormaliseHelpReturnInputClass"
 original_bytes = [0x53, 0x57, 0x56, 0x83, 0xEC, 0x20]
 exclude_from_restore = []
+
+# Gamepad quick menu, case 7 (controller help), tail jump @ 0x082D0DD6
+#
+# Case 7 jumps into the tail it shares with the menu-dismiss cases. Only the
+# second half belongs to it, so the jump is retargeted past the first. ESI still
+# holds the panel at 0x082D0B9A, which is what RemovePanel reads.
+#
+#   0x082D0B7A  SetInputClass(app, 0, 0)        for the dismiss cases only
+#   0x082D0B9A  RemovePanel(guiManager, this)
+#
+#   old: E9 9F FD FF FF   ->  0x082D0DDB + 0xFFFFFD9F = 0x082D0B7A
+#   new: E9 BF FD FF FF   ->  0x082D0DDB + 0xFFFFFDBF = 0x082D0B9A
+[[hooks]]
+address = 0x082D0DD6
+type = "simple"
+original_bytes = [0xE9, 0x9F, 0xFD, 0xFF, 0xFF]
+replacement_bytes = [0xE9, 0xBF, 0xFD, 0xFF, 0xFF]
