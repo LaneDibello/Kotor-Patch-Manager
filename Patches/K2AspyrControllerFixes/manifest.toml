@@ -1,0 +1,13 @@
+[patch]
+id = "k2-aspyr-controller-fixes"
+name = "K2 Aspyr Controller Fixes"
+version = "1.0.0"
+author = "Synchro"
+description = "Makes controllers work on Aspyr's native Linux KOTOR2: recognises modern pads, and fixes the startup crash and stuck help-menu input that follow."
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor2_steam_aspyr_linux = "ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"

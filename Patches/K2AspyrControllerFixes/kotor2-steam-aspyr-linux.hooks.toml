@@ -1,0 +1,68 @@
+# Controller support for Aspyr's native Linux KOTOR2. Rationale for each hook is
+# in the matching .cpp; this file carries the byte evidence.
+
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# IDirectInput_Mac::EnumDevices @ 0x080C6310
+#   080c6310  55                 PUSH EBP
+#   080c6311  53                 PUSH EBX
+#   080c6312  57                 PUSH EDI
+#   080c6313  56                 PUSH ESI
+#   080c6314  81 EC 7C 02 00 00  SUB ESP,0x27c
+# Whole instructions, so the displaced prologue relocates cleanly.
+[[hooks]]
+address = 0x080C6310
+type = "detour"
+function = "LoadControllerMappings"
+original_bytes = [0x55, 0x53, 0x57, 0x56, 0x81, 0xEC, 0x7C, 0x02, 0x00, 0x00]
+exclude_from_restore = []
+
+# SDL_JoystickClose @ 0x08672E80
+#   08672e80  55              PUSH EBP
+#   08672e81  89 E5           MOV EBP,ESP
+#   08672e83  83 EC 18        SUB ESP,0x18
+#   08672e86  8B 45 08        MOV EAX,[EBP+8]      ; the joystick argument
+#   08672e89  89 45 FC        MOV [EBP-4],EAX
+#   08672e8c  81 7D FC ..     CMP [EBP-4],0        ; the guard the hook uses
+[[hooks]]
+address = 0x08672E80
+type = "detour"
+function = "SkipOverReleasedJoystickClose"
+original_bytes = [0x55, 0x89, 0xE5, 0x83, 0xEC, 0x18]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+4"
+type = "pointer"
+
+# CSWGuiMainInterface::HideHelp @ 0x082C500C
+#   082c500c  53           PUSH EBX
+#   082c500d  57           PUSH EDI
+#   082c500e  56           PUSH ESI
+#   082c500f  83 EC 20     SUB ESP,0x20
+#
+# Corrects the class HideHelp restores. No parameters; it rewrites one global.
+[[hooks]]
+address = 0x082C500C
+type = "detour"
+function = "NormaliseHelpReturnInputClass"
+original_bytes = [0x53, 0x57, 0x56, 0x83, 0xEC, 0x20]
+exclude_from_restore = []
+
+# Gamepad quick menu, case 7 (controller help), tail jump @ 0x082D0DD6
+#
+# Case 7 jumps into the tail it shares with the menu-dismiss cases. Only the
+# second half belongs to it, so the jump is retargeted past the first. ESI still
+# holds the panel at 0x082D0B9A, which is what RemovePanel reads.
+#
+#   0x082D0B7A  SetInputClass(app, 0, 0)        for the dismiss cases only
+#   0x082D0B9A  RemovePanel(guiManager, this)
+#
+#   old: E9 9F FD FF FF   ->  0x082D0DDB + 0xFFFFFD9F = 0x082D0B7A
+#   new: E9 BF FD FF FF   ->  0x082D0DDB + 0xFFFFFDBF = 0x082D0B9A
+[[hooks]]
+address = 0x082D0DD6
+type = "simple"
+original_bytes = [0xE9, 0x9F, 0xFD, 0xFF, 0xFF]
+replacement_bytes = [0xE9, 0xBF, 0xFD, 0xFF, 0xFF]
