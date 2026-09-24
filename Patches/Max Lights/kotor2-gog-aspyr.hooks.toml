@@ -49,6 +49,27 @@ type = "simple"
 original_bytes = [0x6A, 0x03]
 replacement_bytes = [0x6A, 0x09]
 
+# Scene::DoHologramGobBuckets count #1
+[[hooks]]
+address = 0x0085A93D
+type = "simple"
+original_bytes = [0x6A, 0x03]
+replacement_bytes = [0x6A, 0x09]
+
+# Scene::DoHologramGobBuckets count #2
+[[hooks]]
+address = 0x0085A95A
+type = "simple"
+original_bytes = [0x6A, 0x03]
+replacement_bytes = [0x6A, 0x09]
+
+# Scene::DoHologramGobBuckets count #3
+[[hooks]]
+address = 0x0085A9B6
+type = "simple"
+original_bytes = [0x6A, 0x03]
+replacement_bytes = [0x6A, 0x09]
+
 # Scene::DoBlurBuckets count
 [[hooks]]
 address = 0x0085AB0F
