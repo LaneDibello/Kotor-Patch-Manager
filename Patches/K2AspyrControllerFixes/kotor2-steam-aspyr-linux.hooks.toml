@@ -35,3 +35,17 @@ exclude_from_restore = []
 [[hooks.parameters]]
 source = "esp+4"
 type = "pointer"
+
+# CSWGuiMainInterface::HideHelp @ 0x082C500C
+#   082c500c  53           PUSH EBX
+#   082c500d  57           PUSH EDI
+#   082c500e  56           PUSH ESI
+#   082c500f  83 EC 20     SUB ESP,0x20
+#
+# Corrects the class HideHelp restores. No parameters; it rewrites one global.
+[[hooks]]
+address = 0x082C500C
+type = "detour"
+function = "NormaliseHelpReturnInputClass"
+original_bytes = [0x53, 0x57, 0x56, 0x83, 0xEC, 0x20]
+exclude_from_restore = []
