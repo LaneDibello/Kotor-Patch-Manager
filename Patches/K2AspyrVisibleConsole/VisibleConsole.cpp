@@ -41,9 +41,14 @@
 
 namespace {
 
-// The glyph table, still sitting where the drawing code used to read it.
+// The glyph table, still sitting where the drawing code used to read it. Aspyr shipped two
+// Windows builds with it in different places and one module serves both, so on Windows the
+// address is found at runtime rather than compiled in.
 #if defined(_WIN32)
-constexpr uintptr_t kConsoleGlyphsAddress = 0x009F5508;   // KOTOR2 Aspyr, Windows
+constexpr uintptr_t kWindowsGlyphCandidates[] = {
+    0x009F5508,  // GOG Aspyr
+    0x009F4980,  // Steam Aspyr
+};
 #elif defined(__APPLE__)
 constexpr uintptr_t kConsoleGlyphsAddress = 0x10053DC70;  // KOTOR2 Aspyr, macOS
 #else
@@ -56,6 +61,32 @@ constexpr int kGlyphWidth = 8;
 constexpr int kGlyphHeight = 13;
 constexpr int kGlyphAdvance = 10;
 constexpr int kLineAdvance = 14;
+
+#if defined(_WIN32)
+// The two tables are byte for byte identical, so their contents say which build is running.
+// Glyph 0 is blank, which makes the exclamation mark the first one worth testing. Rows run
+// bottom first, hence the stem before the dot.
+constexpr unsigned char kExclamationGlyph[kGlyphHeight] = {
+    0x00, 0x00, 0x18, 0x18, 0x00, 0x00, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,
+};
+#endif
+
+// Returns the glyph table, or nullptr if no candidate address holds one.
+const GLubyte* ResolveConsoleGlyphs()
+{
+#if defined(_WIN32)
+    // Both candidates lie in mapped, readable .data in either build, so probing cannot fault.
+    for (uintptr_t candidate : kWindowsGlyphCandidates) {
+        const auto* glyphs = reinterpret_cast<const GLubyte*>(candidate);
+        if (std::memcmp(glyphs + kGlyphHeight, kExclamationGlyph, kGlyphHeight) == 0) {
+            return glyphs;
+        }
+    }
+    return nullptr;
+#else
+    return reinterpret_cast<const GLubyte*>(kConsoleGlyphsAddress);
+#endif
+}
 
 // A PostedString keeps the console cell it was posted to in these two fields. Its text is
 // the first field, so the object pointer doubles as the string.
@@ -70,6 +101,11 @@ bool EnsureConsoleFont()
         return true;
     }
 
+    const GLubyte* glyphs = ResolveConsoleGlyphs();
+    if (glyphs == nullptr) {
+        return false;
+    }
+
     gFontListBase = glGenLists(128);
     if (gFontListBase == 0) {
         return false;
@@ -79,7 +115,6 @@ bool EnsureConsoleFont()
     glGetIntegerv(GL_UNPACK_ALIGNMENT, &unpackAlignment);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    const auto* glyphs = reinterpret_cast<const GLubyte*>(kConsoleGlyphsAddress);
     for (int index = 0; index < kGlyphCount; ++index) {
         glNewList(gFontListBase + kFirstGlyph + index, GL_COMPILE);
         glBitmap(

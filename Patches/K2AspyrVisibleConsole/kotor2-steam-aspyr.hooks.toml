@@ -1,0 +1,71 @@
+[metadata]
+target_versions = ["6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"]
+
+# AurPrintString is the same empty function it is on the GOG build, but here the linker folded
+# it together with every other no-op in the binary, so one 5-byte stub at 0x008339D0 serves
+# sixteen unrelated callers. The hooks therefore land on the call sites that pass console text,
+# not on the stub. The glyph table survived at 0x009F4980, byte-for-byte the font the GOG build
+# carries at 0x009F5508; the module probes both addresses and keeps whichever holds the font.
+
+# PostedString::Post, which draws everything the console and the game post through it.
+[[hooks]]
+address = 0x004748BA
+function = "DrawConsoleBitmapTextHook"
+original_bytes = [0xE8, 0x11, 0xF1, 0x3B, 0x00]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+4"
+type = "int"
+
+[[hooks.parameters]]
+source = "esp+8"
+type = "int"
+
+# The console prompt's cursor, an "_" drawn from WinMain at column consoleInputLength + 2.
+[[hooks]]
+address = 0x004082E0
+function = "DrawConsoleBitmapTextHook"
+original_bytes = [0xE8, 0xEB, 0xB6, 0x42, 0x00]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+4"
+type = "int"
+
+[[hooks.parameters]]
+source = "esp+8"
+type = "int"
+
+# The frame-rate readout, formatted "%.2f" into a stack buffer and drawn at row 1.
+[[hooks]]
+address = 0x004083C5
+function = "DrawConsoleBitmapTextHook"
+original_bytes = [0xE8, 0x06, 0xB6, 0x42, 0x00]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+4"
+type = "int"
+
+[[hooks.parameters]]
+source = "esp+8"
+type = "int"
