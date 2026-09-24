@@ -1,0 +1,19 @@
+# Controller support for Aspyr's native Linux KOTOR2. Rationale for each hook is
+# in the matching .cpp; this file carries the byte evidence.
+
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# IDirectInput_Mac::EnumDevices @ 0x080C6310
+#   080c6310  55                 PUSH EBP
+#   080c6311  53                 PUSH EBX
+#   080c6312  57                 PUSH EDI
+#   080c6313  56                 PUSH ESI
+#   080c6314  81 EC 7C 02 00 00  SUB ESP,0x27c
+# Whole instructions, so the displaced prologue relocates cleanly.
+[[hooks]]
+address = 0x080C6310
+type = "detour"
+function = "LoadControllerMappings"
+original_bytes = [0x55, 0x53, 0x57, 0x56, 0x81, 0xEC, 0x7C, 0x02, 0x00, 0x00]
+exclude_from_restore = []
