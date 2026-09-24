@@ -1,9 +1,9 @@
 [patch]
-id = "9-dynamic-lights"
-name = "9 Dynamic Lights"
-version = "1.0.0"
+id = "max-lights"
+name = "Max Lights"
+version = "1.1.0"
 author = "Vriff"
-description = "Raises dynamic-light caps from 3 to 9 for KOTOR2 GOG/Steam Aspyr."
+description = "Raises KOTOR2's dynamic-light limit from 3 to 7, characters included."
 requires = []
 conflicts = []
 

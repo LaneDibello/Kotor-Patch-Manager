@@ -1,0 +1,4 @@
+LIBRARY MaxLights
+EXPORTS
+    RelocateLightBlock
+    SetProgramLightCount
