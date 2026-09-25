@@ -10,6 +10,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#if defined(__APPLE__)
+#include <mach/mach.h>
+#endif
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -97,6 +101,75 @@ namespace Platform {
         if (addr) munmap(addr, size);
     }
 
+    namespace {
+
+    // mprotect has no query counterpart and there is no portable way to ask. Linux exposes the
+    // current protection through /proc/self/maps and macOS through the Mach VM interface: this
+    // file covers both platforms, so neither interface can be assumed from the other. Returns -1
+    // where the protection cannot be determined.
+#if defined(__linux__)
+    int QueryProtection(std::uintptr_t page) {
+        std::FILE* maps = std::fopen("/proc/self/maps", "re");
+        if (!maps) {
+            return -1;
+        }
+
+        int prot = -1;
+        char line[512];
+        while (std::fgets(line, sizeof(line), maps)) {
+            unsigned long regionStart = 0;
+            unsigned long regionEnd = 0;
+            char perms[5] = {};
+            if (std::sscanf(line, "%lx-%lx %4s", &regionStart, &regionEnd, perms) != 3) {
+                continue;
+            }
+            if (page < regionStart || page >= regionEnd) {
+                continue;
+            }
+            prot = PROT_NONE;
+            if (perms[0] == 'r') prot |= PROT_READ;
+            if (perms[1] == 'w') prot |= PROT_WRITE;
+            if (perms[2] == 'x') prot |= PROT_EXEC;
+            break;
+        }
+        std::fclose(maps);
+        return prot;
+    }
+#elif defined(__APPLE__)
+    int QueryProtection(std::uintptr_t page) {
+        // vm_region_64 rather than mach_vm_region: its address and size types are pointer-sized,
+        // so the same call serves both the i386 and x86_64 Aspyr builds.
+        vm_address_t address = static_cast<vm_address_t>(page);
+        vm_size_t size = 0;
+        vm_region_basic_info_data_64_t info = {};
+        mach_msg_type_number_t count = VM_REGION_BASIC_INFO_COUNT_64;
+        mach_port_t objectName = MACH_PORT_NULL;
+        if (vm_region_64(mach_task_self(), &address, &size, VM_REGION_BASIC_INFO_64,
+                         reinterpret_cast<vm_region_info_t>(&info), &count,
+                         &objectName) != KERN_SUCCESS) {
+            return -1;
+        }
+
+        // The call reports the region containing the address or the next one after it, so a
+        // region starting past the page says nothing about the page.
+        if (page < address || page >= address + size) {
+            return -1;
+        }
+
+        int prot = PROT_NONE;
+        if (info.protection & VM_PROT_READ) prot |= PROT_READ;
+        if (info.protection & VM_PROT_WRITE) prot |= PROT_WRITE;
+        if (info.protection & VM_PROT_EXECUTE) prot |= PROT_EXEC;
+        return prot;
+    }
+#else
+    int QueryProtection(std::uintptr_t) {
+        return -1;
+    }
+#endif
+
+    }
+
     bool WriteCode(void* dest, const void* src, std::size_t len) {
         // mprotect requires a page-aligned address and acts on whole pages, so
         // round `dest` down to its page and grow the span to cover the write.
@@ -106,6 +179,9 @@ namespace Platform {
         std::uintptr_t end = (addr + len + ps - 1) & ~(ps - 1);
         auto* page = reinterpret_cast<void*>(start);
         std::size_t span = end - start;
+        // A hook is a few bytes, so the span is one page, or two when the write straddles a
+        // boundary. Both then sit in the same segment, which is why one query covers the span.
+        const int original = QueryProtection(start);
 
         // Writable and executable at once is asked for first, because it leaves the
         // page runnable throughout: the deferred-apply path patches while the game is
@@ -118,8 +194,14 @@ namespace Platform {
         }
         std::memcpy(dest, src, len);
         FlushICache(dest, len);
-        // Game code is read+execute; the write was the only reason it was writable.
-        mprotect(page, span, PROT_READ | PROT_EXEC);
+        // Put back what was there. A hook on a global lands in .data, which the game still
+        // writes, so restoring a hardcoded read+execute would take write away from every other
+        // global sharing the page and kill the next store to one of them. Restoring the queried
+        // value also never asks for write and execute together, which Apple Silicon refuses.
+        //
+        // The fallback is the behaviour from before the query existed: right for code, wrong for
+        // data, and reached only if both queries fail, which neither platform does.
+        mprotect(page, span, original >= 0 ? original : (PROT_READ | PROT_EXEC));
         return true;
     }
 
