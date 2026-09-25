@@ -1,0 +1,476 @@
+[metadata]
+target_versions = ["C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"]
+
+# ==============================================================================
+# 1. WIDESCREEN ASPECT RATIO OVERRIDE
+# ==============================================================================
+# Function: CSWGuiManager::GetAspectRatio (0x100204a24)
+# Forces the engine to return 1 (true) for widescreen mode, disabling 4:3 clamping.
+[[hooks]]
+address = 0x100204a24
+type = "simple"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x81, 0xFF, 0x20, 0x03, 0x00, 0x00, 0xB8]
+replacement_bytes = [0x55, 0x48, 0x89, 0xE5, 0xB8, 0x01, 0x00, 0x00, 0x00, 0x5D, 0xC3]
+
+# ==============================================================================
+# 2. IN-GAME MAP VIEWPORT CENTERING (CSWGuiInGameMap::Draw & HandleMouseInput)
+# ==============================================================================
+# Centers the in-game area map viewport within the scaled menu frame.
+# At 1512x982 display, uniform 4:3 menu dimensions are 1309x982.
+# Displacements calculate (screenWidth - targetWidth)/2 and (screenHeight - targetHeight)/2.
+#
+# X Coordinates (-1309 = 0xfae3)
+[[hooks]]
+address = 0x1002b4b39
+type = "simple"
+original_bytes = [0x8d, 0x91, 0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0x8d, 0x91, 0xe3, 0xfa, 0xff, 0xff]
+
+[[hooks]]
+address = 0x1002b4b42
+type = "simple"
+original_bytes = [0x44, 0x8d, 0xac, 0x11, 0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0x44, 0x8d, 0xac, 0x11, 0xe3, 0xfa, 0xff, 0xff]
+
+[[hooks]]
+address = 0x1002b5613
+type = "simple"
+original_bytes = [0x8d, 0x91, 0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0x8d, 0x91, 0xe3, 0xfa, 0xff, 0xff]
+
+[[hooks]]
+address = 0x1002b561c
+type = "simple"
+original_bytes = [0x8d, 0x8c, 0x11, 0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0x8d, 0x8c, 0x11, 0xe3, 0xfa, 0xff, 0xff]
+
+# Y Coordinates (-982 = 0xfc2a)
+[[hooks]]
+address = 0x1002b4b57
+type = "simple"
+original_bytes = [0x8d, 0x88, 0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x8d, 0x88, 0x2a, 0xfc, 0xff, 0xff]
+
+[[hooks]]
+address = 0x1002b4b60
+type = "simple"
+original_bytes = [0x8d, 0x9c, 0x08, 0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x8d, 0x9c, 0x08, 0x2a, 0xfc, 0xff, 0xff]
+
+[[hooks]]
+address = 0x1002b562f
+type = "simple"
+original_bytes = [0x8d, 0x88, 0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x8d, 0x88, 0x2a, 0xfc, 0xff, 0xff]
+
+[[hooks]]
+address = 0x1002b5638
+type = "simple"
+original_bytes = [0x8d, 0x84, 0x08, 0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x8d, 0x84, 0x08, 0x2a, 0xfc, 0xff, 0xff]
+
+# CSWGuiMapHider::Draw: dynamic fog step X from this->width (0x10(%r12))
+[[hooks]]
+address = 0x1002b4ce9
+type = "simple"
+original_bytes = [0xf3, 0x0f, 0x10, 0x0d, 0xa7, 0xbb, 0x2b, 0x00]
+replacement_bytes = [0xf3, 0x41, 0x0f, 0x2a, 0x4c, 0x24, 0x10, 0x90]
+
+# CSWGuiMapHider::Draw: dynamic fog step Y from this->height (0x14(%r12))
+[[hooks]]
+address = 0x1002b4cfc
+type = "simple"
+original_bytes = [0xf3, 0x0f, 0x10, 0x15, 0xa8, 0x8c, 0x28, 0x00]
+replacement_bytes = [0xf3, 0x41, 0x0f, 0x2a, 0x54, 0x24, 0x14, 0x90]
+
+# CSWGuiMapHider::Draw: unselected map note / bullseye marker 2x coordinate scaling
+[[hooks]]
+address = 0x1002b4ff2
+type = "simple"
+original_bytes = [
+    0x83, 0xc0, 0xf9,
+    0x89, 0x85, 0x40, 0xfe, 0xff, 0xff,
+    0x8b, 0x85, 0x2c, 0xfe, 0xff, 0xff,
+    0x83, 0xc0, 0xf9,
+    0x89, 0x85, 0x44, 0xfe, 0xff, 0xff,
+    0xb8, 0x0e, 0x00, 0x00, 0x00,
+    0x89, 0x85, 0x48, 0xfe, 0xff, 0xff,
+    0x89, 0x85, 0x4c, 0xfe, 0xff, 0xff
+]
+replacement_bytes = [
+    0x8d, 0x44, 0x00, 0xf9,
+    0x89, 0x85, 0x40, 0xfe, 0xff, 0xff,
+    0x8b, 0x85, 0x2c, 0xfe, 0xff, 0xff,
+    0x8d, 0x44, 0x00, 0xf9,
+    0x89, 0x85, 0x44, 0xfe, 0xff, 0xff,
+    0x6a, 0x0e, 0x58,
+    0x89, 0x85, 0x48, 0xfe, 0xff, 0xff,
+    0x89, 0x85, 0x4c, 0xfe, 0xff, 0xff
+]
+
+# CSWGuiMapHider::Draw: selected map note / double bullseye marker 2x coordinate scaling
+[[hooks]]
+address = 0x1002b52b2
+type = "simple"
+original_bytes = [
+    0x83, 0xc0, 0xf6,
+    0x89, 0x85, 0x40, 0xfe, 0xff, 0xff,
+    0x8b, 0x85, 0x2c, 0xfe, 0xff, 0xff,
+    0x83, 0xc0, 0xf6,
+    0x89, 0x85, 0x44, 0xfe, 0xff, 0xff,
+    0xb8, 0x14, 0x00, 0x00, 0x00,
+    0x89, 0x85, 0x48, 0xfe, 0xff, 0xff,
+    0x89, 0x85, 0x4c, 0xfe, 0xff, 0xff
+]
+replacement_bytes = [
+    0x8d, 0x44, 0x00, 0xf6,
+    0x89, 0x85, 0x40, 0xfe, 0xff, 0xff,
+    0x8b, 0x85, 0x2c, 0xfe, 0xff, 0xff,
+    0x8d, 0x44, 0x00, 0xf6,
+    0x89, 0x85, 0x44, 0xfe, 0xff, 0xff,
+    0x6a, 0x14, 0x58,
+    0x89, 0x85, 0x48, 0xfe, 0xff, 0xff,
+    0x89, 0x85, 0x4c, 0xfe, 0xff, 0xff
+]
+
+# CSWGuiMapHider::Draw: party member marker 2x coordinate scaling
+[[hooks]]
+address = 0x1002b5430
+type = "simple"
+original_bytes = [
+    0x8b, 0x85, 0x58, 0xfe, 0xff, 0xff,
+    0x83, 0xc0, 0xf8,
+    0x89, 0x85, 0x40, 0xfe, 0xff, 0xff,
+    0x8b, 0x85, 0x5c, 0xfe, 0xff, 0xff,
+    0x83, 0xc0, 0xf8,
+    0x89, 0x85, 0x44, 0xfe, 0xff, 0xff,
+    0xb8, 0x10, 0x00, 0x00, 0x00,
+    0x89, 0x85, 0x48, 0xfe, 0xff, 0xff,
+    0x89, 0x85, 0x4c, 0xfe, 0xff, 0xff
+]
+replacement_bytes = [
+    0x8b, 0x85, 0x58, 0xfe, 0xff, 0xff,
+    0x8d, 0x44, 0x00, 0xf8,
+    0x89, 0x85, 0x40, 0xfe, 0xff, 0xff,
+    0x8b, 0x85, 0x5c, 0xfe, 0xff, 0xff,
+    0x8d, 0x44, 0x00, 0xf8,
+    0x89, 0x85, 0x44, 0xfe, 0xff, 0xff,
+    0x6a, 0x10, 0x58,
+    0x89, 0x85, 0x48, 0xfe, 0xff, 0xff,
+    0x89, 0x85, 0x4c, 0xfe, 0xff, 0xff
+]
+
+# CSWGuiMapHider::Draw: player direction arrow 2x coordinate scaling
+[[hooks]]
+address = 0x1002b54cf
+type = "simple"
+original_bytes = [
+    0x8b, 0xbd, 0x58, 0xfe, 0xff, 0xff,
+    0x83, 0xc7, 0xf0,
+    0x89, 0xbd, 0x40, 0xfe, 0xff, 0xff,
+    0x8b, 0xb5, 0x5c, 0xfe, 0xff, 0xff,
+    0x83, 0xc6, 0xf0,
+    0x89, 0xb5, 0x44, 0xfe, 0xff, 0xff,
+    0xb8, 0x20, 0x00, 0x00, 0x00,
+    0x89, 0x85, 0x48, 0xfe, 0xff, 0xff,
+    0x89, 0x85, 0x4c, 0xfe, 0xff, 0xff
+]
+replacement_bytes = [
+    0x8b, 0x85, 0x58, 0xfe, 0xff, 0xff,
+    0x8d, 0x7c, 0x00, 0xf0,
+    0x89, 0xbd, 0x40, 0xfe, 0xff, 0xff,
+    0x8b, 0x85, 0x5c, 0xfe, 0xff, 0xff,
+    0x8d, 0x74, 0x00, 0xf0,
+    0x89, 0xb5, 0x44, 0xfe, 0xff, 0xff,
+    0x6a, 0x20, 0x58,
+    0x89, 0x85, 0x48, 0xfe, 0xff, 0xff,
+    0x89, 0x85, 0x4c, 0xfe, 0xff, 0xff
+]
+
+# ==============================================================================
+# 3. C++ DETOURS
+# ==============================================================================
+
+# Detour 1: CSWGuiMainInterface::Draw (0x100235e44)
+# Master HUD render function called every frame during active gameplay.
+# Dynamically anchors top-right buttons, bottom-right combat action bar,
+# bottom-left portrait/vitality cluster, and aligns the minimap.
+# Also dynamically enforces root viewport and scissor bounds so floating
+# tooltips and button descriptions are never clipped at 1280px.
+[[hooks]]
+address = 0x100235e44
+type = "detour"
+function = "Hook_MainInterfaceDraw"
+original_bytes = [0x55, 0x48, 0x89, 0xe5, 0x41, 0x57, 0x41, 0x56, 0x41, 0x55, 0x41, 0x54]
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+
+# Detour 2: CSWGuiWindow::Draw (0x10049ded4)
+# Master window render function called for all GUI windows (in-game menus,
+# equip, inventory, character, abilities/skills, journal, map, options, dialogs, containers).
+# Based on WindowsScaledKotor "Scaled Menu" (scaled-menu-v1):
+# - Dynamically scales root menu panel, border (offset +0x70), and all child controls to fill
+#   vertical screen height (uiHeight = screenHeight, uiWidth = screenHeight * 4 / 3, or MenuScale).
+# - Sets bit 0x8 on window + 0x5c, activating the engine's native 0x10049dd86 helper to center the
+#   panel dynamically while maintaining 100% pixel-perfect mouse hitboxes in FindControlAtPoint.
+[[hooks]]
+address = 0x10049ded4
+type = "detour"
+function = "Hook_WindowDraw"
+original_bytes = [0x55, 0x48, 0x89, 0xe5, 0x41, 0x57, 0x41, 0x56, 0x41, 0x54, 0x53, 0x48, 0x83, 0xec, 0x20]
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+
+# Detour: CSWGuiClassSelection::Update (0x100337886)
+# Scaled Class Menu (Character Generation)
+# Fixes character model box distortion and overlapping in character generation
+# by dynamically enforcing scaled slot bounds and ticking 3D character models every frame.
+[[hooks]]
+address = 0x100337886
+type = "detour"
+function = "Hook_ClassSelectionUpdate"
+original_bytes = [0x55, 0x48, 0x89, 0xe5, 0x41, 0x57, 0x41, 0x56, 0x41, 0x55, 0x41, 0x54, 0x53, 0x48, 0x83, 0xec, 0x28]
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+
+# Bypass vanilla CSWGuiClassSelection::Update loop:
+# Jump immediately to the function epilogue (0x100337b38) after Hook_ClassSelectionUpdate runs,
+# preventing the vanilla unscaled delta animation math from mutating slot rects and causing rapid flashing.
+[[hooks]]
+address = 0x100337897
+type = "simple"
+original_bytes = [0xf3, 0x0f, 0x11, 0x45, 0xd4]
+replacement_bytes = [0xe9, 0x9c, 0x02, 0x00, 0x00]
+
+# ==============================================================================
+# 4. C++ DETOUR: SCALED FLOATING TARGETS & MENU BACKDROP ALIGNMENT
+# ==============================================================================
+# Detour 3: CSWGuiControl::SetBounds (0x1004a17c2)
+# Handles two critical engine scaling functions:
+#
+# A. SCALED FLOATING TARGETS (HEALTH BARS & ACTION ICONS)
+# Intercepts SetBounds specifically to scale up the 3D Floating Target HUD elements:
+# - Target nameplate (LBL_NAME / LBL_NAMEBG)
+# - Target health bar (PB_HEALTH / LBL_HEALTHBG)
+# - 3 action slot buttons (BTN_TARGET0..2), icons (LBL_TARGET0..2), and cycle arrows (BTN_TARGETUP/DOWN0..2)
+# Based on WindowsScaledKotor "Scaled Floating Target + Actions" patch.
+#
+# B. MENU BACKDROP ASPECT ALIGNMENT & DOUBLE BEZEL ELIMINATION
+# Intercepts the menu backdrop control from CSWGuiManager::DrawMenuBackdrop (0x10049f946).
+# In vanilla 4:3, the backdrop texture ("800x600back") and menu frames overlap pixel-for-pixel.
+# On widescreen, naively stretching the backdrop across the whole screen pushes its frame notches
+# ~58px outward, creating a jarring "double bezel" behind the menu.
+# Constraining the backdrop to the exact 4:3 scaled menu rectangle aligns them 1:1, completely
+# eliminating the double bezel! Based on WindowsScaledKotor "ScaledMenuBorders".
+[[hooks]]
+address = 0x1004a17c2
+type = "detour"
+function = "UniversalSetBounds"
+original_bytes = [0x55, 0x48, 0x89, 0xe5, 0x41, 0x57, 0x41, 0x56, 0x41, 0x54, 0x53, 0x48, 0x83, 0xec, 0x20]
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+[[hooks.parameters]]
+source = "rsi"
+type = "pointer"
+
+
+
+# ==============================================================================
+# 5. C++ DETOUR: SCALED FONTS (CAurFontInfo METADATA SCALING)
+# ==============================================================================
+# Detour 4: CResTexture::ParseTXI completion (0x1001f8883)
+# Intercepts immediately after the texture TXI metadata parser finishes loading.
+# On the Mac 64-bit Aspyr port, register R14 holds the live CResTexture pointer,
+# and offset +0x48 holds the CAurFontInfo pointer (or nullptr for non-font textures).
+# Scales the 5 font metrics:
+#   - FontHeight (+0x04)
+#   - BaselineHeight (+0x08)
+#   - TextureWidth (+0x0C)
+#   - SpacingR (+0x10)
+#   - SpacingB (+0x14)
+# Based on WindowsScaledKotor "Scaled Font" (font-scale-2x-v1) patch.
+# Automatic scaling: (targetHeight / 1080.0f) with 1.0f floor, or configurable
+# via FontScale in ~/Library/Application Support/Knights of the Old Republic/swkotor.ini.
+[[hooks]]
+address = 0x1001f8883
+type = "detour"
+function = "scaleLoadedTextureMetadata"
+original_bytes = [0x48, 0x81, 0xc4, 0x20, 0x20, 0x00, 0x00, 0x5b, 0x41, 0x5c, 0x41, 0x5e, 0x41, 0x5f]
+[[hooks.parameters]]
+source = "r14"
+type = "pointer"
+
+# ==============================================================================
+# 6. STRUCTURAL ITEM ROW OPCODES (CONTAINER & WORKBENCH DYNAMIC ROW SCALING)
+# ==============================================================================
+# In vanilla KotOR, Container and Workbench item rows hardcode icon dimensions
+# to 56px ($0x38). These structural opcode hooks modify the machine instructions
+# so they read row height dynamically from the entry struct offset 0x14(%rbx).
+#
+# NOTE: All numerical row heights, strides, paddings, icon bounds, quantity badges,
+# and text buttons for Inventory, Containers, Workbench, and Save/Load lists are
+# dynamically calculated and injected at runtime by mac_PureCPP.dylib via
+# refreshPatchedListConstants() and scaleMenuPanelTree().
+# ==============================================================================
+
+# --- Container / Store Item Entry SetExtent (0x1002bfb20) ---
+# Replace hardcoded icon width/height 0x38 with dynamic 0x14(%rbx)
+[[hooks]]
+address = 0x1002bfb49
+type = "simple"
+original_bytes = [0x41, 0xbd, 0x38, 0x00, 0x00, 0x00] # movl $0x38, %r13d
+replacement_bytes = [0x44, 0x8b, 0x6b, 0x14, 0x90, 0x90] # movl 0x14(%rbx), %r13d; nop; nop
+
+# Quantity label horizontal position: pull closer to icon (use %r13d - 14)
+[[hooks]]
+address = 0x1002bfbbf
+type = "simple"
+original_bytes = [0xb8, 0x38, 0x00, 0x00, 0x00] # movl $0x38, %eax
+replacement_bytes = [0x41, 0x8d, 0x45, 0xf2, 0x90] # leal -14(%r13), %eax; nop
+
+# Text button start X: add %r13d (icon width) to %r15d (left)
+[[hooks]]
+address = 0x1002bfbe2
+type = "simple"
+original_bytes = [0x41, 0x83, 0xc7, 0x38] # addl $0x38, %r15d
+replacement_bytes = [0x45, 0x01, 0xef, 0x90] # addl %r13d, %r15d; nop
+
+# Text button width: subtract %r13d (icon width) from %eax (total width)
+[[hooks]]
+address = 0x1002bfbe9
+type = "simple"
+original_bytes = [0x83, 0xc0, 0xc8] # addl $-0x38, %eax
+replacement_bytes = [0x44, 0x29, 0xe8] # subl %r13d, %eax
+
+# --- Workbench Upgrade Item Entry SetExtent (0x10021c020) ---
+# Replace hardcoded icon width/height 0x38 with dynamic 0x14(%rbx)
+[[hooks]]
+address = 0x10021c063
+type = "simple"
+original_bytes = [0x41, 0xbf, 0x38, 0x00, 0x00, 0x00] # movl $0x38, %r15d
+replacement_bytes = [0x44, 0x8b, 0x7b, 0x14, 0x90, 0x90] # movl 0x14(%rbx), %r15d; nop; nop
+
+# Quantity label horizontal position: pull closer to icon (use %r15d - 14)
+[[hooks]]
+address = 0x10021c0e2
+type = "simple"
+original_bytes = [0xb8, 0x38, 0x00, 0x00, 0x00] # movl $0x38, %eax
+replacement_bytes = [0x41, 0x8d, 0x47, 0xf2, 0x90] # leal -14(%r15), %eax; nop
+
+# Text button start X: add %r15d (icon width) to %r13d (left)
+[[hooks]]
+address = 0x10021c0ff
+type = "simple"
+original_bytes = [0x41, 0x83, 0xc5, 0x38] # addl $0x38, %r13d
+replacement_bytes = [0x45, 0x01, 0xfd, 0x90] # addl %r15d, %r13d; nop
+
+# Text button width: subtract %r15d (icon width) from %eax (total width)
+[[hooks]]
+address = 0x10021c106
+type = "simple"
+original_bytes = [0x83, 0xc0, 0xc8] # addl $-0x38, %eax
+replacement_bytes = [0x44, 0x29, 0xf8] # subl %r15d, %eax
+
+
+# ==============================================================================
+# 7. MENU CENTERING DISPLACEMENTS (INPUT & RENDER CENTERING)
+# ==============================================================================
+# Patches the hardcoded -640 and -480 displacements in CSWGuiPanel and CSWGuiWindow
+# to -1309 and -982 (uniform 4:3 menu dimensions at 1512x982 display resolution).
+#
+# Width displacements (-1309 = [0xE3, 0xFA, 0xFF, 0xFF]):
+#   0x10049dcca: CSWGuiPanel::HandleMouseInput (width displacement 1)
+#   0x10049dcd4: CSWGuiPanel::HandleMouseInput (width displacement 2)
+#   0x10049ddb2: CSWGuiPanel::ScreenToClient (width displacement 1)
+#   0x10049ddbc: CSWGuiPanel::ScreenToClient (width displacement 2)
+#   0x10049e855: CSWGuiPanel::GetLocalMousePos (width displacement 1)
+#   0x10049e85f: CSWGuiPanel::GetLocalMousePos (width displacement 2)
+#
+# Height displacements (-982 = [0x2A, 0xFC, 0xFF, 0xFF]):
+#   0x10049dce8: CSWGuiPanel::HandleMouseInput (height displacement 1)
+#   0x10049dcf2: CSWGuiPanel::HandleMouseInput (height displacement 2)
+#   0x10049ddd9: CSWGuiPanel::ScreenToClient (height displacement 1)
+#   0x10049dde3: CSWGuiPanel::ScreenToClient (height displacement 2)
+#   0x10049e872: CSWGuiPanel::GetLocalMousePos (height displacement 1)
+#   0x10049e87c: CSWGuiPanel::GetLocalMousePos (height displacement 2)
+# ==============================================================================
+
+[[hooks]]
+address = 0x10049dcca
+type = "simple"
+original_bytes = [0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0xe3, 0xfa, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049dcd4
+type = "simple"
+original_bytes = [0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0xe3, 0xfa, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049ddb2
+type = "simple"
+original_bytes = [0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0xe3, 0xfa, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049ddbc
+type = "simple"
+original_bytes = [0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0xe3, 0xfa, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049e855
+type = "simple"
+original_bytes = [0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0xe3, 0xfa, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049e85f
+type = "simple"
+original_bytes = [0x80, 0xfd, 0xff, 0xff]
+replacement_bytes = [0xe3, 0xfa, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049dce8
+type = "simple"
+original_bytes = [0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x2a, 0xfc, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049dcf2
+type = "simple"
+original_bytes = [0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x2a, 0xfc, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049ddd9
+type = "simple"
+original_bytes = [0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x2a, 0xfc, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049dde3
+type = "simple"
+original_bytes = [0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x2a, 0xfc, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049e872
+type = "simple"
+original_bytes = [0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x2a, 0xfc, 0xff, 0xff]
+
+[[hooks]]
+address = 0x10049e87c
+type = "simple"
+original_bytes = [0x20, 0xfe, 0xff, 0xff]
+replacement_bytes = [0x2a, 0xfc, 0xff, 0xff]
+
+
+
+
