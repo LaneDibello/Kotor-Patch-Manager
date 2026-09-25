@@ -1,0 +1,185 @@
+#include <vector>
+#include <iostream>
+#include <stdexcept>
+
+enum dir {
+	NONE,
+	UP,
+	RIGHT,
+	DOWN,
+	LEFT
+};
+
+struct Cell {
+	int state = 0;
+	dir tail = NONE;
+};
+
+typedef std::vector<std::vector<Cell>> Grid;
+
+struct Snake {
+	int headX;
+	int headY;
+
+	dir facing;
+
+	int length;
+
+	Grid grid;
+};
+
+// Grid
+Grid& createGrid(int width, int height) {
+	static Grid grid(height, std::vector<Cell>(width));
+	return grid;
+}
+
+void debugPrintGrid(Grid& grid) {
+	for (std::vector<Cell> vec : grid) {
+		for (Cell c : vec) {
+			std::cout << c.state;
+		}
+		std::cout << std::endl;
+	}
+
+	std::cout << std::endl;
+
+	for (std::vector<Cell> vec : grid) {
+		for (Cell c : vec) {
+			switch (c.tail) {
+			case UP:
+				std::cout << '^';
+				break;
+			case RIGHT:
+				std::cout << '>';
+				break;
+			case DOWN:
+				std::cout << 'V';
+				break;
+			case LEFT:
+				std::cout << '<';
+				break;
+			case NONE:
+			default:
+				std::cout << '0';
+				break;
+			}
+		}
+		std::cout << std::endl;
+	}
+}
+
+int getState(Grid& grid, int x, int y) {
+	try {
+		return grid.at(y).at(x).state;
+	}
+	catch (const std::out_of_range& oor) {
+		return -1;
+	}
+}
+
+dir getTail(Grid& grid, int x, int y) {
+	try {
+		return grid.at(y).at(x).tail;
+	}
+	catch (const std::out_of_range& oor) {
+		return NONE;
+	}
+}
+
+void setState(Grid& grid, int state, int x, int y) {
+	grid.at(y).at(x).state = state;
+}
+
+void setTail(Grid& grid, dir tail, int x, int y) {
+	grid.at(y).at(x).tail = tail;
+}
+
+void resolveTail(Grid& grid, int x, int y) {
+	int state = getState(grid, x, y);
+	if (state == 0 || state == -1) return;
+	
+	if (state == 1) {
+		setTail(grid, NONE, x, y);
+	}
+	setState(grid, state - 1, x, y);
+	
+	switch (getTail(grid, x, y)) {
+	case UP:
+		resolveTail(grid, x, y - 1);
+		break;
+	case RIGHT:
+		resolveTail(grid, x + 1, y);
+		break;
+	case DOWN:
+		resolveTail(grid, x, y + 1);
+		break;
+	case LEFT:
+		resolveTail(grid, x - 1, y);
+		break;
+	case NONE:
+	default:
+		break;
+	}
+}
+
+// Snake
+Snake& createSnake(int gridWidth, int gridHeight) {
+	static struct Snake s;
+	s.facing = RIGHT;
+	s.headX = gridWidth / 2;
+	s.headY = gridHeight / 2;
+	s.length = 3;
+	s.grid = createGrid(gridWidth, gridHeight);
+
+	return s;
+}
+
+void setFacing(Snake& snake, dir facing) {
+	snake.facing = facing;
+}
+
+bool takeStep(Snake& snake) { // returns false if the snake dies
+	int nextX, nextY;
+	dir tail;
+	switch (snake.facing) {
+	case UP:
+		nextX = snake.headX;
+		nextY = snake.headY - 1;
+		tail = DOWN;
+		break;
+	case RIGHT:
+		nextX = snake.headX + 1;
+		nextY = snake.headY;
+		tail = LEFT;
+		break;
+	case DOWN:
+		nextX = snake.headX;
+		nextY = snake.headY + 1;
+		tail = UP;
+		break;
+	case LEFT:
+		nextX = snake.headX - 1;
+		nextY = snake.headY;
+		tail = RIGHT;
+		break;
+	case NONE:
+	default:
+		return true;
+	}
+
+	int nextState = getState(snake.grid, nextX, nextY);
+	std::cout << "Next State: " << nextState << std::endl;
+	if (nextState != 0) {
+		return false; // If next cell is occupied, the snake dies
+	}
+
+	setState(snake.grid, snake.length, snake.headX, snake.headY);
+	resolveTail(snake.grid, snake.headX, snake.headY);
+	snake.headX = nextX;
+	snake.headY = nextY;
+	setState(snake.grid, snake.length, snake.headX, snake.headY);
+	setTail(snake.grid, tail, snake.headX, snake.headY);
+
+	return true;
+}
