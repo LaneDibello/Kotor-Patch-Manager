@@ -10,6 +10,7 @@
 #include "GameAPI/CSWGuiBorderParams.h"
 #include "GameAPI/CSWGuiButton.h"
 #include "GameAPI/CSWGuiLabel.h"
+#include "GameAPI/CSWGuiManager.h"
 #include "GameAPI/CSWGuiPanel.h"
 
 #include "snake.h"
@@ -26,6 +27,7 @@
 #define BLACK "blackfill"
 #define BLUE "bluefill"
 #define YELLOW "yellowfill"
+#define WHITE "whitefill"
 
 class SnakePanel : public CSWGuiPanel {
 public:
@@ -41,6 +43,9 @@ public:
 
 	bool alive;
 
+	void onBack(void* control) {
+		_HandleInputEvent(CSWGuiControl::BButton, 1);
+	}
 
 	SnakePanel(CSWGuiManager* manager) :
 		CSWGuiPanel(manager),
@@ -119,6 +124,10 @@ public:
 
 		debugLog("[Snake] Cells Initialized");
 
+		backButton.AddEvent(CSWGuiControl::AButton, this,
+			memberThunkAddr<SnakePanel, &SnakePanel::onBack>());
+		backButton.SetControlBitFlag(2, false);
+
 		this->OverrideHandleInputEvent(memberFuncAddr(&SnakePanel::_HandleInputEvent));
 		this->OverrideUpdate(memberFuncAddr(&SnakePanel::_Update));
 		this->OverrideDraw(memberFuncAddr(&SnakePanel::_Draw));
@@ -190,7 +199,7 @@ public:
 		CExoString category(CATEGORY);
 		CExoString key(SPEED);
 		if (!ini.ReadIniEntry(&speed, &file, &category, &key)) {
-			_speed = 3;
+			_speed = 8;
 			return _speed;
 		}
 
@@ -208,6 +217,7 @@ private:
 	void _HandleInputEvent(int event, int inputPhase) {
 		if (inputPhase) {
 			dir lastTail = getTail(snake.grid, snake.headX, snake.headY);
+			CSWGuiManager manager;
 			switch (event) {
 			case CSWGuiControl::UpArrow:
 				if (this->snake.facing == DOWN || lastTail == UP) break;
@@ -228,6 +238,11 @@ private:
 				if (this->snake.facing == RIGHT || lastTail == LEFT) break;
 				setFacing(this->snake, LEFT);
 				debugLog("[Snake] Left!");
+				break;
+			case CSWGuiControl::BButton:
+				manager.PlayGuiSound(0);
+				manager.PopModalPanel();
+				SetBitFlags((GetBitFlags() & ~0x300) | 0x400);
 				break;
 			default:
 				break;
@@ -282,8 +297,12 @@ private:
 			CResRef image(YELLOW);
 			params->SetFillImage(&image, 0);
 		}
-		else if (cellState > 0) {
+		else if (cellState > 0 && alive) {
 			CResRef image(BLUE);
+			params->SetFillImage(&image, 0);
+		}
+		else if (cellState > 0 && !alive) {
+			CResRef image(WHITE);
 			params->SetFillImage(&image, 0);
 		}
 		else {
