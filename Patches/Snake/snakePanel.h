@@ -20,6 +20,7 @@
 #define CATEGORY "config"
 #define WIDTH "Width"
 #define HEIGHT "Height"
+#define SPEED "Speed"
 
 #define BLACK "blackfill"
 #define BLUE "bluefill"
@@ -31,18 +32,21 @@ public:
 	CSWGuiLabel gameLabel;
 	CSWGuiButton backButton;
 
-	std::vector<std::vector<CSWGuiBorder>> grid;
+	std::vector<std::vector<CSWGuiBorder*>> grid;
 
 	int cellSize;
 
 	Snake snake;
+
+	bool alive;
 
 	SnakePanel(CSWGuiManager* manager) :
 		CSWGuiPanel(manager),
 		titleLabel(),
 		gameLabel(),
 		backButton(),
-		grid(getHeight(), std::vector<CSWGuiBorder>(getWidth(), CSWGuiBorder()))
+		grid(getHeight(), std::vector<CSWGuiBorder*>(getWidth(), new CSWGuiBorder())),
+		alive(true)
 	{
 		ThunkRegistry::Register(this);
 
@@ -72,55 +76,100 @@ public:
 		int gameHeight = getHeight() * cellSize;
 
 		for (int i = 0; i < getHeight(); ++i) {
-			for (int j = 0; j < getWidth(); ++j)
-			{
+			for (int j = 0; j < getWidth(); ++j) {
 				CSWGuiExtent cellExtent = {
 					cellSize * j - (gameWidth / 2),
 					cellSize * i - (gameHeight / 2),
 					cellSize,
 					cellSize
 				};
-				CSWGuiBorder cell = grid.at(j).at(i);
-				CSWGuiBorderParams* params = cell.GetBorderParams();
+				CSWGuiBorder* cell = grid.at(j).at(i);
+				CSWGuiBorderParams* params = cell->GetBorderParams();
 				CResRef image(BLACK);
 				params->SetFillImage(&image, 0);
-				cell.Initialize(&cellExtent, params);
+				cell->Initialize(&cellExtent, params);
 			}
 		}
 
 		this->OverrideHandleInputEvent(memberFuncAddr(&SnakePanel::_HandleInputEvent));
 		this->OverrideUpdate(memberFuncAddr(&SnakePanel::_Update));
+		this->OverrideDraw(memberFuncAddr(&SnakePanel::_Draw));
 	}
 
 	~SnakePanel() {
 		ThunkRegistry::Unregister(this);
+		for (int i = 0; i < getHeight(); ++i) {
+			for (int j = 0; j < getWidth(); ++j) {
+				delete grid.at(j).at(i);
+				grid.at(j).at(i) = nullptr;
+			}
+		}
 	}
 
 	static int getWidth() {
+		if (_width > 0) {
+			return _width;
+		}
+
 		CExoIni ini;
 		CExoString width;
 		CExoString file(INI);
 		CExoString category(CATEGORY);
 		CExoString key(WIDTH);
 		if (!ini.ReadIniEntry(&width, &file, &category, &key)) {
-			return 50;
+			_width = 50;
+			return _width
 		}
-		return atoi(width.GetCStr());
+
+		_width = atoi(width.GetCStr());
+		return _width;
 	}
 
 	static int getHeight() {
+		if (_height > 0) {
+			return _height;
+		}
+
 		CExoIni ini;
 		CExoString height;
 		CExoString file(INI);
 		CExoString category(CATEGORY);
 		CExoString key(HEIGHT);
 		if (!ini.ReadIniEntry(&height, &file, &category, &key)) {
-			return 30;
+			_height = 30;
+			return _height;
 		}
-		return atoi(height.GetCStr());
+
+		_height = atoi(height.GetCStr());
+		return _height;
+	}
+
+	static int getSpeed() {
+		if (_speed > 0) {
+			return _speed;
+		}
+
+		CExoIni ini;
+		CExoString speed;
+		CExoString file(INI);
+		CExoString category(CATEGORY);
+		CExoString key(HEIGHT);
+		if (!ini.ReadIniEntry(&speed, &file, &category, &key)) {
+			_speed = 1;
+			return _speed;
+		}
+
+		_speed = atoi(_speed.GetCStr());
+		return _speed;
 	}
 
 private:
+	int _width = -1;
+	int _height = -1;
+	int _speed = -1; // In Cells per second
+
+	double _age = 0.0; // Time in seconds since last Update
+
 	void _HandleInputEvent(int event, int inputPhase) {
 		if (inputPhase) {
 			switch (event) {
@@ -144,9 +193,44 @@ private:
 		HandleInputEvent(event, inputPhase);
 	}
 
-	void _Update(float param1) {
-		debugLog("Called Update with %.2f", param1);
+	void _Update(float deltaT) {
+		if (!alive) {
+			return;
+		}
 
-		// Somewhere in here we'll `takeStep`
+		_age += (double)deltaT;
+
+		if (age < (1.0 / _speed)) { // 1/speed ~ seconds/Cell
+			return;
+		}
+
+		alive = takeStep(snake);
+	}
+
+	void drawCell(float alpha, int x, int y) {
+		int cellState = getState(snake.grid, x, y);
+		CSWGuiBorder* cell = grid.at(y).at(x);
+		if (getFood(snake.grid, x, y)) {
+			CResRef image(YELLOW);
+			cell->GetBorderParams()->SetFillImage(&image, 1);
+		}
+		else if (cellState > 0) {
+			CResRef image(BLUE);
+			cell->GetBorderParams()->SetFillImage(&image, 1);
+		}
+		else {
+			CResRef image(BLACK);
+			cell->GetBorderParams()->SetFillImage(&image, 1);
+		}
+		cell->Draw(alpha);
+	}
+
+	void _Draw(float alpha) {
+		for (int i = 0; i < getHeight(); ++i) {
+			for (int j = 0; j < getWidth(); ++j) {
+				drawCell(j, i);
+			}
+		}
+		Draw(alpha);
 	}
 };

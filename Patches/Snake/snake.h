@@ -12,6 +12,7 @@ enum dir {
 
 struct Cell {
 	int state = 0;
+	bool food = false;
 	dir tail = NONE;
 };
 
@@ -87,12 +88,25 @@ dir getTail(Grid& grid, int x, int y) {
 	}
 }
 
+bool getFood(Grid& grid, int x, int y) {
+	try {
+		return grid.at(y).at(x).food;
+	}
+	catch (const std::out_of_range& oor) {
+		return false;
+	}
+}
+
 void setState(Grid& grid, int state, int x, int y) {
 	grid.at(y).at(x).state = state;
 }
 
 void setTail(Grid& grid, dir tail, int x, int y) {
 	grid.at(y).at(x).tail = tail;
+}
+
+void setFood(Grid& grid, bool food, int x, int y) {
+	grid.at(y).at(x).food = food;
 }
 
 void resolveTail(Grid& grid, int x, int y) {
