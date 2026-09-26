@@ -147,6 +147,7 @@ Snake& createSnake(int gridWidth, int gridHeight) {
 	s.length = 3;
 	s.grid = createGrid(gridWidth, gridHeight);
 
+	setState(s.grid, s.length, s.headX, s.headY);
 	return s;
 }
 

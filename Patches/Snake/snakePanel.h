@@ -68,6 +68,8 @@ public:
 
 		// cell math
 		CSWGuiExtent gameSpace = gameLabel.GetExtent();
+		debugLog("[Snake] gameSpace: {%i, %i, %i, %i}", gameSpace.left, gameSpace.top, gameSpace.width, gameSpace.height);
+
 		int centerX = gameSpace.left + (gameSpace.width / 2);
 		int centerY = gameSpace.top + (gameSpace.height / 2);
 		int maxCellWidth = (int)floor((double)gameSpace.width / getWidth());
@@ -183,15 +185,19 @@ private:
 			switch (event) {
 			case CSWGuiControl::UpArrow:
 				setFacing(this->snake, UP);
+				debugLog("[Snake] Up!");
 				break;
 			case CSWGuiControl::RightArrow:
 				setFacing(this->snake, RIGHT);
+				debugLog("[Snake] Right!");
 				break;
 			case CSWGuiControl::DownArrow:
 				setFacing(this->snake, DOWN);
+				debugLog("[Snake] Down!");
 				break;
 			case CSWGuiControl::LeftArrow:
 				setFacing(this->snake, LEFT);
+				debugLog("[Snake] Left!");
 				break;
 			default:
 				break;
