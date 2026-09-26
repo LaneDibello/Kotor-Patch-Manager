@@ -125,7 +125,29 @@ The two generators read different sources, and a hook naming one its generator c
 
 Source names are matched case-insensitively.
 
-A FLOAT parameter goes to an XMM register on x86_64, so it must come from a register rather than a stack slot: a stack source yields an address, which is not a float.
+### What `type` decides
+
+The declared type says how much of the source reaches the patch function. Every type used to emit the same load, so `byte` and `short` described something the wrapper was not doing.
+
+| Type | x86 | x86_64 |
+| --- | --- | --- |
+| `byte` | `MOVZX` from the low 8 bits | `MOVZX` from the low 8 bits |
+| `short` | `MOVZX` from the low 16 bits | `MOVZX` from the low 16 bits |
+| `sbyte` | `MOVSX` from the low 8 bits | `MOVSX` from the low 8 bits |
+| `sshort` | `MOVSX` from the low 16 bits | `MOVSX` from the low 16 bits |
+| `int`, `uint` | the whole 32-bit register | the low 32 bits, upper half cleared |
+| `pointer` | the whole 32-bit register | all 64 bits |
+| `int64`, `uint64` | refused | all 64 bits |
+| `float` | pushed as 4 raw bytes | `MOVD` into an XMM register |
+| `double` | refused | `MOVQ` into an XMM register |
+
+`byte` and `short` zero-extend; `sbyte` and `sshort` sign-extend. Taking the full width instead of a narrow type would not work either way, because the bits above a narrow value are whatever the engine last left in that register.
+
+`int` and `uint` emit the same instruction. The difference lives in the patch function's own declaration.
+
+`int64`, `uint64` and `double` are x86_64 only, a 32-bit target having neither a register to read one out of nor a single stack slot to pass it in. Declaring `int` for a 64-bit value truncates it, which is worth knowing because that combination used to work by accident: the generator ignored the declaration and loaded all 64 bits regardless.
+
+A narrow type or a float on a stack source is refused rather than guessed at: `esp+8` yields the *address* of the slot, which is pointer-width whatever the slot holds.
 
 ### WrapperConfig
 
