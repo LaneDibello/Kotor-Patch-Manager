@@ -1,26 +1,27 @@
 namespace KPatchCore.Models;
 
 /// <summary>
-/// Parameter type for hook function parameters
+/// How much of a parameter's source reaches the patch function, and how the rest of the
+/// argument is filled.
 /// </summary>
 public enum ParameterType
 {
-    /// <summary>32-bit integer (DWORD)</summary>
+    /// <summary>32-bit integer, on either target</summary>
     Int,
 
-    /// <summary>Unsigned 32-bit integer (DWORD)</summary>
+    /// <summary>Unsigned 32-bit integer, on either target</summary>
     UInt,
 
-    /// <summary>32-bit pointer (void*)</summary>
+    /// <summary>Pointer-width: 32 bits on x86, 64 on x86_64</summary>
     Pointer,
 
     /// <summary>32-bit floating point</summary>
     Float,
 
-    /// <summary>8-bit value</summary>
+    /// <summary>8-bit value, zero-extended</summary>
     Byte,
 
-    /// <summary>16-bit value</summary>
+    /// <summary>16-bit value, zero-extended</summary>
     Short
 }
 
