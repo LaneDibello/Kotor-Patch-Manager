@@ -2,6 +2,7 @@
 #include "Common.h"
 #include "MemberFunctionThunk.h"
 
+#include "GameAPI/AurGUI.h"
 #include "GameAPI/CExoIni.h"
 #include "GameAPI/CExoString.h"
 #include "GameAPI/CResRef.h"
@@ -39,6 +40,7 @@ public:
 	Snake snake;
 
 	bool alive;
+
 
 	SnakePanel(CSWGuiManager* manager) :
 		CSWGuiPanel(manager),
@@ -87,6 +89,16 @@ public:
 
 		debugLog("[Snake] Cell Stats - Cell Size: %i - Center: (%i, %i) - Game Area: (%i, %i)", cellSize, centerX, centerY, gameWidth, gameHeight);
 
+		int frameWidth = getFrameWidth();
+		CSWGuiExtent frame = {
+			centerX - (gameWidth / 2) - frameWidth,
+			centerY - (gameHeight / 2) - frameWidth,
+			gameWidth + frameWidth * 2,
+			gameHeight + frameWidth * 2
+		};
+		gameLabel.LayoutExtent(&frame);
+		debugLog("[Snake] Frame: {%i, %i, %i, %i} - Border width: %i", frame.left, frame.top, frame.width, frame.height, frameWidth);
+
 		for (int i = 0; i < getHeight(); ++i) {
 			for (int j = 0; j < getWidth(); ++j) {
 				CSWGuiExtent cellExtent = {
@@ -99,7 +111,9 @@ public:
 				CSWGuiBorderParams* params = cell->GetBorderParams();
 				CResRef image(BLACK);
 				params->SetFillImage(&image, 0);
+				params->SetFillStyle(2); // Stretch
 				cell->Initialize(&cellExtent, params);
+				delete params;
 			}
 		}
 
@@ -176,7 +190,7 @@ public:
 		CExoString category(CATEGORY);
 		CExoString key(SPEED);
 		if (!ini.ReadIniEntry(&speed, &file, &category, &key)) {
-			_speed = 1;
+			_speed = 2;
 			return _speed;
 		}
 
@@ -233,6 +247,28 @@ private:
 		_age = 0.0;
 	}
 
+	int getFrameWidth() {
+		try {
+			CSWGuiBorder labelBorder((char*)gameLabel.GetPtr() + GameVersion::GetOffset("CSWGuiLabel", "border"));
+			CSWGuiBorderParams* labelParams = labelBorder.GetBorderParams();
+			int dimension = labelParams ? labelParams->GetDimension() : 0;
+			delete labelParams;
+			if (dimension > 0) {
+				return dimension;
+			}
+
+			typedef int(__thiscall* GetImageWidthFn)(void* thisPtr);
+			GetImageWidthFn getImageWidth = nullptr;
+			GameVersion::ResolveFunction(getImageWidth, "CAurGUIImageInternal", "GetImageWidth");
+			void* cornerImage = getObjectProperty<void*>(labelBorder.GetPtr(), GameVersion::GetOffset("CSWGuiBorder", "corner_image"));
+			return (cornerImage && getImageWidth) ? getImageWidth(cornerImage) : 0;
+		}
+		catch (const GameVersionException& e) {
+			debugLog("[Snake] Frame width lookup failed: %s", e.what());
+			return 0;
+		}
+	}
+
 	void drawCell(float alpha, int x, int y) {
 		int cellState = getState(snake.grid, x, y);
 		CSWGuiBorder* cell = grid.at(y).at(x);
@@ -253,12 +289,21 @@ private:
 		cell->Draw(alpha);
 	}
 
-	void _Draw(float alpha) {
-		Draw(alpha);
-		for (int i = 0; i < getHeight(); ++i) {
-			for (int j = 0; j < getWidth(); ++j) {
-				drawCell(alpha, j, i);
+	void _Draw(float deltaT) {
+		Draw(deltaT);
+
+		CSWGuiExtent viewport = GetExtent();
+		GetExtentAccountingForPanelOffset(&viewport);
+		Vector noBackground = { -1.0f, -1.0f, -1.0f };
+		AurGUI::StartLayer();
+		if (AurGUI::SetupViewport(viewport.left, viewport.top, viewport.width, viewport.height, &noBackground, false, GetAlpha())) {
+			for (int i = 0; i < getHeight(); ++i) {
+				for (int j = 0; j < getWidth(); ++j) {
+					drawCell(deltaT, j, i);
+				}
 			}
+			AurGUI::CloseViewport();
 		}
+		AurGUI::StopLayer();
 	}
 };
