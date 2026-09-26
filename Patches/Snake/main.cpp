@@ -15,7 +15,7 @@ void __cdecl snake() {
 }
 
 extern "C" void __cdecl addConsoleCommand() {
-    new ConsoleFunc("snake", &snake, NO_PARAMS);
+    new ConsoleFunc("snake", (void*)&snake, NO_PARAMS);
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
