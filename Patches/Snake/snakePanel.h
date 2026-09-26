@@ -190,7 +190,7 @@ public:
 		CExoString category(CATEGORY);
 		CExoString key(SPEED);
 		if (!ini.ReadIniEntry(&speed, &file, &category, &key)) {
-			_speed = 2;
+			_speed = 3;
 			return _speed;
 		}
 
@@ -207,24 +207,25 @@ private:
 
 	void _HandleInputEvent(int event, int inputPhase) {
 		if (inputPhase) {
+			dir lastTail = getTail(snake.grid, snake.headX, snake.headY);
 			switch (event) {
 			case CSWGuiControl::UpArrow:
-				if (this->snake.facing == DOWN) break;
+				if (this->snake.facing == DOWN || lastTail == UP) break;
 				setFacing(this->snake, UP);
 				debugLog("[Snake] Up!");
 				break;
 			case CSWGuiControl::RightArrow:
-				if (this->snake.facing == LEFT) break;
+				if (this->snake.facing == LEFT || lastTail == RIGHT) break;
 				setFacing(this->snake, RIGHT);
 				debugLog("[Snake] Right!");
 				break;
 			case CSWGuiControl::DownArrow:
-				if (this->snake.facing == UP) break;
+				if (this->snake.facing == UP || lastTail == DOWN) break;
 				setFacing(this->snake, DOWN);
 				debugLog("[Snake] Down!");
 				break;
 			case CSWGuiControl::LeftArrow:
-				if (this->snake.facing == RIGHT) break;
+				if (this->snake.facing == RIGHT || lastTail == LEFT) break;
 				setFacing(this->snake, LEFT);
 				debugLog("[Snake] Left!");
 				break;
