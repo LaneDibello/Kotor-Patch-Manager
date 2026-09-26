@@ -34,6 +34,7 @@ public:
 	CSWGuiLabel titleLabel;
 	CSWGuiLabel gameLabel;
 	CSWGuiButton backButton;
+	CSWGuiButton newGameButton;
 
 	std::vector<std::vector<CSWGuiBorder*>> grid;
 
@@ -47,11 +48,16 @@ public:
 		_HandleInputEvent(CSWGuiControl::BButton, 1);
 	}
 
+	void onNewGame(void* control) {
+		_HandleInputEvent(CSWGuiControl::AButton, 1);
+	}
+
 	SnakePanel(CSWGuiManager* manager) :
 		CSWGuiPanel(manager),
 		titleLabel(),
 		gameLabel(),
 		backButton(),
+		newGameButton(),
 		grid(getHeight(), std::vector<CSWGuiBorder*>(getWidth(), nullptr)),
 		alive(true)
 	{
@@ -65,6 +71,8 @@ public:
 		this->InitControl(&gameLabel, &gameTag, 1);
 		CExoString backTag("BTN_BACK");
 		this->InitControl(&backButton, &backTag, 1);
+		CExoString ngTag("BTN_NEWGAME");
+		this->InitControl(&newGameButton, &ngTag, 1);
 		this->StopLoadFromLayout();
 
 		debugLog("[Snake] Loaded Snake Panel from layout");
@@ -127,6 +135,9 @@ public:
 		backButton.AddEvent(CSWGuiControl::AButton, this,
 			memberThunkAddr<SnakePanel, &SnakePanel::onBack>());
 		backButton.SetControlBitFlag(2, false);
+		newGameButton.AddEvent(CSWGuiControl::AButton, this,
+			memberThunkAddr<SnakePanel, &SnakePanel::onNewGame>());
+		newGameButton.SetControlBitFlag(2, false);
 
 		this->OverrideHandleInputEvent(memberFuncAddr(&SnakePanel::_HandleInputEvent));
 		this->OverrideUpdate(memberFuncAddr(&SnakePanel::_Update));
@@ -243,6 +254,10 @@ private:
 				manager.PlayGuiSound(0);
 				manager.PopModalPanel();
 				SetBitFlags((GetBitFlags() & ~0x300) | 0x400);
+				break;
+			case CSWGuiControl::AButton:
+				snake = createSnake(getWidth(), getHeight());
+				alive = true;
 				break;
 			default:
 				break;
