@@ -17,6 +17,7 @@ int CSWGuiBorderParams::offsetInnerOffset       = -1;
 int CSWGuiBorderParams::offsetFillAngle         = -1;
 int CSWGuiBorderParams::offsetAlpha             = -1;
 int CSWGuiBorderParams::offsetColor             = -1;
+int CSWGuiBorderParams::offsetBitFlags          = -1;
 int CSWGuiBorderParams::offsetCornerImageResRef = -1;
 int CSWGuiBorderParams::offsetEdgeImageResRef   = -1;
 int CSWGuiBorderParams::offsetFillImageResRef   = -1;
@@ -63,6 +64,7 @@ void CSWGuiBorderParams::InitializeOffsets() {
         offsetFillAngle         = GameVersion::GetOffset("CSWGuiBorderParams", "fill_angle");
         offsetAlpha             = GameVersion::GetOffset("CSWGuiBorderParams", "alpha");
         offsetColor             = GameVersion::GetOffset("CSWGuiBorderParams", "color");
+        offsetBitFlags          = GameVersion::GetOffset("CSWGuiBorderParams", "bit_flags");
         offsetCornerImageResRef = GameVersion::GetOffset("CSWGuiBorderParams", "corner_image_resref");
         offsetEdgeImageResRef   = GameVersion::GetOffset("CSWGuiBorderParams", "edge_image_resref");
         offsetFillImageResRef   = GameVersion::GetOffset("CSWGuiBorderParams", "fill_image_resref");
@@ -156,6 +158,21 @@ void CSWGuiBorderParams::SetColor(const Vector& color) {
         return;
     }
     setObjectProperty<Vector>(objectPtr, offsetColor, color);
+}
+
+int CSWGuiBorderParams::GetFillStyle() {
+    if (!objectPtr || offsetBitFlags < 0) {
+        return 0;
+    }
+    return getObjectProperty<int>(objectPtr, offsetBitFlags) & 3;
+}
+
+void CSWGuiBorderParams::SetFillStyle(int fillStyle) {
+    if (!objectPtr || offsetBitFlags < 0) {
+        return;
+    }
+    int flags = getObjectProperty<int>(objectPtr, offsetBitFlags);
+    setObjectProperty<int>(objectPtr, offsetBitFlags, (flags & ~3) | (fillStyle & 3));
 }
 
 CResRef* CSWGuiBorderParams::GetCornerImageResRef() {
