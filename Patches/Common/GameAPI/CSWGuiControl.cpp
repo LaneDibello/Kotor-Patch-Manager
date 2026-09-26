@@ -222,7 +222,7 @@ CSWGuiControl* CSWGuiControl::GetSelectableParent() {
 void CSWGuiControl::SetActive(UINT active) {
     if (!objectPtr || !setActive) return;
     setActive(objectPtr, active);
-} 
+}
 
 void CSWGuiControl::SetEnabled(UINT enabled) {
     if (!objectPtr || !setEnabled) return;
