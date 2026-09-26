@@ -222,22 +222,22 @@ private:
 			case CSWGuiControl::UpArrow:
 				if (this->snake.facing == DOWN || lastTail == UP) break;
 				setFacing(this->snake, UP);
-				debugLog("[Snake] Up!");
+				manager.PlayGuiSound(1);
 				break;
 			case CSWGuiControl::RightArrow:
 				if (this->snake.facing == LEFT || lastTail == RIGHT) break;
 				setFacing(this->snake, RIGHT);
-				debugLog("[Snake] Right!");
+				manager.PlayGuiSound(1);
 				break;
 			case CSWGuiControl::DownArrow:
 				if (this->snake.facing == UP || lastTail == DOWN) break;
 				setFacing(this->snake, DOWN);
-				debugLog("[Snake] Down!");
+				manager.PlayGuiSound(1);
 				break;
 			case CSWGuiControl::LeftArrow:
 				if (this->snake.facing == RIGHT || lastTail == LEFT) break;
 				setFacing(this->snake, LEFT);
-				debugLog("[Snake] Left!");
+				manager.PlayGuiSound(1);
 				break;
 			case CSWGuiControl::BButton:
 				manager.PlayGuiSound(0);
@@ -263,7 +263,16 @@ private:
 			return;
 		}
 
+		int oldLength = snake.length;
 		alive = takeStep(snake);
+		if (oldLength < snake.length) {
+			CSWGuiManager manager;
+			manager.PlayGuiSound(0);
+		}
+		if (!alive) {
+			CSWGuiManager manager;
+			manager.PlayGuiSound(2);
+		}
 		_age = 0.0;
 	}
 
