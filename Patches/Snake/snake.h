@@ -1,7 +1,10 @@
 #pragma once
-#include <vector>
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
+#include <vector>
+
 
 enum dir {
 	STOPPED,
@@ -138,6 +141,23 @@ void resolveTail(Grid& grid, int x, int y) {
 	}
 }
 
+// Food
+void createFood(Grid& grid) {
+	// Collect Cells
+	std::vector<std::pair<int, int>> emptyCells;
+	for (int i = 0; i < grid.size(); ++i) {
+		for (int j = 0; j < grid.at(i).size(); ++j) {
+			if (getState(grid, j, i) == 0) emptyCells.push_back(std::make_pair(j, i));
+		}
+	}
+
+	// Set Random food
+	if (!emptyCells.size()) return;
+	int index = rand() % emptyCells.size();
+	std::pair<int, int> coord = emptyCells.at(index);
+	setFood(grid, true, coord.first, coord.second);
+}
+
 // Snake
 Snake& createSnake(int gridWidth, int gridHeight) {
 	static struct Snake s;
@@ -148,11 +168,13 @@ Snake& createSnake(int gridWidth, int gridHeight) {
 	s.grid = createGrid(gridWidth, gridHeight);
 
 	setState(s.grid, s.length, s.headX, s.headY);
+	setFood(s.grid, true, s.headX + s.length, s.headY);
 	return s;
 }
 
 void setFacing(Snake& snake, dir facing) {
 	snake.facing = facing;
+
 }
 
 bool takeStep(Snake& snake) { // returns false if the snake dies
@@ -191,6 +213,13 @@ bool takeStep(Snake& snake) { // returns false if the snake dies
 	int nextState = getState(snake.grid, nextX, nextY);
 	if (nextState != 0) {
 		return false; // If next cell is occupied, the snake dies
+	}
+
+	int eatFood = getFood(snake.grid, nextX, nextY);
+	if (eatFood) {
+		snake.length += 3;
+		setFood(snake.grid, false, nextX, nextY);
+		createFood(snake.grid);
 	}
 
 	setState(snake.grid, snake.length, snake.headX, snake.headY);
