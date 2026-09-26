@@ -45,7 +45,7 @@ public:
 		titleLabel(),
 		gameLabel(),
 		backButton(),
-		grid(getHeight(), std::vector<CSWGuiBorder*>(getWidth(), new CSWGuiBorder())),
+		grid(getHeight(), std::vector<CSWGuiBorder*>(getWidth(), nullptr)),
 		alive(true)
 	{
 		ThunkRegistry::Register(this);
@@ -65,6 +65,12 @@ public:
 		snake = createSnake(getWidth(), getHeight());
 
 		debugLog("[Snake] Snake created with grid size: (%i, %i)", getWidth(), getHeight());
+
+		for (int i = 0; i < getHeight(); ++i) {
+			for (int j = 0; j < getWidth(); ++j) {
+				grid.at(i).at(j) = new CSWGuiBorder();
+			}
+		}
 
 		// cell math
 		CSWGuiExtent gameSpace = gameLabel.GetExtent();
@@ -102,6 +108,9 @@ public:
 		this->OverrideHandleInputEvent(memberFuncAddr(&SnakePanel::_HandleInputEvent));
 		this->OverrideUpdate(memberFuncAddr(&SnakePanel::_Update));
 		this->OverrideDraw(memberFuncAddr(&SnakePanel::_Draw));
+
+		gameLabel.SetActive(0);
+		gameLabel.SetEnabled(0);
 
 		debugLog("[Snake] Constructed");
 		debugLog("[Snake] Speed: %i", getSpeed());
@@ -165,7 +174,7 @@ public:
 		CExoString speed;
 		CExoString file(INI);
 		CExoString category(CATEGORY);
-		CExoString key(HEIGHT);
+		CExoString key(SPEED);
 		if (!ini.ReadIniEntry(&speed, &file, &category, &key)) {
 			_speed = 1;
 			return _speed;
@@ -227,27 +236,29 @@ private:
 	void drawCell(float alpha, int x, int y) {
 		int cellState = getState(snake.grid, x, y);
 		CSWGuiBorder* cell = grid.at(y).at(x);
+		CSWGuiBorderParams* params = cell->GetBorderParams();
 		if (getFood(snake.grid, x, y)) {
 			CResRef image(YELLOW);
-			cell->GetBorderParams()->SetFillImage(&image, 0);
+			params->SetFillImage(&image, 0);
 		}
 		else if (cellState > 0) {
 			CResRef image(BLUE);
-			cell->GetBorderParams()->SetFillImage(&image, 0);
+			params->SetFillImage(&image, 0);
 		}
 		else {
 			CResRef image(BLACK);
-			cell->GetBorderParams()->SetFillImage(&image, 0);
+			params->SetFillImage(&image, 0);
 		}
+		delete params;
 		cell->Draw(alpha);
 	}
 
 	void _Draw(float alpha) {
+		Draw(alpha);
 		for (int i = 0; i < getHeight(); ++i) {
 			for (int j = 0; j < getWidth(); ++j) {
 				drawCell(alpha, j, i);
 			}
 		}
-		Draw(alpha);
 	}
 };
