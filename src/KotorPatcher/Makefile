@@ -153,6 +153,13 @@ TESTS_32    := $(wildcard tests/t32_*.cpp) $(TESTS_ANY)
 TESTS_64    := $(wildcard tests/t64_*.cpp) $(TESTS_ANY)
 TEST_FLAGS  := -std=c++17 -O1 $(INCLUDES) -Itests -Isrc
 
+# i386 has no PC-relative addressing mode, so the hand-written asm in the 32-bit tests
+# reaches its globals absolutely. That needs a relocation in .text, which a PIE may not
+# have: a toolchain defaulting to PIE warns and emits DT_TEXTREL, and a newer linker
+# refuses outright. Non-PIE also matches the target, the native i386 game being a
+# fixed-address executable rather than a PIE.
+TEST_FLAGS_32 := -m32 -msse2 -fno-pie -no-pie
+
 # The engine logs to stderr as it generates, which drowns the results, so each
 # run is captured and only the non-log lines are shown. The status has to come
 # from the test itself: piping it into a filter would report the filter's.
@@ -165,7 +172,7 @@ test:
 	}; \
 	for t in $(TESTS_32); do \
 	  n=$$(basename $$t .cpp); echo "  [i386]   $$n"; \
-	  $(CXX_LINUX) $(TEST_FLAGS) -m32 -msse2 -o $(BUILD)/tests/$$n-32 $$t \
+	  $(CXX_LINUX) $(TEST_FLAGS) $(TEST_FLAGS_32) -o $(BUILD)/tests/$$n-32 $$t \
 	      src/core/wrapper_x86.cpp $(TEST_ENGINE) -ldl || { rc=1; continue; }; \
 	  run $(BUILD)/tests/$$n-32; \
 	done; \
