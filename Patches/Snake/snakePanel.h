@@ -15,6 +15,8 @@
 
 #include "snake.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <vector>
 
@@ -93,10 +95,10 @@ public:
 
 		int centerX = gameSpace.left + (gameSpace.width / 2);
 		int centerY = gameSpace.top + (gameSpace.height / 2);
-		int maxCellWidth = (int)floor((double)gameSpace.width / getWidth());
-		int maxCellHeight = (int)floor((double)gameSpace.height / getHeight());
+		int maxCellWidth = (int)std::floor((double)gameSpace.width / getWidth());
+		int maxCellHeight = (int)std::floor((double)gameSpace.height / getHeight());
 
-		cellSize = min(maxCellWidth, maxCellHeight);
+		cellSize = std::min(maxCellWidth, maxCellHeight);
 		int gameWidth = getWidth() * cellSize;
 		int gameHeight = getHeight() * cellSize;
 
