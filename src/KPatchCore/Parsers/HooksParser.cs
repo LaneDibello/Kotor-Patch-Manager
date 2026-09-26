@@ -325,7 +325,8 @@ public static class HooksParser
             {
                 return PatchResult<List<Parameter>>.Fail(
                     $"Hook [{hookIndex}] parameter [{i}] has invalid type: '{typeStr}'. " +
-                    $"Valid types: int, uint, pointer, float, byte, short");
+                    $"Valid types: int, uint, pointer, float, byte, short, sbyte, sshort, " +
+                    $"int64, uint64, double");
             }
 
             var parameter = new Parameter
@@ -357,6 +358,11 @@ public static class HooksParser
             "float" => ParameterType.Float,
             "byte" => ParameterType.Byte,
             "short" => ParameterType.Short,
+            "sbyte" => ParameterType.SByte,
+            "sshort" => ParameterType.SShort,
+            "int64" => ParameterType.Int64,
+            "uint64" => ParameterType.UInt64,
+            "double" => ParameterType.Double,
             _ => null
         };
     }

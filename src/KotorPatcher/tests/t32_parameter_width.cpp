@@ -26,12 +26,12 @@ extern "C" {
     void  kick(void);
     void  finish(void);
 
-    uint32_t g_arg[4];
+    uint32_t g_arg[6];
     int      g_calls;
 
     // cdecl, matching what the wrapper pushes.
-    void probe(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
-        g_arg[0] = a; g_arg[1] = b; g_arg[2] = c; g_arg[3] = d;
+    void probe(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f) {
+        g_arg[0] = a; g_arg[1] = b; g_arg[2] = c; g_arg[3] = d; g_arg[4] = e; g_arg[5] = f;
         ++g_calls;
     }
 }
@@ -84,6 +84,8 @@ int main() {
         { "eax", ParameterType::SHORT },
         { "eax", ParameterType::UINT },
         { "eax", ParameterType::POINTER },
+        { "eax", ParameterType::SBYTE },
+        { "eax", ParameterType::SSHORT },
     };
 
     void* wrapper = gen.GenerateWrapper(config);
@@ -106,12 +108,28 @@ int main() {
     // Everything is 32 bits here, so pointer and uint are the same load. Stated as a
     // case of its own because on x86_64 they are not.
     Expect("pointer reads the whole register", g_arg[3], kSeed);
+    // 0xEF and 0xBEEF both have their top bit set, so a sign-extending load fills the
+    // rest with ones and a zero-extending one would not.
+    Expect("sbyte sign-extends the low 8 bits",  g_arg[4], 0xFFFFFFEFu);
+    Expect("sshort sign-extends the low 16 bits", g_arg[5], 0xFFFFBEEFu);
 
     Wrappers::WrapperGenerator_x86 narrow;
     Wrappers::WrapperConfig stackConfig = config;
     stackConfig.parameters = { { "esp+4", ParameterType::BYTE } };
     kptest::Check("a narrow type on a stack source is refused",
                   narrow.GenerateWrapper(stackConfig) == nullptr);
+
+    // Named one by one, so adding a type to the enum and forgetting to wire it into the
+    // refusal shows up here rather than as half an argument at runtime.
+    auto refused = [&](ParameterType type) {
+        Wrappers::WrapperGenerator_x86 wide;
+        Wrappers::WrapperConfig wideConfig = config;
+        wideConfig.parameters = { { "eax", type } };
+        return wide.GenerateWrapper(wideConfig) == nullptr;
+    };
+    kptest::Check("int64 is refused on i386",  refused(ParameterType::INT64));
+    kptest::Check("uint64 is refused on i386", refused(ParameterType::UINT64));
+    kptest::Check("double is refused on i386", refused(ParameterType::DOUBLE));
 
     return kptest::Report();
 }

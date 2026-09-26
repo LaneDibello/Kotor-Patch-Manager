@@ -133,13 +133,19 @@ The declared type says how much of the source reaches the patch function. Every 
 | --- | --- | --- |
 | `byte` | `MOVZX` from the low 8 bits | `MOVZX` from the low 8 bits |
 | `short` | `MOVZX` from the low 16 bits | `MOVZX` from the low 16 bits |
+| `sbyte` | `MOVSX` from the low 8 bits | `MOVSX` from the low 8 bits |
+| `sshort` | `MOVSX` from the low 16 bits | `MOVSX` from the low 16 bits |
 | `int`, `uint` | the whole 32-bit register | the low 32 bits, upper half cleared |
 | `pointer` | the whole 32-bit register | all 64 bits |
+| `int64`, `uint64` | refused | all 64 bits |
 | `float` | pushed as 4 raw bytes | `MOVD` into an XMM register |
+| `double` | refused | `MOVQ` into an XMM register |
 
-`byte` and `short` zero-extend, so they name a value rather than a signed quantity. A hook wanting a signed one declares `byte` or `short` and casts in the patch function: the low bits are intact and the cast sign-extends them. Taking the full width instead would not work, because the bits above a narrow value are whatever the engine last left in that register.
+`byte` and `short` zero-extend; `sbyte` and `sshort` sign-extend. Taking the full width instead of a narrow type would not work either way, because the bits above a narrow value are whatever the engine last left in that register.
 
 `int` and `uint` emit the same instruction. The difference lives in the patch function's own declaration.
+
+`int64`, `uint64` and `double` are x86_64 only, a 32-bit target having neither a register to read one out of nor a single stack slot to pass it in. Declaring `int` for a 64-bit value truncates it, which is worth knowing because that combination used to work by accident: the generator ignored the declaration and loaded all 64 bits regardless.
 
 A narrow type or a float on a stack source is refused rather than guessed at: `esp+8` yields the *address* of the slot, which is pointer-width whatever the slot holds.
 

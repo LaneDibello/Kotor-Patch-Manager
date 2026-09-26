@@ -399,6 +399,20 @@ namespace KotorPatcher {
 
         // ===== Parameter Extraction =====
 
+        namespace {
+
+            // True for a type this generator cannot pass. A 64-bit argument occupies two
+            // stack slots under cdecl, and paramBytes, the alignment pad and the wrapper's
+            // size estimate all assume one slot per parameter. A 32-bit target also has no
+            // register to read one out of.
+            bool IsSixtyFourBitOnly(ParameterType type) {
+                return type == ParameterType::INT64 ||
+                       type == ParameterType::UINT64 ||
+                       type == ParameterType::DOUBLE;
+            }
+
+        }  // namespace
+
         bool WrapperGenerator_x86::ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize) {
             // Where PUSHAD left each register, relative to EBX, which points at ESP after
             // PUSHAD and PUSHFD.
@@ -428,6 +442,13 @@ namespace KotorPatcher {
             // Convert to lowercase for comparison
             std::transform(source.begin(), source.end(), source.begin(), ::tolower);
 
+            // Ahead of every source form, because no source on this target can supply one.
+            if (IsSixtyFourBitOnly(param.type)) {
+                Platform::Log("[Wrapper] A 64-bit parameter needs two stack slots, which "
+                              "this generator does not pass\n");
+                return false;
+            }
+
             // Check if source is a register (read from saved state).
             //
             // ECX is the temp register throughout. It is caller-saved in cdecl, so the
@@ -454,6 +475,12 @@ namespace KotorPatcher {
                     case ParameterType::SHORT:
                         EmitByte(code, 0x0F); EmitByte(code, 0xB7);   // MOVZX r32, r/m16
                         break;
+                    case ParameterType::SBYTE:
+                        EmitByte(code, 0x0F); EmitByte(code, 0xBE);   // MOVSX r32, r/m8
+                        break;
+                    case ParameterType::SSHORT:
+                        EmitByte(code, 0x0F); EmitByte(code, 0xBF);   // MOVSX r32, r/m16
+                        break;
                     // A float is four raw bytes in a stack slot here, the same as the rest.
                     case ParameterType::INT:
                     case ParameterType::UINT:
@@ -461,6 +488,11 @@ namespace KotorPatcher {
                     case ParameterType::FLOAT:
                         EmitByte(code, 0x8B);                          // MOV r32, r/m32
                         break;
+                    // Refused above, before any source was looked at.
+                    case ParameterType::INT64:
+                    case ParameterType::UINT64:
+                    case ParameterType::DOUBLE:
+                        return false;
                 }
                 EmitByte(code, modrm);
                 EmitByte(code, static_cast<uint8_t>(saved.offset));  // disp8: the saved copy
@@ -474,6 +506,7 @@ namespace KotorPatcher {
                 // whatever the slot holds. Asking for it as a narrower type or as a float
                 // describes something the wrapper is not passing.
                 if (param.type == ParameterType::BYTE || param.type == ParameterType::SHORT ||
+                    param.type == ParameterType::SBYTE || param.type == ParameterType::SSHORT ||
                     param.type == ParameterType::FLOAT) {
                     Platform::Log(("[Wrapper] A stack source yields an address, so " + source +
                                    " cannot be read as a narrow type or a float\n").c_str());

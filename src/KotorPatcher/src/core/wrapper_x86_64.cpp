@@ -151,10 +151,11 @@ namespace KotorPatcher {
                 e.Dword(static_cast<uint32_t>(disp));
             }
 
-            // MOVZX is 0F B6 / 0F B7, which the single-byte form above cannot express. The
-            // destination is always r32: writing the low half of a 64-bit register clears the
-            // upper half, which is the zero extension this wants.
-            void MovzxFromMem(Emitter& e, uint8_t op2, int dst, int base, int32_t disp) {
+            // MOVZX and MOVSX, which differ only in the second opcode byte, and which the
+            // single-byte form above cannot express. The destination is always r32: writing
+            // the low half of a 64-bit register clears the upper half, so a narrow value
+            // reaches the callee extended to 32 bits and no further.
+            void ExtendFromMem(Emitter& e, uint8_t op2, int dst, int base, int32_t disp) {
                 Rex(e, false, dst, base);
                 e.Byte(0x0F);
                 e.Byte(op2);
@@ -170,14 +171,20 @@ namespace KotorPatcher {
             // the patch function takes, and each narrower load zeroes the rest.
             void LoadIntArgument(Emitter& e, int dst, int base, int32_t disp, ParameterType type) {
                 switch (type) {
-                    case ParameterType::BYTE:    MovzxFromMem(e, 0xB6, dst, base, disp); break;
-                    case ParameterType::SHORT:   MovzxFromMem(e, 0xB7, dst, base, disp); break;
-                    case ParameterType::POINTER: MovFromMem(e, dst, base, disp);         break;
+                    case ParameterType::BYTE:    ExtendFromMem(e, 0xB6, dst, base, disp); break;  // MOVZX r32, r/m8
+                    case ParameterType::SHORT:   ExtendFromMem(e, 0xB7, dst, base, disp); break;  // MOVZX r32, r/m16
+                    case ParameterType::SBYTE:   ExtendFromMem(e, 0xBE, dst, base, disp); break;  // MOVSX r32, r/m8
+                    case ParameterType::SSHORT:  ExtendFromMem(e, 0xBF, dst, base, disp); break;  // MOVSX r32, r/m16
+                    // The full register: an address, or a 64-bit integer.
+                    case ParameterType::POINTER:
+                    case ParameterType::INT64:
+                    case ParameterType::UINT64:  MovFromMem(e, dst, base, disp);         break;
                     // INT and UINT are both 32 bits; the difference lives in the callee's
-                    // declaration. FLOAT never arrives here, having gone to the SSE path.
+                    // declaration. The float types never arrive here, having gone to SSE.
                     case ParameterType::INT:
                     case ParameterType::UINT:
-                    case ParameterType::FLOAT:   MovFromMem32(e, dst, base, disp);       break;
+                    case ParameterType::FLOAT:
+                    case ParameterType::DOUBLE:  MovFromMem32(e, dst, base, disp);       break;
                 }
             }
 
@@ -209,11 +216,11 @@ namespace KotorPatcher {
             void SaveFpState(Emitter& e)    { FpSaveArea(e, 0x00); }  // FXSAVE64  /0
             void RestoreFpState(Emitter& e) { FpSaveArea(e, 0x08); }  // FXRSTOR64 /1
 
-            // MOVD xmm, r32: moves the raw bits, which is what a float argument in the
-            // low half of an SSE register is.
-            void MovdToXmm(Emitter& e, int xmm, int gpr) {
+            // MOVD xmm, r32 or MOVQ xmm, r64, which differ only by REX.W. Either moves the
+            // raw bits, which is what a float or double argument in an SSE register is.
+            void MovToXmm(Emitter& e, int xmm, int gpr, bool wide) {
                 e.Byte(0x66);
-                Rex(e, false, xmm, gpr);
+                Rex(e, wide, xmm, gpr);
                 e.Byte(0x0F); e.Byte(0x6E);
                 e.Byte(static_cast<uint8_t>(0xC0 | ((xmm & 7) << 3) | (gpr & 7)));
             }
@@ -255,7 +262,9 @@ namespace KotorPatcher {
                 std::transform(source.begin(), source.end(), source.begin(),
                                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-                const bool wantsSse = param.type == ParameterType::FLOAT;
+                const bool wantsSse = param.type == ParameterType::FLOAT ||
+                                      param.type == ParameterType::DOUBLE;
+                const bool wideSse = param.type == ParameterType::DOUBLE;
                 if (wantsSse ? sseArgIndex >= kMaxSseArgs : intArgIndex >= kMaxIntArgs) {
                     Platform::Log("[Wrapper] Too many arguments for the register convention\n");
                     return false;
@@ -272,9 +281,9 @@ namespace KotorPatcher {
                         return false;
                     }
                     if (wantsSse) {
-                        // A float is 32 bits, and MOVD takes the low half either way.
-                        MovFromMem32(e, RAX, RBX, SavedGprOffset(index));
-                        MovdToXmm(e, sseArgIndex++, RAX);
+                        // Read at the argument's own width, then move those bits across.
+                        MemOp(e, 0x8B, RAX, RBX, SavedGprOffset(index), wideSse);
+                        MovToXmm(e, sseArgIndex++, RAX, wideSse);
                     } else {
                         LoadIntArgument(e, kIntArgRegs[intArgIndex++], RBX,
                                         SavedGprOffset(index), param.type);
@@ -292,7 +301,9 @@ namespace KotorPatcher {
                     // The address of a slot is pointer-width whatever the slot holds, so a
                     // narrow type or a float describes something this is not passing.
                     if (wantsSse || param.type == ParameterType::BYTE ||
-                        param.type == ParameterType::SHORT) {
+                        param.type == ParameterType::SHORT ||
+                        param.type == ParameterType::SBYTE ||
+                        param.type == ParameterType::SSHORT) {
                         Platform::Log(("[Wrapper] A stack source yields an address, so " + source +
                                        " cannot be read as a narrow type or a float\n").c_str());
                         return false;
