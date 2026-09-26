@@ -1,4 +1,5 @@
 #include "wrapper_x86.h"
+#include "wrappers/emitter.h"
 #include "patcher.h"
 #include "platform.h"
 
@@ -37,21 +38,19 @@ namespace KotorPatcher {
             m_allocatedWrappers.clear();
         }
 
-        void WrapperGenerator_x86::EmitBytes(uint8_t*& code, const uint8_t* bytes, size_t count) {
-            std::memcpy(code, bytes, count);
-            code += count;
+        void WrapperGenerator_x86::EmitBytes(Emitter& code, const uint8_t* bytes, size_t count) {
+            code.Bytes(bytes, count);
         }
 
-        void WrapperGenerator_x86::EmitByte(uint8_t*& code, uint8_t value) {
-            *code++ = value;
+        void WrapperGenerator_x86::EmitByte(Emitter& code, uint8_t value) {
+            code.Byte(value);
         }
 
-        void WrapperGenerator_x86::EmitDword(uint8_t*& code, uint32_t value) {
-            std::memcpy(code, &value, 4);
-            code += 4;
+        void WrapperGenerator_x86::EmitDword(Emitter& code, uint32_t value) {
+            code.Dword(value);
         }
 
-        void WrapperGenerator_x86::EmitFpStateAccess(uint8_t*& code, int savedStateSize, bool restore) {
+        void WrapperGenerator_x86::EmitFpStateAccess(Emitter& code, int savedStateSize, bool restore) {
             // EAX is borrowed and given back. On the way out it still holds the
             // handler's return value, which the consumed-exit test is about to read,
             // and which the caller was told to exclude from restore so it survives.
@@ -98,8 +97,11 @@ namespace KotorPatcher {
             // Original bytes are copied into the stub verbatim, so they are counted
             // here rather than left to the base's headroom
             // +40 for the two FXSAVE sequences and the two frame adjustments
+            // Each parameter emits at most 8 bytes, the widest being a stack source: a LEA
+            // with a disp32 and its PUSH.
             size_t estimatedSize = 168 + config.originalBytes.size() +
-                                   (config.excludeFromRestore.size() * 10);
+                                   (config.excludeFromRestore.size() * 10) +
+                                   (config.parameters.size() * 8);
             if (config.consumedExitAddress != 0) {
                 estimatedSize += 16;
             }
@@ -113,7 +115,7 @@ namespace KotorPatcher {
                 return nullptr;
             }
 
-            uint8_t* code = wrapperMem;  // Current write position
+            Emitter code(wrapperMem, estimatedSize);
 
             // ===== PROLOGUE: Save CPU State =====
             // Room for the floating-point state first, before anything is pushed.
@@ -220,7 +222,7 @@ namespace KotorPatcher {
             EmitByte(code, 0xE8);  // CALL rel32
             // Note: code now points one byte AFTER the 0xE8 opcode
             // CalculateRelativeOffset needs the address of the opcode itself
-            uint32_t callOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
+            uint32_t callOffset = CalculateRelativeOffset(code.Cursor() - 1, config.patchFunction);
             EmitDword(code, callOffset);
 
             // ===== RESTORE WRAPPER ESP =====
@@ -350,7 +352,7 @@ namespace KotorPatcher {
                 EmitByte(code, 0x9D);  // POPFD — restore EFLAGS for consumed path
                 EmitByte(code, 0xE9);  // JMP rel32
                 uint32_t consumedOffset = CalculateRelativeOffset(
-                    code - 1,
+                    code.Cursor() - 1,
                     reinterpret_cast<void*>(config.consumedExitAddress));
                 EmitDword(code, consumedOffset);
                 EmitByte(code, 0x9D);  // POPFD — restore EFLAGS for fall-through
@@ -371,7 +373,7 @@ namespace KotorPatcher {
                     config.hookAddress + static_cast<uint32_t>(config.originalBytes.size())
                 );
                 EmitByte(code, 0xE9);  // JMP rel32
-                uint32_t returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
+                uint32_t returnOffset = CalculateRelativeOffset(code.Cursor() - 1, returnAddress);
                 EmitDword(code, returnOffset);
 
                 if (config.skipOriginalBytes) {
@@ -380,6 +382,13 @@ namespace KotorPatcher {
                         reinterpret_cast<uint32_t>(returnAddress));
                     Platform::Log(debugMsg);
                 }
+            }
+
+            // Checked before the buffer is sealed and handed out: once a write has been
+            // refused every later one is dropped too, leaving a truncated instruction stream.
+            if (code.Overflowed()) {
+                Platform::Log("[Wrapper] Wrapper exceeded its allocation\n");
+                return nullptr;
             }
 
             // The stub was written through a writable mapping, so it only becomes
@@ -391,7 +400,7 @@ namespace KotorPatcher {
 
             char debugMsg[256];
             snprintf(debugMsg, sizeof(debugMsg), "[Wrapper] Generated DETOUR wrapper at 0x%08X (%d bytes)\n",
-                reinterpret_cast<uint32_t>(wrapperMem), static_cast<int>(code - wrapperMem));
+                reinterpret_cast<uint32_t>(wrapperMem), static_cast<int>(code.Written()));
             Platform::Log(debugMsg);
 
             return wrapperMem;
@@ -413,7 +422,7 @@ namespace KotorPatcher {
 
         }  // namespace
 
-        bool WrapperGenerator_x86::ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize) {
+        bool WrapperGenerator_x86::ExtractAndPushParameter(Emitter& code, const ParameterInfo& param, int savedStateSize) {
             // Where PUSHAD left each register, relative to EBX, which points at ESP after
             // PUSHAD and PUSHFD.
             struct SavedRegister { const char* name; int offset; };
