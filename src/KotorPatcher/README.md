@@ -106,10 +106,26 @@ Represents a single hook configuration. Contains:
 
 Defines how to extract a parameter for a DETOUR hook function:
 
-- **source**: Register name ("eax", "ebx", etc.) or stack offset ("esp+0", "esp+4")
+- **source**: Register name or stack offset, from the table below
 - **type**: Data type (INT, UINT, POINTER, FLOAT, BYTE, SHORT)
 
-Parameters are extracted from saved CPU state and pushed onto stack in reverse order (cdecl convention) before calling the patch function.
+Parameters are read out of the saved CPU state, then placed where the calling convention wants them: pushed in reverse order on x86 (cdecl), loaded into the argument registers on x86_64 (System V).
+
+The two generators read different sources, and a hook naming one its generator cannot read does not install. `Parameter.IsValidFor` in KPatchCore holds the same table and refuses the install before anything is written to the game.
+
+| Source | x86 | x86_64 | Notes |
+| --- | --- | --- | --- |
+| `eax` `ebx` `ecx` `edx` `esi` `edi` `ebp` | yes | yes | On x86_64 these name the low half of the 64-bit register |
+| `rax` `rbx` `rcx` `rdx` `rsi` `rdi` `rbp` | no | yes | |
+| `r8`..`r15`, `r8d`..`r15d` | no | yes | |
+| `esp+N` `esp-N` | yes | yes | Passes the *address* of the slot, not its contents |
+| `rsp+N` `rsp-N` | no | yes | `esp+N` is accepted here too, so a hook ported off the Windows build needs no edit |
+| `esp` `rsp` on their own | no | no | The wrapper keeps no saved copy of the stack pointer. Use `esp+0` for the game's stack |
+| `[eax]`, `[esp+8]` | no | no | Nothing dereferences. A bracketed source reaches the generator with its brackets and is refused |
+
+Source names are matched case-insensitively.
+
+A FLOAT parameter goes to an XMM register on x86_64, so it must come from a register rather than a stack slot: a stack source yields an address, which is not a float.
 
 ### WrapperConfig
 

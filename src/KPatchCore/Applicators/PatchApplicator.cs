@@ -279,6 +279,21 @@ public class PatchApplicator
                 };
             }
 
+            // The parameter sources a hook names have to be ones this build's wrapper
+            // generator can read, which is not knowable until the build is.
+            var parameterSourceResult = HookValidator.ValidateParameterSources(
+                hooksByPatch, gameVersion.Architecture);
+            if (!parameterSourceResult.Success)
+            {
+                return new InstallResult
+                {
+                    Success = false,
+                    Error = parameterSourceResult.Error,
+                    DetectedVersion = gameVersion,
+                    Messages = messages
+                };
+            }
+
             // Read the hooks' addresses out of the game and check they hold what the patch expects.
             // A hook aimed at the wrong address passes every check above, then does nothing once the
             // game runs, with no sign to the person who installed it that anything went wrong. This
