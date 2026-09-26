@@ -104,6 +104,8 @@ public:
 		this->OverrideDraw(memberFuncAddr(&SnakePanel::_Draw));
 
 		debugLog("[Snake] Constructed");
+		debugLog("[Snake] Speed: %i", getSpeed());
+		debugLog("[Snake] Head at (%i, %i)", snake.headX, snake.headY);
 	}
 
 	~SnakePanel() {
@@ -219,6 +221,7 @@ private:
 		}
 
 		alive = takeStep(snake);
+		_age = 0.0;
 	}
 
 	void drawCell(float alpha, int x, int y) {
@@ -226,15 +229,15 @@ private:
 		CSWGuiBorder* cell = grid.at(y).at(x);
 		if (getFood(snake.grid, x, y)) {
 			CResRef image(YELLOW);
-			cell->GetBorderParams()->SetFillImage(&image, 1);
+			cell->GetBorderParams()->SetFillImage(&image, 0);
 		}
 		else if (cellState > 0) {
 			CResRef image(BLUE);
-			cell->GetBorderParams()->SetFillImage(&image, 1);
+			cell->GetBorderParams()->SetFillImage(&image, 0);
 		}
 		else {
 			CResRef image(BLACK);
-			cell->GetBorderParams()->SetFillImage(&image, 1);
+			cell->GetBorderParams()->SetFillImage(&image, 0);
 		}
 		cell->Draw(alpha);
 	}

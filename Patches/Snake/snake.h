@@ -163,21 +163,25 @@ bool takeStep(Snake& snake) { // returns false if the snake dies
 		nextX = snake.headX;
 		nextY = snake.headY - 1;
 		tail = DOWN;
+		debugLog("[Snake] Stepping Up!");
 		break;
 	case RIGHT:
 		nextX = snake.headX + 1;
 		nextY = snake.headY;
 		tail = LEFT;
+		debugLog("[Snake] Stepping Right!");
 		break;
 	case DOWN:
 		nextX = snake.headX;
 		nextY = snake.headY + 1;
 		tail = UP;
+		debugLog("[Snake] Stepping Down!");
 		break;
 	case LEFT:
 		nextX = snake.headX - 1;
 		nextY = snake.headY;
 		tail = RIGHT;
+		debugLog("[Snake] Stepping Left!");
 		break;
 	case STOPPED:
 	default:
@@ -185,7 +189,6 @@ bool takeStep(Snake& snake) { // returns false if the snake dies
 	}
 
 	int nextState = getState(snake.grid, nextX, nextY);
-	std::cout << "Next State: " << nextState << std::endl;
 	if (nextState != 0) {
 		return false; // If next cell is occupied, the snake dies
 	}
