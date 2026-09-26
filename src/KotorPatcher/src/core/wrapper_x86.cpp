@@ -205,7 +205,11 @@ namespace KotorPatcher {
             // Parameters are pushed in reverse order for __cdecl (right-to-left)
 
             for (int i = static_cast<int>(config.parameters.size()) - 1; i >= 0; i--) {
-                ExtractAndPushParameter(code, config.parameters[i], savedStateSize);
+                if (!ExtractAndPushParameter(code, config.parameters[i], savedStateSize)) {
+                    // The block stays on m_allocatedWrappers and is released with the
+                    // rest at cleanup; the hook simply never gets installed.
+                    return nullptr;
+                }
             }
 
             // ===== CALL PATCH FUNCTION =====
@@ -395,7 +399,7 @@ namespace KotorPatcher {
 
         // ===== Parameter Extraction =====
 
-        void WrapperGenerator_x86::ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize) {
+        bool WrapperGenerator_x86::ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize) {
             // Stack layout constants (relative to EBX, which points to saved state)
             // EBX points to where ESP was after PUSHAD/PUSHFD
             //
@@ -481,7 +485,7 @@ namespace KotorPatcher {
                     userOffset = std::stoi(source.substr(4));
                 } catch (...) {
                     Platform::Log(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
-                    return;
+                    return false;
                 }
 
                 // Calculate the actual offset from EBX, not ESP
@@ -510,8 +514,12 @@ namespace KotorPatcher {
                 EmitByte(code, 0x51);  // PUSH ECX
             }
             else {
-                Platform::Log(("[Wrapper] Unsupported parameter source: " + source + "\n").c_str());
+                Platform::Log(("[Wrapper] Unsupported parameter source: " + source +
+                               " (this generator reads 32-bit registers and esp offsets)\n").c_str());
+                return false;
             }
+
+            return true;
         }
 
         // ===== Factory Function =====
