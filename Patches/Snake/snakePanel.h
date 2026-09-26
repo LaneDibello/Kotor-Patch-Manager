@@ -209,18 +209,22 @@ private:
 		if (inputPhase) {
 			switch (event) {
 			case CSWGuiControl::UpArrow:
+				if (this->snake.facing == DOWN) break;
 				setFacing(this->snake, UP);
 				debugLog("[Snake] Up!");
 				break;
 			case CSWGuiControl::RightArrow:
+				if (this->snake.facing == LEFT) break;
 				setFacing(this->snake, RIGHT);
 				debugLog("[Snake] Right!");
 				break;
 			case CSWGuiControl::DownArrow:
+				if (this->snake.facing == UP) break;
 				setFacing(this->snake, DOWN);
 				debugLog("[Snake] Down!");
 				break;
 			case CSWGuiControl::LeftArrow:
+				if (this->snake.facing == RIGHT) break;
 				setFacing(this->snake, LEFT);
 				debugLog("[Snake] Left!");
 				break;
