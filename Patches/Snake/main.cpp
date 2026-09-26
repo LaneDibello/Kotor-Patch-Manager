@@ -8,7 +8,7 @@ void __cdecl snake() {
     manager.AddPanel(new SnakePanel(&manager), 2, 1);
 }
 
-void addConsoleCommand() {
+extern "C" void __cdecl addConsoleCommand() {
     new ConsoleFunc("snake", &snake, NO_PARAMS);
 }
 
@@ -18,11 +18,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
     {
     case DLL_PROCESS_ATTACH:
         if (!GameVersion::Initialize()) {
-            debugLog("[ScriptExtender] ERROR: GameVersion::Initialize() failed");
+            debugLog("[Snake] ERROR: GameVersion::Initialize() failed");
             return FALSE;
         }
-        debugLog("[ScriptExtender] GameVersion initialized successfully");
-        addConsoleCommand();
+        debugLog("[Snake] GameVersion initialized successfully");
         break;
 
     case DLL_PROCESS_DETACH:
