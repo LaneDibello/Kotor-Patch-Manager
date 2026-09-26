@@ -4,6 +4,7 @@
     "projects": [
       "src\\KPatchCore\\KPatchCore.csproj",
       "src\\KPatchLauncher\\KPatchLauncher.csproj",
+      "tests\\KPatchCore.Tests\\KPatchCore.Tests.csproj",
       "tools\\SqliteTools\\SqliteTools.csproj"
     ]
   }
