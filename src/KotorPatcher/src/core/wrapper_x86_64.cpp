@@ -1,4 +1,5 @@
 #include "wrapper_x86_64.h"
+#include "wrappers/emitter.h"
 #include "patcher.h"
 #include "platform.h"
 #include "trampoline.h"
@@ -91,36 +92,6 @@ namespace KotorPatcher {
                 return false;
             }
 
-            // Emits into a fixed buffer and refuses to run past the end, so a bad size
-            // estimate shows up as a failed hook rather than a corrupted heap.
-            class Emitter {
-            public:
-                Emitter(uint8_t* buffer, std::size_t capacity)
-                    : m_begin(buffer), m_cursor(buffer), m_end(buffer + capacity) {}
-
-                void Byte(uint8_t value) {
-                    if (m_cursor >= m_end) { m_overflowed = true; return; }
-                    *m_cursor++ = value;
-                }
-
-                void Bytes(const uint8_t* bytes, std::size_t count) {
-                    for (std::size_t i = 0; i < count; ++i) Byte(bytes[i]);
-                }
-
-                void Dword(uint32_t value) {
-                    for (int i = 0; i < 4; ++i) Byte(static_cast<uint8_t>(value >> (i * 8)));
-                }
-
-                bool Overflowed() const { return m_overflowed; }
-                uint8_t* Cursor() const { return m_cursor; }
-                std::size_t Written() const { return static_cast<std::size_t>(m_cursor - m_begin); }
-
-            private:
-                uint8_t* m_begin;
-                uint8_t* m_cursor;
-                uint8_t* m_end;
-                bool m_overflowed = false;
-            };
 
             // REX prefix, omitted when it would carry no information. W selects a 64-bit
             // operand; R and B extend the ModRM reg and rm fields to reach R8..R15.

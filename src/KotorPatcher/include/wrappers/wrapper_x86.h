@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include "wrapper_base.h"
+#include "emitter.h"
 
 // x86 32-bit wrapper generator.
 // Emits runtime code to save/restore CPU state and call patch functions. The
@@ -41,13 +42,13 @@ namespace KotorPatcher {
             void* GenerateDetourWrapper(const WrapperConfig& config);
 
             // Helper: Emit x86 machine code bytes
-            void EmitBytes(uint8_t*& code, const uint8_t* bytes, size_t count);
-            void EmitByte(uint8_t*& code, uint8_t value);
-            void EmitDword(uint8_t*& code, uint32_t value);
+            void EmitBytes(Emitter& code, const uint8_t* bytes, size_t count);
+            void EmitByte(Emitter& code, uint8_t value);
+            void EmitDword(Emitter& code, uint32_t value);
 
             // Helper: Emit FXSAVE or FXRSTOR through the reserved area above the
             // saved state, which the caller reaches from EBX
-            void EmitFpStateAccess(uint8_t*& code, int savedStateSize, bool restore);
+            void EmitFpStateAccess(Emitter& code, int savedStateSize, bool restore);
 
             // Helper: Calculate relative offset for JMP/CALL
             uint32_t CalculateRelativeOffset(void* from, void* to);
@@ -56,7 +57,7 @@ namespace KotorPatcher {
             // False when the source is one this generator cannot read. The caller has
             // to abandon the wrapper on that: a parameter that is not pushed shifts
             // every later argument down a slot rather than merely going missing.
-            bool ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize);
+            bool ExtractAndPushParameter(Emitter& code, const ParameterInfo& param, int savedStateSize);
         };
 
     } // namespace Wrappers
