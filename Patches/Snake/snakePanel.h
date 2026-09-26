@@ -98,7 +98,7 @@ public:
 		int maxCellWidth = (int)std::floor((double)gameSpace.width / getWidth());
 		int maxCellHeight = (int)std::floor((double)gameSpace.height / getHeight());
 
-		cellSize = std::min(maxCellWidth, maxCellHeight);
+		cellSize = (std::min)(maxCellWidth, maxCellHeight);
 		int gameWidth = getWidth() * cellSize;
 		int gameHeight = getHeight() * cellSize;
 
