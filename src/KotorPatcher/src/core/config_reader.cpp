@@ -370,19 +370,37 @@ namespace KotorPatcher {
                     }
 
                     // Parse parameters (optional, for DETOUR hooks)
+                    //
+                    // A malformed parameter drops the whole hook, matching how every other
+                    // field here is handled. Dropping just the parameter would call the patch
+                    // function with one argument fewer than it declares, so every later
+                    // argument arrives a slot early and the last reads whatever the stack held.
+                    bool parametersParsed = true;
                     auto parametersArray = hookTable->at_path("parameters").as_array();
                     if (parametersArray) {
                         for (const auto& paramElem : *parametersArray) {
                             auto paramTable = paramElem.as_table();
-                            if (!paramTable) continue;
+                            if (!paramTable) {
+                                Platform::Log("[Config] Hook parameter is not a table\n");
+                                parametersParsed = false;
+                                break;
+                            }
 
                             ParameterInfo param;
                             auto source = paramTable->at_path("source").value<std::string>();
-                            if (!source) continue;
+                            if (!source) {
+                                Platform::Log("[Config] Hook parameter missing 'source'\n");
+                                parametersParsed = false;
+                                break;
+                            }
                             param.source = *source;
 
                             auto typeStr = paramTable->at_path("type").value<std::string>();
-                            if (!typeStr) continue;
+                            if (!typeStr) {
+                                Platform::Log("[Config] Hook parameter missing 'type'\n");
+                                parametersParsed = false;
+                                break;
+                            }
 
                             std::string type = *typeStr;
                             if (StrICmp(type.c_str(), "int") == 0) param.type = ParameterType::INT;
@@ -391,10 +409,18 @@ namespace KotorPatcher {
                             else if (StrICmp(type.c_str(), "float") == 0) param.type = ParameterType::FLOAT;
                             else if (StrICmp(type.c_str(), "byte") == 0) param.type = ParameterType::BYTE;
                             else if (StrICmp(type.c_str(), "short") == 0) param.type = ParameterType::SHORT;
-                            else continue; // Invalid type
+                            else {
+                                Platform::Log(("[Config] Unknown parameter type: " + type + "\n").c_str());
+                                parametersParsed = false;
+                                break;
+                            }
 
                             patch.parameters.push_back(param);
                         }
+                    }
+
+                    if (!parametersParsed) {
+                        continue;
                     }
 
                     // Successfully parsed hook - add to list
