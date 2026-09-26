@@ -1,5 +1,14 @@
 #include "Common.h"
-#include "ConsoleFunc.h"
+#include "GameAPI/GameVersion.h"
+#include "GameAPI/ConsoleFunc.h"
+#include "GameAPI/CExoString.h"
+#include "GameAPI/CVirtualMachine.h"
+#include "GameAPI/CServerExoApp.h"
+#include "GameAPI/CClientExoApp.h"
+#include "GameAPI/CClientOptions.h"
+#include "GameAPI/CSWSCreature.h"
+#include "GameAPI/CSWSCreatureStats.h"
+#include "GameAPI/CSWSObject.h"
 
 void __cdecl runscript(char* script) {
     CExoString scriptFile(script);
