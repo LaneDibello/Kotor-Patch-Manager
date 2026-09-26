@@ -1,2 +1,3 @@
 LIBRARY Snake
 EXPORTS
+    addConsoleCommand

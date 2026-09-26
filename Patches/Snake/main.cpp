@@ -5,7 +5,13 @@
 
 void __cdecl snake() {
     CSWGuiManager manager;
-    manager.AddPanel(new SnakePanel(&manager), 2, 1);
+    try
+    {
+        manager.AddPanel(new SnakePanel(&manager), 2, 1);
+    }
+    catch (const std::exception& e) {
+        debugLog("[Snake] Caught Error: %s", e.what());
+    }
 }
 
 extern "C" void __cdecl addConsoleCommand() {

@@ -60,9 +60,11 @@ public:
 		this->InitControl(&backButton, &backTag, 1);
 		this->StopLoadFromLayout();
 
-		debugLog("Loaded Snake Panel from layout");
+		debugLog("[Snake] Loaded Snake Panel from layout");
 
 		snake = createSnake(getWidth(), getHeight());
+
+		debugLog("[Snake] Snake created with grid size: (%i, %i)", getWidth(), getHeight());
 
 		// cell math
 		CSWGuiExtent gameSpace = gameLabel.GetExtent();
@@ -75,15 +77,17 @@ public:
 		int gameWidth = getWidth() * cellSize;
 		int gameHeight = getHeight() * cellSize;
 
+		debugLog("[Snake] Cell Stats - Cell Size: %i - Center: (%i, %i) - Game Area: (%i, %i)", cellSize, centerX, centerY, gameWidth, gameHeight);
+
 		for (int i = 0; i < getHeight(); ++i) {
 			for (int j = 0; j < getWidth(); ++j) {
 				CSWGuiExtent cellExtent = {
-					cellSize * j - (gameWidth / 2),
-					cellSize * i - (gameHeight / 2),
+					centerX + cellSize * j - (gameWidth / 2),
+					centerY + cellSize * i - (gameHeight / 2),
 					cellSize,
 					cellSize
 				};
-				CSWGuiBorder* cell = grid.at(j).at(i);
+				CSWGuiBorder* cell = grid.at(i).at(j);
 				CSWGuiBorderParams* params = cell->GetBorderParams();
 				CResRef image(BLACK);
 				params->SetFillImage(&image, 0);
@@ -91,17 +95,21 @@ public:
 			}
 		}
 
+		debugLog("[Snake] Cells Initialized");
+
 		this->OverrideHandleInputEvent(memberFuncAddr(&SnakePanel::_HandleInputEvent));
 		this->OverrideUpdate(memberFuncAddr(&SnakePanel::_Update));
 		this->OverrideDraw(memberFuncAddr(&SnakePanel::_Draw));
+
+		debugLog("[Snake] Constructed");
 	}
 
 	~SnakePanel() {
 		ThunkRegistry::Unregister(this);
 		for (int i = 0; i < getHeight(); ++i) {
 			for (int j = 0; j < getWidth(); ++j) {
-				delete grid.at(j).at(i);
-				grid.at(j).at(i) = nullptr;
+				delete grid.at(i).at(j);
+				grid.at(i).at(j) = nullptr;
 			}
 		}
 	}
