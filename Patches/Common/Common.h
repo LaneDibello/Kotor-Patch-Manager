@@ -45,6 +45,21 @@ inline void debugLog(const char* format, ...) {
 	OutputDebugStringA(buffer);
 }
 
+// Logs len bytes at ptr, 16 per line, each prefixed with its offset from ptr
+inline void debugHexDump(const char* label, const void* ptr, size_t len) {
+	debugLog("%s @ %p (%u bytes)", label, ptr, (unsigned)len);
+	if (!ptr) return;
+	const unsigned char* bytes = static_cast<const unsigned char*>(ptr);
+	for (size_t line = 0; line < len; line += 16) {
+		char buffer[80];
+		int pos = sprintf_s(buffer, sizeof(buffer), "  +0x%02X:", (unsigned)line);
+		for (size_t i = line; i < line + 16 && i < len; ++i) {
+			pos += sprintf_s(buffer + pos, sizeof(buffer) - pos, " %02X", bytes[i]);
+		}
+		OutputDebugStringA(buffer);
+	}
+}
+
 template <class retType>
 inline retType getObjectProperty(void* object, int offset) {
 	return *((retType*)((char*)object + offset));

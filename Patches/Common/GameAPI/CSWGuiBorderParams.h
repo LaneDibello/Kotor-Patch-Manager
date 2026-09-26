@@ -28,6 +28,9 @@ public:
     void SetAlpha(float alpha);
     Vector GetColor();
     void SetColor(const Vector& color);
+    // Low 2 bits of bit_flags: 0 = tile, 1 = center, 2 = stretch
+    int GetFillStyle();
+    void SetFillStyle(int fillStyle);
 
     // Accessors (offsets with a dedicated game setter -> getter only).
     // Returned wrappers are heap allocated; caller owns them.
@@ -69,6 +72,7 @@ protected:
     static int offsetFillAngle;
     static int offsetAlpha;
     static int offsetColor;
+    static int offsetBitFlags;
     static int offsetCornerImageResRef;
     static int offsetEdgeImageResRef;
     static int offsetFillImageResRef;
