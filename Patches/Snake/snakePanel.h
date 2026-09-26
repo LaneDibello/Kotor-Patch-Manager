@@ -118,7 +118,7 @@ public:
 		CExoString key(WIDTH);
 		if (!ini.ReadIniEntry(&width, &file, &category, &key)) {
 			_width = 50;
-			return _width
+			return _width;
 		}
 
 		_width = atoi(width.GetCStr());
@@ -159,14 +159,14 @@ public:
 			return _speed;
 		}
 
-		_speed = atoi(_speed.GetCStr());
+		_speed = atoi(speed.GetCStr());
 		return _speed;
 	}
 
 private:
-	int _width = -1;
-	int _height = -1;
-	int _speed = -1; // In Cells per second
+	static inline int _width = -1;
+	static inline int _height = -1;
+	static inline int _speed = -1; // In Cells per second
 
 	double _age = 0.0; // Time in seconds since last Update
 
@@ -200,7 +200,7 @@ private:
 
 		_age += (double)deltaT;
 
-		if (age < (1.0 / _speed)) { // 1/speed ~ seconds/Cell
+		if (_age < (1.0 / _speed)) { // 1/speed ~ seconds/Cell
 			return;
 		}
 
@@ -228,7 +228,7 @@ private:
 	void _Draw(float alpha) {
 		for (int i = 0; i < getHeight(); ++i) {
 			for (int j = 0; j < getWidth(); ++j) {
-				drawCell(j, i);
+				drawCell(alpha, j, i);
 			}
 		}
 		Draw(alpha);

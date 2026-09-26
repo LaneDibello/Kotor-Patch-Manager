@@ -1,9 +1,10 @@
+#pragma once
 #include <vector>
 #include <iostream>
 #include <stdexcept>
 
 enum dir {
-	NONE,
+	STOPPED,
 	UP,
 	RIGHT,
 	DOWN,
@@ -13,7 +14,7 @@ enum dir {
 struct Cell {
 	int state = 0;
 	bool food = false;
-	dir tail = NONE;
+	dir tail = STOPPED;
 };
 
 typedef std::vector<std::vector<Cell>> Grid;
@@ -60,7 +61,7 @@ void debugPrintGrid(Grid& grid) {
 			case LEFT:
 				std::cout << '<';
 				break;
-			case NONE:
+			case STOPPED:
 			default:
 				std::cout << '0';
 				break;
@@ -74,7 +75,7 @@ int getState(Grid& grid, int x, int y) {
 	try {
 		return grid.at(y).at(x).state;
 	}
-	catch (const std::out_of_range& oor) {
+	catch (const std::out_of_range&) {
 		return -1;
 	}
 }
@@ -83,8 +84,8 @@ dir getTail(Grid& grid, int x, int y) {
 	try {
 		return grid.at(y).at(x).tail;
 	}
-	catch (const std::out_of_range& oor) {
-		return NONE;
+	catch (const std::out_of_range&) {
+		return STOPPED;
 	}
 }
 
@@ -92,7 +93,7 @@ bool getFood(Grid& grid, int x, int y) {
 	try {
 		return grid.at(y).at(x).food;
 	}
-	catch (const std::out_of_range& oor) {
+	catch (const std::out_of_range&) {
 		return false;
 	}
 }
@@ -114,7 +115,7 @@ void resolveTail(Grid& grid, int x, int y) {
 	if (state == 0 || state == -1) return;
 	
 	if (state == 1) {
-		setTail(grid, NONE, x, y);
+		setTail(grid, STOPPED, x, y);
 	}
 	setState(grid, state - 1, x, y);
 	
@@ -131,7 +132,7 @@ void resolveTail(Grid& grid, int x, int y) {
 	case LEFT:
 		resolveTail(grid, x - 1, y);
 		break;
-	case NONE:
+	case STOPPED:
 	default:
 		break;
 	}
@@ -177,7 +178,7 @@ bool takeStep(Snake& snake) { // returns false if the snake dies
 		nextY = snake.headY;
 		tail = RIGHT;
 		break;
-	case NONE:
+	case STOPPED:
 	default:
 		return true;
 	}

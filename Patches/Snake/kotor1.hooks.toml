@@ -5,8 +5,3 @@ target_versions = [
     "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
 ]
 
-[[hooks]]
-address = 0x0
-type = ""
-original_bytes = []
-replacement_bytes = []
