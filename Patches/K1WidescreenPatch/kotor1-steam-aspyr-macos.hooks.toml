@@ -1,0 +1,604 @@
+[metadata]
+target_versions = ["C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"]
+
+# This file deliberately contains no 1512x982-specific centering constants.
+# Resolution-dependent values come from the renderer's committed framebuffer state.
+# The invalid 0x1004a17c2 SetFillImage detour and broad CSWGuiPanel::Draw detour are removed.
+
+# ==============================================================================
+# WIDESCREEN MODE OVERRIDE
+# ==============================================================================
+
+# Accept arbitrary display dimensions in the stock resolution classifier.
+[[hooks]]
+address = 0x100204a24
+type = "simple"
+original_bytes = [0x55, 0x48, 0x89, 0xe5, 0x81, 0xff, 0x20, 0x03, 0x00, 0x00, 0xb8]
+replacement_bytes = [0x55, 0x48, 0x89, 0xe5, 0xb8, 0x01, 0x00, 0x00, 0x00, 0x5d, 0xc3]
+exclude_from_restore = []
+
+# ==============================================================================
+# RESOLUTION-INDEPENDENT MAP DRAWING PATCHES
+# ==============================================================================
+
+# CSWGuiMapHider::Draw: derive fog X step from the live viewport width.
+[[hooks]]
+address = 0x1002b4ce9
+type = "simple"
+original_bytes = [0xf3, 0x0f, 0x10, 0x0d, 0xa7, 0xbb, 0x2b, 0x00]
+replacement_bytes = [0xf3, 0x41, 0x0f, 0x2a, 0x4c, 0x24, 0x10, 0x90]
+exclude_from_restore = []
+
+# CSWGuiMapHider::Draw: derive fog Y step from the live viewport height.
+[[hooks]]
+address = 0x1002b4cfc
+type = "simple"
+original_bytes = [0xf3, 0x0f, 0x10, 0x15, 0xa8, 0x8c, 0x28, 0x00]
+replacement_bytes = [0xf3, 0x41, 0x0f, 0x2a, 0x54, 0x24, 0x14, 0x90]
+exclude_from_restore = []
+
+# Scale stack-built map markers with the live shared UI scale immediately before SetExtent.
+# The stock function rebuilds the authored rectangle on every draw, so no cumulative scaling occurs.
+[[hooks]]
+address = 0x1002b52ed
+type = "detour"
+function = "Hook_MapMarkerStackRect"
+original_bytes = [0x48, 0x8d, 0xb5, 0x40, 0xfe, 0xff, 0xff]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rbp"
+type = "pointer"
+
+[[hooks]]
+address = 0x1002b5336
+type = "detour"
+function = "Hook_MapMarkerStackRect"
+original_bytes = [0x48, 0x8d, 0xb5, 0x40, 0xfe, 0xff, 0xff]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rbp"
+type = "pointer"
+
+[[hooks]]
+address = 0x1002b5462
+type = "detour"
+function = "Hook_MapMarkerStackRect"
+original_bytes = [0x48, 0x8d, 0xb5, 0x40, 0xfe, 0xff, 0xff]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rbp"
+type = "pointer"
+
+# Player-direction arrow: preserve stock center coordinates but widen both offsets to
+# signed imm32 operands. Runtime updates also patch the direct draw width and height.
+[[hooks]]
+address = 0x1002b54cf
+type = "simple"
+original_bytes = [
+    0x8b, 0xbd, 0x58, 0xfe, 0xff, 0xff, 0x83, 0xc7, 0xf0, 0x89, 0xbd, 0x40,
+    0xfe, 0xff, 0xff, 0x8b, 0xb5, 0x5c, 0xfe, 0xff, 0xff, 0x83, 0xc6, 0xf0,
+    0x89, 0xb5, 0x44, 0xfe, 0xff, 0xff, 0xb8, 0x20, 0x00, 0x00, 0x00, 0x89,
+    0x85, 0x48, 0xfe, 0xff, 0xff, 0x89, 0x85, 0x4c, 0xfe, 0xff, 0xff
+]
+replacement_bytes = [
+    0x8b, 0xbd, 0x58, 0xfe, 0xff, 0xff,
+    0x81, 0xc7, 0xf0, 0xff, 0xff, 0xff,
+    0x8b, 0xb5, 0x5c, 0xfe, 0xff, 0xff,
+    0x81, 0xc6, 0xf0, 0xff, 0xff, 0xff,
+    0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
+    0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90
+]
+exclude_from_restore = []
+
+# ==============================================================================
+# FORCE ONE HUD TEMPLATE (mipc212x9)
+# ==============================================================================
+
+# CSWGuiMainInterface selects one of several aspect-specific GUI resources from
+# framebuffer height. The macOS HUD layout below is authored against mipc212x9,
+# so redirect the other resource-name loads without changing constructor control flow.
+[[hooks]]
+address = 0x100233429
+type = "simple"
+original_bytes = [0x48, 0x8d, 0x35, 0x02, 0x78, 0x2f, 0x00]
+replacement_bytes = [0x48, 0x8d, 0x35, 0x18, 0x78, 0x2f, 0x00]
+exclude_from_restore = []
+
+[[hooks]]
+address = 0x10023345e
+type = "simple"
+original_bytes = [0x48, 0x8d, 0x35, 0xd8, 0x77, 0x2f, 0x00]
+replacement_bytes = [0x48, 0x8d, 0x35, 0xe3, 0x77, 0x2f, 0x00]
+exclude_from_restore = []
+
+[[hooks]]
+address = 0x1002334b4
+type = "simple"
+original_bytes = [0x48, 0x8d, 0x35, 0x97, 0x77, 0x2f, 0x00]
+replacement_bytes = [0x48, 0x8d, 0x35, 0x8d, 0x77, 0x2f, 0x00]
+exclude_from_restore = []
+
+[[hooks]]
+address = 0x1002334d8
+type = "simple"
+original_bytes = [0x48, 0x8d, 0x35, 0x7d, 0x77, 0x2f, 0x00]
+replacement_bytes = [0x48, 0x8d, 0x35, 0x69, 0x77, 0x2f, 0x00]
+exclude_from_restore = []
+
+# ==============================================================================
+# FOCUSED C++ DETOURS
+# ==============================================================================
+
+# CAurInternalGL::Reshape is the authoritative framebuffer mode-commit path.
+# This site executes only after the stock function has written the committed width
+# and height globals; its null-context return path branches around the detour.
+[[hooks]]
+address = 0x10019f7ce
+type = "detour"
+function = "Hook_RendererReshape"
+original_bytes = [0x85, 0xc0, 0xb9, 0x01, 0x00, 0x00, 0x00]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rax"
+type = "int"
+[[hooks.parameters]]
+source = "rdx"
+type = "int"
+
+# HUD draw pre-hook. KPM replays the displaced prologue and enters the original body after the handler returns.
+[[hooks]]
+address = 0x100235e44
+type = "detour"
+function = "Hook_MainInterfaceDraw"
+original_bytes = [0x55, 0x48, 0x89, 0xe5, 0x41, 0x57, 0x41, 0x56, 0x41, 0x55, 0x41, 0x54]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+
+# Post-layout hook at the epilogue of the helper tail-called by CSWGuiPanel::StopLoadFromLayout.
+[[hooks]]
+address = 0x10049e467
+type = "detour"
+function = "Hook_PanelPostLoad"
+original_bytes = [0x48, 0x83, 0xc4, 0x08, 0x5b, 0x41, 0x5c, 0x41, 0x5d, 0x41, 0x5e, 0x41, 0x5f, 0x5d]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "r14"
+type = "pointer"
+
+# CSWGuiListBox::SetExtent is about to read the scrollbar width from +0x168.
+# Update that authored 16-pixel value through the effective menu scale first.
+[[hooks]]
+address = 0x1004a81d0
+type = "detour"
+function = "Hook_ListBoxScaleScrollbarWidth"
+original_bytes = [0x44, 0x8b, 0xb3, 0x68, 0x01, 0x00, 0x00]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rbx"
+type = "pointer"
+
+# Filter known 4096-wide menu/background labels at the common CSWGuiLabel::Draw path.
+[[hooks]]
+address = 0x1004a5604
+type = "detour"
+function = "Hook_MenuBackgroundLabelDraw"
+original_bytes = [0x55, 0x48, 0x89, 0xe5, 0x53, 0x50, 0xf3, 0x0f, 0x11, 0x45, 0xf4]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+
+# Erase panel/list/HUD snapshot state while CSWGuiPanel is still alive.
+[[hooks]]
+address = 0x10049d8c8
+type = "detour"
+function = "Hook_PanelDestructor"
+original_bytes = [0x55, 0x48, 0x89, 0xe5, 0x41, 0x56, 0x53]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+
+# Repair CSWGuiMessageBox::FixMessageLabel after it has applied its final root/icon/button geometry.
+[[hooks]]
+address = 0x100306a8d
+type = "detour"
+function = "Hook_MessageBoxPostFit"
+original_bytes = [0x48, 0x83, 0xc4, 0x48, 0x5b, 0x41, 0x5c, 0x41, 0x5d, 0x41, 0x5e, 0x41, 0x5f, 0x5d]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "r13"
+type = "pointer"
+
+# Restore the immutable status-summary baseline before its reusable dynamic-row build.
+[[hooks]]
+address = 0x1003078a0
+type = "detour"
+function = "Hook_StatusSummaryBeforeBuild"
+original_bytes = [0x55, 0x48, 0x89, 0xe5, 0x41, 0x57]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+
+# Capture and scale the completed dynamic status summary at OnPanelAdded's epilogue.
+# The original owner pointer is retained at [rbp-0x78].
+[[hooks]]
+address = 0x100307fdb
+type = "detour"
+function = "Hook_StatusSummaryPostBuild"
+original_bytes = [0x48, 0x83, 0xc4, 0x78, 0x5b, 0x41, 0x5c, 0x41, 0x5d, 0x41, 0x5e, 0x41, 0x5f, 0x5d]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rbp"
+type = "pointer"
+
+# CSWGuiPazaakGame::RefreshDisplay final SetEnabled call. Replace the relative
+# call, invoke it exactly once from the handler, then apply completed hand-card geometry.
+[[hooks]]
+address = 0x100222a84
+type = "detour"
+function = "Hook_PazaakRefreshDisplayComplete"
+original_bytes = [0xe8, 0x6b, 0xa5, 0xff, 0xff]
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+[[hooks.parameters]]
+source = "rsi"
+type = "int"
+
+# Class-selection first button SetExtent path. Replace the native call with the final Windows-scaled slot rectangle.
+[[hooks]]
+address = 0x100337a03
+type = "detour"
+function = "Hook_ClassSelectionSetButtonExtent"
+original_bytes = [0xe8, 0xd4, 0xe0, 0x16, 0x00]
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+[[hooks.parameters]]
+source = "rsi"
+type = "pointer"
+[[hooks.parameters]]
+source = "r12"
+type = "pointer"
+[[hooks.parameters]]
+source = "rbx"
+type = "uint"
+# Class-selection second button SetExtent path. Use the same final slot rectangle as the Windows module.
+[[hooks]]
+address = 0x100337aef
+type = "detour"
+function = "Hook_ClassSelectionSetButtonExtent"
+original_bytes = [0xe8, 0xe8, 0xdf, 0x16, 0x00]
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+[[hooks.parameters]]
+source = "rsi"
+type = "pointer"
+[[hooks.parameters]]
+source = "r12"
+type = "pointer"
+[[hooks.parameters]]
+source = "rbx"
+type = "uint"
+
+# Class-selection model SetExtent path. Keep the model rectangle identical to the button slot rectangle.
+[[hooks]]
+address = 0x100337b0b
+type = "detour"
+function = "Hook_ClassSelectionSetModelExtent"
+original_bytes = [0xe8, 0x96, 0x31, 0x17, 0x00]
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+[[hooks.parameters]]
+source = "rsi"
+type = "pointer"
+[[hooks.parameters]]
+source = "r12"
+type = "pointer"
+[[hooks.parameters]]
+source = "rbx"
+type = "uint"
+
+# Floating target controls have just been bound.
+[[hooks]]
+address = 0x10023093c
+type = "detour"
+function = "Hook_TargetControlsBound"
+original_bytes = [0x41, 0x8b, 0x86, 0xc8, 0x1b, 0x00, 0x00, 0x41, 0x89, 0x86, 0xa0, 0x1b, 0x00, 0x00]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "r14"
+type = "pointer"
+
+# Reapply floating target extents immediately before the target-name draw.
+[[hooks]]
+address = 0x100230f72
+type = "detour"
+function = "Hook_TargetNameDraw"
+original_bytes = [0x49, 0x8d, 0xbe, 0xb8, 0x1b, 0x00, 0x00, 0xf3, 0x0f, 0x10, 0x45, 0xec]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "r14"
+type = "pointer"
+
+# Correct the floating-target screen clamp after vanilla clamp initialization.
+[[hooks]]
+address = 0x100233d13
+type = "detour"
+function = "Hook_TargetClampReady"
+original_bytes = [0x48, 0x8b, 0x85, 0x20, 0xfe, 0xff, 0xff, 0x0f, 0xbf, 0x80, 0xa4, 0x00, 0x00, 0x00]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "r14"
+type = "pointer"
+
+# Constrain the menu-backdrop label immediately before its virtual Draw call.
+[[hooks]]
+address = 0x10049fb2e
+type = "detour"
+function = "Hook_MenuBackdropDraw"
+original_bytes = [0x49, 0x8b, 0xbc, 0x24, 0xc0, 0x00, 0x00, 0x00, 0x48, 0x8b, 0x07]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "r12"
+type = "pointer"
+
+# Scale CAurFontInfo metrics after CResTexture TXI parsing completes.
+[[hooks]]
+address = 0x1001f8883
+type = "detour"
+function = "scaleLoadedTextureMetadata"
+original_bytes = [0x48, 0x81, 0xc4, 0x20, 0x20, 0x00, 0x00, 0x5b, 0x41, 0x5c, 0x41, 0x5e, 0x41, 0x5f]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "r14"
+type = "pointer"
+
+# ==============================================================================
+# HEIGHT-BASED DIALOGUE LETTERBOX
+# ==============================================================================
+
+# CSWGuiDialogLetterbox::SetTop epilogue. Stock state is complete; replace bar geometry.
+[[hooks]]
+address = 0x100244210
+type = "detour"
+function = "Hook_LetterboxSetTop"
+original_bytes = [0x48, 0x83, 0xc4, 0x08, 0x5b, 0x5d, 0xc3]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rbx"
+type = "pointer"
+
+# CSWGuiDialogLetterbox::SetBottom epilogue.
+[[hooks]]
+address = 0x1002442c5
+type = "detour"
+function = "Hook_LetterboxSetBottom"
+original_bytes = [0x48, 0x83, 0xc4, 0x08, 0x5b, 0x5d, 0xc3]
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rbx"
+type = "pointer"
+
+# ==============================================================================
+# WINDOWS-PARITY LIST-ITEM HEIGHT STABILITY
+# ==============================================================================
+
+# CSWGuiListBox::OrganizeControls: do not add redistributed spare pixels to the
+# reusable natural item height. Natural-height measurement remains enabled.
+[[hooks]]
+address = 0x1004a8915
+type = "simple"
+original_bytes = [0x01, 0xc3]
+replacement_bytes = [0x90, 0x90]
+exclude_from_restore = []
+
+# CSWGuiListBox::OrganizeControls: remainder rows use the same immutable natural
+# item height instead of feeding an extra pixel back into the controls.
+[[hooks]]
+address = 0x1004a8921
+type = "simple"
+original_bytes = [0x8d, 0x43, 0x01]
+replacement_bytes = [0x8d, 0x43, 0x00]
+exclude_from_restore = []
+
+# CSWGuiSkillFlow::SetExtent: replace the local incoming-height copy used by all
+# Feat/Power child-layout calculations with the Windows-scaled 40-pixel base.
+[[hooks]]
+address = 0x10028cb95
+type = "detour"
+function = "Hook_SkillFlowLocalHeight"
+original_bytes = [0x41, 0x89, 0x4c, 0x24, 0x0c]
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "r12"
+type = "pointer"
+
+# CSWGuiSkillFlow::SetExtent epilogue: retain left/top/width from the caller but
+# store the immutable Windows-scaled 40-pixel Feat/Power row height.
+[[hooks]]
+address = 0x10028ccfc
+type = "detour"
+function = "Hook_SkillFlowStoredExtent"
+original_bytes = [
+    0x49, 0x8b, 0x06,
+    0x49, 0x8b, 0x4e, 0x08,
+    0x49, 0x89, 0x4d, 0x10,
+    0x49, 0x89, 0x45, 0x08
+]
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "r14"
+type = "pointer"
+[[hooks.parameters]]
+source = "r13"
+type = "pointer"
+
+# Feat/Power icon labels: clear the natural-size clamp exactly as the Windows
+# patch does, allowing the scaled image border to define the visible extent.
+[[hooks]]
+address = 0x10028c990
+type = "simple"
+original_bytes = [0xbe, 0x01, 0x00, 0x00, 0x00]
+replacement_bytes = [0xbe, 0x00, 0x00, 0x00, 0x00]
+exclude_from_restore = []
+
+[[hooks]]
+address = 0x10028c9ef
+type = "simple"
+original_bytes = [0xbe, 0x01, 0x00, 0x00, 0x00]
+replacement_bytes = [0xbe, 0x00, 0x00, 0x00, 0x00]
+exclude_from_restore = []
+
+# CSWGuiSkillFlow::HitCheckMouse: use the scaled icon border at +0x178 while
+# retaining the state check at the equivalent +0x1d0 field.
+[[hooks]]
+address = 0x10028cfe4
+type = "simple"
+original_bytes = [0x48, 0x8d, 0x8f, 0x90, 0x00, 0x00, 0x00]
+replacement_bytes = [0x48, 0x8d, 0x8f, 0x78, 0x01, 0x00, 0x00]
+exclude_from_restore = []
+
+[[hooks]]
+address = 0x10028cfee
+type = "simple"
+original_bytes = [0x83, 0xb9, 0x40, 0x01, 0x00, 0x00, 0xff]
+replacement_bytes = [0x83, 0xb9, 0x58, 0x00, 0x00, 0x00, 0xff]
+exclude_from_restore = []
+
+# ==============================================================================
+# POST-SETEXTENT ITEM GEOMETRY HOOKS
+# ==============================================================================
+
+# In-game inventory/equipment row: replace final label SetExtent call and repair all sub-control geometry.
+[[hooks]]
+address = 0x1002be568
+type = "detour"
+function = "Hook_InGameItemFinalExtent"
+original_bytes = [0xe8, 0xdf, 0x57, 0x1e, 0x00]
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+[[hooks.parameters]]
+source = "rsi"
+type = "pointer"
+
+# Store/container row: replace final label SetExtent call and repair all sub-control geometry.
+[[hooks]]
+address = 0x1002bfc70
+type = "detour"
+function = "Hook_StoreItemFinalExtent"
+original_bytes = [0xe8, 0xd7, 0x40, 0x1e, 0x00]
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+[[hooks.parameters]]
+source = "rsi"
+type = "pointer"
+
+# Upgrade/workbench row: replace final label SetExtent call and repair all sub-control geometry.
+[[hooks]]
+address = 0x10021c18d
+type = "detour"
+function = "Hook_UpgradeItemFinalExtent"
+original_bytes = [0xe8, 0xba, 0x7b, 0x28, 0x00]
+skip_original_bytes = true
+exclude_from_restore = []
+[[hooks.parameters]]
+source = "rdi"
+type = "pointer"
+[[hooks.parameters]]
+source = "rsi"
+type = "pointer"
+
+# ==============================================================================
+# STORE / CONTAINER ROW STRUCTURE
+# ==============================================================================
+
+# Store item icon size comes from the row height.
+[[hooks]]
+address = 0x1002bfb49
+type = "simple"
+original_bytes = [0x41, 0xbd, 0x38, 0x00, 0x00, 0x00]
+replacement_bytes = [0x44, 0x8b, 0x6b, 0x14, 0x90, 0x90]
+exclude_from_restore = []
+
+# Store quantity label position follows dynamic icon width.
+[[hooks]]
+address = 0x1002bfbbf
+type = "simple"
+original_bytes = [0xb8, 0x38, 0x00, 0x00, 0x00]
+replacement_bytes = [0x41, 0x8d, 0x45, 0xf2, 0x90]
+exclude_from_restore = []
+
+# Store text starts after dynamic icon width.
+[[hooks]]
+address = 0x1002bfbe2
+type = "simple"
+original_bytes = [0x41, 0x83, 0xc7, 0x38]
+replacement_bytes = [0x45, 0x01, 0xef, 0x90]
+exclude_from_restore = []
+
+# Store text width subtracts dynamic icon width.
+[[hooks]]
+address = 0x1002bfbe9
+type = "simple"
+original_bytes = [0x83, 0xc0, 0xc8]
+replacement_bytes = [0x44, 0x29, 0xe8]
+exclude_from_restore = []
+
+# ==============================================================================
+# UPGRADE / WORKBENCH ROW STRUCTURE
+# ==============================================================================
+
+# Upgrade item icon size comes from the row height.
+[[hooks]]
+address = 0x10021c063
+type = "simple"
+original_bytes = [0x41, 0xbf, 0x38, 0x00, 0x00, 0x00]
+replacement_bytes = [0x44, 0x8b, 0x7b, 0x14, 0x90, 0x90]
+exclude_from_restore = []
+
+# Upgrade quantity label position follows dynamic icon width.
+[[hooks]]
+address = 0x10021c0e2
+type = "simple"
+original_bytes = [0xb8, 0x38, 0x00, 0x00, 0x00]
+replacement_bytes = [0x41, 0x8d, 0x47, 0xf2, 0x90]
+exclude_from_restore = []
+
+# Upgrade text starts after dynamic icon width.
+[[hooks]]
+address = 0x10021c0ff
+type = "simple"
+original_bytes = [0x41, 0x83, 0xc5, 0x38]
+replacement_bytes = [0x45, 0x01, 0xfd, 0x90]
+exclude_from_restore = []
+
+# Upgrade text width subtracts dynamic icon width.
+[[hooks]]
+address = 0x10021c106
+type = "simple"
+original_bytes = [0x83, 0xc0, 0xc8]
+replacement_bytes = [0x44, 0x29, 0xf8]
+exclude_from_restore = []

@@ -1,0 +1,9 @@
+[patch]
+id = "k1widescreenpatch"
+name = "Widescreen Patch (beta)"
+version = "0.1.0"
+description = "Widescreen patch featuring HUD and menu scaling/realignment. Auto detects resolution (can be forced w/ .ini variables ForceWidth/ForceHeight). No .gui files required."
+author = "J, FTD, Vriff"
+
+[patch.supported_versions]
+kotor1_steam_aspyr_macos = "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"
