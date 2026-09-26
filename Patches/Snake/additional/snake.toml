@@ -1,0 +1,7 @@
+# Registered by Additional Console Commands.
+# Place in a folder titled "commands" in the base game directory.
+[[commands]]
+name = "snake"
+patch = "snake"
+function = "snake"
+type = "none"
