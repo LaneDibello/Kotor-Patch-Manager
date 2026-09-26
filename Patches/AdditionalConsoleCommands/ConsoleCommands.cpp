@@ -9,6 +9,19 @@
 #include "GameAPI/CSWSCreature.h"
 #include "GameAPI/CSWSCreatureStats.h"
 #include "GameAPI/CSWSObject.h"
+#include "PathCasing.h"
+
+#include <filesystem>
+#include <set>
+#include <string>
+
+#ifndef TOML_EXCEPTIONS
+#define TOML_EXCEPTIONS 0
+#endif
+#ifndef TOML_ENABLE_FORMATTERS
+#define TOML_ENABLE_FORMATTERS 0
+#endif
+#include "External/toml.hpp"
 
 void __cdecl runscript(char* script) {
     CExoString scriptFile(script);
@@ -156,6 +169,107 @@ void __cdecl addfeat(int feat) {
     delete server;
 }
 
+static bool ParseCommandType(const std::string& text, funcTypes& outType) {
+    if (text == "none") { outType = NO_PARAMS; return true; }
+    if (text == "int") { outType = INT_PARAM; return true; }
+    if (text == "string") { outType = STRING_PARAM; return true; }
+    return false;
+}
+
+// Registers each [[commands]] entry found in <game>\commands\*.toml. The owning patch
+// DLL is already loaded by now, as <manifest id>.dll. Names already in `taken` are skipped.
+static void RegisterCommandsFromToml(std::set<std::string>& taken) {
+    std::filesystem::path directory;
+    if (!PathCasing::FindDirectory(".", "commands", directory)) {
+        debugLog("[ConsoleCommands] no `commands` directory beside the game");
+        return;
+    }
+
+    std::error_code ec;
+    std::filesystem::directory_iterator entries(directory, ec);
+    if (ec) {
+        debugLog("[ConsoleCommands] cannot read `%s`: %s", directory.string().c_str(), ec.message().c_str());
+        return;
+    }
+
+    for (const auto& entry : entries) {
+        if (!entry.is_regular_file() || !PathCasing::HasExtension(entry.path(), ".toml")) {
+            continue;
+        }
+
+        const std::string sourceName = entry.path().string();
+        toml::parse_result result = toml::parse_file(sourceName);
+        if (!result) {
+            debugLog("[ConsoleCommands] %s: TOML parse error: %s", sourceName.c_str(),
+                std::string(result.error().description()).c_str());
+            continue;
+        }
+
+        const toml::array* commands = result.table()["commands"].as_array();
+        if (!commands) {
+            debugLog("[ConsoleCommands] %s: no [[commands]] entries found", sourceName.c_str());
+            continue;
+        }
+
+        for (size_t i = 0; i < commands->size(); ++i) {
+            const toml::table* command = commands->get(i)->as_table();
+            if (!command) {
+                debugLog("[ConsoleCommands] %s: command %u is not a table; skipping", sourceName.c_str(), (unsigned)i);
+                continue;
+            }
+
+            std::string name = (*command)["name"].value_or<std::string>("");
+            std::string patch = (*command)["patch"].value_or<std::string>("");
+            std::string function = (*command)["function"].value_or<std::string>("");
+            std::string typeText = (*command)["type"].value_or<std::string>("");
+            if (name.empty() || patch.empty() || function.empty() || typeText.empty()) {
+                debugLog("[ConsoleCommands] %s: command %u needs `name`, `patch`, `function` and `type`; skipping",
+                    sourceName.c_str(), (unsigned)i);
+                continue;
+            }
+
+            funcTypes type;
+            if (!ParseCommandType(typeText, type)) {
+                debugLog("[ConsoleCommands] %s: command `%s` has unknown type `%s`; skipping",
+                    sourceName.c_str(), name.c_str(), typeText.c_str());
+                continue;
+            }
+
+            // ConsoleFunc holds the name in a char[80]
+            if (name.size() >= 80) {
+                debugLog("[ConsoleCommands] %s: command `%s` is 80 characters or longer; skipping",
+                    sourceName.c_str(), name.c_str());
+                continue;
+            }
+
+            if (taken.count(name)) {
+                debugLog("[ConsoleCommands] %s: command `%s` is already registered; skipping",
+                    sourceName.c_str(), name.c_str());
+                continue;
+            }
+
+            const std::string moduleName = patch + ".dll";
+            HMODULE module = GetModuleHandleA(moduleName.c_str());
+            if (!module) {
+                debugLog("[ConsoleCommands] %s: `%s` is not loaded, cannot register `%s`",
+                    sourceName.c_str(), moduleName.c_str(), name.c_str());
+                continue;
+            }
+
+            void* handler = (void*)GetProcAddress(module, function.c_str());
+            if (!handler) {
+                debugLog("[ConsoleCommands] %s: `%s` does not export `%s`",
+                    sourceName.c_str(), moduleName.c_str(), function.c_str());
+                continue;
+            }
+
+            new ConsoleFunc(name.c_str(), handler, type);
+            taken.insert(name);
+            debugLog("[ConsoleCommands] registered `%s` from %s", name.c_str(), moduleName.c_str());
+        }
+    }
+}
+
 extern "C" void __cdecl InitializeAdditionalCommands()
 {
     new ConsoleFunc("runscript", (void*)&runscript, STRING_PARAM);
@@ -168,6 +282,13 @@ extern "C" void __cdecl InitializeAdditionalCommands()
     new ConsoleFunc("boundingboxesrender", (void*)&boundingboxesrender, NO_PARAMS);
     new ConsoleFunc("freecam", (void*)&freecam, NO_PARAMS);
     new ConsoleFunc("addfeat", (void*)&addfeat, INT_PARAM);
+
+    // Built-ins win any name clash with a TOML-registered command
+    std::set<std::string> taken = {
+        "runscript", "teleport", "walkmeshrender", "guirender", "wireframerender",
+        "triggersrender", "personalspacerender", "boundingboxesrender", "freecam", "addfeat",
+    };
+    RegisterCommandsFromToml(taken);
 
     // Note we never free these values, as they're present up until the game closes anyway, so 
     // memory is of minimal practical concern. May consider hooking an additional function to free
