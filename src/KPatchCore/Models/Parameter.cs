@@ -22,7 +22,22 @@ public enum ParameterType
     Byte,
 
     /// <summary>16-bit value, zero-extended</summary>
-    Short
+    Short,
+
+    /// <summary>8-bit value, sign-extended</summary>
+    SByte,
+
+    /// <summary>16-bit value, sign-extended</summary>
+    SShort,
+
+    /// <summary>64-bit integer (x86_64 only)</summary>
+    Int64,
+
+    /// <summary>Unsigned 64-bit integer (x86_64 only)</summary>
+    UInt64,
+
+    /// <summary>64-bit floating point (x86_64 only)</summary>
+    Double
 }
 
 /// <summary>
@@ -137,6 +152,12 @@ public sealed class Parameter
                    $"'{Source}' cannot be read there";
         }
 
+        if (NeedsSixtyFourBits && architecture != Architecture.x86_64)
+        {
+            return $"Parameter type {Type} is 64 bits wide, which {architecture} has neither " +
+                   "a register to read from nor a single argument slot to pass in";
+        }
+
         return $"Parameter source '{Source}' cannot be read on {architecture}. " +
                $"Readable there: {string.Join(", ", sources.Registers)}, " +
                $"or an offset from {string.Join(" / ", sources.StackPrefixes.Select(p => p[..3]).Distinct())}";
@@ -157,9 +178,19 @@ public sealed class Parameter
         _ => null
     };
 
+    // Only x86_64 has a register wide enough to read one of these out of, and only its
+    // convention has a single argument slot that holds one.
+    private bool NeedsSixtyFourBits =>
+        Type is ParameterType.Int64 or ParameterType.UInt64 or ParameterType.Double;
+
     private bool IsReadableOn(Architecture architecture)
     {
         if (ReadableSources(architecture) is not { } sources)
+        {
+            return false;
+        }
+
+        if (NeedsSixtyFourBits && architecture != Architecture.x86_64)
         {
             return false;
         }

@@ -29,12 +29,17 @@ namespace KotorPatcher {
         POINTER,    // Pointer-width: 32 bits on x86, 64 on x86_64
         FLOAT,      // 32-bit float
         BYTE,       // 8-bit value, zero-extended
-        SHORT       // 16-bit value, zero-extended
+        SHORT,      // 16-bit value, zero-extended
+        SBYTE,      // 8-bit value, sign-extended
+        SSHORT,     // 16-bit value, sign-extended
+        INT64,      // 64-bit integer (x86_64 only)
+        UINT64,     // Unsigned 64-bit integer (x86_64 only)
+        DOUBLE      // 64-bit float (x86_64 only)
     };
 
     // Parameter source location
     struct ParameterInfo {
-        std::string source;     // e.g., "eax", "esp+0", "rbp"
+        std::string source;     // e.g., "eax", "esp+0", "rbp", "const:0xBC"
         ParameterType type;     // Data type of the parameter
     };
 

@@ -124,6 +124,21 @@ public class ParameterSourceTests
         Assert.Equal(expected, Source(source).IsValid(out _));
     }
 
+    [Theory]
+    // No source of any kind makes these readable on a 32-bit target, so the refusal is
+    // about the type rather than the source.
+    [InlineData(ParameterType.Int64)]
+    [InlineData(ParameterType.UInt64)]
+    [InlineData(ParameterType.Double)]
+    public void SixtyFourBitTypesAreRefusedOnX86(ParameterType type)
+    {
+        var register = new Parameter { Source = "eax", Type = type };
+        Assert.False(register.IsValidFor(Architecture.x86, out var error));
+        Assert.Contains("64 bits wide", error);
+
+        Assert.True(register.IsValidFor(Architecture.x86_64, out var wide), wide);
+    }
+
     [Fact]
     public void ErrorNamesTheArchitectureThatCannotReadIt()
     {
