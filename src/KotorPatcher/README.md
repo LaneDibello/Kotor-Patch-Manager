@@ -137,7 +137,7 @@ The declared type says how much of the source reaches the patch function. Every 
 | `pointer` | the whole 32-bit register | all 64 bits |
 | `float` | pushed as 4 raw bytes | `MOVD` into an XMM register |
 
-`byte` and `short` zero-extend. They name values rather than signed quantities, so there is nothing to carry into the upper bits; a hook needing sign extension should take the full width and cast in the patch function.
+`byte` and `short` zero-extend, so they name a value rather than a signed quantity. A hook wanting a signed one declares `byte` or `short` and casts in the patch function: the low bits are intact and the cast sign-extends them. Taking the full width instead would not work, because the bits above a narrow value are whatever the engine last left in that register.
 
 `int` and `uint` emit the same instruction. The difference lives in the patch function's own declaration.
 
