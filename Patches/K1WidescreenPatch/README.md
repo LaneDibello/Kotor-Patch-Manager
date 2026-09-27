@@ -2,7 +2,6 @@
 *A Comprehensive Engineering Reference for the Aspyr 64-bit AMD64 Port*
 
 Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. Simply install the patch. There is only one minor bug presently known: the main menu and character screen animations will be at double speed. I've tried to fix it; just can't crack it. I'm sure someone can.—FTD
-
 ---
 
 ## Table of Contents
@@ -15,8 +14,12 @@ Note: You do not need to read this readme! This is a technical explanation for a
 3. [In-Game Gameplay HUD Edits](#3-in-game-gameplay-hud-edits)
    - 3.1 [Unified Base Template Strategy (mipc212x9)](#31-unified-base-template-strategy-mipc212x9)
    - 3.2 [Detour Hook: CSWGuiMainInterface::Draw (0x100235e44)](#32-detour-hook-cswguimaininterfacedraw-0x100235e44)
-   - 3.3 [Control Anchoring Engine](#33-control-anchoring-engine)
-   - 3.4 [Viewport & Scissor Clipping Fix](#34-viewport--scissor-clipping-fix)
+   - 3.3 [Top-Right Button Cluster & Background Moulding](#33-top-riaght-button-cluster--background-moulding)
+   - 3.4 [Bottom-Right Combat Action Bar & Queue](#34-bottom-right-combat-action-bar--queue)
+   - 3.5 [Bottom-Left Portrait & Vitality Cluster](#35-bottom-left-portrait--vitality-cluster)
+   - 3.6 [Floating Target Reticle & Health Bar](#36-floating-target-reticle--health-bar)
+   - 3.7 [Fullscreen Tooltip & Scissor Clipping Elimination](#37-fullscreen-tooltip--scissor-clipping-elimination)
+   - 3.8 [HUD Action Button Title Hover Centering & Height Alignment](#38-hud-action-button-title-hover-centering--height-alignment)
 4. [Minimap-Related Edits](#4-minimap-related-edits)
    - 4.1 [Minimap Radar Subcontrol Structure](#41-minimap-radar-subcontrol-structure)
    - 4.2 [Minimap Anchoring & Coordinate Math](#42-minimap-anchoring--coordinate-math)
@@ -47,9 +50,11 @@ Note: You do not need to read this readme! This is a technical explanation for a
    - 7.7 [Dynamic Positioning for Ambient NPC Bark Dialogue Banners (CSWGuiBarkBubble)](#77-dynamic-positioning-for-ambient-npc-bark-dialogue-banners-cswguibarkbubble)
    - 7.8 [Native Positioning for In-Game Pause Notification (CSWGuiInGamePause)](#78-native-positioning-for-in-game-pause-notification-cswguiingamepause)
    - 7.9 [In-Game Area Transition Prompt & Vertical Text Centering (CSWGuiInGameAreaTransition)](#79-in-game-area-transition-prompt--vertical-text-centering-cswguiingameareatransition--0x1005a67c0)
+   - 7.10 [Party Solo Mode Popup Button Overflow Resolution (CSWGuiInGameSoloModeQuery)](#710-party-solo-mode-popup-button-overflow-resolution-cswguiingamesolomodequery)
+   - 7.11 [Computer Terminals & Dialog Reply Listboxes (CSWGuiDialogComputer / 0x1005a6db0)](#711-computer-terminals--dialog-reply-listboxes-cswguidialogcomputer--0x1005a6db0)
 8. [Character Generation & Level-Up Edits](#8-character-generation--level-up-edits)
    - 8.1 [Class Selection Screen (CSWGuiClassSelection / classsel.gui)](#81-class-selection-screen-cswguiclassselection--classselgui)
-   - 8.2 [Small Chargen Panels (isSmallChargenPanel())](#82-small-chargen-panels-issmallchargenpanel)
+   - 8.2 [Separation of Root Level-Up Console vs. Small Choice Panels](#82-separation-of-root-level-up-console-vs-small-choice-panels)
 9. [Universal Menu Centering & Engine Layout Edits](#9-universal-menu-centering--engine-layout-edits)
    - 9.1 [The Universal Menu Centering Flag 0x60](#91-the-universal-menu-centering-flag-0x60)
    - 9.2 [The Definitive Centering Fix](#92-the-definitive-centering-fix)
@@ -264,6 +269,65 @@ Targeting NPCs or objects in 3D world space renders a floating reticle consistin
 In vanilla KotOR, tooltips and action descriptions clipped abruptly when hovering over elements placed beyond 1280px.
 - **Root Cause**: `CSWGuiWindow::Draw` initialized the root scissor rectangle to the hardcoded engine dimensions `0x1005d3b8c` (1280px).
 - **The Solution**: Overriding `0x1005d3b8c` with `g_targetWidth` and configuring `CSWGuiToolTipPanel` (`0x1005d3210`) to span full screen bounds permits descriptions to render across any display width.
+
+### 3.8 HUD Action Button Title Hover Centering & Height Alignment
+When the player mouses over any of the 6 combat action buttons in the bottom-right HUD (Attack, Combat Feats, Force Powers, Items, Grenades, Mines), KotOR displays the active action's name (e.g. "Cure", "Knight Speed", "Critical Strike") in a rounded background pill.
+
+#### Reverse-Engineering the Native Action Description Layout Routine (`0x1002355e6`)
+Disassembly of Aspyr's 64-bit engine revealed the internal mechanics of `CSWGuiMainInterface`:
+
+```assembly
+0x1002355f5: movq   %rdi, %rbx              # rbx = CSWGuiMainInterface (HUD)
+0x1002355f8: leaq   0xce40(%rbx), %r14      # r14 = actionDesc (LBL_ACTIONDESC)
+0x100235612: movl   0xce50(%rbx), %eax      # eax = actionDesc.width
+0x10023561c: movl   %eax, 0x8(%r12)         # outRect.width = actionDesc.width
+0x100235621: movq   0xce48(%rbx), %rax      # rax = actionDesc.left & top
+0x100235628: movq   %rax, (%r12)            # outRect.left = actionDesc.left!
+0x100235636: callq  *0x18(%rax)             # Font text height -> eax
+0x10023563e: movl   0xd170(%rbx), %ecx      # ecx = *(int*)(hud + 0xd170)
+0x100235644: subl   %eax, %ecx              # ecx = baselineTop - textHeight
+0x100235646: movl   %ecx, 0x4(%r12)         # outRect.top = ecx
+0x100235651: callq  0x1004a56f0             # SetExtent(actionDesc, outRect)
+0x100235656: addq   $0xcfd8, %rbx           # rbx = actionDescBg (LBL_ACTIONDESCBG)
+0x100235663: callq  0x1004a56f0             # SetExtent(actionDescBg, outRect)
+```
+
+#### The Widescreen Defects
+1. **Vertical Offset Desynchronization (`hud + 0xd170`)**:
+   At `0x100234197`, the engine initializes `*(int*)(hud + 0xd170)` to `actionDesc.top + actionDesc.height` (the unscaled 4:3 baseline, ~897px). In widescreen resolutions (such as 1440p, 1600p, or 4K Retina), `targetActionTop` shifts down to accommodate the scaled display height. Because `0xd170` was left unscaled, `outRect.top` calculated an obsolete 897px coordinate, leaving the description box floating high above the action buttons.
+2. **Horizontal Position Pinned to Button 0**:
+   Notice lines `0x100235621`–`0x100235628`: the engine simply copies `actionDesc->left` into `outRect.left`. The native engine never recalculates `left` for the hovered action button! As a result, whenever the player hovered button 1, 2, 3, 4, or 5, the title box remained permanently anchored over the far-left button (button 0), completely disconnected from the hovered reticle.
+
+#### The Dual-Layer Alignment Solution
+1. **Baseline Initialization**:
+   During `scaleMainInterface()`, immediately after scaling action bar controls, the runtime synchronizes the native engine baseline:
+   ```cpp
+   *(int*)(hud + 0xd170) = targetActionTop;
+   ```
+2. **Per-Frame Dynamic Button Tracking in `Hook_MainInterfaceDraw`**:
+   The engine stores the index of the currently hovered combat button at `*(int*)(hud + 0x2358)`. The 6 button controls reside in a contiguous array at `hud + 0x97e0` with a stride of `0x910` bytes:
+   $$\text{btnAddress} = \text{hud} + \text{0x97e0} + (\text{hoveredIndex} \cdot \text{0x910})$$
+   Every frame, if `hoveredIndex` is between 0 and 5:
+   ```cpp
+   char* btn = hud + 0x97e0 + (hoveredIndex * 0x910);
+   if (is_readable(btn)) {
+       Rect btnRect = *(Rect*)(btn + 0x8);
+       Rect rd = *(Rect*)(actionDesc + 0x8);
+       if (btnRect.width > 0 && rd.width > 0 && rd.height > 0) {
+           int btnCenterX = btnRect.left + (btnRect.width / 2);
+           rd.left = btnCenterX - (rd.width / 2);
+           if (rd.left < 4) rd.left = 4;
+           if (rd.left + rd.width > g_targetWidth - 4) {
+               rd.left = (g_targetWidth - 4) - rd.width;
+           }
+           rd.top = btnRect.top - rd.height - 2;
+           *(int*)(hud + 0xd170) = btnRect.top - 2;
+           SetControlRect(actionDesc, rd);
+           SetControlRect(actionDescBg, rd);
+       }
+   }
+   ```
+- **Result**: The action nameplate dynamically tracks the yellow reticle across all 6 action slots, centering horizontally over whichever button is active and resting exactly 2px above its top border across all screen resolutions and UI scale factors.
 
 ---
 
@@ -852,7 +916,99 @@ if (vtable == (void*)0x1005a67c0 && (controls[i] == (panel + 0x3b0) || (r.top ==
 ```
 
 - **Resolution Invariance**: At 982p ($\text{scaledBgHeight} = 65$), `s.top` is set to $(65 - 16) / 2 = 24\text{px}$, leaving 24px above the text and 25px below the text. At 1080p, margins are $28\text{px} \times 28\text{px}$; at 1440p, $40\text{px} \times 40\text{px}$.
+- **Resolution Invariance**: At 982p ($\text{scaledBgHeight} = 65$), `s.top` is set to $(65 - 16) / 2 = 24\text{px}$, leaving 24px above the text and 25px below the text. At 1080p, margins are $28\text{px} \times 28\text{px}$; at 1440p, $40\text{px} \times 40\text{px}$.
 - **Live Tuning Support**: The knob `AreaTransitionTextOffset = 0` in `[UI Tuning]` allows real-time manual pixel nudging in `swkotor.ini`.
+
+### 7.10 Party Solo Mode Popup Button Overflow Resolution (`CSWGuiInGameSoloModeQuery`)
+When toggling Party Solo Mode off via the HUD button, KotOR prompts the confirmation dialog: *"Do you wish to turn Solo Mode off?"* (`solomode.gui`, managed by `CSWGuiInGameSoloModeQuery` at `0x1005abea0`).
+
+#### The Defect & Root Cause
+`CSWGuiInGameSoloModeQuery` inherits directly from `CSWGuiMessageBox` (`0x1005ae880`). While it was correctly registered in `isPopupPanel()`, it was inadvertently omitted from `isMsgBox` within `scalePopupPanel()`:
+- Because `isMsgBox` returned `false`, `scalePopupPanel()` treated the dialog as a generic container popup, taking the lower branch which multiplies all child control dimensions by `scale` (~2.25× at 1080p, 3.0× at 1440p).
+- However, `CSWGuiMessageBox` classes already execute the engine's internal `FixMessageLabel` layout pass, which dynamically sets button width, label wrapping, and button placement relative to message text.
+- Multiplying the already-laid-out "OK" button dimensions by `scale` caused it to balloon to over 200px wide and 80px high, bursting out through the bottom border of the popup dialog frame.
+
+#### The Message Box Dispatch Fix
+By including `0x1005abea0` and `0x1005aeaa8` (`CSWGuiControllerLossBox`) in `isMsgBox`:
+```cpp
+bool isMsgBox = (vtable == (void*)0x1005a8c60 || vtable == (void*)0x1005ae880 ||
+                 vtable == (void*)0x1005a5cb8 || vtable == (void*)0x1005ae9a0 ||
+                 vtable == (void*)0x1005abea0 || vtable == (void*)0x1005aeaa8);
+```
+The popup window extent is centered on screen without altering child controls:
+```cpp
+Rect centered = { targetLeft, targetTop, rect->width, rect->height };
+SetControlRect(panel, centered);
+```
+The native engine layout arranges the OK and Cancel buttons with clean padding inside the centered message box, completely eliminating button distortion at all resolutions.
+
+### 7.11 Computer Terminals & Dialog Reply Listboxes (`CSWGuiDialogComputer` / `0x1005a6db0`)
+In KotOR, interacting with computer terminals (such as security consoles, slicing stations, and planetary data terminals) opens the computer terminal interface (`computer.gui`, managed by `CSWGuiDialogComputer` at `0x1005a6db0`, or security cameras via `CSWGuiDialogComputerCamera` at `0x1005a6ed8`).
+
+#### Control Layout Hierarchy
+The terminal window is a 640×480 root interface hosting two primary text containers:
+- **`LB_MESSAGE` (`this + 0x3940`)**: Scrollable listbox displaying computer system diagnostics and dialogue prompts.
+- **`LB_REPLIES` (`this + 0x20c0`)**: Scrollable listbox presenting clickable user response choices (e.g. *"[Computer Slicing] Download area schematics"*, *"[Security] Corrupt security patrol routines"*).
+
+```
++-------------------------------------------------------------+
+| CSWGuiDialogComputer (computer.gui / 0x1005a6db0)           |
+|  +-------------------------------------------------------+  |
+|  | LB_MESSAGE (+0x3940): Terminal Diagnostics & Prompts  |  |
+|  +-------------------------------------------------------+  |
+|  +-------------------------------------------------------+  |
+|  | LB_REPLIES (+0x20c0): User Response Choices (Dynamic) |  |
+|  +-------------------------------------------------------+  |
++-------------------------------------------------------------+
+```
+
+#### The Missing Replies Defect (The Fixed-Item Stride Bug)
+In widescreen modes, players encountered completely empty reply boxes on computer terminals:
+1. When `scaleMenuPanelTree()` scaled child controls of `CSWGuiDialogComputer`, it called `SetControlRect(ctrl, s)` on `LB_REPLIES`.
+2. Inside `CSWGuiListBox::SetExtent` at `0x1004a8dc6`, the engine unconditionally executes `orb $0x8, 0x370(%rbx)`, setting bit `0x8` in the listbox control flags (`m_hasCustomPadding`).
+3. In KotOR's listbox implementation, bit `0x8` signals **fixed-height item mode**. But terminal replies are dynamically generated text strings of variable height (single-line or wrapped multiline choices).
+4. When `CSWGuiListBox::Draw` runs with bit `0x8` set on text entries, line `0x1004a955f` calculates `visibleItemCount = extentHeight / itemHeight`. Because `itemHeight` (`0x368`) was 0, it reset `0x368 = 0` and visible items `0x378 = 0`—rendering **zero items** and leaving the reply box completely blank!
+
+#### The Variable-Height Mode & Dynamic Wrap Recovery
+To restore full terminal replies:
+1. **Clear Fixed-Item Flag in `scaleMenuPanelTree`**:
+   Before and after `SetControlRect()`, bit `0x8` is cleared and `0x368` is reset to 0 across all dialog and terminal classes:
+   ```cpp
+   bool isTextList = (vtable == (void*)0x1005ae790 || // CSWGuiInGameMessages
+                      vtable == (void*)0x1005a6db0 || // CSWGuiDialogComputer
+                      vtable == (void*)0x1005a6ed8 || // CSWGuiDialogComputerCamera
+                      vtable == (void*)0x1005a6a70 || // CSWGuiDialog
+                      vtable == (void*)0x1005a6c88 || // CSWGuiDialogCinematic
+                      vtable == (void*)0x1005a6b98);  // CSWGuiDialogLetterbox
+   if (isTextList && ctrlVtable == (void*)0x1005b4318) {
+       *(uint8_t*)(ctrl + 0x370) &= ~0x8;
+       *(int*)(ctrl + 0x368) = 0;
+   }
+   ```
+2. **Per-Frame Active Maintenance in `Hook_WindowDraw`**:
+   Whenever a dialog or terminal is drawn, the runtime ensures `LB_REPLIES` remains in variable-height text mode, queries listbox width and scrollbar width, and updates each reply item's text wrapping width:
+   ```cpp
+   char* lbReplies = window + 0x20c0;
+   if (is_readable(lbReplies)) {
+       *(uint8_t*)(lbReplies + 0x370) &= ~0x8;
+       *(int*)(lbReplies + 0x368) = 0;
+       
+       int childCount = *(int*)(lbReplies + 0x350);
+       char** items = *(char***)(lbReplies + 0x348);
+       Rect lbRect = *(Rect*)(lbReplies + 0x8);
+       int scrollW = *(int*)(lbReplies + 0x168);
+       int itemW = lbRect.width - scrollW - 8;
+       if (items && is_readable(items) && childCount > 0 && childCount <= 64 && itemW > 50) {
+           for (int j = 0; j < childCount; j++) {
+               if (items[j] && is_readable(items[j])) {
+                   *(int*)(items[j] + 0x10) = itemW;
+               }
+           }
+       }
+   }
+   ```
+3. **Register `CSWGuiDialogComputer` in `isMenuPanel`**:
+   Adding `0x1005a6db0` and `0x1005a6ed8` to `isMenuPanel()` ensures the terminal background and borders are cleanly scaled and centered at 4:3 aspect ratio with `0x60` centering.
 
 ---
 
@@ -875,16 +1031,44 @@ The Character Generation Class Selection screen (`0x1005af890`) presents 6 class
 - **Button Hitbox Synchronization**: Invokes engine function `0x1004a5adc` on `panel + 0x90 + (slot * 0x320)`.
 - **3D Preview Model Synchronization**: Invokes engine function `0x1004aaca6` on `panel + 0x2d0 + (slot * 0x320)`, repositioning the 3D rotating character models flush inside their respective slot frames.
 
-### 8.2 Small Chargen Panels (`isSmallChargenPanel()`)
-Four compact sub-panels handle rapid character configuration:
-- `0x1005a9a30`: `CSWGuiQuickOrCustomPanel` (`qorcpnl`)
-- `0x1005a6960`: `CSWGuiCustomPanel` (`custpnl`)
-- `0x1005adb30`: `CSWGuiQuickPanel` (`quickpnl`)
-- `0x1005a9b40`: `CSWGuiLevelUpCharGen` (`leveluppnl`)
+### 8.2 Separation of Root Level-Up Console vs. Small Choice Panels
 
-In vanilla KotOR (640×480), these panels are authored on the right side of the character console (`left ≈ 322`, `top ≈ 87`, `width ≈ 270`, `height ≈ 280`).
-- **Scaling Rule**: Proportionally scaled on a 640×480 basis.
-- **Centering Flag 0x60**: Retains flag `0x60` at `panel + 0x5c` so the engine's 4:3 centering displacement places them on the right half of the console without overlapping the central 3D character preview model.
+#### Disassembly Analysis: `MAINCG` vs. `LEVELUPPNL`
+In Star Wars: KotOR, the Level-Up user interface consists of two distinct classes that interact hierarchically:
+
+1. **`CSWGuiLevelUpCharGen` (`0x1005a9b40`)**:
+   Loads `MAINCG` (the full-screen $640 \times 480$ character generation & level-up master console). It houses the central 3D rotating character viewport, the character stats summary, and the right-hand level-up configuration panels (attributes, skills, feats, Force powers). It is the level-up counterpart to `CSWGuiMainCharGen` (`0x1005ad530`).
+2. **`CSWGuiLevelUpPanel` (`0x1005a4c00`)**:
+   Disassembly at `0x1002138cd` confirms:
+   ```assembly
+   0x1002138cd: leaq 0x31645a(%rip), %rsi   # literal pool for: "LEVELUPPNL"
+   0x1002138dd: leaq -0x40(%rbp), %rsi
+   0x1002138e1: movq %r13, %rdi
+   0x1002138e4: callq 0x10049dfe4           # CSWGuiPanel::LoadGui
+   ```
+   `0x1005a4c00` loads `LEVELUPPNL`, which is the **compact left-hand choice sub-panel** containing buttons `(1) SKILLS`, `(2) ACCEPT`, and `BACK`.
+
+#### The Widescreen Classification Defect
+Previously, `CSWGuiLevelUpCharGen` (`0x1005a9b40`) was assigned to `isSmallChargenPanel()`, while `CSWGuiLevelUpPanel` (`0x1005a4c00`) was omitted from small panels entirely:
+- **Catastrophic Layout Failure**: Because `0x1005a9b40` is the $640 \times 480$ root window, treating it as a small sub-panel forced the entire master screen into small panel scaling, shrinking the 3D character viewport, overlapping the choice buttons directly over the character's chest, and completely hiding the right-hand options panel!
+- Meanwhile, the true small panel (`0x1005a4c00`) received generic menu scaling without proper anchoring.
+
+#### The Architectural Solution
+1. **Assign `CSWGuiLevelUpCharGen` to `isMenuPanel()`**:
+   ```cpp
+   vtable == (void*)0x1005a9b40 || // CSWGuiLevelUpCharGen (MAINCG for Level Up)
+   ```
+   `MAINCG` is now recognized as a full-size top-level menu. It scales uniformly to target widescreen height with `0x60` centering, giving full display breadth to the 3D character preview and right-hand attribute panels.
+2. **Assign `CSWGuiLevelUpPanel` to `isSmallChargenPanel()`**:
+   ```cpp
+   bool isSmallChargenPanel(void* vtable) {
+       return vtable == (void*)0x1005a9a30 || // CSWGuiQuickOrCustomPanel (qorcpnl)
+              vtable == (void*)0x1005a6960 || // CSWGuiCustomPanel (custpnl)
+              vtable == (void*)0x1005adb30 || // CSWGuiQuickPanel (quickpnl)
+              vtable == (void*)0x1005a4c00;   // CSWGuiLevelUpPanel (leveluppnl)
+   }
+   ```
+   `leveluppnl` is scaled by `scaleSmallChargenPanel()`, positioning the choice menu cleanly alongside the 3D character console with pixel-perfect button hit testing.
 
 ---
 
@@ -1537,7 +1721,7 @@ if (vtable == (void*)0x1005a5b80 && r.left == 129 && r.top == 340 && r.width == 
 | `0x1005ad040` | `CSWGuiStore` | Merchant Store screen |
 | `0x1005abc50` | `CSWGuiTitleMovies` | Cinematic movie player screen |
 | `0x1005af890` | `CSWGuiClassSelection` | Character Generation - Class selection (6 slots) |
-| `0x1005ad530` | `CSWGuiMainCharGen` | Character Generation - Main console |
+| `0x1005ad530` | `CSWGuiMainCharGen` | Character Generation - Main console (`maincg.gui`) |
 | `0x1005afea0` | `CSWGuiPortraitCharGen` | Character Generation - Portrait selection |
 | `0x1005aac10` | `CSWGuiNameChargen` | Character Generation - Name entry |
 | `0x1005b0950` | `CSWGuiAbilitiesCharGen` | Character Generation - Attributes |
@@ -1546,9 +1730,18 @@ if (vtable == (void*)0x1005a5b80 && r.left == 129 && r.top == 340 && r.width == 
 | `0x1005a9a30` | `CSWGuiQuickOrCustomPanel` | Chargen / Level-up sub-panel (`qorcpnl`) |
 | `0x1005a6960` | `CSWGuiCustomPanel` | Chargen / Level-up sub-panel (`custpnl`) |
 | `0x1005adb30` | `CSWGuiQuickPanel` | Chargen / Level-up sub-panel (`quickpnl`) |
-| `0x1005a9b40` | `CSWGuiLevelUpCharGen` | Level-up root panel (`leveluppnl`) |
+| `0x1005a9b40` | `CSWGuiLevelUpCharGen` | Full-Screen Level-Up master console (`MAINCG` / `maincg.gui`) |
+| `0x1005a4c00` | `CSWGuiLevelUpPanel` | Level-Up choice sub-panel (`LEVELUPPNL` / `leveluppnl.gui`) |
+| `0x1005a6db0` | `CSWGuiDialogComputer` | Computer Terminal dialog interface (`computer.gui`) |
+| `0x1005a6ed8` | `CSWGuiDialogComputerCamera` | Security Camera terminal interface (`computercam.gui`) |
+| `0x1005a6a70` | `CSWGuiDialog` | In-Game NPC Conversation dialog (`dialog.gui`) |
+| `0x1005a6c88` | `CSWGuiDialogCinematic` | Cinematic Conversation dialog |
+| `0x1005a6b98` | `CSWGuiDialogLetterbox` | Letterbox Conversation dialog |
 | `0x1005ab758` | `CSWGuiContainer` | Loot container popup (chests, corpses) |
 | `0x1005a5cb8` | `CSWGuiMessageBox` | OK / Cancel confirmation dialog |
+| `0x1005ae880` | `CSWGuiMessageBox` | Master message box vtable |
+| `0x1005abea0` | `CSWGuiInGameSoloModeQuery` | Party Solo Mode confirmation prompt (`solomode.gui`) |
+| `0x1005aeaa8` | `CSWGuiControllerLossBox` | Gamepad / Input loss alert dialog |
 | `0x1005ae9a0` | `CSWGuiStatusSummary` | Notification summary toast popup |
 | `0x1005a8c60` | `CSWGuiTutorialBox` | Tutorial popup box |
 | `0x1005a9e18` | `CSWGuiSkillInfoBox` | Granted Feats / Skills popup |
@@ -1587,9 +1780,28 @@ if (vtable == (void*)0x1005a5b80 && r.left == 129 && r.top == 340 && r.width == 
 | `+0x14` | `int32_t` | Visible list width |
 | `+0x18` | `int32_t` | Visible list height (controls visible item clipping budget) |
 | `+0x168` | `int32_t` | Scrollbar thumb width / button width |
-| `+0x368` | `int32_t` | Listbox row item height |
-| `+0x370` | `uint32_t` | Listbox configuration flags (`|= 0x8` enforces fixed row height) |
+| `+0x348` | `char**` | Array of child item entry pointers |
+| `+0x350` | `int32_t` | Child item count |
+| `+0x368` | `int32_t` | Listbox row item height (`0` = variable text height mode) |
+| `+0x370` | `uint32_t` | Listbox configuration flags (bit `0x8` enforces fixed row height) |
 | `+0x373` | `uint8_t` | Item cell spacing / vertical padding between elements |
+
+#### `CSWGuiMainInterface` (Gameplay HUD at `0x1005a6220`)
+| Offset | Type | Field Description |
+| :--- | :--- | :--- |
+| `+0x180` | `int32_t` | Control count |
+| `+0x188` | `char**` | Array of HUD subcontrol pointers |
+| `+0x2358` | `int32_t` | Index of active/hovered combat action button (`0..5`) |
+| `+0x97e0` | `CSWGuiButton` | Array of 6 combat action buttons (stride `0x910` bytes) |
+| `+0xce40` | `CSWGuiLabel` | Action title label control (`LBL_ACTIONDESC`) |
+| `+0xcfd8` | `CSWGuiLabel` | Action title background pill control (`LBL_ACTIONDESCBG`) |
+| `+0xd170` | `int32_t` | Vertical baseline top coordinate used by native `0x1002355e6` |
+
+#### `CSWGuiDialogComputer` (Computer Terminal Dialog at `0x1005a6db0`)
+| Offset | Type | Field Description |
+| :--- | :--- | :--- |
+| `+0x20c0` | `CSWGuiListBox` | Player response choices listbox (`LB_REPLIES`) |
+| `+0x3940` | `CSWGuiListBox` | Terminal diagnostics & text prompt listbox (`LB_MESSAGE`) |
 
 #### `CSWGuiInGameItemEntry` (List Row Subcontrol)
 | Offset | Type | Subcontrol Role |
