@@ -2,6 +2,7 @@
 *A Comprehensive Engineering Reference for the Aspyr 64-bit AMD64 Port*
 
 Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. Simply install the patch. There is only one minor bug presently known: the main menu and character screen animations will be at double speed. I've tried to fix it; just can't crack it. I'm sure someone can.—FTD
+
 ---
 
 ## Table of Contents
