@@ -26,6 +26,9 @@ namespace Windowing {
     // Reads an integer out of the ini's Graphics Options section, or -1 when the key is absent.
     int ReadGraphicsOption(const char* name);
 
+    // Writes an integer into the same section, formatted the way the engine formats its own.
+    void WriteGraphicsOption(const char* name, int value);
+
     // Whether the player asked for the stretched image rather than the aspect-correct one.
     bool StretchWanted();
 

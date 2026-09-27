@@ -1,4 +1,4 @@
-// Reading the game's own ini, and the configuration question the fixes ask of it.
+// Reading and writing the game's own ini, and the two configuration questions the fixes ask of it.
 //
 // The engine's CExoIni resolves the path, which differs per platform. It also works before the engine has
 // read the ini itself: the filename global is a zero-initialised std::string until then, so an early read
@@ -22,6 +22,7 @@ namespace {
     const StringInitFn CExoIniInit = reinterpret_cast<StringInitFn>(0x08195C8C);
     const StringInitFn CExoIniDestroy = reinterpret_cast<StringInitFn>(0x08195CC4);
     const IniEntryFn CExoIniReadEntry = reinterpret_cast<IniEntryFn>(0x08195CEE);
+    const IniEntryFn CExoIniWriteEntry = reinterpret_cast<IniEntryFn>(0x08195D28);
 
     // The stretched flag for the mode in use. The options screen writes it from the chosen entry's
     // dmDisplayFixedOutput and reads it back to decide which entry to highlight, but nothing initialises
@@ -94,6 +95,23 @@ namespace Windowing {
         CExoIniDestroy(&ini);
         CExoStringDestroy(&value);
         return result;
+    }
+
+    void WriteGraphicsOption(const char* name, int value)
+    {
+        CExoString text;
+        CExoIni ini;
+        CExoStringInit(&text);
+        CExoIniInit(&ini);
+        CExoStringFormat(&text, "%d", value);
+
+        {
+            EntryKeys keys(name);
+            CExoIniWriteEntry(&ini, &text, &keys.file, &keys.section, &keys.key);
+        }
+
+        CExoIniDestroy(&ini);
+        CExoStringDestroy(&text);
     }
 
     // Seeded from the ini on first use, then left to the options screen, which rewrites the global every

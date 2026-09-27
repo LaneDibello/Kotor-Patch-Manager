@@ -125,3 +125,18 @@ exclude_from_restore = []
 [[hooks.parameters]]
 source = "esp+0"
 type = "pointer"
+
+# The shim's SDL event pump at 0x080C1658, just after SDL_PeepEvents has returned an event and before it
+# is dispatched. ESI holds the event for the whole loop. The stolen instruction is an absolute load, so
+# replaying it is safe.
+[[hooks]]
+address = 0x080C16B5
+function = "ToggleFullscreenOnAltEnter"
+original_bytes = [0xA1, 0x0C, 0x11, 0x8F, 0x08]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
