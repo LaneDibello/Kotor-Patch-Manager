@@ -417,7 +417,7 @@ The patch replaces both instructions with dynamic register reads:
 
 Because `%r12` holds the `CSWGuiMapHider` instance pointer (`this`), `0x10(%r12)` is `this->rect.width` (`mapW`) and `0x14(%r12)` is `this->rect.height` (`mapH`). The fog tile step now scales dynamically:
 
-$$\text{step}_x = \frac{\text{mapW}}{\text{numTilesX}}, \quad \text{step}_y = \frac{\text{mapH}}{\text{numTilesY}}$$
+$$\text{step}_x = \frac{\text{mapW}}{\text{numTilesX}} \qquad \text{step}_y = \frac{\text{mapH}}{\text{numTilesY}}$$
 
 The revealed map readout and fog-of-war now cover 100% of the widescreen map screen.
 
