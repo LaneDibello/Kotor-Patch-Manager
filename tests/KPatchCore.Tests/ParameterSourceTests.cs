@@ -45,8 +45,6 @@ public class ParameterSourceTests
     [InlineData("rsp+8")]
     // The stack pointer has no saved copy. "esp+0" is how a hook asks for it.
     [InlineData("esp")]
-    // Nothing dereferences, and the brackets reach the generator intact.
-    [InlineData("[eax]")]
     // An offset that will not parse.
     [InlineData("esp+zz")]
     [InlineData("esp+")]
@@ -86,7 +84,6 @@ public class ParameterSourceTests
     // stack pointer by the time the patch function runs.
     [InlineData("rsp")]
     [InlineData("esp")]
-    [InlineData("[rax]")]
     [InlineData("xmm0")]
     [InlineData("rip")]
     public void X86_64Refuses(string source)
@@ -116,7 +113,6 @@ public class ParameterSourceTests
     // Refused everywhere, so refused here too.
     [InlineData("esp", false)]
     [InlineData("rsp", false)]
-    [InlineData("[eax]", false)]
     [InlineData("zmm0", false)]
     [InlineData("", false)]
     public void ParseTimeAcceptsWhatSomeGeneratorReads(string source, bool expected)
@@ -202,15 +198,57 @@ public class ParameterSourceTests
         Assert.Contains("cannot be a Float", error);
     }
 
-    [Fact]
-    public void ANarrowTypeOnAnAddressSourceIsRefused()
+    [Theory]
+    // A dereference reads through the register, so what matters is that the register is
+    // readable. ESP is allowed here although it is refused on its own: the slot's contents
+    // are reachable even though the wrapper keeps no saved copy of the pointer.
+    [InlineData("[eax]")]
+    [InlineData("[esi+4]")]
+    [InlineData("[ebp-0x10]")]
+    [InlineData("[esp+8]")]
+    [InlineData("[esp]")]
+    public void X86ReadsADereference(string source)
     {
-        // The generators refuse this. Saying so here turns a hook that fails to install into
-        // a patch that fails to pass.
+        Assert.True(Source(source).IsValidFor(Architecture.x86, out var error), error);
+    }
+
+    [Theory]
+    [InlineData("[r15]")]
+    [InlineData("[rsi+0x10]")]
+    [InlineData("[rsp+8]")]
+    public void X86_64ReadsADereference(string source)
+    {
+        Assert.True(Source(source).IsValidFor(Architecture.x86_64, out var error), error);
+    }
+
+    [Theory]
+    // The register inside still has to be one this target reads, and the offset still has
+    // to parse.
+    [InlineData("[r15]")]
+    [InlineData("[nosuchreg]")]
+    [InlineData("[esi+zz]")]
+    [InlineData("[esi+]")]
+    [InlineData("[]")]
+    [InlineData("[esi")]
+    [InlineData("esi]")]
+    public void X86RefusesABadDereference(string source)
+    {
+        Assert.False(Source(source).IsValidFor(Architecture.x86, out var error));
+        Assert.NotNull(error);
+    }
+
+    [Fact]
+    public void ADereferenceMayBeNarrowWhereAnAddressMayNot()
+    {
+        // The address form yields a pointer whatever the slot holds, so a narrow type there
+        // describes something else. Through brackets a value arrives, so it can be narrow.
         var address = new Parameter { Source = "esp+8", Type = ParameterType.Byte };
 
         Assert.False(address.IsValidFor(Architecture.x86, out var error));
         Assert.Contains("cannot be read as Byte", error);
+
+        var value = new Parameter { Source = "[esp+8]", Type = ParameterType.Byte };
+        Assert.True(value.IsValidFor(Architecture.x86, out error), error);
     }
 
     [Fact]

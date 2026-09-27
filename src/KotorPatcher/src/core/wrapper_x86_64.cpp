@@ -350,6 +350,51 @@ namespace KotorPatcher {
                     return true;
                 }
 
+                std::string name;
+                int offset = 0;
+                const Dereference dereference = ParseDereference(source, name, offset);
+                if (dereference == Dereference::Malformed) {
+                    Platform::Log(("[Wrapper] Cannot read a register out of " + source +
+                                   "\n").c_str());
+                    return false;
+                }
+
+                // A bracketed source is a dereference: "[rsi+0x10]" is the field at that
+                // offset, where "rsi" alone is the object's address. A value arrives, so
+                // unlike the address forms below, a narrow type is meaningful.
+                if (dereference == Dereference::Parsed) {
+                    // The game's stack sits at a known displacement from RBX, so it needs no
+                    // address load of its own.
+                    int base = RBX;
+                    int32_t disp = 0;
+                    if (name == "rsp" || name == "esp") {
+                        disp = kFrameSize + offset;
+                    } else {
+                        Reg pointerReg = RAX;
+                        const int index = LookUpRegister(name, pointerReg)
+                            ? SavedGprIndex(pointerReg) : -1;
+                        if (index < 0) {
+                            Platform::Log(("[Wrapper] Unsupported register in " + source +
+                                           "\n").c_str());
+                            return false;
+                        }
+                        // The address goes straight into the destination and is then read
+                        // through, so nothing else has to be borrowed. For an SSE argument
+                        // that destination is RAX, which the move to XMM uses anyway.
+                        base = wantsSse ? RAX : kIntArgRegs[intArgIndex];
+                        MovFromMem(e, base, RBX, SavedGprOffset(index));
+                        disp = offset;
+                    }
+
+                    if (wantsSse) {
+                        MemOp(e, 0x8B, RAX, base, disp, wideSse);
+                        MovToXmm(e, sseArgIndex++, RAX, wideSse);
+                    } else {
+                        LoadIntArgument(e, kIntArgRegs[intArgIndex++], base, disp, param.type);
+                    }
+                    return true;
+                }
+
                 // "rsp+8", and "esp+8" from a hook adapted off the Windows one. Like the
                 // x86 generator, this passes the address of that slot rather than what
                 // is in it.
@@ -407,7 +452,7 @@ namespace KotorPatcher {
                 + kSavedGprCount * 2                  // push the GPRs
                 + 1 + 3                               // PUSHFQ, MOV RBX, RSP
                 + 21                                  // address the FP area and FXSAVE64
-                + config.parameters.size() * 12       // worst case for one argument
+                + config.parameters.size() * 16       // worst case for one argument
                 + 2 + 4 + 5                           // MOV AL, AND RSP, CALL
                 + 3 + 8                               // MOV RSP, RBX and the flags slot
                 + 21                                  // address the FP area and FXRSTOR64

@@ -129,6 +129,50 @@ namespace KotorPatcher {
             return ConstantSource::Parsed;
         }
 
+        // The outcomes a constant has, for the same reason: a source with no brackets is some
+        // other form, where brackets the caller could not read is an error rather than an
+        // invitation to keep looking.
+        enum class Dereference { None, Malformed, Parsed };
+
+        // Reads "[esi+0x10]" as esi and 16, "[eax]" as eax and zero. The register name is not
+        // checked against any architecture's table, that being the generator's business.
+        inline Dereference ParseDereference(const std::string& source, std::string& outName,
+                                            int& outOffset) {
+            // "[]" has nothing between the brackets.
+            if (source.size() <= 2 || source.front() != '[' || source.back() != ']') {
+                return Dereference::None;
+            }
+
+            const std::string inner = source.substr(1, source.size() - 2);
+            const std::size_t sign = inner.find_first_of("+-");
+            outOffset = 0;
+
+            if (sign == std::string::npos) {
+                outName = inner;
+                return Dereference::Parsed;
+            }
+
+            outName = inner.substr(0, sign);
+            if (outName.empty()) {
+                return Dereference::Malformed;
+            }
+
+            // stoi reads the sign, so the offset keeps it. Base 0 lets a hook write a field
+            // offset the way the disassembly shows it, "[esi+0x10]" as readily as "[esi+16]".
+            const std::string offset = inner.substr(sign);
+            try {
+                std::size_t consumed = 0;
+                outOffset = std::stoi(offset, &consumed, 0);
+                if (consumed != offset.size()) {
+                    return Dereference::Malformed;
+                }
+            } catch (...) {
+                return Dereference::Malformed;
+            }
+
+            return Dereference::Parsed;
+        }
+
         // Abstract base class for wrapper generators
         class WrapperGeneratorBase {
         public:

@@ -97,11 +97,11 @@ namespace KotorPatcher {
             // Original bytes are copied into the stub verbatim, so they are counted
             // here rather than left to the base's headroom
             // +40 for the two FXSAVE sequences and the two frame adjustments
-            // Each parameter emits at most 8 bytes, the widest being a stack source: a LEA
-            // with a disp32 and its PUSH.
+            // Each parameter emits at most 12 bytes, the widest being a dereference through a
+            // register: the address load, then a MOVZX with a disp32, then the PUSH.
             size_t estimatedSize = 168 + config.originalBytes.size() +
                                    (config.excludeFromRestore.size() * 10) +
-                                   (config.parameters.size() * 8);
+                                   (config.parameters.size() * 12);
             if (config.consumedExitAddress != 0) {
                 estimatedSize += 16;
             }
@@ -421,6 +421,39 @@ namespace KotorPatcher {
             }
 
 
+            // The opcode for a load into ECX at the parameter's width. The caller follows it
+            // with a ModRM byte and displacement saying where to load from, so the same table
+            // serves a register's saved copy and a dereference through one.
+            bool EmitLoadOpcode(Emitter& code, ParameterType type) {
+                switch (type) {
+                    case ParameterType::BYTE:
+                        code.Byte(0x0F); code.Byte(0xB6);  // MOVZX r32, r/m8
+                        return true;
+                    case ParameterType::SHORT:
+                        code.Byte(0x0F); code.Byte(0xB7);  // MOVZX r32, r/m16
+                        return true;
+                    case ParameterType::SBYTE:
+                        code.Byte(0x0F); code.Byte(0xBE);  // MOVSX r32, r/m8
+                        return true;
+                    case ParameterType::SSHORT:
+                        code.Byte(0x0F); code.Byte(0xBF);  // MOVSX r32, r/m16
+                        return true;
+                    // A float is four raw bytes in a stack slot here, the same as the rest.
+                    case ParameterType::INT:
+                    case ParameterType::UINT:
+                    case ParameterType::POINTER:
+                    case ParameterType::FLOAT:
+                        code.Byte(0x8B);                                 // MOV r32, r/m32
+                        return true;
+                    // Refused before any source is looked at.
+                    case ParameterType::INT64:
+                    case ParameterType::UINT64:
+                    case ParameterType::DOUBLE:
+                        return false;
+                }
+                return false;
+            }
+
             // A constant declared narrow widens the way a register declared narrow does, so
             // the declared type means the same thing wherever the value came from.
             uint64_t WidenConstant(uint64_t value, ParameterType type) {
@@ -533,41 +566,57 @@ namespace KotorPatcher {
             for (const auto& saved : kSavedRegisters) {
                 if (source != saved.name) continue;
 
-                // Every offset above is well inside disp8, so the short encoding always fits.
-                const uint8_t modrm = 0x4B;  // ModRM: ECX, [EBX + disp8]
-
                 // The saved copy is a full dword, and a narrower type reads the low end of
                 // it, which on a little-endian register is its byte and word halves.
-                switch (param.type) {
-                    case ParameterType::BYTE:
-                        EmitByte(code, 0x0F); EmitByte(code, 0xB6);   // MOVZX r32, r/m8
-                        break;
-                    case ParameterType::SHORT:
-                        EmitByte(code, 0x0F); EmitByte(code, 0xB7);   // MOVZX r32, r/m16
-                        break;
-                    case ParameterType::SBYTE:
-                        EmitByte(code, 0x0F); EmitByte(code, 0xBE);   // MOVSX r32, r/m8
-                        break;
-                    case ParameterType::SSHORT:
-                        EmitByte(code, 0x0F); EmitByte(code, 0xBF);   // MOVSX r32, r/m16
-                        break;
-                    // A float is four raw bytes in a stack slot here, the same as the rest.
-                    case ParameterType::INT:
-                    case ParameterType::UINT:
-                    case ParameterType::POINTER:
-                    case ParameterType::FLOAT:
-                        EmitByte(code, 0x8B);                          // MOV r32, r/m32
-                        break;
-                    // Refused above, before any source was looked at.
-                    case ParameterType::INT64:
-                    case ParameterType::UINT64:
-                    case ParameterType::DOUBLE:
-                        return false;
-                }
-                EmitByte(code, modrm);
-                EmitByte(code, static_cast<uint8_t>(saved.offset));  // disp8: the saved copy
+                if (!EmitLoadOpcode(code, param.type)) return false;
+
+                // Every offset in the table is well inside disp8, so the short form fits.
+                EmitByte(code, 0x4B);  // ModRM: ECX, [EBX + disp8]
+                EmitByte(code, static_cast<uint8_t>(saved.offset));
                 EmitByte(code, 0x51);  // PUSH ECX
                 return true;
+            }
+
+            std::string name;
+            int offset = 0;
+            const Dereference dereference = ParseDereference(source, name, offset);
+            if (dereference == Dereference::Malformed) {
+                Platform::Log(("[Wrapper] Cannot read a register out of " + source +
+                               "\n").c_str());
+                return false;
+            }
+
+            // A bracketed source is a dereference: "[esi+0x10]" is the field at that offset,
+            // where "esi" alone is the object's address. A value arrives, so unlike the
+            // address forms below, a narrow type is meaningful.
+            if (dereference == Dereference::Parsed) {
+                // The game's stack sits at a known displacement from EBX, so one load
+                // reaches it without reading a saved copy of the pointer first.
+                if (name == "esp") {
+                    if (!EmitLoadOpcode(code, param.type)) return false;
+                    EmitByte(code, 0x8B);  // ModRM: ECX, [EBX + disp32]
+                    EmitDword(code, static_cast<uint32_t>(STACK_OFFSET_TO_ORIGINAL_DATA + offset));
+                    EmitByte(code, 0x51);  // PUSH ECX
+                    return true;
+                }
+
+                for (const auto& saved : kSavedRegisters) {
+                    if (name != saved.name) continue;
+
+                    // The address at full width, then the load through it at the declared one.
+                    EmitByte(code, 0x8B);  // MOV ECX, [EBX + disp8]
+                    EmitByte(code, 0x4B);
+                    EmitByte(code, static_cast<uint8_t>(saved.offset));
+
+                    if (!EmitLoadOpcode(code, param.type)) return false;
+                    EmitByte(code, 0x89);  // ModRM: ECX, [ECX + disp32]
+                    EmitDword(code, static_cast<uint32_t>(offset));
+                    EmitByte(code, 0x51);  // PUSH ECX
+                    return true;
+                }
+
+                Platform::Log(("[Wrapper] Unsupported register in " + source + "\n").c_str());
+                return false;
             }
 
             // Check if source is a stack offset like "esp+0", "esp+4", etc.

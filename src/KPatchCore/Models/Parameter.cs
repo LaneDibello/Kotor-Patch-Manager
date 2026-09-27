@@ -188,7 +188,8 @@ public sealed class Parameter
             sources.StackPrefixes.Any(p => source.StartsWith(p, StringComparison.Ordinal)))
         {
             return $"Parameter source '{Source}' yields the address of a stack slot, which is " +
-                   $"pointer-width, so it cannot be read as {Type}";
+                   $"pointer-width, so it cannot be read as {Type}. Bracket it, as " +
+                   $"'[{Source}]', to read what the slot holds instead";
         }
 
         return $"Parameter source '{Source}' cannot be read on {architecture}. " +
@@ -211,6 +212,39 @@ public sealed class Parameter
         // enum, which has no generator either.
         _ => null
     };
+
+    // The register named inside brackets, with an optional signed offset. The stack pointer
+    // is readable here although it is not on its own, a dereference reaching the slot's
+    // contents rather than needing a saved copy of the pointer.
+    private static bool IsDereferenceable(
+        string inner, (string[] Registers, string[] StackPrefixes) sources)
+    {
+        var sign = inner.IndexOfAny(new[] { '+', '-' });
+        var name = sign < 0 ? inner : inner[..sign];
+
+        if (name.Length == 0 || (sign >= 0 && !IsSignedOffset(inner[sign..])))
+        {
+            return false;
+        }
+
+        // Taken off the stack prefixes so the bracketed form accepts the same spellings the
+        // address form does, including "esp" on x86_64.
+        return sources.StackPrefixes.Any(prefix => name == prefix[..3]) ||
+               sources.Registers.Contains(name);
+    }
+
+    // The same grammar as ParseDereference in wrapper_base.h.
+    private static bool IsSignedOffset(string signed)
+    {
+        var digits = signed[1..];
+        if (digits.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            return ulong.TryParse(digits[2..], NumberStyles.AllowHexSpecifier,
+                                  CultureInfo.InvariantCulture, out _);
+        }
+
+        return ulong.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out _);
+    }
 
     // The same grammar as ParseConstantSource in wrapper_base.h; constant-sources.tsv holds
     // both to it, and explains why it exists twice. Internal so that corpus can reach it.
@@ -283,6 +317,13 @@ public sealed class Parameter
         if (source.StartsWith(ConstantPrefix, StringComparison.Ordinal))
         {
             return ConstantFits(source[ConstantPrefix.Length..], architecture);
+        }
+
+        // A bracketed source is a dereference, so what has to be readable is the register
+        // inside it. No type is refused here: a value arrives, so any width describes it.
+        if (source.Length > 2 && source[0] == '[' && source[^1] == ']')
+        {
+            return IsDereferenceable(source[1..^1], sources);
         }
 
         if (sources.Registers.Contains(source))
