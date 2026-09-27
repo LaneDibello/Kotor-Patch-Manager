@@ -136,7 +136,11 @@ skip_original_bytes = true
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "ebp"
+source = "[ebp-4]" # this
+type = "pointer"
+
+[[hooks.parameters]]
+source = "[ebp+8]" # The program's body text.
 type = "pointer"
 
 # LightManager::SetupVertexProgramLights, past the preamble and before the
@@ -150,7 +154,7 @@ skip_original_bytes = false
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "ebp"
+source = "ebp-4" # The light cursor, a stack slot.
 type = "pointer"
 
 # LightManager::SetUpVertexProgramLightShaderConstants, before the branch that
@@ -164,5 +168,5 @@ skip_original_bytes = false
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "ebp"
+source = "ebp-4" # The light cursor, a stack slot.
 type = "pointer"
