@@ -13,6 +13,7 @@
 #include "trampoline.h"
 
 #include "check.h"
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
@@ -25,11 +26,15 @@ namespace {
         uint32_t atZero;
         uint32_t atFour;
         uint32_t atEight;
+        float    atTwelve;
+        double   atSixteen;
     };
+    static_assert(offsetof(Fields, atTwelve) == 12 && offsetof(Fields, atSixteen) == 16,
+                  "the sources below name these offsets");
 
     // Distinct, so a dereference landing at the wrong displacement or reading the wrong
-    // width cannot match by accident.
-    Fields g_fields = { 0x11223344u, 0xAABBCCEFu, 0x5566F00Du };
+    // width cannot match by accident. The floats are exact in binary, so they compare equal.
+    Fields g_fields = { 0x11223344u, 0xAABBCCEFu, 0x5566F00Du, 1.5f, -2.25 };
 
 }  // namespace
 
@@ -39,10 +44,14 @@ extern "C" {
     void  finish(void);
 
     uint64_t g_arg[5];
+    float    g_float;
+    double   g_double;
     int      g_calls;
 
-    void probe(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e) {
+    // System V numbers the XMM arguments separately, so f and g arrive in XMM0 and XMM1.
+    void probe(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, float f, double g) {
         g_arg[0] = a; g_arg[1] = b; g_arg[2] = c; g_arg[3] = d; g_arg[4] = e;
+        g_float = f; g_double = g;
         ++g_calls;
     }
 }
@@ -102,6 +111,10 @@ int main() {
         { "[r15+4]",    ParameterType::BYTE },
         // The pushed dword, which the address form cannot reach: "esp+0" is where it sits.
         { "[rsp+0]",    ParameterType::UINT },
+        // The longest path either generator has: the address, the load through it, then
+        // the move across to XMM.
+        { "[r15+0xC]",  ParameterType::FLOAT },
+        { "[r15+0x10]", ParameterType::DOUBLE },
     };
 
     void* wrapper = gen.GenerateWrapper(config);
@@ -123,6 +136,8 @@ int main() {
     Expect("[r15+0x8] takes a hex offset",    g_arg[2], g_fields.atEight);
     Expect("a byte dereference masks",        g_arg[3], g_fields.atFour & 0xFFu);
     Expect("[rsp+0] reads the pushed qword",  g_arg[4], 0x0EEDFACEu);
+    kptest::Check("a float arrives through a register",  g_float == g_fields.atTwelve);
+    kptest::Check("a double arrives through a register", g_double == g_fields.atSixteen);
 
     // An address is still an address: "esi" has to keep meaning the pointer, or every hook
     // written before brackets existed changes meaning.
