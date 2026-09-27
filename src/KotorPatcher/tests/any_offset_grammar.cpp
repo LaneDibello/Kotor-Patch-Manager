@@ -33,7 +33,8 @@ int main() {
         const bool ok = ParseSignedOffset(std::string(text), parsed);
         const bool wantParsed = std::strcmp(expected, "parsed") == 0;
 
-        char label[160];
+        // Both fields at their widest, and the quotes and arrow between them.
+        char label[sizeof(text) + sizeof(expected) + 8];
         std::snprintf(label, sizeof(label), "\"%s\" -> %s", text, expected);
         char detail[64] = "";
         if (ok != wantParsed) {
