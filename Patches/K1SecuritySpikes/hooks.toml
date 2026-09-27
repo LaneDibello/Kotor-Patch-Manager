@@ -25,7 +25,7 @@ source = "esi"
 type = "pointer"
 
 [[hooks.parameters]]
-source = "esp+116"
+source = "[esp+116]"
 type = "pointer"
 
 # CSWGuiInterfacePlaceable, the same point in the placeable list.
@@ -43,5 +43,5 @@ source = "esi"
 type = "pointer"
 
 [[hooks.parameters]]
-source = "esp+92"
+source = "[esp+92]"
 type = "pointer"

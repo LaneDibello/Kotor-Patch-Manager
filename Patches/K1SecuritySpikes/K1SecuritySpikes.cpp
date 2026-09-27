@@ -352,12 +352,12 @@ void UseSecuritySpike(void* target_object, u32 action_id, void* creature) {
 
 } // namespace
 
-// Both hook sites land here. The creature is the party member whose action menu is open. A
-// stack parameter arrives as the slot's address, hence the indirection on it. Returning
-// non-zero takes the hook's consumed exit.
-extern "C" int __cdecl K1AppendSecuritySpikes(void* actions, void* const* creature_slot) {
-    if (actions && creature_slot) {
-        AppendSecuritySpikes((CSWGuiInterfaceActionList*)actions, *creature_slot);
+// Both hook sites land here. The creature is the party member whose action menu is open, read
+// out of the caller's stack slot by the hooks file. Returning non-zero takes the hook's
+// consumed exit.
+extern "C" int __cdecl K1AppendSecuritySpikes(void* actions, void* creature) {
+    if (actions) {
+        AppendSecuritySpikes((CSWGuiInterfaceActionList*)actions, creature);
     }
     return 1;
 }
