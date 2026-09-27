@@ -31,6 +31,10 @@ const:zz	malformed	-
 const:0xZZ	malformed	-
 const:12abc	malformed	-
 const:0x	malformed	-
+const:0x-1	malformed	-
+const:0x+5	malformed	-
+const:0x 5	malformed	-
+const:0x0x10	malformed	-
 const:18446744073709551616	malformed	-
 eax	none	-
 rbp	none	-

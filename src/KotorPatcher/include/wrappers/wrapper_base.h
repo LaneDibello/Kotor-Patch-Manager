@@ -1,5 +1,8 @@
 #pragma once
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 #include <string>
 #include "platform.h"
@@ -70,6 +73,39 @@ namespace KotorPatcher {
             }
         };
 
+        // Reads decimal digits, or hex digits after "0x", as an unsigned value. Every number a
+        // parameter source carries goes through this, so a constant and an offset are written
+        // the same way.
+        //
+        // The base is chosen here rather than left to strtoull's prefix detection, which would
+        // read a leading zero as octal and make "010" mean eight. strtoull also skips leading
+        // whitespace, takes a sign and wraps a negative, and in base 16 takes a second "0x", so
+        // every character is checked before it sees the text. All it can still refuse is a
+        // value too large to hold.
+        inline bool ParseDigits(std::string text, uint64_t& outValue) {
+            int base = 10;
+            if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
+                text = text.substr(2);
+                base = 16;
+            }
+
+            const bool digitsOnly = !text.empty() &&
+                std::all_of(text.begin(), text.end(), [base](char c) {
+                    const auto u = static_cast<unsigned char>(c);
+                    return base == 16 ? std::isxdigit(u) != 0 : std::isdigit(u) != 0;
+                });
+            if (!digitsOnly) {
+                return false;
+            }
+
+            try {
+                outValue = std::stoull(text, nullptr, base);
+                return true;
+            } catch (const std::out_of_range&) {
+                return false;
+            }
+        }
+
         // What a parameter source of the form "const:<value>" turned out to be.
         enum class ConstantSource {
             // Not a constant, so the caller goes on to the register and stack forms.
@@ -100,33 +136,9 @@ namespace KotorPatcher {
                 return ConstantSource::None;
             }
 
-            std::string text = source.substr(prefixLength);
-
-            // stoull accepts a sign and wraps a negative into a huge unsigned value, and it
-            // skips leading whitespace, so both are turned away before it sees them.
-            if (text.empty() || text[0] < '0' || text[0] > '9') {
-                return ConstantSource::Malformed;
-            }
-
-            // Base is chosen rather than left to strtoull's prefix detection, which would
-            // read a leading zero as octal and make "const:010" mean eight.
-            int base = 10;
-            if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
-                base = 16;
-                text = text.substr(2);
-            }
-
-            try {
-                std::size_t consumed = 0;
-                outValue = std::stoull(text, &consumed, base);
-                if (consumed != text.size()) {
-                    return ConstantSource::Malformed;
-                }
-            } catch (...) {
-                return ConstantSource::Malformed;
-            }
-
-            return ConstantSource::Parsed;
+            return ParseDigits(source.substr(prefixLength), outValue)
+                ? ConstantSource::Parsed
+                : ConstantSource::Malformed;
         }
 
         // The outcomes a constant has, for the same reason: a source with no brackets is some
