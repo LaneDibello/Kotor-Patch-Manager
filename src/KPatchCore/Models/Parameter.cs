@@ -233,27 +233,22 @@ public sealed class Parameter
                sources.Registers.Contains(name);
     }
 
+    // kMaxOffsetMagnitude in wrapper_base.h, which says why it is where it is.
+    private const ulong MaxOffsetMagnitude = 0x7FFF0000;
+
     // The same grammar as ParseSignedOffset in wrapper_base.h: a sign, then digits as a
-    // constant's are written, fitting an int. signed-offsets.tsv holds both to it. Internal so
-    // that corpus can reach it.
+    // constant's are written, no further than MaxOffsetMagnitude. signed-offsets.tsv holds
+    // both to it. Internal so that corpus can reach it.
     internal static bool TryParseSignedOffset(string text, out int value)
     {
         value = 0;
         if (text.Length == 0 || (text[0] != '+' && text[0] != '-') ||
-            !TryParseConstant(text[1..], out var magnitude))
+            !TryParseConstant(text[1..], out var magnitude) || magnitude > MaxOffsetMagnitude)
         {
             return false;
         }
 
-        // The most negative int has one more unit of magnitude than the most positive.
-        var negative = text[0] == '-';
-        var limit = (ulong)int.MaxValue + (negative ? 1UL : 0UL);
-        if (magnitude > limit)
-        {
-            return false;
-        }
-
-        value = (int)(negative ? -(long)magnitude : (long)magnitude);
+        value = text[0] == '-' ? -(int)magnitude : (int)magnitude;
         return true;
     }
 

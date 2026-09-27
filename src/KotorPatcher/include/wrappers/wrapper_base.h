@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
-#include <limits>
 #include <stdexcept>
 #include <vector>
 #include <string>
@@ -142,29 +141,27 @@ namespace KotorPatcher {
                 : ConstantSource::Malformed;
         }
 
+        // The largest offset either way. Arbitrary, but the generators add the distance from
+        // their anchor to the game's stack, under 0x1000 bytes, so it has to leave that much
+        // room below the int limit or the sum wraps into a slot on the other side. No real
+        // frame comes near it.
+        constexpr uint64_t kMaxOffsetMagnitude = 0x7FFF0000;
+
         // Reads the offset in "esp+8" or "[esi-0x10]": a sign, then digits as a constant's are
-        // written, fitting an int. The sign is required because every caller splits the text at
-        // it, so text without one is not an offset.
+        // written, no further than kMaxOffsetMagnitude. The sign is required because every
+        // caller splits the text at it, so text without one is not an offset.
         inline bool ParseSignedOffset(const std::string& text, int& outOffset) {
             if (text.empty() || (text[0] != '+' && text[0] != '-')) {
                 return false;
             }
 
             uint64_t magnitude = 0;
-            if (!ParseDigits(text.substr(1), magnitude)) {
+            if (!ParseDigits(text.substr(1), magnitude) || magnitude > kMaxOffsetMagnitude) {
                 return false;
             }
 
-            // The most negative int has one more unit of magnitude than the most positive.
-            const bool negative = text[0] == '-';
-            const uint64_t limit =
-                static_cast<uint64_t>(std::numeric_limits<int>::max()) + (negative ? 1 : 0);
-            if (magnitude > limit) {
-                return false;
-            }
-
-            outOffset = static_cast<int>(negative ? -static_cast<int64_t>(magnitude)
-                                                  : static_cast<int64_t>(magnitude));
+            const int value = static_cast<int>(magnitude);
+            outOffset = text[0] == '-' ? -value : value;
             return true;
         }
 

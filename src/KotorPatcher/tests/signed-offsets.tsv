@@ -15,11 +15,11 @@
 -0x10	parsed	-16
 +0X10	parsed	16
 +010	parsed	10
-+2147483647	parsed	2147483647
--2147483648	parsed	-2147483648
-+0x7FFFFFFF	parsed	2147483647
-+2147483648	malformed	-
--2147483649	malformed	-
++0x7FFF0000	parsed	2147418112
+-0x7FFF0000	parsed	-2147418112
++0x7FFF0001	malformed	-
+-0x7FFF0001	malformed	-
++2147483647	malformed	-
 +0xFFFFFFFF	malformed	-
 8	malformed	-
 +	malformed	-
