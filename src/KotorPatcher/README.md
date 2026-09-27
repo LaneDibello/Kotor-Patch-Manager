@@ -106,8 +106,8 @@ Represents a single hook configuration. Contains:
 
 Defines how to extract a parameter for a DETOUR hook function:
 
-- **source**: Register name or stack offset, from the table below
-- **type**: Data type (INT, UINT, POINTER, FLOAT, BYTE, SHORT)
+- **source**: Register name, stack offset, or constant, from the table below
+- **type**: Data type, from the table under *What `type` decides*
 
 Parameters are read out of the saved CPU state, then placed where the calling convention wants them: pushed in reverse order on x86 (cdecl), loaded into the argument registers on x86_64 (System V).
 
@@ -121,9 +121,24 @@ The two generators read different sources, and a hook naming one its generator c
 | `esp+N` `esp-N` | yes | yes | Passes the *address* of the slot, not its contents |
 | `rsp+N` `rsp-N` | no | yes | `esp+N` is accepted here too, so a hook ported off the Windows build needs no edit |
 | `esp` `rsp` on their own | no | no | The wrapper keeps no saved copy of the stack pointer. Use `esp+0` for the game's stack |
-| `[eax]`, `[esp+8]` | no | no | Nothing dereferences. A bracketed source reaches the generator with its brackets and is refused |
+| `[eax]`, `[esp+8]`, `[rdi+0x10]` | yes | yes | Reads *through* the register. See below |
+| `const:<value>` | yes | yes | A literal, read from nowhere. See below |
 
 Source names are matched case-insensitively.
+
+### Constants
+
+`source = "const:0xBC"` hands the patch function a literal instead of reading a register. It exists so one exported function can serve several game builds that differ only by an offset or a count, rather than needing an exported function per build.
+
+The value is unsigned, written in decimal or with a `0x` prefix. A leading `-` is refused, which keeps the range check against the declared type a straight comparison: a negative constant is written as its bit pattern instead, so `-1` as an `sbyte` is `const:0xFF`. A leading zero is not read as octal, so `const:010` is ten.
+
+### Dereferences
+
+`source = "[esi+0x10]"` hands the patch function what the slot holds rather than its address. Any source naming a register takes brackets, with an optional signed offset in decimal or hex, and the declared type gives the width of the load.
+
+Without brackets, `esi` passes the pointer itself, which is what a hook wanting the object rather than one of its fields means. Before this a bracketed source matched no form and was refused, so a hook wanting a field took the pointer and dereferenced it on the other side (issue #156).
+
+`[esp+N]` is the form with no useful counterpart: `esp+N` yields the slot's address, so a hook wanting an argument the game pushed brackets it, and that is also how to ask for one at a narrow width.
 
 ### What `type` decides
 
@@ -147,7 +162,10 @@ The declared type says how much of the source reaches the patch function. Every 
 
 `int64`, `uint64` and `double` are x86_64 only, a 32-bit target having neither a register to read one out of nor a single stack slot to pass it in. Declaring `int` for a 64-bit value truncates it, which is worth knowing because that combination used to work by accident: the generator ignored the declaration and loaded all 64 bits regardless.
 
-A narrow type or a float on a stack source is refused rather than guessed at: `esp+8` yields the *address* of the slot, which is pointer-width whatever the slot holds.
+Two combinations are refused rather than guessed at:
+
+- **A narrow type or a float on a stack source.** `esp+8` yields the *address* of the slot, which is pointer-width whatever the slot holds. Bracket it, as `[esp+8]`, to read what the slot holds instead.
+- **A float constant.** There is no syntax for a float literal, and an integer parse would not produce the bit pattern the hook meant.
 
 ### WrapperConfig
 
@@ -237,7 +255,7 @@ For DETOUR hooks, `ApplyPatch()`:
 9. Re-executes original bytes or skips them based on configuration
 10. Jumps back to game code
 
-**ExtractAndPushParameter()**: Generates x86 code to extract a parameter from saved CPU state or stack and push it for the patch function. Handles register sources (eax, ebx, etc.) and stack offsets (esp+0, esp+4, etc.).
+**ExtractAndPushParameter()**: Generates x86 code to extract a parameter from saved CPU state or stack and push it for the patch function. Handles register sources (eax, ebx, etc.), stack offsets (esp+0, esp+4, etc.), dereferences of either, and constants.
 
 **EmitBytes/EmitByte/EmitDword**: Helper functions to write raw bytes into code buffer.
 

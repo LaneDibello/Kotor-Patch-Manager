@@ -1,0 +1,39 @@
+# The grammar of a "const:<value>" parameter source, as both parsers must read it.
+#
+# ParseConstantSource in wrapper_base.h and TryParseConstant in Parameter.cs are the
+# same grammar in two languages, in two processes: the manager validates a hooks.toml
+# before the install, the patcher reads patch_config.toml at runtime. Neither can call
+# the other, so this file is what keeps them from drifting. A test on each side reads
+# it, so a change to one parser that is not made to the other fails.
+#
+# A constant this file says is parsed but one parser rejects is an install that passes
+# every check and then fails to hook.
+#
+# source<TAB>outcome<TAB>value   outcome is parsed, malformed or none; value only when parsed.
+
+const:0	parsed	0
+const:9	parsed	9
+const:188	parsed	188
+const:0xBC	parsed	188
+const:0xbc	parsed	188
+const:0X10	parsed	16
+const:010	parsed	10
+const:255	parsed	255
+const:4294967295	parsed	4294967295
+const:0xFFFFFFFF	parsed	4294967295
+const:0x100480ABD	parsed	4299688637
+const:18446744073709551615	parsed	18446744073709551615
+const:	malformed	-
+const:-1	malformed	-
+const:+1	malformed	-
+const: 5	malformed	-
+const:zz	malformed	-
+const:0xZZ	malformed	-
+const:12abc	malformed	-
+const:0x	malformed	-
+const:18446744073709551616	malformed	-
+eax	none	-
+rbp	none	-
+esp+8	none	-
+const	none	-
+consta:1	none	-
