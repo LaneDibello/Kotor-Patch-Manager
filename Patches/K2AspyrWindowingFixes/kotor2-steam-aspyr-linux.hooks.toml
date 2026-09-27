@@ -140,3 +140,40 @@ exclude_from_restore = []
 [[hooks.parameters]]
 source = "esi"
 type = "pointer"
+
+# CClientExoAppInternal::StartServices' call to ApplyVideoMode, the one unconditional duplicate of the
+# three startup applies. skip_original_bytes drops the call so the hook decides whether it happens; a
+# five-byte call takes a five-byte relative jump exactly. ApplyVideoMode returns void and no caller reads
+# a result, so nothing needs producing when it is skipped.
+[[hooks]]
+address = 0x081AC65C
+function = "SkipDuplicateVideoModeApply"
+original_bytes = [0xE8, 0xA4, 0xDB, 0xFE, 0xFF]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# CClientExoAppInternal::SetVideoMode's call. This apply must run, and does: the hook reissues it and
+# records its arguments, which is how the StartServices hook recognises a duplicate.
+#
+# skip_original_bytes is set even though the call is wanted, because the patcher copies stolen bytes into
+# its stub verbatim with no displacement fixup. A relative call relocated that way resolves against the
+# stub and jumps nowhere, so it has to be reissued from the hook instead of replayed.
+#
+# WinMain's two call sites are deliberately absent. They drain g_nVideoModeChangePending, so skipping
+# them leaves the request set and hangs the main loop.
+[[hooks]]
+address = 0x081AEB7C
+function = "RunAndRecordVideoModeApply"
+original_bytes = [0xE8, 0x84, 0xB6, 0xFE, 0xFF]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
