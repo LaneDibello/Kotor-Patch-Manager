@@ -5,31 +5,46 @@ target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB4
 # Left(name, len - 3) + "wav" (0x08781429, the tail of the ".wav" at 0x08781428).
 #
 # The hook is the LEA that loads the alternates for the first fopen, right after the
-# rewrite loop. Clang kept `this` in EBP and addressed the frame off ESP, so the hook
-# takes the stack pointer: the primary at ESP+0x8990, 32 alternates at ESP+0x8880.
-# ESP holds still across the function, each struct-returning call being followed by a
-# SUB ESP,4 that undoes the callee's RET 4.
+# rewrite loop. Clang kept `this` in EBP and addressed the frame off ESP, so the
+# offsets here count up from the stack pointer. ESP holds still across the function,
+# each struct-returning call being followed by a SUB ESP,4 that undoes the callee's
+# RET 4.
 [[hooks]]
 address = 0x084577E8
-function = "K2LooseMp3SteamAspyrLinux"
+function = "K2LooseMp3"
 type = "detour"
 original_bytes = [0x8D, 0xB4, 0x24, 0x80, 0x88, 0x00, 0x00]
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "esp+0"
+source = "esp+0x8990" # The primary candidate, a CExoString.
 type = "pointer"
+
+[[hooks.parameters]]
+source = "esp+0x8880" # The alternates, CExoStrings side by side.
+type = "pointer"
+
+[[hooks.parameters]]
+source = "const:32" # How many alternates this build keeps.
+type = "uint"
 
 # The load of the RIFF size field, before the ADD that turns it into the audio offset.
 # Reached only for a candidate opening with RIFF, so raw mp3 never pays for it.
-# The field is the local at ESP+0x885C, `this` the argument at ESP+0x89B0.
 [[hooks]]
 address = 0x08457CBC
-function = "K2Mp3RiffOffsetLinux"
+function = "K2Mp3RiffOffset"
 type = "detour"
 original_bytes = [0x8B, 0xAC, 0x24, 0x5C, 0x88, 0x00, 0x00]
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "esp+0"
+source = "esp+0x885C" # The RIFF size field, a local.
 type = "pointer"
+
+[[hooks.parameters]]
+source = "[esp+0x89B0]" # `this`, the method's argument.
+type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0x13C" # Where `this` keeps its FILE in this build.
+type = "uint"
