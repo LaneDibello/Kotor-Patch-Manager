@@ -26,3 +26,53 @@ type = "pointer"
 [[hooks.parameters]]
 source = "esi"
 type = "pointer"
+
+# EnumDisplaySettingsA. Seven bytes covers the whole prologue, so the hook sees the arguments where
+# the caller left them, at esp+4 onward.
+[[hooks]]
+address = 0x080EE1E2
+function = "StretchVariantOfMode"
+original_bytes = [0x55, 0x53, 0x57, 0x56, 0x83, 0xEC, 0x7C]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# The store that clears dmDisplayFixedOutput at the end of EnumDisplaySettingsA, with ESI holding the
+# DEVMODE being filled. skip_original_bytes drops that store so the hook can supply the value instead.
+[[hooks]]
+address = 0x080EE406
+function = "ReportStretchVariant"
+original_bytes = [0xC7, 0x46, 0x38, 0x00, 0x00, 0x00, 0x00]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
+
+# CSWGuiOptionsResolution's constructor, immediately after the CExoString::Format at 0x082DFAC8 that
+# composes a resolution list entry and before the text reaches the control. esp+0 is the argument
+# list that call left on the stack, holding the composed string and the mode's numbers.
+[[hooks]]
+address = 0x082DFACD
+function = "MarkScaledResolutions"
+original_bytes = [0x8D, 0x87, 0x78, 0x01, 0x00, 0x00]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# ESI carries the mode index through the loop. It is stored into the entry at 0x082DFAE3 and is not
+# written anywhere in this branch, so it still names the mode here. Its low bit says whether this is
+# the stretched reading of that mode.
+[[hooks.parameters]]
+source = "esi"
+type = "int"

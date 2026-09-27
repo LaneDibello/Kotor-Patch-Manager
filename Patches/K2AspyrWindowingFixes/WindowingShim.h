@@ -13,6 +13,11 @@
 
 namespace Windowing {
 
+    // CExoString::Format. Reuses the string's buffer when the new text fits and reallocates when it does
+    // not, so it may be called on a string that already holds text.
+    typedef void (*StringFormatFn)(void*, const char*, ...);
+    const StringFormatFn CExoStringFormat = reinterpret_cast<StringFormatFn>(0x0819110A);
+
     // Reads an integer out of the ini's Graphics Options section, or -1 when the key is absent.
     int ReadGraphicsOption(const char* name);
 
