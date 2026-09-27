@@ -8,15 +8,18 @@
 // container calls SendPlayerToServerInput_UnlockObject with OBJECT_INVALID in the item slot,
 // so the spikes sit in the inventory with no way to use them.
 //
-// This patch supplies the missing menu entries. Both hooks sit at the tail of the Security
-// block in CSWCPlaceable::GetTargetActions and CSWCDoor::GetTargetActions, so they run only
-// once the game has decided the object is locked and the character can use Security. One
-// action is appended per spike the character carries, tagged with that spike's object id,
-// and choosing it sends the unlock message with the id in place of OBJECT_INVALID.
+// This patch supplies the missing menu entries. Both menu hooks sit at the tail of the
+// Security block in CSWCPlaceable::GetTargetActions and CSWCDoor::GetTargetActions, so they
+// run only once the game has decided the object is locked and the character can use
+// Security. One action is appended per spike the character carries, tagged with that
+// spike's object id, and choosing it sends the unlock message with the id in place of
+// OBJECT_INVALID.
 //
-// Doors only. HandlePlayerToServerInputMessage forwards the item id for a door but replaces
-// it with OBJECT_INVALID for a placeable at 0x00525C9C, so a spike used on a container is
-// resolved as a plain Security check and is not spent.
+// HandlePlayerToServerInputMessage forwards that id for a door. For a placeable it
+// substitutes OBJECT_INVALID, which resolves the unlock as a plain Security check and
+// leaves the spike unspent. hooks.toml rewrites that instruction, at 0x00525C9C, to push
+// the id the message carried. AIActionUnlockObject then looks the item up, adds its bonus
+// and spends it without caring which type it opened.
 
 #if defined(_WIN64) || (defined(_M_IX86) == 0 && defined(__i386__) == 0)
 #error K1SecuritySpikes must be compiled as a 32-bit x86 module.
@@ -352,12 +355,12 @@ void UseSecuritySpike(void* target_object, u32 action_id, void* creature) {
 
 } // namespace
 
-// Both hook sites land here. The creature is the party member whose action menu is open. A
-// stack parameter arrives as the slot's address, hence the indirection on it. Returning
-// non-zero takes the hook's consumed exit.
-extern "C" int __cdecl K1AppendSecuritySpikes(void* actions, void* const* creature_slot) {
-    if (actions && creature_slot) {
-        AppendSecuritySpikes((CSWGuiInterfaceActionList*)actions, *creature_slot);
+// Both menu hook sites land here. The creature is the party member whose action menu is
+// open, read out of the caller's stack slot by the hooks file. Returning non-zero takes the
+// hook's consumed exit.
+extern "C" int __cdecl K1AppendSecuritySpikes(void* actions, void* creature) {
+    if (actions) {
+        AppendSecuritySpikes((CSWGuiInterfaceActionList*)actions, creature);
     }
     return 1;
 }

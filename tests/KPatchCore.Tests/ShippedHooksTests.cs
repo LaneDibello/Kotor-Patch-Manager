@@ -21,7 +21,7 @@ public class ShippedHooksTests
         var data = new TheoryData<string>();
         foreach (var path in HooksFilePaths())
         {
-            data.Add(Path.GetRelativePath(PatchesDirectory(), path));
+            data.Add(Path.GetRelativePath(RepositoryFiles.Patches, path));
         }
 
         return data;
@@ -51,7 +51,7 @@ public class ShippedHooksTests
 
             foreach (var architecture in architectures)
             {
-                data.Add(Path.GetRelativePath(PatchesDirectory(), path), architecture);
+                data.Add(Path.GetRelativePath(RepositoryFiles.Patches, path), architecture);
             }
         }
 
@@ -62,7 +62,7 @@ public class ShippedHooksTests
     [MemberData(nameof(HooksFiles))]
     public void EveryShippedHooksFileParses(string relativePath)
     {
-        var result = HooksParser.ParseFile(Path.Combine(PatchesDirectory(), relativePath));
+        var result = HooksParser.ParseFile(Path.Combine(RepositoryFiles.Patches, relativePath));
 
         Assert.True(result.Success, result.Error);
     }
@@ -72,7 +72,7 @@ public class ShippedHooksTests
     public void EveryShippedParameterIsReadableOnTheBuildsItTargets(
         string relativePath, Architecture architecture)
     {
-        var result = HooksParser.ParseFile(Path.Combine(PatchesDirectory(), relativePath));
+        var result = HooksParser.ParseFile(Path.Combine(RepositoryFiles.Patches, relativePath));
         Assert.True(result.Success, result.Error);
 
         foreach (var hook in result.Data!)
@@ -96,28 +96,7 @@ public class ShippedHooksTests
     }
 
     private static IEnumerable<string> HooksFilePaths() =>
-        Directory.GetFiles(PatchesDirectory(), "*hooks.toml", SearchOption.AllDirectories)
+        Directory.GetFiles(RepositoryFiles.Patches, "*hooks.toml", SearchOption.AllDirectories)
             .OrderBy(path => path, StringComparer.Ordinal);
 
-    private static string PatchesDirectory() => Path.Combine(RepositoryRoot(), "Patches");
-
-    // The test assembly runs out of bin/<config>/<tfm>, and the solution file is the closest
-    // thing to a marker the repository root has.
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "KotorPatchManager.sln")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException(
-            $"No KotorPatchManager.sln above {AppContext.BaseDirectory}");
-    }
 }

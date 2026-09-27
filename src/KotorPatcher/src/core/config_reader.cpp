@@ -409,6 +409,11 @@ namespace KotorPatcher {
                             else if (StrICmp(type.c_str(), "float") == 0) param.type = ParameterType::FLOAT;
                             else if (StrICmp(type.c_str(), "byte") == 0) param.type = ParameterType::BYTE;
                             else if (StrICmp(type.c_str(), "short") == 0) param.type = ParameterType::SHORT;
+                            else if (StrICmp(type.c_str(), "sbyte") == 0) param.type = ParameterType::SBYTE;
+                            else if (StrICmp(type.c_str(), "sshort") == 0) param.type = ParameterType::SSHORT;
+                            else if (StrICmp(type.c_str(), "int64") == 0) param.type = ParameterType::INT64;
+                            else if (StrICmp(type.c_str(), "uint64") == 0) param.type = ParameterType::UINT64;
+                            else if (StrICmp(type.c_str(), "double") == 0) param.type = ParameterType::DOUBLE;
                             else {
                                 Platform::Log(("[Config] Unknown parameter type: " + type + "\n").c_str());
                                 parametersParsed = false;

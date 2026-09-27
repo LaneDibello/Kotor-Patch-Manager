@@ -5,12 +5,13 @@ target_versions = [
     "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
 ]
 
-# Both sites sit just past the stock Security action icon, and both hold a relative jump.
-# The wrapper copies displaced bytes verbatim, so a relative jump cannot be re-executed from
-# it: the bytes are skipped and consumed_exit_address resumes where the jump went. EAX
-# carries the handler's return value for that test; the game does not read it across.
+# Both menu sites sit just past the stock Security action icon, and both hold a relative
+# jump. The wrapper copies displaced bytes verbatim, so a relative jump cannot be
+# re-executed from it: the bytes are skipped and consumed_exit_address resumes where the
+# jump went. EAX carries the handler's return value for that test; the game does not read
+# it across.
 
-# CSWGuiInterfaceDoor, after the Security icon is written.
+# CSWCPlaceable::GetTargetActions, after the Security icon is written.
 [[hooks]]
 address = 0x00683919
 type = "detour"
@@ -25,10 +26,10 @@ source = "esi"
 type = "pointer"
 
 [[hooks.parameters]]
-source = "esp+116"
+source = "[esp+116]"
 type = "pointer"
 
-# CSWGuiInterfacePlaceable, the same point in the placeable list.
+# CSWCDoor::GetTargetActions, the same point in the door list.
 [[hooks]]
 address = 0x00684559
 type = "detour"
@@ -43,5 +44,25 @@ source = "esi"
 type = "pointer"
 
 [[hooks.parameters]]
-source = "esp+92"
+source = "[esp+92]"
 type = "pointer"
+
+# CSWSMessage::HandlePlayerToServerInputMessage, the placeable arm of the unlock-object
+# message. EBP holds the item id the message carried. The door arm at 0x00525C71 pushes it;
+# this arm substitutes OBJECT_INVALID, which resolves the unlock as a plain Security check
+# and leaves the spike unspent. Pushing EBP hands the item to the unlock action, which adds
+# its bonus and spends it the same way it already does for a door.
+#
+# The stock Security entry sends OBJECT_INVALID, so EBP holds 0x7F000000 on that path and
+# the patched instruction pushes what the original did.
+#
+# Original:
+#   00525C9C  68 00 00 00 7F   push 0x7F000000
+# Patched:
+#   00525C9C  55               push ebp
+#   00525C9D  90 90 90 90      nop
+[[hooks]]
+address = 0x00525C9C
+type = "simple"
+original_bytes = [0x68, 0x00, 0x00, 0x00, 0x7F]
+replacement_bytes = [0x55, 0x90, 0x90, 0x90, 0x90]

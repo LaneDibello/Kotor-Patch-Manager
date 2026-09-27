@@ -4,9 +4,5 @@ target_versions = [
     "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
 ]
 
-[[hooks]]
-address = 0x006fb4ce
-function = "addConsoleCommand"
-original_bytes = [0x89, 0x45, 0xe0, 0x3b, 0xc6]
-type = "detour"
-exclude_from_restore = []
+# No hooks: this is a DLL-only patch. The `snake` command is registered by
+# Additional Console Commands from commands/snake.toml.

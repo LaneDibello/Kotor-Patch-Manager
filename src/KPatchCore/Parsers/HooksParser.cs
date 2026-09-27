@@ -325,12 +325,15 @@ public static class HooksParser
             {
                 return PatchResult<List<Parameter>>.Fail(
                     $"Hook [{hookIndex}] parameter [{i}] has invalid type: '{typeStr}'. " +
-                    $"Valid types: int, uint, pointer, float, byte, short");
+                    $"Valid types: int, uint, pointer, float, byte, short, sbyte, sshort, " +
+                    $"int64, uint64, double");
             }
 
+            // Validation reads the source trimmed, so the source written into the patcher's
+            // config is trimmed too. The patcher does not trim, and would refuse what passed.
             var parameter = new Parameter
             {
-                Source = source,
+                Source = source.Trim(),
                 Type = paramType.Value
             };
 
@@ -357,6 +360,11 @@ public static class HooksParser
             "float" => ParameterType.Float,
             "byte" => ParameterType.Byte,
             "short" => ParameterType.Short,
+            "sbyte" => ParameterType.SByte,
+            "sshort" => ParameterType.SShort,
+            "int64" => ParameterType.Int64,
+            "uint64" => ParameterType.UInt64,
+            "double" => ParameterType.Double,
             _ => null
         };
     }

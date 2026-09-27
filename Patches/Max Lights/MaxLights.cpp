@@ -48,14 +48,6 @@ static_assert(kRelocatedLightBase - kMaxLights * kRegistersPerLight + 1 >= 96,
 
 constexpr std::size_t kLightCountOffset = 0x2010;
 
-#if defined(_WIN32)
-// The cursor is a stack slot at [ebp-4]; the constructor's frame keeps this at [ebp-4] too, and
-// the body text at [ebp+8].
-constexpr std::size_t kCursorOffset = 4;
-constexpr std::size_t kConstructorSelfOffset = 4;
-constexpr std::size_t kConstructorSourceOffset = 8;
-#endif
-
 // How many lights fit before the assembled text overruns the buffer. The largest skinned body
 // leaves room for five, which is why the count is not simply the cap.
 int LightsThatFit(const char* source)
@@ -82,9 +74,8 @@ void ApplyLightCount(unsigned char* self, const char* source)
 
 #if defined(_WIN32)
 
-extern "C" void __cdecl RelocateLightBlock(unsigned char* framePointer)
+extern "C" void __cdecl RelocateLightBlock(int* cursor)
 {
-    int* const cursor = reinterpret_cast<int*>(framePointer - kCursorOffset);
     // Both sites sit just past the preamble, where the cursor has reached the stock base. Any
     // other value means this is not the layout these addresses were measured against.
     if (*cursor == kStockLightBase) {
@@ -92,18 +83,11 @@ extern "C" void __cdecl RelocateLightBlock(unsigned char* framePointer)
     }
 }
 
-extern "C" void __cdecl SetProgramLightCount(unsigned char* framePointer)
-{
-    ApplyLightCount(*reinterpret_cast<unsigned char**>(framePointer - kConstructorSelfOffset),
-                    *reinterpret_cast<const char* const*>(framePointer + kConstructorSourceOffset));
-}
+#endif
 
-#else
-
-// The constructor takes both in registers here, EDX and ECX, so the hook receives them directly.
+// The constructor keeps both on its frame on Windows and in EDX and ECX on Linux. Each build's
+// hooks file says which, so the one definition serves both.
 extern "C" void __cdecl SetProgramLightCount(unsigned char* self, const char* source)
 {
     ApplyLightCount(self, source);
 }
-
-#endif

@@ -30,3 +30,19 @@ This is what I call a "detour" patch. We basically take a break in the middle of
 
 ## How might I go about added a console command?
 Well the hard part is over-with. So to add additional commands you just need to write up a new C++ function to be compiled with this patch, and add a `ConsoleFunc` construction for it in `InitializeAdditionalCommands`.
+
+## Registering commands from another patch
+Other patches can add commands without hooking anything themselves. Once the built-in commands are registered, this patch reads every `.toml` file in a folder titled `commands` in the base game directory. It registers each `[[commands]]` entry:
+```toml
+[[commands]]
+name = "snake"        # text typed in the console, under 80 characters
+patch = "snake"       # manifest id of the patch that owns the function
+function = "snake"    # the exported function to call
+type = "none"         # "none", "int", or "string"
+```
+The function must be an undecorated `extern "C"` `__cdecl` export, listed in the owning patch's `exports.def`. Its signature must match `type`:
+- `none`: `void __cdecl f()`
+- `int`: `void __cdecl f(int)`
+- `string`: `void __cdecl f(char*)`
+
+The owning patch can be DLL-only (a hooks file with `[metadata]` and no `[[hooks]]`), and should list `additional-console-commands` in `requires`. An entry whose name matches a built-in or an already registered command is skipped. See the `Snake` patch for an example.

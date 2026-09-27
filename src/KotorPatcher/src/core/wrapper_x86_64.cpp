@@ -1,4 +1,5 @@
 #include "wrapper_x86_64.h"
+#include "wrappers/emitter.h"
 #include "patcher.h"
 #include "platform.h"
 #include "trampoline.h"
@@ -91,36 +92,6 @@ namespace KotorPatcher {
                 return false;
             }
 
-            // Emits into a fixed buffer and refuses to run past the end, so a bad size
-            // estimate shows up as a failed hook rather than a corrupted heap.
-            class Emitter {
-            public:
-                Emitter(uint8_t* buffer, std::size_t capacity)
-                    : m_begin(buffer), m_cursor(buffer), m_end(buffer + capacity) {}
-
-                void Byte(uint8_t value) {
-                    if (m_cursor >= m_end) { m_overflowed = true; return; }
-                    *m_cursor++ = value;
-                }
-
-                void Bytes(const uint8_t* bytes, std::size_t count) {
-                    for (std::size_t i = 0; i < count; ++i) Byte(bytes[i]);
-                }
-
-                void Dword(uint32_t value) {
-                    for (int i = 0; i < 4; ++i) Byte(static_cast<uint8_t>(value >> (i * 8)));
-                }
-
-                bool Overflowed() const { return m_overflowed; }
-                uint8_t* Cursor() const { return m_cursor; }
-                std::size_t Written() const { return static_cast<std::size_t>(m_cursor - m_begin); }
-
-            private:
-                uint8_t* m_begin;
-                uint8_t* m_cursor;
-                uint8_t* m_end;
-                bool m_overflowed = false;
-            };
 
             // REX prefix, omitted when it would carry no information. W selects a 64-bit
             // operand; R and B extend the ModRM reg and rm fields to reach R8..R15.
@@ -142,17 +113,114 @@ namespace KotorPatcher {
                 e.Byte(static_cast<uint8_t>(0x58 | (reg & 7)));
             }
 
-            // `op` reg64, [base + disp32]. Only valid for a base that needs no SIB byte,
-            // which the callers satisfy by always using RBX.
-            void MemOp(Emitter& e, uint8_t op, int reg, int base, int32_t disp) {
-                Rex(e, true, reg, base);
+            // `op` reg, [base + disp32], 64-bit when `wide` and 32-bit otherwise. Only valid
+            // for a base that needs no SIB byte, which rules out RSP and R12. The callers use
+            // RBX, RAX and the argument registers.
+            void MemOp(Emitter& e, uint8_t op, int reg, int base, int32_t disp, bool wide) {
+                Rex(e, wide, reg, base);
                 e.Byte(op);
                 e.Byte(static_cast<uint8_t>(0x80 | ((reg & 7) << 3) | (base & 7)));
                 e.Dword(static_cast<uint32_t>(disp));
             }
 
-            void MovFromMem(Emitter& e, int dst, int base, int32_t disp) { MemOp(e, 0x8B, dst, base, disp); }
-            void LeaFromMem(Emitter& e, int dst, int base, int32_t disp) { MemOp(e, 0x8D, dst, base, disp); }
+            // MOVZX and MOVSX, which differ only in the second opcode byte, and which the
+            // single-byte form above cannot express. The destination is always r32: writing
+            // the low half of a 64-bit register clears the upper half, so a narrow value
+            // reaches the callee extended to 32 bits and no further.
+            void ExtendFromMem(Emitter& e, uint8_t op2, int dst, int base, int32_t disp) {
+                Rex(e, false, dst, base);
+                e.Byte(0x0F);
+                e.Byte(op2);
+                e.Byte(static_cast<uint8_t>(0x80 | ((dst & 7) << 3) | (base & 7)));
+                e.Dword(static_cast<uint32_t>(disp));
+            }
+
+            void MovFromMem(Emitter& e, int dst, int base, int32_t disp)   { MemOp(e, 0x8B, dst, base, disp, true); }
+            void MovFromMem32(Emitter& e, int dst, int base, int32_t disp) { MemOp(e, 0x8B, dst, base, disp, false); }
+            void LeaFromMem(Emitter& e, int dst, int base, int32_t disp)   { MemOp(e, 0x8D, dst, base, disp, true); }
+
+            // MOV r64, imm64 or MOV r32, imm32, the register named in the opcode's low three
+            // bits rather than in a ModRM byte, which is why the register goes in Rex's rm
+            // field here and its reg field everywhere else. The width follows the declared
+            // type like every other source, so a pointer constant is always the long form.
+            void LoadImmediate(Emitter& e, int dst, uint64_t value, bool wide) {
+                Rex(e, wide, 0, dst);
+                e.Byte(static_cast<uint8_t>(0xB8 + (dst & 7)));
+                if (wide) {
+                    for (int i = 0; i < 8; ++i) {
+                        e.Byte(static_cast<uint8_t>(value >> (i * 8)));
+                    }
+                } else {
+                    e.Dword(static_cast<uint32_t>(value));
+                }
+            }
+
+            // A constant declared narrow widens the way a register declared narrow does, so
+            // the declared type means the same thing wherever the value came from.
+            uint64_t WidenConstant(uint64_t value, ParameterType type) {
+                switch (type) {
+                    case ParameterType::SBYTE:
+                        return static_cast<uint64_t>(static_cast<uint32_t>(
+                            static_cast<int32_t>(static_cast<int8_t>(value & 0xFFull))));
+                    case ParameterType::SSHORT:
+                        return static_cast<uint64_t>(static_cast<uint32_t>(
+                            static_cast<int32_t>(static_cast<int16_t>(value & 0xFFFFull))));
+                    default:
+                        return value;  // nothing else needs widening
+                }
+            }
+
+            // The types that occupy a whole register here: an address, or a 64-bit integer.
+            // Read by the immediate path and by the limit below, which have to agree; a
+            // constant the limit admits and the load truncates arrives silently wrong.
+            bool IsFullWidth(ParameterType type) {
+                return type == ParameterType::POINTER ||
+                       type == ParameterType::INT64 ||
+                       type == ParameterType::UINT64;
+            }
+
+            // The widest constant each type can carry, reaching further than the i386 table
+            // for the full-width ones.
+            uint64_t ConstantLimit(ParameterType type) {
+                switch (type) {
+                    case ParameterType::BYTE:
+                    case ParameterType::SBYTE:   return 0xFFull;
+                    case ParameterType::SHORT:
+                    case ParameterType::SSHORT:  return 0xFFFFull;
+                    // Kept in step with IsFullWidth above.
+                    case ParameterType::POINTER:
+                    case ParameterType::INT64:
+                    case ParameterType::UINT64:  return ~0ull;
+                    case ParameterType::INT:
+                    case ParameterType::UINT:    return 0xFFFFFFFFull;
+                    // Refused before this is asked. Zero rather than a width, so that
+                    // ceasing to be true would refuse rather than permit.
+                    case ParameterType::FLOAT:
+                    case ParameterType::DOUBLE:  return 0;
+                }
+                return 0;
+            }
+
+            // The saved copy is a whole 64-bit register. The declared type says how much of it
+            // the patch function takes, and each narrower load zeroes the rest.
+            void LoadIntArgument(Emitter& e, int dst, int base, int32_t disp, ParameterType type) {
+                switch (type) {
+                    case ParameterType::BYTE:    ExtendFromMem(e, 0xB6, dst, base, disp); break;  // MOVZX r32, r/m8
+                    case ParameterType::SHORT:   ExtendFromMem(e, 0xB7, dst, base, disp); break;  // MOVZX r32, r/m16
+                    case ParameterType::SBYTE:   ExtendFromMem(e, 0xBE, dst, base, disp); break;  // MOVSX r32, r/m8
+                    case ParameterType::SSHORT:  ExtendFromMem(e, 0xBF, dst, base, disp); break;  // MOVSX r32, r/m16
+                    // The full register: an address, or a 64-bit integer.
+                    case ParameterType::POINTER:
+                    case ParameterType::INT64:
+                    case ParameterType::UINT64:  MovFromMem(e, dst, base, disp);         break;
+                    // INT and UINT are both 32 bits; the difference lives in the callee's
+                    // declaration. The float types never arrive here, having gone to SSE.
+                    case ParameterType::INT:
+                    case ParameterType::UINT:
+                    case ParameterType::FLOAT:
+                    case ParameterType::DOUBLE:  MovFromMem32(e, dst, base, disp);       break;
+                }
+            }
 
             // LEA RSP, [RSP + disp32]. Deliberately LEA and not ADD/SUB: it leaves the
             // flags alone, which matters everywhere this is used outside the saved region.
@@ -182,11 +250,11 @@ namespace KotorPatcher {
             void SaveFpState(Emitter& e)    { FpSaveArea(e, 0x00); }  // FXSAVE64  /0
             void RestoreFpState(Emitter& e) { FpSaveArea(e, 0x08); }  // FXRSTOR64 /1
 
-            // MOVD xmm, r32: moves the raw bits, which is what a float argument in the
-            // low half of an SSE register is.
-            void MovdToXmm(Emitter& e, int xmm, int gpr) {
+            // MOVD xmm, r32 or MOVQ xmm, r64, which differ only by REX.W. Either moves the
+            // raw bits, which is what a float or double argument in an SSE register is.
+            void MovToXmm(Emitter& e, int xmm, int gpr, bool wide) {
                 e.Byte(0x66);
-                Rex(e, false, xmm, gpr);
+                Rex(e, wide, xmm, gpr);
                 e.Byte(0x0F); e.Byte(0x6E);
                 e.Byte(static_cast<uint8_t>(0xC0 | ((xmm & 7) << 3) | (gpr & 7)));
             }
@@ -228,10 +296,37 @@ namespace KotorPatcher {
                 std::transform(source.begin(), source.end(), source.begin(),
                                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-                const bool wantsSse = param.type == ParameterType::FLOAT;
+                const bool wantsSse = param.type == ParameterType::FLOAT ||
+                                      param.type == ParameterType::DOUBLE;
+                const bool wideSse = param.type == ParameterType::DOUBLE;
                 if (wantsSse ? sseArgIndex >= kMaxSseArgs : intArgIndex >= kMaxIntArgs) {
                     Platform::Log("[Wrapper] Too many arguments for the register convention\n");
                     return false;
+                }
+
+                uint64_t constant = 0;
+                switch (ParseConstantSource(source, constant)) {
+                    case ConstantSource::Malformed:
+                        Platform::Log(("[Wrapper] Constant parameter is not a number: " +
+                                       source + "\n").c_str());
+                        return false;
+                    case ConstantSource::Parsed: {
+                        if (wantsSse) {
+                            Platform::Log("[Wrapper] A constant parameter cannot be a float\n");
+                            return false;
+                        }
+                        if (constant > ConstantLimit(param.type)) {
+                            Platform::Log(("[Wrapper] Constant " + source +
+                                           " does not fit its declared type\n").c_str());
+                            return false;
+                        }
+                        LoadImmediate(e, kIntArgRegs[intArgIndex++],
+                                      WidenConstant(constant, param.type),
+                                      IsFullWidth(param.type));
+                        return true;
+                    }
+                    case ConstantSource::None:
+                        break;
                 }
 
                 Reg sourceReg = RAX;
@@ -245,34 +340,96 @@ namespace KotorPatcher {
                         return false;
                     }
                     if (wantsSse) {
-                        MovFromMem(e, RAX, RBX, SavedGprOffset(index));
-                        MovdToXmm(e, sseArgIndex++, RAX);
+                        // Read at the argument's own width, then move those bits across.
+                        MemOp(e, 0x8B, RAX, RBX, SavedGprOffset(index), wideSse);
+                        MovToXmm(e, sseArgIndex++, RAX, wideSse);
                     } else {
-                        MovFromMem(e, kIntArgRegs[intArgIndex++], RBX, SavedGprOffset(index));
+                        LoadIntArgument(e, kIntArgRegs[intArgIndex++], RBX,
+                                        SavedGprOffset(index), param.type);
                     }
                     return true;
                 }
 
-                // "rsp+8", and "esp+8" from a hook adapted off the Windows one. Like the
-                // x86 generator, this passes the address of that slot rather than what
-                // is in it.
-                const bool stackSource = source.size() > 4 &&
-                    (source.compare(0, 3, "rsp") == 0 || source.compare(0, 3, "esp") == 0) &&
-                    (source[3] == '+' || source[3] == '-');
-                if (stackSource) {
+                std::string name;
+                int offset = 0;
+                const Dereference dereference = ParseDereference(source, name, offset);
+                if (dereference == Dereference::Malformed) {
+                    Platform::Log(("[Wrapper] Cannot read a register out of " + source +
+                                   "\n").c_str());
+                    return false;
+                }
+
+                // A bracketed source is a dereference: "[rsi+0x10]" is the field at that
+                // offset, where "rsi" alone is the object's address. A value arrives, so
+                // unlike the address forms below, a narrow type is meaningful.
+                if (dereference == Dereference::Parsed) {
+                    // The game's stack sits at a known displacement from RBX, so it needs no
+                    // address load of its own.
+                    int base = RBX;
+                    int32_t disp = 0;
+                    if (name == "rsp" || name == "esp") {
+                        disp = kFrameSize + offset;
+                    } else {
+                        Reg pointerReg = RAX;
+                        const int index = LookUpRegister(name, pointerReg)
+                            ? SavedGprIndex(pointerReg) : -1;
+                        if (index < 0) {
+                            Platform::Log(("[Wrapper] Unsupported register in " + source +
+                                           "\n").c_str());
+                            return false;
+                        }
+                        // The address goes straight into the destination and is then read
+                        // through, so nothing else has to be borrowed. For an SSE argument
+                        // that destination is RAX, which the move to XMM uses anyway.
+                        base = wantsSse ? RAX : kIntArgRegs[intArgIndex];
+                        MovFromMem(e, base, RBX, SavedGprOffset(index));
+                        disp = offset;
+                    }
+
                     if (wantsSse) {
-                        Platform::Log("[Wrapper] A stack source yields an address, not a float\n");
-                        return false;
+                        MemOp(e, 0x8B, RAX, base, disp, wideSse);
+                        MovToXmm(e, sseArgIndex++, RAX, wideSse);
+                    } else {
+                        LoadIntArgument(e, kIntArgRegs[intArgIndex++], base, disp, param.type);
                     }
-                    int userOffset = 0;
-                    try {
-                        userOffset = std::stoi(source.substr(3));
-                    } catch (...) {
-                        Platform::Log(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
-                        return false;
-                    }
-                    LeaFromMem(e, kIntArgRegs[intArgIndex++], RBX, kFrameSize + userOffset);
                     return true;
+                }
+
+                // An address: "rsp-8" is a slot on the game's stack, "rsi+0x10" a field of the
+                // object in RSI. Unlike a dereference, the address itself is what arrives.
+                const RegisterAddress address = ParseRegisterAddress(source, name, offset);
+                if (address == RegisterAddress::Malformed) {
+                    Platform::Log(("[Wrapper] Invalid offset in " + source + "\n").c_str());
+                    return false;
+                }
+                if (address == RegisterAddress::Parsed) {
+                    // An address is pointer-width whatever it points at, so a narrow type or
+                    // a float describes something this is not passing.
+                    if (wantsSse || param.type == ParameterType::BYTE ||
+                        param.type == ParameterType::SHORT ||
+                        param.type == ParameterType::SBYTE ||
+                        param.type == ParameterType::SSHORT) {
+                        Platform::Log(("[Wrapper] " + source + " yields an address, so it cannot" +
+                                       " be read as a narrow type or a float\n").c_str());
+                        return false;
+                    }
+
+                    // "esp+8" from a hook adapted off the Windows one means the same slot.
+                    if (name == "rsp" || name == "esp") {
+                        LeaFromMem(e, kIntArgRegs[intArgIndex++], RBX, kFrameSize + offset);
+                        return true;
+                    }
+
+                    // The whole 64-bit register, whichever spelling named it, since an address
+                    // is built from all of it.
+                    Reg baseReg = RAX;
+                    const int index = LookUpRegister(name, baseReg) ? SavedGprIndex(baseReg) : -1;
+                    if (index >= 0) {
+                        const int dst = kIntArgRegs[intArgIndex++];
+                        MovFromMem(e, dst, RBX, SavedGprOffset(index));
+                        LeaFromMem(e, dst, dst, offset);
+                        return true;
+                    }
                 }
 
                 Platform::Log(("[Wrapper] Unsupported parameter source: " + source + "\n").c_str());
@@ -304,7 +461,9 @@ namespace KotorPatcher {
                 + kSavedGprCount * 2                  // push the GPRs
                 + 1 + 3                               // PUSHFQ, MOV RBX, RSP
                 + 21                                  // address the FP area and FXSAVE64
-                + config.parameters.size() * 12       // worst case for one argument
+                + config.parameters.size() * 19       // worst case for one argument, a double
+                                                      // read through a register: two 7-byte
+                                                      // loads, then a 5-byte MOVQ to XMM
                 + 2 + 4 + 5                           // MOV AL, AND RSP, CALL
                 + 3 + 8                               // MOV RSP, RBX and the flags slot
                 + 21                                  // address the FP area and FXRSTOR64

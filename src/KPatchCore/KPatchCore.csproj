@@ -9,6 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- TryParseConstant is held to tests/constant-sources.tsv, the corpus the patcher's
+         own parser is held to. Testing it through IsValidFor instead would conflate the
+         grammar with the per-type width check. -->
+    <InternalsVisibleTo Include="KPatchCore.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="LibObjectFile" Version="2.3.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
     <PackageReference Include="System.IO.Compression" Version="4.3.0" />

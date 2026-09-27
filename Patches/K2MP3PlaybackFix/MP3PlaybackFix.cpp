@@ -12,8 +12,8 @@
 // a wrapper that converts them first. ResolvePath calls that converter rather than
 // reproducing it.
 //
-// The candidates are frame locals, so each build has its own entry point for its own
-// offsets over shared work.
+// The candidates are frame locals at offsets that differ between builds. Each build's
+// hooks file says where they are, so one entry point serves every build.
 
 #include <cstddef>
 #include <cstdint>
@@ -37,6 +37,9 @@ std::uint32_t ReadLe32(const unsigned char* bytes)
            (static_cast<std::uint32_t>(bytes[3]) << 24);
 }
 
+// CExoString is its character pointer and a length, padded out to two pointers.
+constexpr std::size_t kExoStringSize = 2 * sizeof(void*);
+
 // CExoString keeps its character pointer first. memcpy because the slot is untyped.
 char* TextOf(const unsigned char* exoString)
 {
@@ -59,7 +62,7 @@ constexpr std::size_t kEnginePathLimit = 1024;
 // CoreFoundation; Linux folds the case. Calling it rather than reproducing it is what
 // keeps the probe asking the question the open will ask.
 //
-// Pinned to the build the hooks target, exactly like the frame offsets below.
+// Pinned to the build the hooks target, like the addresses in its hooks file.
 #if defined(__APPLE__)
 constexpr std::uintptr_t kDos2MacPath = 0x100480ABD;
 #else
@@ -197,12 +200,12 @@ void PreferLooseMp3(char* path)
 // Unused alternate slots stay default-constructed, and CExoString's default constructor
 // zeroes the pointer, so an empty slot ends the walk.
 void PreferLooseMp3Candidates(unsigned char* primary, unsigned char* alternates,
-                              std::size_t stride, std::size_t count)
+                              std::size_t count)
 {
     PreferLooseMp3(TextOf(primary));
 
     for (std::size_t index = 0; index < count; ++index) {
-        char* text = TextOf(alternates + index * stride);
+        char* text = TextOf(alternates + index * kExoStringSize);
         if (text == nullptr || *text == '\0') {
             break;
         }
@@ -237,7 +240,7 @@ void CorrectRiffOffset(std::uint32_t* sizeField, std::FILE* file)
 
 // Windows reopens the file instead of borrowing the engine's stream: a FILE belongs to
 // the runtime that made it, and these builds link theirs statically. They are also the
-// only ones that record which candidate opened, at EBP-0x14.
+// only ones that record which candidate opened.
 void CorrectRiffOffsetByPath(std::uint32_t* sizeField, const char* path)
 {
     if (sizeField == nullptr || path == nullptr || *path == '\0') {
@@ -271,66 +274,31 @@ std::FILE* StreamFile(const unsigned char* self, std::size_t fileOffset)
 
 }  // namespace
 
+// The primary candidate, the alternates laid out after it, and how many alternates the
+// build keeps.
+extern "C" void __cdecl K2LooseMp3(unsigned char* primary, unsigned char* alternates,
+                                   std::uint32_t alternateCount)
+{
+    PreferLooseMp3Candidates(primary, alternates, alternateCount);
+}
+
 #if defined(_WIN32)
 
-// GOG Aspyr, hook at 0x0063BD6B. 16 alternates at EBP-0xAC.
-extern "C" void __cdecl K2LooseMp3GogAspyr(unsigned char* framePointer)
+// The RIFF size field, and the CExoString recording which candidate opened.
+extern "C" void __cdecl K2Mp3RiffOffsetByPath(std::uint32_t* sizeField,
+                                              const unsigned char* path)
 {
-    PreferLooseMp3Candidates(framePointer - 0xBC, framePointer - 0xAC, 8, 16);
-}
-
-// Steam Aspyr, hook at 0x0070CDCB. 32 alternates at EBP-0x12C.
-extern "C" void __cdecl K2LooseMp3SteamAspyr(unsigned char* framePointer)
-{
-    PreferLooseMp3Candidates(framePointer - 0x13C, framePointer - 0x12C, 8, 32);
-}
-
-// Hook at 0x0063BED4, the load of the RIFF size field.
-extern "C" void __cdecl K2Mp3RiffOffsetGogAspyr(unsigned char* framePointer)
-{
-    CorrectRiffOffsetByPath(reinterpret_cast<std::uint32_t*>(framePointer - 0xD8),
-                            TextOf(framePointer - 0x14));
-}
-
-// Hook at 0x0070CF34, the same load.
-extern "C" void __cdecl K2Mp3RiffOffsetSteamAspyr(unsigned char* framePointer)
-{
-    CorrectRiffOffsetByPath(reinterpret_cast<std::uint32_t*>(framePointer - 0x158),
-                            TextOf(framePointer - 0x14));
-}
-
-#elif defined(__APPLE__)
-
-// Steam Aspyr macOS x86_64, hook at 0x1002E4517. CExoString is 16 bytes wide here.
-extern "C" void __cdecl K2LooseMp3SteamAspyrMacOs(unsigned char* framePointer)
-{
-    PreferLooseMp3Candidates(framePointer - 0x8A48, framePointer - 0x230, 16, 32);
-}
-
-// Hook at 0x1002E49A1. `this` is still in R15 there, so it comes in directly.
-extern "C" void __cdecl K2Mp3RiffOffsetMacOs(unsigned char* framePointer,
-                                             unsigned char* self)
-{
-    CorrectRiffOffset(reinterpret_cast<std::uint32_t*>(framePointer - 0x8AA4),
-                      StreamFile(self, 0x258));
+    CorrectRiffOffsetByPath(sizeField, TextOf(path));
 }
 
 #else
 
-// Steam Aspyr native Linux, hook at 0x084577E8. Clang kept `this` in EBP and addressed
-// the frame off ESP, so this counts upward from the stack pointer.
-extern "C" void __cdecl K2LooseMp3SteamAspyrLinux(unsigned char* stackPointer)
+// The RIFF size field, the sound source, and where the source keeps its FILE, which
+// moves with the build's struct layout.
+extern "C" void __cdecl K2Mp3RiffOffset(std::uint32_t* sizeField, const unsigned char* self,
+                                        std::uint32_t fileOffset)
 {
-    PreferLooseMp3Candidates(stackPointer + 0x8990, stackPointer + 0x8880, 8, 32);
-}
-
-// Hook at 0x08457CBC. The field is at ESP+0x885C, `this` the argument at ESP+0x89B0.
-extern "C" void __cdecl K2Mp3RiffOffsetLinux(unsigned char* stackPointer)
-{
-    unsigned char* self = nullptr;
-    std::memcpy(&self, stackPointer + 0x89B0, sizeof(self));
-    CorrectRiffOffset(reinterpret_cast<std::uint32_t*>(stackPointer + 0x885C),
-                      StreamFile(self, 0x13C));
+    CorrectRiffOffset(sizeField, StreamFile(self, fileOffset));
 }
 
 #endif
