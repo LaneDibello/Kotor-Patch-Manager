@@ -130,8 +130,8 @@ Configuration for patch_config.toml generation:
 
 Defines parameter extraction for DETOUR hooks:
 
-- **Source**: Register name ("eax", "ebx") or stack offset ("esp+0", "esp+4")
-- **Type**: INT, UINT, POINTER, FLOAT, BYTE, SHORT
+- **Source**: A register ("eax"), a register with an offset as an address ("esp+4", "ebp-0x10"), a dereference ("[esi+0x10]") or a constant ("const:0xBC"). The table in `src/KotorPatcher/README.md` says which each target reads
+- **Type**: One of the types listed under *What `type` decides* in the same README
 
 ## Core Functions
 
