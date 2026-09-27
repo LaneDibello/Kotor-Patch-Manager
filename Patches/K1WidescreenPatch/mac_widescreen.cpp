@@ -18,12 +18,18 @@
   PURE C++ WIDESCREEN RESOLUTION, HUD & MENU CENTERING PATCH
  ==============================================================================================
   RESOLUTION CONFIGURATION:
-  The resolution is AUTOMATICALLY detected from swkotor.ini (under [Graphics Options]).
-  To change your resolution, simply set:
-       Width=1440   (or 1512, 1728, 1920, 2560, etc.)
-       Height=900   (or 982, 1117, 1080, 1440, etc.)
-  in ~/Library/Application Support/Knights of the Old Republic/swkotor.ini.
-  No manual hex-editing or code recompilation is required!
+  1. Hardware Auto-Detection (Default):
+     Target resolution is AUTOMATICALLY queried from the active macOS display using CoreGraphics
+     (e.g. 1512x982 on 14" MacBook Pro, 1728x1117 on 16" MacBook Pro, 1920x1080 on 1080p, etc.).
+     No manual swkotor.ini entries are required — the patch works out of the box.
+  2. Manual Resolution Override (Optional):
+     To explicitly force a custom rendering resolution (e.g. for testing or virtual displays):
+        [Graphics Options]
+        ForceWidth=1920
+        ForceHeight=1200
+     in ~/Library/Application Support/Knights of the Old Republic/swkotor.ini.
+  3. Legacy Fallback:
+     Standard Width/Height in swkotor.ini is used only if CoreGraphics hardware detection fails.
  ==============================================================================================
 */
 int g_targetWidth  = 1512; // Target display width (defaults to 14" MacBook Pro Liquid Retina default)
@@ -126,12 +132,11 @@ static void InitTargetResolution() {
         fclose(f);
 
         if (forceW >= 640 && forceH >= 480) {
+            // Explicit user override via ForceWidth / ForceHeight
             g_targetWidth = forceW;
             g_targetHeight = forceH;
-        } else if (iniW > 800 && iniH > 600) {
-            g_targetWidth = iniW;
-            g_targetHeight = iniH;
         } else if ((g_targetWidth <= 0 || g_targetHeight <= 0) && iniW >= 640 && iniH >= 480) {
+            // Fallback to swkotor.ini Width / Height only if CoreGraphics auto-detection failed
             g_targetWidth = iniW;
             g_targetHeight = iniH;
         }
