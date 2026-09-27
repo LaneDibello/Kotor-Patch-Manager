@@ -205,10 +205,9 @@ public sealed class Parameter
         _ => null
     };
 
-    // Mirrors ParseConstantSource in wrapper_base.h, and has to keep mirroring it: a
-    // constant this accepts and the generator rejects is an install that passes every
-    // check and then fails to hook.
-    private static bool TryParseConstant(string text, out ulong value)
+    // The same grammar as ParseConstantSource in wrapper_base.h; constant-sources.tsv holds
+    // both to it, and explains why it exists twice. Internal so that corpus can reach it.
+    internal static bool TryParseConstant(string text, out ulong value)
     {
         value = 0;
 
