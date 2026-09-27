@@ -56,7 +56,7 @@ extern "C" {
     }
 }
 
-// ESI carries the struct's address, which is what a hook on a member function would find.
+// R15 carries the struct's address, which is what a hook on a member function would find.
 asm(R"(
 .text
 .globl kick
@@ -109,7 +109,7 @@ int main() {
         // The same field read narrow, to show the width applies to the loaded value
         // rather than to the address.
         { "[r15+4]",    ParameterType::BYTE },
-        // The pushed dword, which the address form cannot reach: "esp+0" is where it sits.
+        // The pushed qword, which the address form cannot reach: "rsp+0" is where it sits.
         { "[rsp+0]",    ParameterType::UINT },
         // The longest path either generator has: the address, the load through it, then
         // the move across to XMM.

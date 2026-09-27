@@ -114,7 +114,8 @@ namespace KotorPatcher {
             }
 
             // `op` reg, [base + disp32], 64-bit when `wide` and 32-bit otherwise. Only valid
-            // for a base that needs no SIB byte, which the callers satisfy by always using RBX.
+            // for a base that needs no SIB byte, which rules out RSP and R12. The callers use
+            // RBX, and a dereference also uses RAX and the argument registers.
             void MemOp(Emitter& e, uint8_t op, int reg, int base, int32_t disp, bool wide) {
                 Rex(e, wide, reg, base);
                 e.Byte(op);
@@ -153,7 +154,6 @@ namespace KotorPatcher {
                     e.Dword(static_cast<uint32_t>(value));
                 }
             }
-
 
             // A constant declared narrow widens the way a register declared narrow does, so
             // the declared type means the same thing wherever the value came from.

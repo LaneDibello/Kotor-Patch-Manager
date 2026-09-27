@@ -420,7 +420,6 @@ namespace KotorPatcher {
                        type == ParameterType::DOUBLE;
             }
 
-
             // The opcode for a load into ECX at the parameter's width. The caller follows it
             // with a ModRM byte and displacement saying where to load from, so the same table
             // serves a register's saved copy and a dereference through one.
