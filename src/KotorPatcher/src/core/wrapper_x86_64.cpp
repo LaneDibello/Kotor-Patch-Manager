@@ -412,10 +412,9 @@ namespace KotorPatcher {
                                        " cannot be read as a narrow type or a float\n").c_str());
                         return false;
                     }
+                    // From the sign on, so "rsp-8" is minus eight.
                     int userOffset = 0;
-                    try {
-                        userOffset = std::stoi(source.substr(3));
-                    } catch (...) {
+                    if (!ParseSignedOffset(source.substr(3), userOffset)) {
                         Platform::Log(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
                         return false;
                     }

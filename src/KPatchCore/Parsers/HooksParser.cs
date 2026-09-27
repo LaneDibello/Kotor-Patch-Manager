@@ -329,9 +329,11 @@ public static class HooksParser
                     $"int64, uint64, double");
             }
 
+            // Validation reads the source trimmed, so the source written into the patcher's
+            // config is trimmed too. The patcher does not trim, and would refuse what passed.
             var parameter = new Parameter
             {
-                Source = source,
+                Source = source.Trim(),
                 Type = paramType.Value
             };
 

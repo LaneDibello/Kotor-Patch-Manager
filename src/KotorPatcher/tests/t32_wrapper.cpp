@@ -14,7 +14,7 @@ using namespace KotorPatcher;
 
 extern "C" {
     void*    g_hookEntry;
-    uint32_t g_gameEsp, g_espAtEntry, g_arg0, g_arg1;
+    uint32_t g_gameEsp, g_espAtEntry, g_arg0, g_arg1, g_arg2, g_arg3;
     uint32_t g_captured[8];
     void kick(void);
     void capture(void);
@@ -30,6 +30,10 @@ probe:
     movl %eax, g_arg0
     movl 8(%esp), %eax
     movl %eax, g_arg1
+    movl 12(%esp), %eax
+    movl %eax, g_arg2
+    movl 16(%esp), %eax
+    movl %eax, g_arg3
     xorl %eax, %eax
     ret
 
@@ -81,6 +85,8 @@ int main() {
     config.parameters = {
         { "eax",   ParameterType::UINT },      // register source
         { "esp+4", ParameterType::POINTER },   // stack source: the path re-anchored on EBX
+        { "esp-4", ParameterType::POINTER },   // the sign is part of the offset
+        { "esp+0x10", ParameterType::POINTER },
     };
 
     void* wrapper = gen.GenerateWrapper(config);
@@ -103,6 +109,10 @@ int main() {
     kptest::Check("register source eax arrived", g_arg0 == 0xAA000000);
     snprintf(d, sizeof(d), "(got %#x want %#x)", g_arg1, g_gameEsp + 4);
     kptest::Check("stack source esp+4 arrived", g_arg1 == g_gameEsp + 4, d);
+    snprintf(d, sizeof(d), "(got %#x want %#x)", g_arg2, g_gameEsp - 4);
+    kptest::Check("a negative offset reaches below the stack pointer", g_arg2 == g_gameEsp - 4, d);
+    snprintf(d, sizeof(d), "(got %#x want %#x)", g_arg3, g_gameEsp + 0x10);
+    kptest::Check("a hex offset is read whole", g_arg3 == g_gameEsp + 0x10, d);
 
     const char* n[8] = {"eax","ecx","edx","ebx","","ebp","esi","edi"};
     for (int i = 0; i < 8; ++i) {

@@ -1,5 +1,8 @@
 #pragma once
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 #include <string>
 #include "platform.h"
@@ -70,6 +73,39 @@ namespace KotorPatcher {
             }
         };
 
+        // Reads decimal digits, or hex digits after "0x", as an unsigned value. Every number a
+        // parameter source carries goes through this, so a constant and an offset are written
+        // the same way.
+        //
+        // The base is chosen here rather than left to strtoull's prefix detection, which would
+        // read a leading zero as octal and make "010" mean eight. strtoull also skips leading
+        // whitespace, takes a sign and wraps a negative, and in base 16 takes a second "0x", so
+        // every character is checked before it sees the text. All it can still refuse is a
+        // value too large to hold.
+        inline bool ParseDigits(std::string text, uint64_t& outValue) {
+            int base = 10;
+            if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
+                text = text.substr(2);
+                base = 16;
+            }
+
+            const bool digitsOnly = !text.empty() &&
+                std::all_of(text.begin(), text.end(), [base](char c) {
+                    const auto u = static_cast<unsigned char>(c);
+                    return base == 16 ? std::isxdigit(u) != 0 : std::isdigit(u) != 0;
+                });
+            if (!digitsOnly) {
+                return false;
+            }
+
+            try {
+                outValue = std::stoull(text, nullptr, base);
+                return true;
+            } catch (const std::out_of_range&) {
+                return false;
+            }
+        }
+
         // What a parameter source of the form "const:<value>" turned out to be.
         enum class ConstantSource {
             // Not a constant, so the caller goes on to the register and stack forms.
@@ -100,33 +136,33 @@ namespace KotorPatcher {
                 return ConstantSource::None;
             }
 
-            std::string text = source.substr(prefixLength);
+            return ParseDigits(source.substr(prefixLength), outValue)
+                ? ConstantSource::Parsed
+                : ConstantSource::Malformed;
+        }
 
-            // stoull accepts a sign and wraps a negative into a huge unsigned value, and it
-            // skips leading whitespace, so both are turned away before it sees them.
-            if (text.empty() || text[0] < '0' || text[0] > '9') {
-                return ConstantSource::Malformed;
+        // The largest offset either way. Arbitrary, but the generators add the distance from
+        // their anchor to the game's stack, under 0x1000 bytes, so it has to leave that much
+        // room below the int limit or the sum wraps into a slot on the other side. No real
+        // frame comes near it.
+        constexpr uint64_t kMaxOffsetMagnitude = 0x7FFF0000;
+
+        // Reads the offset in "esp+8" or "[esi-0x10]": a sign, then digits as a constant's are
+        // written, no further than kMaxOffsetMagnitude. The sign is required because every
+        // caller splits the text at it, so text without one is not an offset.
+        inline bool ParseSignedOffset(const std::string& text, int& outOffset) {
+            if (text.empty() || (text[0] != '+' && text[0] != '-')) {
+                return false;
             }
 
-            // Base is chosen rather than left to strtoull's prefix detection, which would
-            // read a leading zero as octal and make "const:010" mean eight.
-            int base = 10;
-            if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
-                base = 16;
-                text = text.substr(2);
+            uint64_t magnitude = 0;
+            if (!ParseDigits(text.substr(1), magnitude) || magnitude > kMaxOffsetMagnitude) {
+                return false;
             }
 
-            try {
-                std::size_t consumed = 0;
-                outValue = std::stoull(text, &consumed, base);
-                if (consumed != text.size()) {
-                    return ConstantSource::Malformed;
-                }
-            } catch (...) {
-                return ConstantSource::Malformed;
-            }
-
-            return ConstantSource::Parsed;
+            const int value = static_cast<int>(magnitude);
+            outOffset = text[0] == '-' ? -value : value;
+            return true;
         }
 
         // The outcomes a constant has, for the same reason: a source with no brackets is some
@@ -157,20 +193,11 @@ namespace KotorPatcher {
                 return Dereference::Malformed;
             }
 
-            // stoi reads the sign, so the offset keeps it. Base 0 lets a hook write a field
-            // offset the way the disassembly shows it, "[esi+0x10]" as readily as "[esi+16]".
-            const std::string offset = inner.substr(sign);
-            try {
-                std::size_t consumed = 0;
-                outOffset = std::stoi(offset, &consumed, 0);
-                if (consumed != offset.size()) {
-                    return Dereference::Malformed;
-                }
-            } catch (...) {
-                return Dereference::Malformed;
-            }
-
-            return Dereference::Parsed;
+            // Hex lets a hook write a field offset the way the disassembly shows it,
+            // "[esi+0x10]" as readily as "[esi+16]".
+            return ParseSignedOffset(inner.substr(sign), outOffset)
+                ? Dereference::Parsed
+                : Dereference::Malformed;
         }
 
         // Abstract base class for wrapper generators

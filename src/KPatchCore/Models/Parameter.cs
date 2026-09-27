@@ -222,7 +222,7 @@ public sealed class Parameter
         var sign = inner.IndexOfAny(new[] { '+', '-' });
         var name = sign < 0 ? inner : inner[..sign];
 
-        if (name.Length == 0 || (sign >= 0 && !IsSignedOffset(inner[sign..])))
+        if (name.Length == 0 || (sign >= 0 && !TryParseSignedOffset(inner[sign..], out _)))
         {
             return false;
         }
@@ -233,17 +233,23 @@ public sealed class Parameter
                sources.Registers.Contains(name);
     }
 
-    // The same grammar as ParseDereference in wrapper_base.h.
-    private static bool IsSignedOffset(string signed)
+    // kMaxOffsetMagnitude in wrapper_base.h, which says why it is where it is.
+    private const ulong MaxOffsetMagnitude = 0x7FFF0000;
+
+    // The same grammar as ParseSignedOffset in wrapper_base.h: a sign, then digits as a
+    // constant's are written, no further than MaxOffsetMagnitude. signed-offsets.tsv holds
+    // both to it. Internal so that corpus can reach it.
+    internal static bool TryParseSignedOffset(string text, out int value)
     {
-        var digits = signed[1..];
-        if (digits.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        value = 0;
+        if (text.Length == 0 || (text[0] != '+' && text[0] != '-') ||
+            !TryParseConstant(text[1..], out var magnitude) || magnitude > MaxOffsetMagnitude)
         {
-            return ulong.TryParse(digits[2..], NumberStyles.AllowHexSpecifier,
-                                  CultureInfo.InvariantCulture, out _);
+            return false;
         }
 
-        return ulong.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out _);
+        value = text[0] == '-' ? -(int)magnitude : (int)magnitude;
+        return true;
     }
 
     // The same grammar as ParseConstantSource in wrapper_base.h; constant-sources.tsv holds
@@ -334,7 +340,7 @@ public sealed class Parameter
         // A stack source always carries an offset. The generators hand the patch function the
         // address of that slot, so "esp" on its own would name a slot the hook never picked.
         if (!sources.StackPrefixes.Any(prefix => source.StartsWith(prefix, StringComparison.Ordinal)) ||
-            !int.TryParse(source[3..], out _))
+            !TryParseSignedOffset(source[3..], out _))
         {
             return false;
         }

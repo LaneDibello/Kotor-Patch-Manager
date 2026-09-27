@@ -46,7 +46,8 @@ int main() {
         std::uint64_t parsed = 0;
         const ConstantSource outcome = ParseConstantSource(std::string(source), parsed);
 
-        char label[160];
+        // Both fields at their widest, and the arrow between them.
+        char label[sizeof(source) + sizeof(expected) + 8];
         std::snprintf(label, sizeof(label), "%s -> %s", source, expected);
         const bool outcomeOk = std::strcmp(Name(outcome), expected) == 0;
 

@@ -13,6 +13,10 @@ internal static class RepositoryFiles
     public static string ConstantCorpus =>
         Path.Combine(Root, "src", "KotorPatcher", "tests", "constant-sources.tsv");
 
+    /// <summary>The grammar a stack or bracket offset is held to, on both sides.</summary>
+    public static string OffsetCorpus =>
+        Path.Combine(Root, "src", "KotorPatcher", "tests", "signed-offsets.tsv");
+
     // The test assembly runs out of bin/<config>/<tfm>, and the solution file is the closest
     // thing to a marker the repository root has.
     private static string Root
