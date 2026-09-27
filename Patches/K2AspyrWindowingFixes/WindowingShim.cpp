@@ -109,6 +109,34 @@ namespace Windowing {
         return *gChosenStretch != 0;
     }
 
+    // Alt+Enter means the ini cannot answer this alone: it describes how the session started, not where
+    // it is going, and a window built during a toggle has to match its destination or it ends up
+    // decorated and the wrong size inside a fullscreen surface.
+    //
+    // The pending request is the live answer while a change is in flight. ApplyVideoMode does not clear it
+    // until after InitOpenGLWindow has run, so a window created by a toggle can still read the request
+    // that caused it.
+    //
+    // With nothing in flight, which is the first window of the session, the ini is the only source. That
+    // read is latched once it succeeds, because the first window is created early enough that the ini may
+    // not be readable yet and caching a premature "no" would pin the wrong answer for the whole run.
+    bool FullscreenWanted()
+    {
+        const int pending = *gVideoModeChangePending;
+        if (pending == 2) {
+            return true;
+        }
+        if (pending == 1) {
+            return false;
+        }
+
+        static int cached = -1;
+        if (cached < 0) {
+            cached = ReadGraphicsOption("FullScreen");
+        }
+        return cached == 1;
+    }
+
     bool NeedsScaling(int modeW, int modeH, int surfaceW, int surfaceH)
     {
         if (modeW <= 0 || modeH <= 0 || surfaceW <= 0 || surfaceH <= 0) {

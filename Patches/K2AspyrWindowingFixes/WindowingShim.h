@@ -18,11 +18,19 @@ namespace Windowing {
     typedef void (*StringFormatFn)(void*, const char*, ...);
     const StringFormatFn CExoStringFormat = reinterpret_cast<StringFormatFn>(0x0819110A);
 
+    // The pending mode-change request. 2 asks for fullscreen, 1 for windowed, 0 means nothing is in
+    // flight. Set by HandleAltReturn, CServerExoAppInternal::LoadModule, WinMessageHandler and the
+    // SetResolution console command; cleared by ApplyVideoMode once the rebuild is done.
+    const int* const gVideoModeChangePending = reinterpret_cast<const int*>(0x0890B07C);
+
     // Reads an integer out of the ini's Graphics Options section, or -1 when the key is absent.
     int ReadGraphicsOption(const char* name);
 
     // Whether the player asked for the stretched image rather than the aspect-correct one.
     bool StretchWanted();
+
+    // Where a window about to be created is headed.
+    bool FullscreenWanted();
 
     // True when a mode cannot fill a surface as-is, which is the only case the scaling fixes act on.
     bool NeedsScaling(int modeW, int modeH, int surfaceW, int surfaceH);

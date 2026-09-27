@@ -76,3 +76,35 @@ type = "pointer"
 [[hooks.parameters]]
 source = "esi"
 type = "int"
+
+# The four instructions in CreateWindowEx_Shared that copy ASL__Display__GetLogicalMode's answer into
+# the width and height passed to ASL__SDL__CreateWindow, reached only when the caller asked for
+# CW_USEDEFAULT. skip_original_bytes drops all four so the hook decides the size; execution resumes at
+# 0x080EA775, and the GetLogicalMode call before them still runs, leaving its SDL_Rect readable as the
+# fallback.
+[[hooks]]
+address = 0x080EA75F
+function = "DefaultSizeMatchesTheFinalWindow"
+original_bytes = [0x8B, 0x84, 0x24, 0x40, 0x01, 0x00, 0x00, 0x89, 0x44, 0x24, 0x28,
+                  0x8B, 0x84, 0x24, 0x44, 0x01, 0x00, 0x00, 0x89, 0x44, 0x24, 0x2C]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# The SDL flags staged for ASL__SDL__CreateWindow inside CreateWindowEx_Shared, the last store before
+# the call. skip_original_bytes drops the hardcoded SDL_WINDOW_OPENGL so the hook supplies the value.
+[[hooks]]
+address = 0x080EA7C1
+function = "CreationFlagsMatchTheFinalWindow"
+original_bytes = [0xC7, 0x44, 0x24, 0x14, 0x02, 0x00, 0x00, 0x00]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
