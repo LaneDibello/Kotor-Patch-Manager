@@ -54,6 +54,13 @@ int main() {
     kptest::Check("an unknown register name is refused", Generate("nosuchreg") == nullptr);
     kptest::Check("a stack offset that will not parse is refused", Generate("esp+bogus") == nullptr);
 
+    // "const:" says what follows is a number, so anything else there is a typo rather
+    // than a register name the generator should go on to look up.
+    kptest::Check("a constant with no value is refused", Generate("const:") == nullptr);
+    kptest::Check("a negative constant is refused", Generate("const:-1") == nullptr);
+    kptest::Check("a constant with trailing text is refused", Generate("const:12abc") == nullptr);
+    kptest::Check("a plain constant builds", Generate("const:0x20") != nullptr);
+
     // The width the other generator uses. Accepting it here would mean generating a
     // wrapper that reads a register this architecture has no saved copy of.
 #if defined(__x86_64__) || defined(_M_X64)

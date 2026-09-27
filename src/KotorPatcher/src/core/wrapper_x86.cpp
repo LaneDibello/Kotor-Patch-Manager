@@ -420,6 +420,28 @@ namespace KotorPatcher {
                        type == ParameterType::DOUBLE;
             }
 
+
+            // The widest constant each type can carry. Every argument here is a four-byte
+            // stack slot, so nothing reaches past a dword.
+            uint64_t ConstantLimit(ParameterType type) {
+                switch (type) {
+                    case ParameterType::BYTE:
+                    case ParameterType::SBYTE:  return 0xFFull;
+                    case ParameterType::SHORT:
+                    case ParameterType::SSHORT: return 0xFFFFull;
+                    case ParameterType::INT:
+                    case ParameterType::UINT:
+                    case ParameterType::POINTER: return 0xFFFFFFFFull;
+                    // Refused before this is asked. Zero rather than a width, so that
+                    // ceasing to be true would refuse rather than permit.
+                    case ParameterType::FLOAT:
+                    case ParameterType::INT64:
+                    case ParameterType::UINT64:
+                    case ParameterType::DOUBLE: return 0;
+                }
+                return 0;
+            }
+
         }  // namespace
 
         bool WrapperGenerator_x86::ExtractAndPushParameter(Emitter& code, const ParameterInfo& param, int savedStateSize) {
@@ -456,6 +478,30 @@ namespace KotorPatcher {
                 Platform::Log("[Wrapper] A 64-bit parameter needs two stack slots, which "
                               "this generator does not pass\n");
                 return false;
+            }
+
+            uint64_t constant = 0;
+            switch (ParseConstantSource(source, constant)) {
+                case ConstantSource::Malformed:
+                    Platform::Log(("[Wrapper] Constant parameter is not a number: " + source +
+                                   "\n").c_str());
+                    return false;
+                case ConstantSource::Parsed: {
+                    if (param.type == ParameterType::FLOAT) {
+                        Platform::Log("[Wrapper] A constant parameter cannot be a float\n");
+                        return false;
+                    }
+                    if (constant > ConstantLimit(param.type)) {
+                        Platform::Log(("[Wrapper] Constant " + source +
+                                       " does not fit its declared type\n").c_str());
+                        return false;
+                    }
+                    EmitByte(code, 0x68);  // PUSH imm32
+                    EmitDword(code, static_cast<uint32_t>(constant));
+                    return true;
+                }
+                case ConstantSource::None:
+                    break;
             }
 
             // Check if source is a register (read from saved state).

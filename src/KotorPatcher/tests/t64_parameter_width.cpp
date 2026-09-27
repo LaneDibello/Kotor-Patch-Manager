@@ -6,8 +6,8 @@
 // whose upper half was whatever else the game had in that register. POINTER is the only
 // type that should still take all 64.
 //
-// The fifth argument is deliberate. System V puts it in R8, and naming a register above
-// 7 needs a REX prefix that the first four never exercise.
+// The last two arguments are deliberate. System V puts them in R8 and R9, and naming a
+// register above 7 needs a REX prefix that the first four never exercise.
 #include "wrapper_x86_64.h"
 #include "patcher.h"
 #include "platform.h"
@@ -30,7 +30,7 @@ extern "C" {
     void  finish(void);
 
     uint64_t g_seedReg;
-    uint64_t g_arg[6];
+    uint64_t g_arg[8];
     double   g_dbl;
     int      g_calls;
 
@@ -39,9 +39,11 @@ extern "C" {
         ++g_calls;
     }
 
-    // A separate probe, because a double arrives in an SSE register rather than in the
-    // integer sequence.
-    void probeDouble(double value) { g_dbl = value; }
+    // A separate probe for the two arguments that cannot share the first run: a double
+    // arrives in an SSE register, and the integer sequence there is already full.
+    void probeWide(double value, uint64_t pointerConst, uint64_t intConst) {
+        g_dbl = value; g_arg[6] = pointerConst; g_arg[7] = intConst;
+    }
 }
 
 asm(R"(
@@ -139,15 +141,21 @@ int main() {
         g_dbl = 0.0;
 
         auto* dblSite = static_cast<uint8_t*>(
-            Platform::AllocExec(4096, reinterpret_cast<uintptr_t>(&probeDouble)));
+            Platform::AllocExec(4096, reinterpret_cast<uintptr_t>(&probeWide)));
         if (!dblSite) { std::printf("second alloc failed\n"); return 1; }
 
         Wrappers::WrapperGenerator_x86_64 dbl;
         Wrappers::WrapperConfig dblConfig;
-        dblConfig.patchFunction = reinterpret_cast<void*>(&probeDouble);
+        dblConfig.patchFunction = reinterpret_cast<void*>(&probeWide);
         dblConfig.hookAddress = reinterpret_cast<uintptr_t>(dblSite);
         dblConfig.originalBytes.assign(stolen, stolen + sizeof(stolen));
-        dblConfig.parameters = { { "r15", ParameterType::DOUBLE } };
+        dblConfig.parameters = {
+            { "r15", ParameterType::DOUBLE },
+            // An address-width literal, which needs the ten-byte encoding.
+            { "const:0x100480ABD", ParameterType::POINTER },
+            // The same literal as a 64-bit integer, which is just as wide.
+            { "const:0x100480ABD", ParameterType::INT64 },
+        };
 
         void* dblWrapper = dbl.GenerateWrapper(dblConfig);
         if (!dblWrapper) { std::printf("double wrapper generation failed\n"); return 1; }
@@ -170,7 +178,16 @@ int main() {
         char detail[80];
         std::snprintf(detail, sizeof(detail), "(got %.15g want %.15g)", g_dbl, want);
         kptest::Check("double arrives whole in an SSE register", g_dbl == want, detail);
+        Expect("a pointer constant arrives whole", g_arg[6], 0x100480ABDULL);
+        Expect("an int64 constant arrives whole",  g_arg[7], 0x100480ABDULL);
     }
+
+    // Only POINTER is eight bytes wide here, so the same literal as an int does not fit.
+    Wrappers::WrapperGenerator_x86_64 wide;
+    Wrappers::WrapperConfig wideConfig = config;
+    wideConfig.parameters = { { "const:0x100480ABD", ParameterType::UINT } };
+    kptest::Check("a constant wider than its type is refused",
+                  wide.GenerateWrapper(wideConfig) == nullptr);
 
     return kptest::Report();
 }

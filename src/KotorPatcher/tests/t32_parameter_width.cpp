@@ -26,12 +26,14 @@ extern "C" {
     void  kick(void);
     void  finish(void);
 
-    uint32_t g_arg[6];
+    uint32_t g_arg[7];
     int      g_calls;
 
     // cdecl, matching what the wrapper pushes.
-    void probe(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f) {
+    void probe(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f,
+               uint32_t g) {
         g_arg[0] = a; g_arg[1] = b; g_arg[2] = c; g_arg[3] = d; g_arg[4] = e; g_arg[5] = f;
+        g_arg[6] = g;
         ++g_calls;
     }
 }
@@ -86,6 +88,7 @@ int main() {
         { "eax", ParameterType::POINTER },
         { "eax", ParameterType::SBYTE },
         { "eax", ParameterType::SSHORT },
+        { "const:0xBC", ParameterType::UINT },
     };
 
     void* wrapper = gen.GenerateWrapper(config);
@@ -112,6 +115,7 @@ int main() {
     // rest with ones and a zero-extending one would not.
     Expect("sbyte sign-extends the low 8 bits",  g_arg[4], 0xFFFFFFEFu);
     Expect("sshort sign-extends the low 16 bits", g_arg[5], 0xFFFFBEEFu);
+    Expect("a constant arrives as written",      g_arg[6], 0xBC);
 
     Wrappers::WrapperGenerator_x86 narrow;
     Wrappers::WrapperConfig stackConfig = config;

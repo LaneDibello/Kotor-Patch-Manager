@@ -138,6 +138,54 @@ namespace KotorPatcher {
             void MovFromMem32(Emitter& e, int dst, int base, int32_t disp) { MemOp(e, 0x8B, dst, base, disp, false); }
             void LeaFromMem(Emitter& e, int dst, int base, int32_t disp)   { MemOp(e, 0x8D, dst, base, disp, true); }
 
+            // MOV r64, imm64 or MOV r32, imm32, the register named in the opcode's low three
+            // bits rather than in a ModRM byte, which is why the register goes in Rex's rm
+            // field here and its reg field everywhere else. The width follows the declared
+            // type like every other source, so a pointer constant is always the long form.
+            void LoadImmediate(Emitter& e, int dst, uint64_t value, bool wide) {
+                Rex(e, wide, 0, dst);
+                e.Byte(static_cast<uint8_t>(0xB8 + (dst & 7)));
+                if (wide) {
+                    for (int i = 0; i < 8; ++i) {
+                        e.Byte(static_cast<uint8_t>(value >> (i * 8)));
+                    }
+                } else {
+                    e.Dword(static_cast<uint32_t>(value));
+                }
+            }
+
+
+            // The types that occupy a whole register here: an address, or a 64-bit integer.
+            // Read by the immediate path and by the limit below, which have to agree; a
+            // constant the limit admits and the load truncates arrives silently wrong.
+            bool IsFullWidth(ParameterType type) {
+                return type == ParameterType::POINTER ||
+                       type == ParameterType::INT64 ||
+                       type == ParameterType::UINT64;
+            }
+
+            // The widest constant each type can carry, reaching further than the i386 table
+            // for the full-width ones.
+            uint64_t ConstantLimit(ParameterType type) {
+                switch (type) {
+                    case ParameterType::BYTE:
+                    case ParameterType::SBYTE:   return 0xFFull;
+                    case ParameterType::SHORT:
+                    case ParameterType::SSHORT:  return 0xFFFFull;
+                    // Kept in step with IsFullWidth above.
+                    case ParameterType::POINTER:
+                    case ParameterType::INT64:
+                    case ParameterType::UINT64:  return ~0ull;
+                    case ParameterType::INT:
+                    case ParameterType::UINT:    return 0xFFFFFFFFull;
+                    // Refused before this is asked. Zero rather than a width, so that
+                    // ceasing to be true would refuse rather than permit.
+                    case ParameterType::FLOAT:
+                    case ParameterType::DOUBLE:  return 0;
+                }
+                return 0;
+            }
+
             // The saved copy is a whole 64-bit register. The declared type says how much of it
             // the patch function takes, and each narrower load zeroes the rest.
             void LoadIntArgument(Emitter& e, int dst, int base, int32_t disp, ParameterType type) {
@@ -239,6 +287,30 @@ namespace KotorPatcher {
                 if (wantsSse ? sseArgIndex >= kMaxSseArgs : intArgIndex >= kMaxIntArgs) {
                     Platform::Log("[Wrapper] Too many arguments for the register convention\n");
                     return false;
+                }
+
+                uint64_t constant = 0;
+                switch (ParseConstantSource(source, constant)) {
+                    case ConstantSource::Malformed:
+                        Platform::Log(("[Wrapper] Constant parameter is not a number: " +
+                                       source + "\n").c_str());
+                        return false;
+                    case ConstantSource::Parsed: {
+                        if (wantsSse) {
+                            Platform::Log("[Wrapper] A constant parameter cannot be a float\n");
+                            return false;
+                        }
+                        if (constant > ConstantLimit(param.type)) {
+                            Platform::Log(("[Wrapper] Constant " + source +
+                                           " does not fit its declared type\n").c_str());
+                            return false;
+                        }
+                        LoadImmediate(e, kIntArgRegs[intArgIndex++], constant,
+                                      IsFullWidth(param.type));
+                        return true;
+                    }
+                    case ConstantSource::None:
+                        break;
                 }
 
                 Reg sourceReg = RAX;
