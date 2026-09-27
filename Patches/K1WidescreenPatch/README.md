@@ -1,7 +1,7 @@
 # KotOR 1 macOS Widescreen & High-Resolution UI Architecture Guide
 *A Comprehensive Engineering Reference for the Aspyr 64-bit AMD64 Port*
 
-Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. Simply install the patch. There is only one minor bug presently known: the main menu and character screen animations will be at double speed. I've tried to fix it; just can't crack it. I'm sure someone can.—FTD
+Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. If you want to use this patch, the instructions are simple: simply install the patch with KPM. No gui files or .ini changes are required. There is only two minor "bugs" presently known: the main menu and character screen animations will be at double speed ... and there are a very few buttons here the text isn't perfectly centered. I've tried to fix these issues; just couldn't quite crack it. I hope someone else can! ——FTD
 
 ---
 
@@ -15,7 +15,7 @@ Note: You do not need to read this readme! This is a technical explanation for a
 3. [In-Game Gameplay HUD Edits](#3-in-game-gameplay-hud-edits)
    - 3.1 [Unified Base Template Strategy (mipc212x9)](#31-unified-base-template-strategy-mipc212x9)
    - 3.2 [Detour Hook: CSWGuiMainInterface::Draw (0x100235e44)](#32-detour-hook-cswguimaininterfacedraw-0x100235e44)
-   - 3.3 [Top-Right Button Cluster & Background Moulding](#33-top-riaght-button-cluster--background-moulding)
+   - 3.3 [Top-Right Button Cluster & Background Moulding](#33-top-right-button-cluster--background-moulding)
    - 3.4 [Bottom-Right Combat Action Bar & Queue](#34-bottom-right-combat-action-bar--queue)
    - 3.5 [Bottom-Left Portrait & Vitality Cluster](#35-bottom-left-portrait--vitality-cluster)
    - 3.6 [Floating Target Reticle & Health Bar](#36-floating-target-reticle--health-bar)
@@ -262,7 +262,7 @@ The party portrait tray, vitality bars, and Force meters:
 Targeting NPCs or objects in 3D world space renders a floating reticle consisting of the target nameplate, health bar, and 3 combat action slots.
 - The engine hardcoded these bounds for 800×600.
 - The runtime applies uniform scaling based on vertical screen height:
-  $$\text{scale} = \frac{\text{targetHeight}}{600.0f}$$
+  $$\text{scale} = \frac{\text{targetHeight}}{600}$$
 - Preserves 1:1 square action icons (32×32 base) and readable health bars.
 - Note on `0x1004a17c2`: Verified in the Aspyr binary symbol table that `0x1004a17c2` is `CSWGuiBorderParams::SetFillImage(CResRef const&, int)` and not a SetBounds method; it is intentionally excluded from detour hooks.
 
@@ -442,7 +442,9 @@ The patch resolves this by implementing dynamic C++ detour bridges on the engine
 
 1. **`MapHider_WorldToMapCoords` (`0x1004400d2` wrapper)**:
    Intercepts coordinate calculation for unselected and selected map notes (bullseye quest targets) exclusively from `CSWGuiMapHider::Draw` at callsite `0x1002b4fca`. It routes through a 12-byte machine code bridge at `0x1000f4f68` to our C++ wrapper, invokes the vanilla routine, and multiplies the output integer coordinates by:
-   $$\text{scale} = \frac{\text{g\_targetHeight}}{480.0\text{f}}$$
+
+   $$\text{scale} = \frac{\text{targetHeight}}{480}$$
+
    (e.g., $2.50\times$ at 1200p, $2.045\times$ at 982p).
 2. **`MapHider_GetPlayerMapCoords` (`0x100440300` wrapper)**:
    Intercepts coordinate calculation for party member markers (`0x1002b541b`) and the player direction arrow (`0x1002b54c2`) in `CSWGuiMapHider::Draw`. Routes through a 12-byte machine code bridge at `0x1000f4f78` to our C++ wrapper, invokes the vanilla routine, and scales the coordinates by `g_targetHeight / 480.0f`.
