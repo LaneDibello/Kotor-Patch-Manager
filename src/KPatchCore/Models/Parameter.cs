@@ -184,6 +184,13 @@ public sealed class Parameter
                   "decimal or with a 0x prefix";
         }
 
+        if (NarrowOrFloat &&
+            sources.StackPrefixes.Any(p => source.StartsWith(p, StringComparison.Ordinal)))
+        {
+            return $"Parameter source '{Source}' yields the address of a stack slot, which is " +
+                   $"pointer-width, so it cannot be read as {Type}";
+        }
+
         return $"Parameter source '{Source}' cannot be read on {architecture}. " +
                $"Readable there: {string.Join(", ", sources.Registers)}, " +
                $"an offset from {string.Join(" / ", sources.StackPrefixes.Select(p => p[..3]).Distinct())}, " +
@@ -246,6 +253,12 @@ public sealed class Parameter
         _ => 0
     };
 
+    // The types that describe a value rather than an address, so they cannot be asked of a
+    // source that yields one.
+    private bool NarrowOrFloat =>
+        Type is ParameterType.Byte or ParameterType.Short or ParameterType.SByte
+             or ParameterType.SShort or ParameterType.Float or ParameterType.Double;
+
     // Only x86_64 has a register wide enough to read one of these out of, and only its
     // convention has a single argument slot that holds one.
     private bool NeedsSixtyFourBits =>
@@ -279,7 +292,15 @@ public sealed class Parameter
 
         // A stack source always carries an offset. The generators hand the patch function the
         // address of that slot, so "esp" on its own would name a slot the hook never picked.
-        return sources.StackPrefixes.Any(prefix => source.StartsWith(prefix, StringComparison.Ordinal)) &&
-               int.TryParse(source[3..], out _);
+        if (!sources.StackPrefixes.Any(prefix => source.StartsWith(prefix, StringComparison.Ordinal)) ||
+            !int.TryParse(source[3..], out _))
+        {
+            return false;
+        }
+
+        // What arrives is the slot's address, which is pointer-width whatever the slot holds,
+        // so a narrow type or a float describes something else. Both generators refuse this;
+        // saying so here turns a hook that fails to install into a patch that fails to pass.
+        return !NarrowOrFloat;
     }
 }

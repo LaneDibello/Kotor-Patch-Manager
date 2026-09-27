@@ -203,6 +203,17 @@ public class ParameterSourceTests
     }
 
     [Fact]
+    public void ANarrowTypeOnAnAddressSourceIsRefused()
+    {
+        // The generators refuse this. Saying so here turns a hook that fails to install into
+        // a patch that fails to pass.
+        var address = new Parameter { Source = "esp+8", Type = ParameterType.Byte };
+
+        Assert.False(address.IsValidFor(Architecture.x86, out var error));
+        Assert.Contains("cannot be read as Byte", error);
+    }
+
+    [Fact]
     public void ErrorNamesTheArchitectureThatCannotReadIt()
     {
         Assert.False(Source("r15").IsValidFor(Architecture.x86, out var error));
