@@ -618,55 +618,69 @@ namespace KotorPatcher {
                 return false;
             }
 
-            // Check if source is a stack offset like "esp+0", "esp+4", etc.
-            if (source.find("esp+") == 0 || source.find("esp-") == 0) {
-                // A stack source yields the address of the slot, which is pointer-width
-                // whatever the slot holds. Asking for it as a narrower type or as a float
-                // describes something the wrapper is not passing.
+            // An address: "esp-8" is a slot on the game's stack, "esi+0x10" a field of the
+            // object in ESI. Unlike a dereference, the address itself is what arrives.
+            const RegisterAddress address = ParseRegisterAddress(source, name, offset);
+            if (address == RegisterAddress::Malformed) {
+                Platform::Log(("[Wrapper] Invalid offset in " + source + "\n").c_str());
+                return false;
+            }
+            if (address == RegisterAddress::Parsed) {
+                // An address is pointer-width whatever it points at. Asking for it as a
+                // narrower type or as a float describes something the wrapper is not passing.
                 if (param.type == ParameterType::BYTE || param.type == ParameterType::SHORT ||
                     param.type == ParameterType::SBYTE || param.type == ParameterType::SSHORT ||
                     param.type == ParameterType::FLOAT) {
-                    Platform::Log(("[Wrapper] A stack source yields an address, so " + source +
-                                   " cannot be read as a narrow type or a float\n").c_str());
+                    Platform::Log(("[Wrapper] " + source + " yields an address, so it cannot" +
+                                   " be read as a narrow type or a float\n").c_str());
                     return false;
                 }
 
-                // From the sign on, so "esp-8" is minus eight.
-                int userOffset = 0;
-                if (!ParseSignedOffset(source.substr(3), userOffset)) {
-                    Platform::Log(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
-                    return false;
+                if (name == "esp") {
+                    // Calculate the actual offset from EBX, not ESP
+                    // ESP has moved by the alignment, its pad, and every push before
+                    // this one. EBX still points at the saved state, so:
+                    // 1. The saved state size (PUSHAD + PUSHFD)
+                    // 2. The user's requested offset
+                    int actualOffset = STACK_OFFSET_TO_ORIGINAL_DATA + offset;
+
+                    // Generate LEA ECX, [EBX + actualOffset]
+                    if (actualOffset == 0) {
+                        // LEA ECX, [EBX]
+                        EmitByte(code, 0x8D);  // LEA r32, m
+                        EmitByte(code, 0x0B);  // ModRM: ECX, [EBX]
+                    } else if (actualOffset >= -128 && actualOffset <= 127) {
+                        // LEA ECX, [EBX + imm8]
+                        EmitByte(code, 0x8D);  // LEA r32, m
+                        EmitByte(code, 0x4B);  // ModRM: ECX, [EBX + disp8]
+                        EmitByte(code, static_cast<uint8_t>(actualOffset));
+                    } else {
+                        // LEA ECX, [EBX + imm32]
+                        EmitByte(code, 0x8D);  // LEA r32, m
+                        EmitByte(code, 0x8B);  // ModRM: ECX, [EBX + disp32]
+                        EmitDword(code, actualOffset);
+                    }
+                    EmitByte(code, 0x51);  // PUSH ECX
+                    return true;
                 }
 
-                // Calculate the actual offset from EBX, not ESP
-                // ESP has moved by the alignment, its pad, and every push before
-                // this one. EBX still points at the saved state, so:
-                // 1. The saved state size (PUSHAD + PUSHFD)
-                // 2. The user's requested offset
-                int actualOffset = STACK_OFFSET_TO_ORIGINAL_DATA + userOffset;
+                for (const auto& saved : kSavedRegisters) {
+                    if (name != saved.name) continue;
 
-                // Generate LEA ECX, [EBX + actualOffset]
-                if (actualOffset == 0) {
-                    // LEA ECX, [EBX]
-                    EmitByte(code, 0x8D);  // LEA r32, m
-                    EmitByte(code, 0x0B);  // ModRM: ECX, [EBX]
-                } else if (actualOffset >= -128 && actualOffset <= 127) {
-                    // LEA ECX, [EBX + imm8]
-                    EmitByte(code, 0x8D);  // LEA r32, m
-                    EmitByte(code, 0x4B);  // ModRM: ECX, [EBX + disp8]
-                    EmitByte(code, static_cast<uint8_t>(actualOffset));
-                } else {
-                    // LEA ECX, [EBX + imm32]
-                    EmitByte(code, 0x8D);  // LEA r32, m
-                    EmitByte(code, 0x8B);  // ModRM: ECX, [EBX + disp32]
-                    EmitDword(code, actualOffset);
+                    // The register's value, then that value moved by the offset.
+                    EmitByte(code, 0x8B);  // MOV ECX, [EBX + disp8]
+                    EmitByte(code, 0x4B);
+                    EmitByte(code, static_cast<uint8_t>(saved.offset));
+                    EmitByte(code, 0x8D);  // LEA ECX, [ECX + disp32]
+                    EmitByte(code, 0x89);
+                    EmitDword(code, static_cast<uint32_t>(offset));
+                    EmitByte(code, 0x51);  // PUSH ECX
+                    return true;
                 }
-                EmitByte(code, 0x51);  // PUSH ECX
-                return true;
             }
 
             Platform::Log(("[Wrapper] Unsupported parameter source: " + source +
-                           " (this generator reads 32-bit registers and esp offsets)\n").c_str());
+                           " (this generator reads the 32-bit registers, each with or without an offset)\n").c_str());
             return false;
         }
 

@@ -184,18 +184,18 @@ public sealed class Parameter
                   "decimal or with a 0x prefix";
         }
 
-        if (NarrowOrFloat &&
-            sources.StackPrefixes.Any(p => source.StartsWith(p, StringComparison.Ordinal)))
+        if (NarrowOrFloat && SplitsIntoReadableRegister(source, sources, out var hasOffset) &&
+            hasOffset)
         {
-            return $"Parameter source '{Source}' yields the address of a stack slot, which is " +
-                   $"pointer-width, so it cannot be read as {Type}. Bracket it, as " +
-                   $"'[{Source}]', to read what the slot holds instead";
+            return $"Parameter source '{Source}' yields an address, which is pointer-width, " +
+                   $"so it cannot be read as {Type}. Bracket it, as '[{Source}]', to read " +
+                   "what is there instead";
         }
 
         return $"Parameter source '{Source}' cannot be read on {architecture}. " +
-               $"Readable there: {string.Join(", ", sources.Registers)}, " +
-               $"an offset from {string.Join(" / ", sources.StackPrefixes.Select(p => p[..3]).Distinct())}, " +
-               "or a constant (const:0xBC)";
+               $"Readable there: {string.Join(", ", sources.Registers)}, any of those or " +
+               $"{string.Join(" / ", sources.StackPrefixes.Select(p => p[..3]).Distinct())} " +
+               "with an offset, or a constant (const:0xBC)";
     }
 
     public override string ToString() =>
@@ -213,22 +213,25 @@ public sealed class Parameter
         _ => null
     };
 
-    // The register named inside brackets, with an optional signed offset. The stack pointer
-    // is readable here although it is not on its own, a dereference reaching the slot's
-    // contents rather than needing a saved copy of the pointer.
-    private static bool IsDereferenceable(
-        string inner, (string[] Registers, string[] StackPrefixes) sources)
+    // The same split as SplitRegisterOffset in wrapper_base.h: "esi+0x10" is esi and 16,
+    // "eax" is eax with no offset. True when the name is a register this target reads, or
+    // its stack pointer, and any offset parses. The stack pointer passes here although it is
+    // not readable on its own, because with an offset or brackets the wrapper reaches the
+    // slot without needing a saved copy of the pointer.
+    private static bool SplitsIntoReadableRegister(
+        string text, (string[] Registers, string[] StackPrefixes) sources, out bool hasOffset)
     {
-        var sign = inner.IndexOfAny(new[] { '+', '-' });
-        var name = sign < 0 ? inner : inner[..sign];
+        var sign = text.IndexOfAny(new[] { '+', '-' });
+        var name = sign < 0 ? text : text[..sign];
+        hasOffset = sign >= 0;
 
-        if (name.Length == 0 || (sign >= 0 && !TryParseSignedOffset(inner[sign..], out _)))
+        if (name.Length == 0 || (hasOffset && !TryParseSignedOffset(text[sign..], out _)))
         {
             return false;
         }
 
-        // Taken off the stack prefixes so the bracketed form accepts the same spellings the
-        // address form does, including "esp" on x86_64.
+        // Taken off the stack prefixes so every form accepts the same spellings, including
+        // "esp" on x86_64.
         return sources.StackPrefixes.Any(prefix => name == prefix[..3]) ||
                sources.Registers.Contains(name);
     }
@@ -329,7 +332,7 @@ public sealed class Parameter
         // inside it. No type is refused here: a value arrives, so any width describes it.
         if (source.Length > 2 && source[0] == '[' && source[^1] == ']')
         {
-            return IsDereferenceable(source[1..^1], sources);
+            return SplitsIntoReadableRegister(source[1..^1], sources, out _);
         }
 
         if (sources.Registers.Contains(source))
@@ -337,16 +340,16 @@ public sealed class Parameter
             return true;
         }
 
-        // A stack source always carries an offset. The generators hand the patch function the
-        // address of that slot, so "esp" on its own would name a slot the hook never picked.
-        if (!sources.StackPrefixes.Any(prefix => source.StartsWith(prefix, StringComparison.Ordinal)) ||
-            !TryParseSignedOffset(source[3..], out _))
+        // What is left is the address form, "esi+0x10" or "esp-8", which always carries an
+        // offset. Without one a register is its value, taken above, and "esp" on its own
+        // would name a slot the hook never picked.
+        if (!SplitsIntoReadableRegister(source, sources, out var hasOffset) || !hasOffset)
         {
             return false;
         }
 
-        // What arrives is the slot's address, which is pointer-width whatever the slot holds,
-        // so a narrow type or a float describes something else. Both generators refuse this;
+        // What arrives is an address, which is pointer-width whatever it points at, so a
+        // narrow type or a float describes something else. Both generators refuse this;
         // saying so here turns a hook that fails to install into a patch that fails to pass.
         return !NarrowOrFloat;
     }

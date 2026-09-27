@@ -165,13 +165,29 @@ namespace KotorPatcher {
             return true;
         }
 
+        // Splits "esi+0x10" into esi and 16, and "eax" into eax and zero. False when the name
+        // is missing or the offset does not parse. The name is not checked against any
+        // architecture's table, that being the generator's business.
+        inline bool SplitRegisterOffset(const std::string& text, std::string& outName,
+                                        int& outOffset) {
+            const std::size_t sign = text.find_first_of("+-");
+            outName = text.substr(0, sign);
+            outOffset = 0;
+            if (outName.empty()) {
+                return false;
+            }
+
+            // Hex lets a hook write an offset the way the disassembly shows it, "esi+0x10" as
+            // readily as "esi+16".
+            return sign == std::string::npos || ParseSignedOffset(text.substr(sign), outOffset);
+        }
+
         // The outcomes a constant has, for the same reason: a source with no brackets is some
         // other form, where brackets the caller could not read is an error rather than an
         // invitation to keep looking.
         enum class Dereference { None, Malformed, Parsed };
 
-        // Reads "[esi+0x10]" as esi and 16, "[eax]" as eax and zero. The register name is not
-        // checked against any architecture's table, that being the generator's business.
+        // Reads "[esi+0x10]" as esi and 16, "[eax]" as eax and zero.
         inline Dereference ParseDereference(const std::string& source, std::string& outName,
                                             int& outOffset) {
             // "[]" has nothing between the brackets.
@@ -179,25 +195,28 @@ namespace KotorPatcher {
                 return Dereference::None;
             }
 
-            const std::string inner = source.substr(1, source.size() - 2);
-            const std::size_t sign = inner.find_first_of("+-");
-            outOffset = 0;
-
-            if (sign == std::string::npos) {
-                outName = inner;
-                return Dereference::Parsed;
-            }
-
-            outName = inner.substr(0, sign);
-            if (outName.empty()) {
-                return Dereference::Malformed;
-            }
-
-            // Hex lets a hook write a field offset the way the disassembly shows it,
-            // "[esi+0x10]" as readily as "[esi+16]".
-            return ParseSignedOffset(inner.substr(sign), outOffset)
+            return SplitRegisterOffset(source.substr(1, source.size() - 2), outName, outOffset)
                 ? Dereference::Parsed
                 : Dereference::Malformed;
+        }
+
+        // The same outcomes again. A source with no sign is some other form, a bare register
+        // name among them.
+        enum class RegisterAddress { None, Malformed, Parsed };
+
+        // Reads "esi+0x10" as esi and 16: the address that far from the register's value,
+        // which is how a hook asks for a field's address rather than what the field holds.
+        // "esp-8" is the same form, the stack pointer being a register like the rest. Called
+        // once the constant and bracketed forms are ruled out, since both can carry a sign.
+        inline RegisterAddress ParseRegisterAddress(const std::string& source,
+                                                    std::string& outName, int& outOffset) {
+            if (source.find_first_of("+-") == std::string::npos) {
+                return RegisterAddress::None;
+            }
+
+            return SplitRegisterOffset(source, outName, outOffset)
+                ? RegisterAddress::Parsed
+                : RegisterAddress::Malformed;
         }
 
         // Abstract base class for wrapper generators

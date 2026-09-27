@@ -115,7 +115,7 @@ namespace KotorPatcher {
 
             // `op` reg, [base + disp32], 64-bit when `wide` and 32-bit otherwise. Only valid
             // for a base that needs no SIB byte, which rules out RSP and R12. The callers use
-            // RBX, and a dereference also uses RAX and the argument registers.
+            // RBX, RAX and the argument registers.
             void MemOp(Emitter& e, uint8_t op, int reg, int base, int32_t disp, bool wide) {
                 Rex(e, wide, reg, base);
                 e.Byte(op);
@@ -395,31 +395,41 @@ namespace KotorPatcher {
                     return true;
                 }
 
-                // "rsp+8", and "esp+8" from a hook adapted off the Windows one. Like the
-                // x86 generator, this passes the address of that slot rather than what
-                // is in it.
-                const bool stackSource = source.size() > 4 &&
-                    (source.compare(0, 3, "rsp") == 0 || source.compare(0, 3, "esp") == 0) &&
-                    (source[3] == '+' || source[3] == '-');
-                if (stackSource) {
-                    // The address of a slot is pointer-width whatever the slot holds, so a
-                    // narrow type or a float describes something this is not passing.
+                // An address: "rsp-8" is a slot on the game's stack, "rsi+0x10" a field of the
+                // object in RSI. Unlike a dereference, the address itself is what arrives.
+                const RegisterAddress address = ParseRegisterAddress(source, name, offset);
+                if (address == RegisterAddress::Malformed) {
+                    Platform::Log(("[Wrapper] Invalid offset in " + source + "\n").c_str());
+                    return false;
+                }
+                if (address == RegisterAddress::Parsed) {
+                    // An address is pointer-width whatever it points at, so a narrow type or
+                    // a float describes something this is not passing.
                     if (wantsSse || param.type == ParameterType::BYTE ||
                         param.type == ParameterType::SHORT ||
                         param.type == ParameterType::SBYTE ||
                         param.type == ParameterType::SSHORT) {
-                        Platform::Log(("[Wrapper] A stack source yields an address, so " + source +
-                                       " cannot be read as a narrow type or a float\n").c_str());
+                        Platform::Log(("[Wrapper] " + source + " yields an address, so it cannot" +
+                                       " be read as a narrow type or a float\n").c_str());
                         return false;
                     }
-                    // From the sign on, so "rsp-8" is minus eight.
-                    int userOffset = 0;
-                    if (!ParseSignedOffset(source.substr(3), userOffset)) {
-                        Platform::Log(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
-                        return false;
+
+                    // "esp+8" from a hook adapted off the Windows one means the same slot.
+                    if (name == "rsp" || name == "esp") {
+                        LeaFromMem(e, kIntArgRegs[intArgIndex++], RBX, kFrameSize + offset);
+                        return true;
                     }
-                    LeaFromMem(e, kIntArgRegs[intArgIndex++], RBX, kFrameSize + userOffset);
-                    return true;
+
+                    // The whole 64-bit register, whichever spelling named it, since an address
+                    // is built from all of it.
+                    Reg baseReg = RAX;
+                    const int index = LookUpRegister(name, baseReg) ? SavedGprIndex(baseReg) : -1;
+                    if (index >= 0) {
+                        const int dst = kIntArgRegs[intArgIndex++];
+                        MovFromMem(e, dst, RBX, SavedGprOffset(index));
+                        LeaFromMem(e, dst, dst, offset);
+                        return true;
+                    }
                 }
 
                 Platform::Log(("[Wrapper] Unsupported parameter source: " + source + "\n").c_str());
