@@ -5,38 +5,48 @@ target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB238
 # Left(name, len - 3) + "wav" (0x1004E8566, used at 0x1002E43F2 and 0x1002E44B6).
 #
 # The hook is the LEA that loads the alternates for the first fopen, right after the
-# rewrite loop. The primary is at RBP-0x8A48, and 32 alternates 16 bytes apart at
-# RBP-0x230.
+# rewrite loop.
 #
 # The x86_64 wrapper copies stolen bytes into its stub without relocating them, so the
 # cut has to be frame-relative. That rules out the LEA at 0x1002E43F2 naming the "wav"
 # string, which is RIP-relative.
 [[hooks]]
 address = 0x1002E4517
-function = "K2LooseMp3SteamAspyrMacOs"
+function = "K2LooseMp3"
 type = "detour"
 original_bytes = [0x48, 0x8D, 0x9D, 0xD0, 0xFD, 0xFF, 0xFF]
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "rbp"
+source = "rbp-0x8A48" # The primary candidate, a CExoString.
 type = "pointer"
+
+[[hooks.parameters]]
+source = "rbp-0x230" # The alternates, CExoStrings side by side.
+type = "pointer"
+
+[[hooks.parameters]]
+source = "const:32" # How many alternates this build keeps.
+type = "uint"
 
 # The load of the RIFF size field, before the ADD that turns it into the audio offset.
 # Reached only for a candidate opening with RIFF, so raw mp3 never pays for it.
-# Frame-relative, so it moves into the stub safely. The field is at RBP-0x8AA4, and
-# `this` is still live in R15.
+# Frame-relative, so it moves into the stub safely.
 [[hooks]]
 address = 0x1002E49A1
-function = "K2Mp3RiffOffsetMacOs"
+function = "K2Mp3RiffOffset"
 type = "detour"
 original_bytes = [0x8B, 0x9D, 0x5C, 0x75, 0xFF, 0xFF]
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "rbp"
+source = "rbp-0x8AA4" # The RIFF size field.
 type = "pointer"
 
 [[hooks.parameters]]
-source = "r15"
+source = "r15" # `this`, still live here.
 type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0x258" # Where `this` keeps its FILE in this build.
+type = "uint"

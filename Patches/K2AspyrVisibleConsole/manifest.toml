@@ -1,7 +1,7 @@
 [patch]
 id = "k2-visible-console"
 name = "Visible Console for KOTOR2"
-version = "1.4.0"
+version = "1.4.1"
 author = "J, Synchro"
 description = "Restores KOTOR2's visible cheat console."
 

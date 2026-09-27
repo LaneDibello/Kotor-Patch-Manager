@@ -56,8 +56,8 @@ source = "esi"
 type = "pointer"
 
 # CSWGuiOptionsResolution's constructor, immediately after the CExoString::Format at 0x082DFAC8 that
-# composes a resolution list entry and before the text reaches the control. esp+0 is the argument
-# list that call left on the stack, holding the composed string and the mode's numbers.
+# composes a resolution list entry and before the text reaches the control. cdecl leaves that call's
+# arguments where they were, so the string it wrote and the numbers it read are still on the stack.
 [[hooks]]
 address = 0x082DFACD
 function = "MarkScaledResolutions"
@@ -67,8 +67,16 @@ skip_original_bytes = false
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "esp+0"
+source = "[esp+0]" # The CExoString the entry was composed into.
 type = "pointer"
+
+[[hooks.parameters]]
+source = "[esp+8]" # The mode's width.
+type = "int"
+
+[[hooks.parameters]]
+source = "[esp+12]" # And its height.
+type = "int"
 
 # ESI carries the mode index through the loop. It is stored into the entry at 0x082DFAE3 and is not
 # written anywhere in this branch, so it still names the mode here. Its low bit says whether this is
@@ -123,8 +131,12 @@ skip_original_bytes = false
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "esp+0"
+source = "[esp+4]" # hwnd
 type = "pointer"
+
+[[hooks.parameters]]
+source = "[esp+8]" # nCmdShow
+type = "uint"
 
 # The shim's SDL event pump at 0x080C1658, just after SDL_PeepEvents has returned an event and before it
 # is dispatched. ESI holds the event for the whole loop. The stolen instruction is an absolute load, so

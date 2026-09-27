@@ -30,15 +30,12 @@ namespace {
 
 }
 
-extern "C" void __cdecl ShowWindowHonoursCommand(unsigned* args)
+extern "C" void __cdecl ShowWindowHonoursCommand(unsigned char* hwnd, unsigned command)
 {
-    const std::size_t kHwnd = 1;     // [esp+4]
-    const std::size_t kCommand = 2;  // [esp+8], nCmdShow
     const unsigned kShowCommands = 0x62E;
     const unsigned kCommandLimit = 0xC;
     const unsigned kMinimize = 6;    // SW_MINIMIZE
 
-    unsigned char* const hwnd = reinterpret_cast<unsigned char*>(args[kHwnd]);
     if (hwnd == 0) {
         return;
     }
@@ -47,7 +44,6 @@ extern "C" void __cdecl ShowWindowHonoursCommand(unsigned* args)
         return;
     }
 
-    const unsigned command = args[kCommand];
     if (command == kMinimize) {
         SdlMinimizeWindow(sdlWindow);
     } else if (command < kCommandLimit && ((kShowCommands >> command) & 1) != 0) {

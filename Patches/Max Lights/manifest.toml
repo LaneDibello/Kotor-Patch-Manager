@@ -1,7 +1,7 @@
 [patch]
 id = "max-lights"
 name = "Max Lights"
-version = "1.2.0"
+version = "1.2.1"
 author = "Vriff"
 description = "Raises KOTOR2's dynamic-light limit from 3 to 7, characters included."
 requires = []
