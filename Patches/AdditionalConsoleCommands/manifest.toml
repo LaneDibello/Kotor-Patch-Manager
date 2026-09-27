@@ -1,9 +1,9 @@
 [patch]
 id = "additional-console-commands"
 name = "Additional Console Commands"
-version = "1.3.2"
+version = "1.4.0"
 author = "Lane"
-description = "Adds additional commands to the in-game cheat console"
+description = "Adds additional commands to the in-game cheat console.\nOther patches can register their own commands with TOML files in a folder titled \"commands\" in the base game directory."
 
 requires = []
 

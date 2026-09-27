@@ -1,9 +1,9 @@
 #include "snakePanel.h"
 
-#include "GameAPI/ConsoleFunc.h"
 #include "GameAPI/CSWGuiManager.h"
 
-void __cdecl snake() {
+// Registered as a console command by Additional Console Commands (see additional/commands/snake.toml)
+extern "C" void __cdecl snake() {
     CSWGuiManager manager;
     try
     {
@@ -12,10 +12,6 @@ void __cdecl snake() {
     catch (const std::exception& e) {
         debugLog("[Snake] Caught Error: %s", e.what());
     }
-}
-
-extern "C" void __cdecl addConsoleCommand() {
-    new ConsoleFunc("snake", (void*)&snake, NO_PARAMS);
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
