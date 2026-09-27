@@ -1,0 +1,35 @@
+# The grammar of the offset in a stack or bracketed parameter source, "esp-8" or
+# "[esi+0x10]", as both parsers must read it.
+#
+# ParseSignedOffset in wrapper_base.h and TryParseSignedOffset in Parameter.cs are the same
+# grammar in two languages, kept in step the way constant-sources.tsv keeps the constant
+# grammar: a test on each side reads this file. An offset one parser reads differently from
+# the other is a hook that validates and then reads the wrong slot.
+#
+# text<TAB>outcome<TAB>value   outcome is parsed or malformed; value only when parsed.
+
++0	parsed	0
++8	parsed	8
+-8	parsed	-8
++0x10	parsed	16
+-0x10	parsed	-16
++0X10	parsed	16
++010	parsed	10
++2147483647	parsed	2147483647
+-2147483648	parsed	-2147483648
++0x7FFFFFFF	parsed	2147483647
++2147483648	malformed	-
+-2147483649	malformed	-
++0xFFFFFFFF	malformed	-
+8	malformed	-
++	malformed	-
+-	malformed	-
++-8	malformed	-
+++8	malformed	-
++ 8	malformed	-
++8 	malformed	-
++8abc	malformed	-
++0x	malformed	-
++0xZZ	malformed	-
++0x-8	malformed	-
++0x0x10	malformed	-

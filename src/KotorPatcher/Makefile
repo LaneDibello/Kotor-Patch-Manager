@@ -152,7 +152,8 @@ TESTS_ANY   := $(wildcard tests/any_*.cpp)
 TESTS_32    := $(wildcard tests/t32_*.cpp) $(TESTS_ANY)
 TESTS_64    := $(wildcard tests/t64_*.cpp) $(TESTS_ANY)
 TEST_FLAGS  := -std=c++17 -O1 $(INCLUDES) -Itests -Isrc \
-               -DCONSTANT_CORPUS='"$(CURDIR)/tests/constant-sources.tsv"'
+               -DCONSTANT_CORPUS='"$(CURDIR)/tests/constant-sources.tsv"' \
+               -DOFFSET_CORPUS='"$(CURDIR)/tests/signed-offsets.tsv"'
 
 # i386 has no PC-relative addressing mode, so the hand-written asm in the 32-bit tests
 # reaches its globals absolutely. That needs a relocation in .text, which a PIE may not

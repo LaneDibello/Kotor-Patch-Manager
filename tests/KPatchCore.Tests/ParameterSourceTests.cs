@@ -31,6 +31,8 @@ public class ParameterSourceTests
     [InlineData("esp+0")]
     [InlineData("esp+116")]
     [InlineData("esp-4")]
+    // The offset is written as a bracketed one is, so hex works here too.
+    [InlineData("esp+0x10")]
     public void X86Reads(string source)
     {
         Assert.True(Source(source).IsValidFor(Architecture.x86, out var error), error);

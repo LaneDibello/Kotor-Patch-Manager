@@ -118,7 +118,7 @@ The two generators read different sources, and a hook naming one its generator c
 | `eax` `ebx` `ecx` `edx` `esi` `edi` `ebp` | yes | yes | On x86_64 these name the low half of the 64-bit register |
 | `rax` `rbx` `rcx` `rdx` `rsi` `rdi` `rbp` | no | yes | |
 | `r8`..`r15`, `r8d`..`r15d` | no | yes | |
-| `esp+N` `esp-N` | yes | yes | Passes the *address* of the slot, not its contents |
+| `esp+N` `esp-N` | yes | yes | Passes the *address* of the slot, not its contents. `N` is written as a constant's digits are, so `esp+0x10` works |
 | `rsp+N` `rsp-N` | no | yes | `esp+N` is accepted here too, so a hook ported off the Windows build needs no edit |
 | `esp` `rsp` on their own | no | no | The wrapper keeps no saved copy of the stack pointer. Use `esp+0` for the game's stack |
 | `[eax]`, `[esp+8]`, `[rdi+0x10]` | yes | yes | Reads *through* the register. See below |
@@ -134,7 +134,7 @@ The value is unsigned, written in decimal or with a `0x` prefix. A leading `-` i
 
 ### Dereferences
 
-`source = "[esi+0x10]"` hands the patch function what the slot holds rather than its address. Any source naming a register takes brackets, with an optional signed offset in decimal or hex, and the declared type gives the width of the load.
+`source = "[esi+0x10]"` hands the patch function what the slot holds rather than its address. Any source naming a register takes brackets, with an optional signed offset written as a constant's digits are, and the declared type gives the width of the load.
 
 Without brackets, `esi` passes the pointer itself, which is what a hook wanting the object rather than one of its fields means. Before this a bracketed source matched no form and was refused, so a hook wanting a field took the pointer and dereferenced it on the other side (issue #156).
 
