@@ -1,0 +1,179 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# CAurInternalGL::PresentFrame at 0x084144D4, on the last argument store before its
+# glBlitFramebuffer call, where every slot but the first is already populated. esp+0 is therefore the
+# argument list itself, and the hook can rewrite the destination rect in place. Seven bytes is the
+# whole MOV, so the call that follows stays where the game put it.
+#
+# The device-layer present at 0x08140D2A carries the same blit against the HWND_Mac viewport rect,
+# but it is dead code on this build: a detour on its own argument store never fires.
+[[hooks]]
+address = 0x084145AB
+function = "FitPresentToSourceAspect"
+original_bytes = [0xC7, 0x04, 0x24, 0x00, 0x00, 0x00, 0x00]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# ESI holds the HWND_Mac for the window being presented, loaded at 0x084144F1 and still live here
+# because the swap after the blit reads the SDL window back out of it. The hook needs it to keep the
+# input mapping on the same rect as the blit.
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
+
+# EnumDisplaySettingsA. Seven bytes covers the whole prologue, so the hook sees the arguments where
+# the caller left them, at esp+4 onward.
+[[hooks]]
+address = 0x080EE1E2
+function = "StretchVariantOfMode"
+original_bytes = [0x55, 0x53, 0x57, 0x56, 0x83, 0xEC, 0x7C]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# The store that clears dmDisplayFixedOutput at the end of EnumDisplaySettingsA, with ESI holding the
+# DEVMODE being filled. skip_original_bytes drops that store so the hook can supply the value instead.
+[[hooks]]
+address = 0x080EE406
+function = "ReportStretchVariant"
+original_bytes = [0xC7, 0x46, 0x38, 0x00, 0x00, 0x00, 0x00]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
+
+# CSWGuiOptionsResolution's constructor, immediately after the CExoString::Format at 0x082DFAC8 that
+# composes a resolution list entry and before the text reaches the control. esp+0 is the argument
+# list that call left on the stack, holding the composed string and the mode's numbers.
+[[hooks]]
+address = 0x082DFACD
+function = "MarkScaledResolutions"
+original_bytes = [0x8D, 0x87, 0x78, 0x01, 0x00, 0x00]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# ESI carries the mode index through the loop. It is stored into the entry at 0x082DFAE3 and is not
+# written anywhere in this branch, so it still names the mode here. Its low bit says whether this is
+# the stretched reading of that mode.
+[[hooks.parameters]]
+source = "esi"
+type = "int"
+
+# The four instructions in CreateWindowEx_Shared that copy ASL__Display__GetLogicalMode's answer into
+# the width and height passed to ASL__SDL__CreateWindow, reached only when the caller asked for
+# CW_USEDEFAULT. skip_original_bytes drops all four so the hook decides the size; execution resumes at
+# 0x080EA775, and the GetLogicalMode call before them still runs, leaving its SDL_Rect readable as the
+# fallback.
+[[hooks]]
+address = 0x080EA75F
+function = "DefaultSizeMatchesTheFinalWindow"
+original_bytes = [0x8B, 0x84, 0x24, 0x40, 0x01, 0x00, 0x00, 0x89, 0x44, 0x24, 0x28,
+                  0x8B, 0x84, 0x24, 0x44, 0x01, 0x00, 0x00, 0x89, 0x44, 0x24, 0x2C]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# The SDL flags staged for ASL__SDL__CreateWindow inside CreateWindowEx_Shared, the last store before
+# the call. skip_original_bytes drops the hardcoded SDL_WINDOW_OPENGL so the hook supplies the value.
+[[hooks]]
+address = 0x080EA7C1
+function = "CreationFlagsMatchTheFinalWindow"
+original_bytes = [0xC7, 0x44, 0x24, 0x14, 0x02, 0x00, 0x00, 0x00]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# ShowWindow_Win32. The engine calls this with SW_MINIMIZE when the window loses the display and with
+# SW_SHOWNORMAL once the renderer is ready; the original body honours neither, calling SDL_RaiseWindow
+# for a subset of commands that excludes SW_MINIMIZE entirely. The hook adds the two actions and then
+# lets the original run. Six bytes covers the whole prologue, leaving hwnd and nCmdShow where the
+# caller put them.
+[[hooks]]
+address = 0x080E9C74
+function = "ShowWindowHonoursCommand"
+original_bytes = [0x53, 0x57, 0x56, 0x83, 0xEC, 0x10]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# The shim's SDL event pump at 0x080C1658, just after SDL_PeepEvents has returned an event and before it
+# is dispatched. ESI holds the event for the whole loop. The stolen instruction is an absolute load, so
+# replaying it is safe.
+[[hooks]]
+address = 0x080C16B5
+function = "ToggleFullscreenOnAltEnter"
+original_bytes = [0xA1, 0x0C, 0x11, 0x8F, 0x08]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
+
+# CClientExoAppInternal::StartServices' call to ApplyVideoMode, the one unconditional duplicate of the
+# three startup applies. skip_original_bytes drops the call so the hook decides whether it happens; a
+# five-byte call takes a five-byte relative jump exactly. ApplyVideoMode returns void and no caller reads
+# a result, so nothing needs producing when it is skipped.
+[[hooks]]
+address = 0x081AC65C
+function = "SkipDuplicateVideoModeApply"
+original_bytes = [0xE8, 0xA4, 0xDB, 0xFE, 0xFF]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# CClientExoAppInternal::SetVideoMode's call. This apply must run, and does: the hook reissues it and
+# records its arguments, which is how the StartServices hook recognises a duplicate.
+#
+# skip_original_bytes is set even though the call is wanted, because the patcher copies stolen bytes into
+# its stub verbatim with no displacement fixup. A relative call relocated that way resolves against the
+# stub and jumps nowhere, so it has to be reissued from the hook instead of replayed.
+#
+# WinMain's two call sites are deliberately absent. They drain g_nVideoModeChangePending, so skipping
+# them leaves the request set and hangs the main loop.
+[[hooks]]
+address = 0x081AEB7C
+function = "RunAndRecordVideoModeApply"
+original_bytes = [0xE8, 0x84, 0xB6, 0xFE, 0xFF]
+type = "detour"
+skip_original_bytes = true
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
