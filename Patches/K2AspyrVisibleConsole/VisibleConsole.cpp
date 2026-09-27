@@ -10,13 +10,13 @@
 // back without touching the console, by drawing the strings the game is already handing
 // to a function that discards them.
 //
-// Three hooks, because there are three shapes of call site. Where the game still calls
-// the stub and passes on the stack, DrawConsoleBitmapTextHook reads the arguments from
-// there. Where it passes them in registers, DrawPrintStringHook takes them as they come.
-// Where the compiler folded the empty call away, the hook has to land mid-function with
-// only the PostedString live in a register, and DrawPostedStringHook takes the column and
-// row off the object. Which sites exist is a property of the build, so the hooks file for
-// each one picks the entry it needs.
+// Two hooks cover the three shapes of call site. Where the game still calls the stub,
+// DrawPrintStringHook takes the text, column and row, and the hooks file says where they
+// are: on the stack for the i386 builds, in registers on macOS. Where the compiler folded
+// the empty call away, the hook has to land mid-function with only the PostedString live
+// in a register, and DrawPostedStringHook takes the column and row off the object. Which
+// sites exist is a property of the build, so the hooks file for each one picks the entry
+// it needs.
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -191,18 +191,6 @@ void DrawConsoleBitmapText(const char* text, int column, int row)
     glPopAttrib();
 }
 
-}
-
-extern "C" void __cdecl DrawConsoleBitmapTextHook(
-    const char* const* textSlot,
-    const int* columnSlot,
-    const int* rowSlot)
-{
-    if (textSlot == nullptr || columnSlot == nullptr || rowSlot == nullptr) {
-        return;
-    }
-
-    DrawConsoleBitmapText(*textSlot, *columnSlot, *rowSlot);
 }
 
 extern "C" void __cdecl DrawPrintStringHook(const char* text, int column, int row)

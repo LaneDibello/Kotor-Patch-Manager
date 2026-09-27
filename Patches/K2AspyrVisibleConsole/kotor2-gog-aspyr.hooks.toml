@@ -3,60 +3,60 @@ target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963
 
 [[hooks]]
 address = 0x008667FA
-function = "DrawConsoleBitmapTextHook"
+function = "DrawPrintStringHook"
 original_bytes = [0xE8, 0x51, 0x3A, 0xFB, 0xFF]
 type = "detour"
 skip_original_bytes = true
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "esp+0"
+source = "[esp+0]"
 type = "pointer"
 
 [[hooks.parameters]]
-source = "esp+4"
+source = "[esp+4]"
 type = "int"
 
 [[hooks.parameters]]
-source = "esp+8"
+source = "[esp+8]"
 type = "int"
 
 [[hooks]]
 address = 0x00407DF1
-function = "DrawConsoleBitmapTextHook"
+function = "DrawPrintStringHook"
 original_bytes = [0xE8, 0x5A, 0x24, 0x41, 0x00]
 type = "detour"
 skip_original_bytes = true
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "esp+0"
+source = "[esp+0]"
 type = "pointer"
 
 [[hooks.parameters]]
-source = "esp+4"
+source = "[esp+4]"
 type = "int"
 
 [[hooks.parameters]]
-source = "esp+8"
+source = "[esp+8]"
 type = "int"
 
 [[hooks]]
 address = 0x00407ED7
-function = "DrawConsoleBitmapTextHook"
+function = "DrawPrintStringHook"
 original_bytes = [0xE8, 0x74, 0x23, 0x41, 0x00]
 type = "detour"
 skip_original_bytes = true
 exclude_from_restore = []
 
 [[hooks.parameters]]
-source = "esp+0"
+source = "[esp+0]"
 type = "pointer"
 
 [[hooks.parameters]]
-source = "esp+4"
+source = "[esp+4]"
 type = "int"
 
 [[hooks.parameters]]
-source = "esp+8"
+source = "[esp+8]"
 type = "int"
