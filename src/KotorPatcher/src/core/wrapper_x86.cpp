@@ -631,11 +631,9 @@ namespace KotorPatcher {
                     return false;
                 }
 
-                // Parse the user-specified offset from the parameter source
+                // From the sign on, so "esp-8" is minus eight.
                 int userOffset = 0;
-                try {
-                    userOffset = std::stoi(source.substr(4));
-                } catch (...) {
+                if (!ParseSignedOffset(source.substr(3), userOffset)) {
                     Platform::Log(("[Wrapper] Invalid stack offset: " + source + "\n").c_str());
                     return false;
                 }

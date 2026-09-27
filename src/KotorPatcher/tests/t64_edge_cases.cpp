@@ -18,13 +18,15 @@ extern "C" {
     int      g_landedConsumed;
     uint64_t g_stackArg;
     int      g_probeReturn;
-    uint64_t g_seenArg0;
+    uint64_t g_seenArg0, g_seenArg1, g_seenArg2;
     void kick(void);
     void land_resume(void);
     void land_consumed(void);
 
-    int probe(uint64_t a) {
+    int probe(uint64_t a, uint64_t b, uint64_t c) {
         g_seenArg0 = a;
+        g_seenArg1 = b;
+        g_seenArg2 = c;
         return g_probeReturn;
     }
 }
@@ -122,7 +124,9 @@ int main() {
     printf("  red zone and flags survive a hook\n");
     {
         Wrappers::WrapperConfig c;
-        c.parameters = { { "rsp+0", ParameterType::POINTER } };
+        c.parameters = { { "rsp+0", ParameterType::POINTER },
+                         { "rsp-16", ParameterType::POINTER },
+                         { "rsp+0x10", ParameterType::POINTER } };
         g_probeReturn = 0;
         if (!build(gen, c, stolen, sizeof(stolen))) { printf("   build failed\n"); return 1; }
         std::memset(g_redZoneAfter, 0, sizeof(g_redZoneAfter));
@@ -131,6 +135,9 @@ int main() {
         kptest::Check("ZF from before the hook survives", (g_flags & 0x40) != 0);
         char d[64]; snprintf(d, sizeof(d), "(arg %#lx vs rsp %#lx)", g_seenArg0, g_gameRsp);
         kptest::Check("rsp+0 gives the game's stack pointer", g_seenArg0 == g_gameRsp, d);
+        kptest::Check("a negative offset reaches below the stack pointer",
+                      g_seenArg1 == g_gameRsp - 16);
+        kptest::Check("a hex offset is read whole", g_seenArg2 == g_gameRsp + 0x10);
     }
 
     printf("  consumed-exit taken when the handler returns non-zero\n");

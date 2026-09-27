@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 #include <string>
@@ -141,6 +142,32 @@ namespace KotorPatcher {
                 : ConstantSource::Malformed;
         }
 
+        // Reads the offset in "esp+8" or "[esi-0x10]": a sign, then digits as a constant's are
+        // written, fitting an int. The sign is required because every caller splits the text at
+        // it, so text without one is not an offset.
+        inline bool ParseSignedOffset(const std::string& text, int& outOffset) {
+            if (text.empty() || (text[0] != '+' && text[0] != '-')) {
+                return false;
+            }
+
+            uint64_t magnitude = 0;
+            if (!ParseDigits(text.substr(1), magnitude)) {
+                return false;
+            }
+
+            // The most negative int has one more unit of magnitude than the most positive.
+            const bool negative = text[0] == '-';
+            const uint64_t limit =
+                static_cast<uint64_t>(std::numeric_limits<int>::max()) + (negative ? 1 : 0);
+            if (magnitude > limit) {
+                return false;
+            }
+
+            outOffset = static_cast<int>(negative ? -static_cast<int64_t>(magnitude)
+                                                  : static_cast<int64_t>(magnitude));
+            return true;
+        }
+
         // The outcomes a constant has, for the same reason: a source with no brackets is some
         // other form, where brackets the caller could not read is an error rather than an
         // invitation to keep looking.
@@ -169,20 +196,11 @@ namespace KotorPatcher {
                 return Dereference::Malformed;
             }
 
-            // stoi reads the sign, so the offset keeps it. Base 0 lets a hook write a field
-            // offset the way the disassembly shows it, "[esi+0x10]" as readily as "[esi+16]".
-            const std::string offset = inner.substr(sign);
-            try {
-                std::size_t consumed = 0;
-                outOffset = std::stoi(offset, &consumed, 0);
-                if (consumed != offset.size()) {
-                    return Dereference::Malformed;
-                }
-            } catch (...) {
-                return Dereference::Malformed;
-            }
-
-            return Dereference::Parsed;
+            // Hex lets a hook write a field offset the way the disassembly shows it,
+            // "[esi+0x10]" as readily as "[esi+16]".
+            return ParseSignedOffset(inner.substr(sign), outOffset)
+                ? Dereference::Parsed
+                : Dereference::Malformed;
         }
 
         // Abstract base class for wrapper generators
