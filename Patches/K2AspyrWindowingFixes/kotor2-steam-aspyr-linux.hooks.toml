@@ -108,3 +108,20 @@ exclude_from_restore = []
 [[hooks.parameters]]
 source = "esp+0"
 type = "pointer"
+
+# ShowWindow_Win32. The engine calls this with SW_MINIMIZE when the window loses the display and with
+# SW_SHOWNORMAL once the renderer is ready; the original body honours neither, calling SDL_RaiseWindow
+# for a subset of commands that excludes SW_MINIMIZE entirely. The hook adds the two actions and then
+# lets the original run. Six bytes covers the whole prologue, leaving hwnd and nCmdShow where the
+# caller put them.
+[[hooks]]
+address = 0x080E9C74
+function = "ShowWindowHonoursCommand"
+original_bytes = [0x53, 0x57, 0x56, 0x83, 0xEC, 0x10]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
