@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace KPatchCore.Models;
 
 /// <summary>
@@ -52,6 +54,9 @@ public sealed class Parameter
     // Neither list holds the stack pointer. It is the one register the wrapper has no saved
     // copy of, because by the time the patch function runs it points into the wrapper's own
     // frame. A hook wanting the game's stack asks for "esp+0", which is that address.
+    //
+    // Nor "const:<value>", which reads nothing at all and so is taken wherever a
+    // generator exists.
     private static readonly string[] X86Registers =
     {
         "eax", "ebx", "ecx", "edx", "esi", "edi", "ebp"
@@ -68,6 +73,8 @@ public sealed class Parameter
         "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d"
     };
 
+    private const string ConstantPrefix = "const:";
+
     private static readonly string[] X86StackPrefixes = { "esp+", "esp-" };
 
     // "esp+8" as well as "rsp+8", so a hook ported off the Windows build keeps working
@@ -76,7 +83,7 @@ public sealed class Parameter
 
     /// <summary>
     /// Source location to read parameter from
-    /// Examples: "eax", "esp+0", "esp+4", "rbp", "r15", "rsp+8"
+    /// Examples: "eax", "esp+0", "esp+4", "rbp", "r15", "rsp+8", "const:0xBC"
     /// </summary>
     public required string Source { get; init; }
 
@@ -110,6 +117,8 @@ public sealed class Parameter
             return true;
         }
 
+        // x86_64 is the wider of the two, so it gives a constant the most generous limit
+        // any target would apply.
         error = Explain(Architecture.x86_64);
         return false;
     }
@@ -158,9 +167,27 @@ public sealed class Parameter
                    "a register to read from nor a single argument slot to pass in";
         }
 
+        var source = Source.Trim().ToLowerInvariant();
+
+        if (source.StartsWith(ConstantPrefix, StringComparison.Ordinal))
+        {
+            if (Type == ParameterType.Float)
+            {
+                return $"Constant parameter '{Source}' cannot be a Float. There is no float " +
+                       "literal syntax, and an integer parse would not be the value meant";
+            }
+
+            return TryParseConstant(source[ConstantPrefix.Length..], out _)
+                ? $"Constant parameter '{Source}' is not a {Type} that {architecture} can hold. " +
+                  $"The widest {Type} there is 0x{WidestValue(architecture):X}"
+                : $"Constant parameter '{Source}' is not a number. Write it unsigned, in " +
+                  "decimal or with a 0x prefix";
+        }
+
         return $"Parameter source '{Source}' cannot be read on {architecture}. " +
                $"Readable there: {string.Join(", ", sources.Registers)}, " +
-               $"or an offset from {string.Join(" / ", sources.StackPrefixes.Select(p => p[..3]).Distinct())}";
+               $"an offset from {string.Join(" / ", sources.StackPrefixes.Select(p => p[..3]).Distinct())}, " +
+               "or a constant (const:0xBC)";
     }
 
     public override string ToString() =>
@@ -176,6 +203,48 @@ public sealed class Parameter
         // Every named value is above; this arm catches an integer cast in from outside the
         // enum, which has no generator either.
         _ => null
+    };
+
+    // Mirrors ParseConstantSource in wrapper_base.h, and has to keep mirroring it: a
+    // constant this accepts and the generator rejects is an install that passes every
+    // check and then fails to hook.
+    private static bool TryParseConstant(string text, out ulong value)
+    {
+        value = 0;
+
+        // A sign would wrap into a huge unsigned value rather than fail, and leading
+        // whitespace would be skipped, so both are turned away before parsing.
+        if (text.Length == 0 || !char.IsAsciiDigit(text[0]))
+        {
+            return false;
+        }
+
+        var hexadecimal = text.Length > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X');
+        var digits = hexadecimal ? text[2..] : text;
+        var style = hexadecimal ? NumberStyles.AllowHexSpecifier : NumberStyles.None;
+
+        return ulong.TryParse(digits, style, CultureInfo.InvariantCulture, out value);
+    }
+
+    private bool ConstantFits(string text, Architecture architecture) =>
+        // There is no syntax for a float literal here, and a bit pattern parsed as an
+        // integer would not be the float the hook meant.
+        Type != ParameterType.Float &&
+        TryParseConstant(text, out var value) &&
+        value <= WidestValue(architecture);
+
+    private ulong WidestValue(Architecture architecture) => Type switch
+    {
+        ParameterType.Byte or ParameterType.SByte => byte.MaxValue,
+        ParameterType.Short or ParameterType.SShort => ushort.MaxValue,
+        // The types that hold a full register, on the target that has 64-bit ones.
+        ParameterType.Pointer or ParameterType.Int64 or ParameterType.UInt64
+            when architecture == Architecture.x86_64 => ulong.MaxValue,
+        ParameterType.Int or ParameterType.UInt or ParameterType.Pointer => uint.MaxValue,
+        // A float has no literal syntax, a 64-bit type does not exist on a 32-bit target,
+        // and nothing outside the enum has a width. All refuse every value rather than
+        // defaulting to the widest on offer.
+        _ => 0
     };
 
     // Only x86_64 has a register wide enough to read one of these out of, and only its
@@ -196,6 +265,13 @@ public sealed class Parameter
         }
 
         var source = Source.Trim().ToLowerInvariant();
+
+        // A constant is a literal rather than something read from anywhere, so it is
+        // readable wherever a generator exists, subject only to its width.
+        if (source.StartsWith(ConstantPrefix, StringComparison.Ordinal))
+        {
+            return ConstantFits(source[ConstantPrefix.Length..], architecture);
+        }
 
         if (sources.Registers.Contains(source))
         {

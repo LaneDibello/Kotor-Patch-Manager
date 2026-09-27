@@ -125,6 +125,58 @@ public class ParameterSourceTests
     }
 
     [Theory]
+    // Decimal and hexadecimal, in either case, matching ParseConstantSource in
+    // wrapper_base.h. A constant is a literal, so both generators take it.
+    [InlineData("const:0")]
+    [InlineData("const:0xBC")]
+    [InlineData("const:4294967295")]
+    public void ConstantsAreReadableEverywhere(string source)
+    {
+        Assert.True(Source(source).IsValidFor(Architecture.x86, out var x86), x86);
+        Assert.True(Source(source).IsValidFor(Architecture.x86_64, out var x64), x64);
+    }
+
+    [Theory]
+    // A sign would wrap into a huge unsigned value rather than fail, so it is turned away.
+    [InlineData("const:-1")]
+    [InlineData("const: 5")]
+    [InlineData("const:")]
+    [InlineData("const:zz")]
+    [InlineData("const:0xZZ")]
+    [InlineData("const:12abc")]
+    public void MalformedConstantsAreRefused(string source)
+    {
+        Assert.False(Source(source).IsValid(out var error));
+        Assert.NotNull(error);
+    }
+
+    [Fact]
+    public void ConstantMustFitItsDeclaredType()
+    {
+        var tooWide = new Parameter { Source = "const:0x100", Type = ParameterType.Byte };
+        Assert.False(tooWide.IsValidFor(Architecture.x86, out var error));
+        Assert.Contains("Byte", error);
+
+        var fits = new Parameter { Source = "const:0xFF", Type = ParameterType.Byte };
+        Assert.True(fits.IsValidFor(Architecture.x86, out _));
+    }
+
+    [Fact]
+    public void OnlyASixtyFourBitPointerHoldsAnAddressConstant()
+    {
+        var address = new Parameter
+        {
+            Source = "const:0x100480ABD",
+            Type = ParameterType.Pointer
+        };
+
+        Assert.True(address.IsValidFor(Architecture.x86_64, out _));
+        // The same constant on a 32-bit build is a value that target cannot represent.
+        Assert.False(address.IsValidFor(Architecture.x86, out var error));
+        Assert.Contains("0xFFFFFFFF", error);
+    }
+
+    [Theory]
     // No source of any kind makes these readable on a 32-bit target, so the refusal is
     // about the type rather than the source.
     [InlineData(ParameterType.Int64)]
@@ -137,6 +189,17 @@ public class ParameterSourceTests
         Assert.Contains("64 bits wide", error);
 
         Assert.True(register.IsValidFor(Architecture.x86_64, out var wide), wide);
+    }
+
+    [Fact]
+    public void AConstantCannotBeAFloat()
+    {
+        var value = new Parameter { Source = "const:1", Type = ParameterType.Float };
+
+        Assert.False(value.IsValidFor(Architecture.x86, out var error));
+        // Not the width message: a float is refused outright, so quoting a widest value
+        // for it would be nonsense.
+        Assert.Contains("cannot be a Float", error);
     }
 
     [Fact]
