@@ -30,7 +30,7 @@ extern "C" {
     void  finish(void);
 
     uint64_t g_seedReg;
-    uint64_t g_arg[8];
+    uint64_t g_arg[9];
     double   g_dbl;
     int      g_calls;
 
@@ -41,8 +41,9 @@ extern "C" {
 
     // A separate probe for the two arguments that cannot share the first run: a double
     // arrives in an SSE register, and the integer sequence there is already full.
-    void probeWide(double value, uint64_t pointerConst, uint64_t intConst) {
-        g_dbl = value; g_arg[6] = pointerConst; g_arg[7] = intConst;
+    void probeWide(double value, uint64_t pointerConst, uint64_t intConst,
+                   uint64_t sbyteConst) {
+        g_dbl = value; g_arg[6] = pointerConst; g_arg[7] = intConst; g_arg[8] = sbyteConst;
     }
 }
 
@@ -155,6 +156,7 @@ int main() {
             { "const:0x100480ABD", ParameterType::POINTER },
             // The same literal as a 64-bit integer, which is just as wide.
             { "const:0x100480ABD", ParameterType::INT64 },
+            { "const:0xEF", ParameterType::SBYTE },
         };
 
         void* dblWrapper = dbl.GenerateWrapper(dblConfig);
@@ -180,6 +182,7 @@ int main() {
         kptest::Check("double arrives whole in an SSE register", g_dbl == want, detail);
         Expect("a pointer constant arrives whole", g_arg[6], 0x100480ABDULL);
         Expect("an int64 constant arrives whole",  g_arg[7], 0x100480ABDULL);
+        Expect("an sbyte constant sign-extends",   g_arg[8], 0xFFFFFFEFULL);
     }
 
     // Only POINTER is eight bytes wide here, so the same literal as an int does not fit.

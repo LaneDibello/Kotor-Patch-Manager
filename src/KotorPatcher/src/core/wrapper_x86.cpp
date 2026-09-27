@@ -421,6 +421,21 @@ namespace KotorPatcher {
             }
 
 
+            // A constant declared narrow widens the way a register declared narrow does, so
+            // the declared type means the same thing wherever the value came from.
+            uint64_t WidenConstant(uint64_t value, ParameterType type) {
+                switch (type) {
+                    case ParameterType::SBYTE:
+                        return static_cast<uint64_t>(static_cast<uint32_t>(
+                            static_cast<int32_t>(static_cast<int8_t>(value & 0xFFull))));
+                    case ParameterType::SSHORT:
+                        return static_cast<uint64_t>(static_cast<uint32_t>(
+                            static_cast<int32_t>(static_cast<int16_t>(value & 0xFFFFull))));
+                    default:
+                        return value;  // nothing else needs widening
+                }
+            }
+
             // The widest constant each type can carry. Every argument here is a four-byte
             // stack slot, so nothing reaches past a dword.
             uint64_t ConstantLimit(ParameterType type) {
@@ -497,7 +512,7 @@ namespace KotorPatcher {
                         return false;
                     }
                     EmitByte(code, 0x68);  // PUSH imm32
-                    EmitDword(code, static_cast<uint32_t>(constant));
+                    EmitDword(code, static_cast<uint32_t>(WidenConstant(constant, param.type)));
                     return true;
                 }
                 case ConstantSource::None:

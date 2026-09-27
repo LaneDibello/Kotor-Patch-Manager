@@ -155,6 +155,21 @@ namespace KotorPatcher {
             }
 
 
+            // A constant declared narrow widens the way a register declared narrow does, so
+            // the declared type means the same thing wherever the value came from.
+            uint64_t WidenConstant(uint64_t value, ParameterType type) {
+                switch (type) {
+                    case ParameterType::SBYTE:
+                        return static_cast<uint64_t>(static_cast<uint32_t>(
+                            static_cast<int32_t>(static_cast<int8_t>(value & 0xFFull))));
+                    case ParameterType::SSHORT:
+                        return static_cast<uint64_t>(static_cast<uint32_t>(
+                            static_cast<int32_t>(static_cast<int16_t>(value & 0xFFFFull))));
+                    default:
+                        return value;  // nothing else needs widening
+                }
+            }
+
             // The types that occupy a whole register here: an address, or a 64-bit integer.
             // Read by the immediate path and by the limit below, which have to agree; a
             // constant the limit admits and the load truncates arrives silently wrong.
@@ -305,7 +320,8 @@ namespace KotorPatcher {
                                            " does not fit its declared type\n").c_str());
                             return false;
                         }
-                        LoadImmediate(e, kIntArgRegs[intArgIndex++], constant,
+                        LoadImmediate(e, kIntArgRegs[intArgIndex++],
+                                      WidenConstant(constant, param.type),
                                       IsFullWidth(param.type));
                         return true;
                     }
