@@ -452,7 +452,9 @@ namespace KotorPatcher {
                 + kSavedGprCount * 2                  // push the GPRs
                 + 1 + 3                               // PUSHFQ, MOV RBX, RSP
                 + 21                                  // address the FP area and FXSAVE64
-                + config.parameters.size() * 16       // worst case for one argument
+                + config.parameters.size() * 19       // worst case for one argument, a double
+                                                      // read through a register: two 7-byte
+                                                      // loads, then a 5-byte MOVQ to XMM
                 + 2 + 4 + 5                           // MOV AL, AND RSP, CALL
                 + 3 + 8                               // MOV RSP, RBX and the flags slot
                 + 21                                  // address the FP area and FXRSTOR64

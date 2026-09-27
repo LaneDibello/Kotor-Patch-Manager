@@ -97,11 +97,11 @@ namespace KotorPatcher {
             // Original bytes are copied into the stub verbatim, so they are counted
             // here rather than left to the base's headroom
             // +40 for the two FXSAVE sequences and the two frame adjustments
-            // Each parameter emits at most 12 bytes, the widest being a dereference through a
-            // register: the address load, then a MOVZX with a disp32, then the PUSH.
+            // Each parameter emits at most 11 bytes, the widest being a dereference through a
+            // register: the 3-byte address load, then a 7-byte MOVZX with a disp32, then the PUSH.
             size_t estimatedSize = 168 + config.originalBytes.size() +
                                    (config.excludeFromRestore.size() * 10) +
-                                   (config.parameters.size() * 12);
+                                   (config.parameters.size() * 11);
             if (config.consumedExitAddress != 0) {
                 estimatedSize += 16;
             }
