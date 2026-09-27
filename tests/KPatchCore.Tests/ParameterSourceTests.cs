@@ -34,6 +34,9 @@ public class ParameterSourceTests
     [InlineData("esp-4")]
     // The offset is written as a bracketed one is, so hex works here too.
     [InlineData("esp+0x10")]
+    // Any register takes an offset the same way, naming the address that far from it.
+    [InlineData("ebp-4")]
+    [InlineData("esi+0x10")]
     public void X86Reads(string source)
     {
         Assert.True(Source(source).IsValidFor(Architecture.x86, out var error), error);
@@ -77,6 +80,7 @@ public class ParameterSourceTests
     [InlineData("rsp-16")]
     // Kept deliberately, so a hook ported off the Windows build needs no edit.
     [InlineData("esp+8")]
+    [InlineData("rbp-0x10")]
     public void X86_64Reads(string source)
     {
         Assert.True(Source(source).IsValidFor(Architecture.x86_64, out var error), error);
@@ -252,6 +256,10 @@ public class ParameterSourceTests
 
         var value = new Parameter { Source = "[esp+8]", Type = ParameterType.Byte };
         Assert.True(value.IsValidFor(Architecture.x86, out error), error);
+
+        // The same holds through any register.
+        var field = new Parameter { Source = "esi+4", Type = ParameterType.Byte };
+        Assert.False(field.IsValidFor(Architecture.x86, out _));
     }
 
     [Fact]
