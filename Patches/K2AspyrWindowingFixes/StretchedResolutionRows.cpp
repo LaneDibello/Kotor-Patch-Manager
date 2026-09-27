@@ -75,24 +75,15 @@ extern "C" void __cdecl ReportStretchVariant(unsigned char* mode)
 //
 // Windowed presents are 1:1 whatever the desktop is doing, so a window lists no marker and no second row:
 // the duplicate labels match and the list drops one.
-extern "C" void __cdecl MarkScaledResolutions(int* args, int modeIndex)
+extern "C" void __cdecl MarkScaledResolutions(void* label, int modeW, int modeH, int modeIndex)
 {
-    // The argument slots of the Format call that just returned. cdecl leaves them untouched, so the string
-    // it wrote and the numbers it read are both still addressable.
-    const std::size_t kLabel = 0;
-    const std::size_t kModeWidth = 2;
-    const std::size_t kModeHeight = 3;
-
     if ((modeIndex & 1) == 0 || *gFullscreen == 0) {
         return;
     }
 
-    const int modeW = args[kModeWidth];
-    const int modeH = args[kModeHeight];
     if (!Windowing::NeedsScaling(modeW, modeH, *gDesktopWidth, *gDesktopHeight)) {
         return;
     }
 
-    Windowing::CExoStringFormat(reinterpret_cast<void*>(args[kLabel]), "%d x %d %s",
-                               modeW, modeH, "(stretched)");
+    Windowing::CExoStringFormat(label, "%d x %d %s", modeW, modeH, "(stretched)");
 }

@@ -1,7 +1,7 @@
 [patch]
 id = "k2-aspyr-windowing-fixes"
 name = "K2 Aspyr Windowing Fixes"
-version = "1.0.0"
+version = "1.0.1"
 author = "Synchro"
 description = """
 Fixes fullscreen and windowed-mode behaviour on Aspyr's native Linux KOTOR II.
