@@ -1,0 +1,28 @@
+[metadata]
+target_versions = ["ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"]
+
+# CAurInternalGL::PresentFrame at 0x084144D4, on the last argument store before its
+# glBlitFramebuffer call, where every slot but the first is already populated. esp+0 is therefore the
+# argument list itself, and the hook can rewrite the destination rect in place. Seven bytes is the
+# whole MOV, so the call that follows stays where the game put it.
+#
+# The device-layer present at 0x08140D2A carries the same blit against the HWND_Mac viewport rect,
+# but it is dead code on this build: a detour on its own argument store never fires.
+[[hooks]]
+address = 0x084145AB
+function = "FitPresentToSourceAspect"
+original_bytes = [0xC7, 0x04, 0x24, 0x00, 0x00, 0x00, 0x00]
+type = "detour"
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"
+
+# ESI holds the HWND_Mac for the window being presented, loaded at 0x084144F1 and still live here
+# because the swap after the blit reads the SDL window back out of it. The hook needs it to keep the
+# input mapping on the same rect as the blit.
+[[hooks.parameters]]
+source = "esi"
+type = "pointer"
