@@ -43,14 +43,15 @@ extern "C" {
     void  kick(void);
     void  finish(void);
 
-    uint64_t g_arg[5];
+    uint64_t g_arg[6];
     float    g_float;
     double   g_double;
     int      g_calls;
 
     // System V numbers the XMM arguments separately, so f and g arrive in XMM0 and XMM1.
-    void probe(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, float f, double g) {
-        g_arg[0] = a; g_arg[1] = b; g_arg[2] = c; g_arg[3] = d; g_arg[4] = e;
+    void probe(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, float f, double g,
+               uint64_t h) {
+        g_arg[0] = a; g_arg[1] = b; g_arg[2] = c; g_arg[3] = d; g_arg[4] = e; g_arg[5] = h;
         g_float = f; g_double = g;
         ++g_calls;
     }
@@ -115,6 +116,9 @@ int main() {
         // the move across to XMM.
         { "[r15+0xC]",  ParameterType::FLOAT },
         { "[r15+0x10]", ParameterType::DOUBLE },
+        // Without brackets the offset moves the address instead. The sixth integer argument,
+        // so it lands in R9 after the XMM ones in the signature.
+        { "r15+0x8",    ParameterType::POINTER },
     };
 
     void* wrapper = gen.GenerateWrapper(config);
@@ -136,6 +140,8 @@ int main() {
     Expect("[r15+0x8] takes a hex offset",    g_arg[2], g_fields.atEight);
     Expect("a byte dereference masks",        g_arg[3], g_fields.atFour & 0xFFu);
     Expect("[rsp+0] reads the pushed qword",  g_arg[4], 0x0EEDFACEu);
+    Expect("r15+0x8 is the address of the field", g_arg[5],
+           reinterpret_cast<uintptr_t>(&g_fields) + 8);
     kptest::Check("a float arrives through a register",  g_float == g_fields.atTwelve);
     kptest::Check("a double arrives through a register", g_double == g_fields.atSixteen);
 

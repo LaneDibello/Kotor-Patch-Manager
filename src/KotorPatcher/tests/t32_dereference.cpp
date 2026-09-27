@@ -34,11 +34,13 @@ extern "C" {
     void  kick(void);
     void  finish(void);
 
-    uint32_t g_arg[5];
+    uint32_t g_arg[7];
     int      g_calls;
 
-    void probe(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e) {
-        g_arg[0] = a; g_arg[1] = b; g_arg[2] = c; g_arg[3] = d; g_arg[4] = e;
+    void probe(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f,
+               uint32_t g) {
+        g_arg[0] = a; g_arg[1] = b; g_arg[2] = c; g_arg[3] = d; g_arg[4] = e; g_arg[5] = f;
+        g_arg[6] = g;
         ++g_calls;
     }
 }
@@ -101,6 +103,10 @@ int main() {
         { "[esi+4]",    ParameterType::BYTE },
         // The pushed dword, which the address form cannot reach: "esp+0" is where it sits.
         { "[esp+0]",    ParameterType::UINT },
+        // Without brackets the offset moves the address instead, so what arrives is where
+        // the field is.
+        { "esi+4",      ParameterType::POINTER },
+        { "esi-4",      ParameterType::POINTER },
     };
 
     void* wrapper = gen.GenerateWrapper(config);
@@ -122,6 +128,9 @@ int main() {
     Expect("[esi+0x8] takes a hex offset",    g_arg[2], g_fields.atEight);
     Expect("a byte dereference masks",        g_arg[3], g_fields.atFour & 0xFFu);
     Expect("[esp+0] reads the pushed dword",  g_arg[4], 0xFEEDFACEu);
+    const uint32_t fields = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&g_fields));
+    Expect("esi+4 is the address of the field", g_arg[5], fields + 4);
+    Expect("esi-4 reaches below the object",    g_arg[6], fields - 4);
 
     // An address is still an address: "esi" has to keep meaning the pointer, or every hook
     // written before brackets existed changes meaning.
