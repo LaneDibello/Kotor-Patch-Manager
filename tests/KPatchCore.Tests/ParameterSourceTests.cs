@@ -1,6 +1,7 @@
 using Xunit;
 
 using KPatchCore.Models;
+using KPatchCore.Parsers;
 
 namespace KPatchCore.Tests;
 
@@ -251,6 +252,29 @@ public class ParameterSourceTests
 
         var value = new Parameter { Source = "[esp+8]", Type = ParameterType.Byte };
         Assert.True(value.IsValidFor(Architecture.x86, out error), error);
+    }
+
+    [Fact]
+    public void ASourceReachesThePatcherAsItWasValidated()
+    {
+        // Validation trims, and the patcher does not, so a padded source has to be written
+        // into the config trimmed or it passes here and fails at install.
+        const string toml = """
+            [[hooks]]
+            address = 0x00401000
+            function = "Probe"
+            original_bytes = [0x90, 0x90, 0x90, 0x90, 0x90]
+            type = "detour"
+
+            [[hooks.parameters]]
+            source = " esp+8 "
+            type = "pointer"
+            """;
+
+        var result = HooksParser.ParseString(toml);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal("esp+8", result.Data![0].Parameters[0].Source);
     }
 
     [Fact]
