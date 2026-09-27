@@ -21,18 +21,25 @@ namespace KotorPatcher {
     HookType ParseHookType(const std::string& typeStr);
 
     // Parameter type for hook function parameters
+    // How much of the source reaches the patch function, and how the rest of the argument
+    // is filled. POINTER is the only one whose width follows the target.
     enum class ParameterType {
-        INT,        // 32-bit integer
-        UINT,       // Unsigned 32-bit integer
-        POINTER,    // 32-bit pointer
+        INT,        // 32-bit integer, on either target
+        UINT,       // Unsigned 32-bit integer, on either target
+        POINTER,    // Pointer-width: 32 bits on x86, 64 on x86_64
         FLOAT,      // 32-bit float
-        BYTE,       // 8-bit value
-        SHORT       // 16-bit value
+        BYTE,       // 8-bit value, zero-extended
+        SHORT,      // 16-bit value, zero-extended
+        SBYTE,      // 8-bit value, sign-extended
+        SSHORT,     // 16-bit value, sign-extended
+        INT64,      // 64-bit integer (x86_64 only)
+        UINT64,     // Unsigned 64-bit integer (x86_64 only)
+        DOUBLE      // 64-bit float (x86_64 only)
     };
 
     // Parameter source location
     struct ParameterInfo {
-        std::string source;     // e.g., "eax", "esp+0", "[esp+4]"
+        std::string source;     // e.g., "eax", "esp+0", "rbp", "const:0xBC"
         ParameterType type;     // Data type of the parameter
     };
 

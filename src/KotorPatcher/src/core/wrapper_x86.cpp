@@ -1,4 +1,5 @@
 #include "wrapper_x86.h"
+#include "wrappers/emitter.h"
 #include "patcher.h"
 #include "platform.h"
 
@@ -37,21 +38,19 @@ namespace KotorPatcher {
             m_allocatedWrappers.clear();
         }
 
-        void WrapperGenerator_x86::EmitBytes(uint8_t*& code, const uint8_t* bytes, size_t count) {
-            std::memcpy(code, bytes, count);
-            code += count;
+        void WrapperGenerator_x86::EmitBytes(Emitter& code, const uint8_t* bytes, size_t count) {
+            code.Bytes(bytes, count);
         }
 
-        void WrapperGenerator_x86::EmitByte(uint8_t*& code, uint8_t value) {
-            *code++ = value;
+        void WrapperGenerator_x86::EmitByte(Emitter& code, uint8_t value) {
+            code.Byte(value);
         }
 
-        void WrapperGenerator_x86::EmitDword(uint8_t*& code, uint32_t value) {
-            std::memcpy(code, &value, 4);
-            code += 4;
+        void WrapperGenerator_x86::EmitDword(Emitter& code, uint32_t value) {
+            code.Dword(value);
         }
 
-        void WrapperGenerator_x86::EmitFpStateAccess(uint8_t*& code, int savedStateSize, bool restore) {
+        void WrapperGenerator_x86::EmitFpStateAccess(Emitter& code, int savedStateSize, bool restore) {
             // EAX is borrowed and given back. On the way out it still holds the
             // handler's return value, which the consumed-exit test is about to read,
             // and which the caller was told to exclude from restore so it survives.
@@ -98,8 +97,11 @@ namespace KotorPatcher {
             // Original bytes are copied into the stub verbatim, so they are counted
             // here rather than left to the base's headroom
             // +40 for the two FXSAVE sequences and the two frame adjustments
+            // Each parameter emits at most 8 bytes, the widest being a stack source: a LEA
+            // with a disp32 and its PUSH.
             size_t estimatedSize = 168 + config.originalBytes.size() +
-                                   (config.excludeFromRestore.size() * 10);
+                                   (config.excludeFromRestore.size() * 10) +
+                                   (config.parameters.size() * 8);
             if (config.consumedExitAddress != 0) {
                 estimatedSize += 16;
             }
@@ -113,7 +115,7 @@ namespace KotorPatcher {
                 return nullptr;
             }
 
-            uint8_t* code = wrapperMem;  // Current write position
+            Emitter code(wrapperMem, estimatedSize);
 
             // ===== PROLOGUE: Save CPU State =====
             // Room for the floating-point state first, before anything is pushed.
@@ -220,7 +222,7 @@ namespace KotorPatcher {
             EmitByte(code, 0xE8);  // CALL rel32
             // Note: code now points one byte AFTER the 0xE8 opcode
             // CalculateRelativeOffset needs the address of the opcode itself
-            uint32_t callOffset = CalculateRelativeOffset(code - 1, config.patchFunction);
+            uint32_t callOffset = CalculateRelativeOffset(code.Cursor() - 1, config.patchFunction);
             EmitDword(code, callOffset);
 
             // ===== RESTORE WRAPPER ESP =====
@@ -350,7 +352,7 @@ namespace KotorPatcher {
                 EmitByte(code, 0x9D);  // POPFD — restore EFLAGS for consumed path
                 EmitByte(code, 0xE9);  // JMP rel32
                 uint32_t consumedOffset = CalculateRelativeOffset(
-                    code - 1,
+                    code.Cursor() - 1,
                     reinterpret_cast<void*>(config.consumedExitAddress));
                 EmitDword(code, consumedOffset);
                 EmitByte(code, 0x9D);  // POPFD — restore EFLAGS for fall-through
@@ -371,7 +373,7 @@ namespace KotorPatcher {
                     config.hookAddress + static_cast<uint32_t>(config.originalBytes.size())
                 );
                 EmitByte(code, 0xE9);  // JMP rel32
-                uint32_t returnOffset = CalculateRelativeOffset(code - 1, returnAddress);
+                uint32_t returnOffset = CalculateRelativeOffset(code.Cursor() - 1, returnAddress);
                 EmitDword(code, returnOffset);
 
                 if (config.skipOriginalBytes) {
@@ -380,6 +382,13 @@ namespace KotorPatcher {
                         reinterpret_cast<uint32_t>(returnAddress));
                     Platform::Log(debugMsg);
                 }
+            }
+
+            // Checked before the buffer is sealed and handed out: once a write has been
+            // refused every later one is dropped too, leaving a truncated instruction stream.
+            if (code.Overflowed()) {
+                Platform::Log("[Wrapper] Wrapper exceeded its allocation\n");
+                return nullptr;
             }
 
             // The stub was written through a writable mapping, so it only becomes
@@ -391,7 +400,7 @@ namespace KotorPatcher {
 
             char debugMsg[256];
             snprintf(debugMsg, sizeof(debugMsg), "[Wrapper] Generated DETOUR wrapper at 0x%08X (%d bytes)\n",
-                reinterpret_cast<uint32_t>(wrapperMem), static_cast<int>(code - wrapperMem));
+                reinterpret_cast<uint32_t>(wrapperMem), static_cast<int>(code.Written()));
             Platform::Log(debugMsg);
 
             return wrapperMem;
@@ -399,18 +408,36 @@ namespace KotorPatcher {
 
         // ===== Parameter Extraction =====
 
-        bool WrapperGenerator_x86::ExtractAndPushParameter(uint8_t*& code, const ParameterInfo& param, int savedStateSize) {
-            // Stack layout constants (relative to EBX, which points to saved state)
-            // EBX points to where ESP was after PUSHAD/PUSHFD
-            //
-            // Saved state structure at [EBX]:
-            const int OFFSET_EDI    = 4;   // [EBX+4]  = EDI
-            const int OFFSET_ESI    = 8;   // [EBX+8]  = ESI
-            const int OFFSET_EBP    = 12;  // [EBX+12] = EBP
-            const int OFFSET_EBX    = 20;  // [EBX+20] = EBX
-            const int OFFSET_EDX    = 24;  // [EBX+24] = EDX
-            const int OFFSET_ECX    = 28;  // [EBX+28] = ECX
-            const int OFFSET_EAX    = 32;  // [EBX+32] = EAX
+        namespace {
+
+            // True for a type this generator cannot pass. A 64-bit argument occupies two
+            // stack slots under cdecl, and paramBytes, the alignment pad and the wrapper's
+            // size estimate all assume one slot per parameter. A 32-bit target also has no
+            // register to read one out of.
+            bool IsSixtyFourBitOnly(ParameterType type) {
+                return type == ParameterType::INT64 ||
+                       type == ParameterType::UINT64 ||
+                       type == ParameterType::DOUBLE;
+            }
+
+        }  // namespace
+
+        bool WrapperGenerator_x86::ExtractAndPushParameter(Emitter& code, const ParameterInfo& param, int savedStateSize) {
+            // Where PUSHAD left each register, relative to EBX, which points at ESP after
+            // PUSHAD and PUSHFD.
+            struct SavedRegister { const char* name; int offset; };
+            static const SavedRegister kSavedRegisters[] = {
+                { "edi",  4 },
+                { "esi",  8 },
+                { "ebp", 12 },
+                // [EBX+16] is ESP. PUSHAD stores it, but the value is the wrapper's own
+                // stack rather than the game's, so no hook is offered it. A hook wanting
+                // the game's stack asks for "esp+0", which is that address.
+                { "ebx", 20 },
+                { "edx", 24 },
+                { "ecx", 28 },
+                { "eax", 32 },
+            };
 
             // Original stack data (parameters, etc.) is at:
             // [EBX + savedStateSize + kFpAreaSize]
@@ -424,61 +451,77 @@ namespace KotorPatcher {
             // Convert to lowercase for comparison
             std::transform(source.begin(), source.end(), source.begin(), ::tolower);
 
-            // We use ECX as our temp register for reading values
-            // ECX is caller-saved in __cdecl, so it's safe to clobber
+            // Ahead of every source form, because no source on this target can supply one.
+            if (IsSixtyFourBitOnly(param.type)) {
+                Platform::Log("[Wrapper] A 64-bit parameter needs two stack slots, which "
+                              "this generator does not pass\n");
+                return false;
+            }
 
-            // Check if source is a register (read from saved state)
-            if (source == "eax") {
-                // MOV ECX, [EBX + OFFSET_EAX]
-                EmitByte(code, 0x8B);  // MOV r32, r/m32
-                EmitByte(code, 0x4B);  // ModRM: ECX, [EBX + disp8]
-                EmitByte(code, OFFSET_EAX);
+            // Check if source is a register (read from saved state).
+            //
+            // ECX is the temp register throughout. It is caller-saved in cdecl, so the
+            // wrapper is free to clobber it. One iteration assembles, for a register whose
+            // saved copy is at [EBX+offset]:
+            //
+            //     byte   MOVZX ECX, BYTE PTR [EBX + offset]
+            //     short  MOVZX ECX, WORD PTR [EBX + offset]
+            //     other  MOV   ECX, [EBX + offset]
+            //
+            // then PUSH ECX.
+            for (const auto& saved : kSavedRegisters) {
+                if (source != saved.name) continue;
+
+                // Every offset above is well inside disp8, so the short encoding always fits.
+                const uint8_t modrm = 0x4B;  // ModRM: ECX, [EBX + disp8]
+
+                // The saved copy is a full dword, and a narrower type reads the low end of
+                // it, which on a little-endian register is its byte and word halves.
+                switch (param.type) {
+                    case ParameterType::BYTE:
+                        EmitByte(code, 0x0F); EmitByte(code, 0xB6);   // MOVZX r32, r/m8
+                        break;
+                    case ParameterType::SHORT:
+                        EmitByte(code, 0x0F); EmitByte(code, 0xB7);   // MOVZX r32, r/m16
+                        break;
+                    case ParameterType::SBYTE:
+                        EmitByte(code, 0x0F); EmitByte(code, 0xBE);   // MOVSX r32, r/m8
+                        break;
+                    case ParameterType::SSHORT:
+                        EmitByte(code, 0x0F); EmitByte(code, 0xBF);   // MOVSX r32, r/m16
+                        break;
+                    // A float is four raw bytes in a stack slot here, the same as the rest.
+                    case ParameterType::INT:
+                    case ParameterType::UINT:
+                    case ParameterType::POINTER:
+                    case ParameterType::FLOAT:
+                        EmitByte(code, 0x8B);                          // MOV r32, r/m32
+                        break;
+                    // Refused above, before any source was looked at.
+                    case ParameterType::INT64:
+                    case ParameterType::UINT64:
+                    case ParameterType::DOUBLE:
+                        return false;
+                }
+                EmitByte(code, modrm);
+                EmitByte(code, static_cast<uint8_t>(saved.offset));  // disp8: the saved copy
                 EmitByte(code, 0x51);  // PUSH ECX
+                return true;
             }
-            else if (source == "ebx") {
-                // MOV ECX, [EBX + OFFSET_EBX]
-                EmitByte(code, 0x8B);
-                EmitByte(code, 0x4B);
-                EmitByte(code, OFFSET_EBX);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else if (source == "ecx") {
-                // MOV ECX, [EBX + OFFSET_ECX]
-                EmitByte(code, 0x8B);
-                EmitByte(code, 0x4B);
-                EmitByte(code, OFFSET_ECX);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else if (source == "edx") {
-                // MOV ECX, [EBX + OFFSET_EDX]
-                EmitByte(code, 0x8B);
-                EmitByte(code, 0x4B);
-                EmitByte(code, OFFSET_EDX);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else if (source == "esi") {
-                // MOV ECX, [EBX + OFFSET_ESI]
-                EmitByte(code, 0x8B);
-                EmitByte(code, 0x4B);
-                EmitByte(code, OFFSET_ESI);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else if (source == "edi") {
-                // MOV ECX, [EBX + OFFSET_EDI]
-                EmitByte(code, 0x8B);
-                EmitByte(code, 0x4B);
-                EmitByte(code, OFFSET_EDI);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else if (source == "ebp") {
-                // MOV ECX, [EBX + OFFSET_EBP]
-                EmitByte(code, 0x8B);
-                EmitByte(code, 0x4B);
-                EmitByte(code, OFFSET_EBP);
-                EmitByte(code, 0x51);  // PUSH ECX
-            }
+
             // Check if source is a stack offset like "esp+0", "esp+4", etc.
-            else if (source.find("esp+") == 0 || source.find("esp-") == 0) {
+            if (source.find("esp+") == 0 || source.find("esp-") == 0) {
+                // A stack source yields the address of the slot, which is pointer-width
+                // whatever the slot holds. Asking for it as a narrower type or as a float
+                // describes something the wrapper is not passing.
+                if (param.type == ParameterType::BYTE || param.type == ParameterType::SHORT ||
+                    param.type == ParameterType::SBYTE || param.type == ParameterType::SSHORT ||
+                    param.type == ParameterType::FLOAT) {
+                    Platform::Log(("[Wrapper] A stack source yields an address, so " + source +
+                                   " cannot be read as a narrow type or a float\n").c_str());
+                    return false;
+                }
+
                 // Parse the user-specified offset from the parameter source
                 int userOffset = 0;
                 try {
@@ -512,14 +555,12 @@ namespace KotorPatcher {
                     EmitDword(code, actualOffset);
                 }
                 EmitByte(code, 0x51);  // PUSH ECX
-            }
-            else {
-                Platform::Log(("[Wrapper] Unsupported parameter source: " + source +
-                               " (this generator reads 32-bit registers and esp offsets)\n").c_str());
-                return false;
+                return true;
             }
 
-            return true;
+            Platform::Log(("[Wrapper] Unsupported parameter source: " + source +
+                           " (this generator reads 32-bit registers and esp offsets)\n").c_str());
+            return false;
         }
 
         // ===== Factory Function =====
