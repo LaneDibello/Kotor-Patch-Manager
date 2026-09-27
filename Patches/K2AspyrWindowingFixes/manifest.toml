@@ -1,0 +1,28 @@
+[patch]
+id = "k2-aspyr-windowing-fixes"
+name = "K2 Aspyr Windowing Fixes"
+version = "1.0.0"
+author = "Synchro"
+description = """
+Fixes fullscreen and windowed-mode behaviour on Aspyr's native Linux KOTOR II.
+
+- Fullscreen keeps the picture's aspect ratio instead of stretching it to fill the desktop.
+- Resolutions that cannot fill the screen get a second "(stretched)" row in the options list.
+- Windows appear at the size and border they keep, rather than flashing desktop-sized first.
+- Alt-tab minimises the window from fullscreen.
+- Alt+Enter toggles fullscreen, and the choice is remembered between runs.
+- Startup skips a renderer rebuild it was performing for a mode already in use.
+
+Most of these only show up away from a 16:9 display, which is the case the port was tested \
+against, so an ultrawide or a 16:10 panel meets all of them at once.
+
+Nothing needs configuring. To keep the old stretched image, pick a "(stretched)" row in the \
+resolution list or set Stretched=1 under [Graphics Options] in swkotor2.ini.
+"""
+
+requires = []
+
+conflicts = []
+
+[patch.supported_versions]
+kotor2_steam_aspyr_linux = "ED043D21A4578FD1C6F1557F0F72BDE5589BA3572A5B6F1A687ED9FEEAB49AC3"
