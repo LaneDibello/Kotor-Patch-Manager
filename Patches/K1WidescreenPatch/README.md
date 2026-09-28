@@ -52,7 +52,7 @@ Note: You do not need to read this readme! This is a technical explanation for a
    - 6.7 [In-Game Area Transition Prompt & Vertical Text Centering (CSWGuiInGameAreaTransition / 0x1005a67c0)](#67-in-game-area-transition-prompt--vertical-text-centering-cswguiingameareatransition--0x1005a67c0)
    - 6.8 [Computer Terminals & Dialog Reply Listboxes (CSWGuiDialogComputer / 0x1005a6db0)](#68-computer-terminals--dialog-reply-listboxes-cswguidialogcomputer--0x1005a6db0)
    - 6.9 [Messages Menu Formatting & Variable-Height Listbox Enforcement (CSWGuiInGameMessages / 0x1005ae790)](#69-messages-menu-formatting--variable-height-listbox-enforcement-cswguiingamemessages--0x1005ae790)
-   - 6.10 [Security Camera Live 3D Viewport & Map Reveal Mechanics (CSWGuiDialogComputerCamera / 0x1005a6ed8)](#610-security-camera-live-3d-viewport--map-reveal-mechanics-cswguidialogcomputercamera--0x1005a6ed8)
+   - 6.10 [Security Camera Live 3D Viewport (CSWGuiDialogComputerCamera / 0x1005a6ed8)](#610-security-camera-live-3d-viewport-cswguidialogcomputercamera--0x1005a6ed8)
 7. [Character Generation & Level-Up Edits](#7-character-generation--level-up-edits)
    - 7.1 [Class Selection Screen (CSWGuiClassSelection / classsel.gui)](#71-class-selection-screen-cswguiclassselection--classselgui)
    - 7.2 [Separation of Root Level-Up Console vs. Small Choice Panels](#72-separation-of-root-level-up-console-vs-small-choice-panels)
@@ -129,7 +129,7 @@ bool writeMemBytes(uintptr_t destAddress, const void* srcData, size_t length) {
 Vanilla KotOR hardcoded display resolutions to legacy 4:3 aspect ratios (800×600, 1024×768, 1280×1024, 1600×1200). The engine clamped any arbitrary resolution request to the nearest 4:3 fallback.
 
 The widescreen patch establishes target rendering bounds through a hierarchical discovery pipeline:
-1. **Dynamic Point Detection via CoreGraphics**: On launch, the runtime queries the active monitor using macOS CoreGraphics (`CGMainDisplayID` and `CGDisplayBounds`). This retrieves native Cocoa logical point dimensions (e.g. $1512 \times 982$ on 14" MacBook Pro, $1728 \times 1117$ on 16" MacBook Pro, $1920 \times 1200$ on 16:10 external displays, $2560 \times 1440$ on 1440p, or $3840 \times 2160$ on 4K). Because Cocoa window mouse events operate in point space, using point dimensions guarantees 100% pixel-perfect mouse hitboxes without cursor drift.
+1. **Dynamic Point Detection via CoreGraphics**: On launch, the runtime queries the active monitor using macOS CoreGraphics (`CGMainDisplayID` and `CGDisplayBounds`). This retrieves native Cocoa logical point dimensions (e.g. 1512×982 on 14" MacBook Pro, 1728×1117 on 16" MacBook Pro, 1920×1200 on 16:10 external displays, 2560×1440 on 1440p, or 3840×2160 on 4K). Because Cocoa window mouse events operate in point space, using point dimensions guarantees 100% pixel-perfect mouse hitboxes without cursor drift.
 2. **Configuration File Discovery (`swkotor.ini`)**: The patch reads `Width` and `Height` under `[Graphics Options]` in `~/Library/Application Support/Knights of the Old Republic/swkotor.ini` as a secondary fallback.
 3. **Explicit Hardware Overrides (`ForceWidth` / `ForceHeight`)**: Users can explicitly dictate target resolution by adding `ForceWidth` and `ForceHeight` under `[Graphics Options]`. When present, this overrides CoreGraphics auto-detection, forcing the runtime to calibrate all layouts, listbox strides, and HUD anchors for that exact resolution:
    ```ini
@@ -148,7 +148,7 @@ The widescreen patch establishes target rendering bounds through a hierarchical 
    - `mgr + 0xa4`, `mgr + 0xa6`: `CSWGuiManager` canvas width and height
 
 ### 2.2 3D Viewport & Hor+ FOV Scaling
-KotOR's 3D rendering pipeline uses a horizontal-plus (Hor+) field-of-view calculation. For any widescreen aspect ratio $A = W / H > 4/3$, the horizontal FOV expands proportionally:
+KotOR's 3D rendering pipeline uses a horizontal-plus (Hor+) field-of-view calculation. For any widescreen aspect ratio (aspect ratio > 4:3), the horizontal FOV expands proportionally:
 
 $$\text{FOV}_h = 2 \cdot \arctan\left(\tan\left(\frac{\text{FOV}_v}{2}\right) \cdot \frac{W}{H}\right)$$
 
@@ -232,7 +232,7 @@ Because `mipc212x9` is universally loaded, the 8 category buttons follow strict 
 Resized to span `left = firstBtnLeft + 1`, `width = (lastBtnRight - 1) - banner.left`, seating the dark backing quad flush behind all 8 buttons.
 
 **Top Moulding Horizontal Bars (Controls 0 & 5)**:
-In the vanilla 4:3 template, `LBL_CMBTMSGBG` (Control 0) and `LBL_CMBTMODEMSG` (Control 5) stopped at $X = 1023$. When the buttons move to the widescreen right edge, this created a black gap across the ceiling. The runtime dynamically stretches both controls from the minimap border (`X = 143`) to the start of the buttons (`X = firstBtnLeft + 2`), seamlessly bridging the gap.
+In the vanilla 4:3 template, `LBL_CMBTMSGBG` (Control 0) and `LBL_CMBTMODEMSG` (Control 5) stopped at X = 1023. When the buttons move to the widescreen right edge, this created a black gap across the ceiling. The runtime dynamically stretches both controls from the minimap border (`X = 143`) to the start of the buttons (`X = firstBtnLeft + 2`), seamlessly bridging the gap.
 
 ### 3.4 Bottom-Right Combat Action Bar & Queue
 The combat action bar and queue elements are scaled and anchored to the bottom-right corner:
@@ -261,30 +261,10 @@ In vanilla KotOR, tooltips and action descriptions clipped abruptly when hoverin
 ### 3.8 HUD Action Button Title Hover Centering & Height Alignment
 When the player mouses over any of the 6 combat action buttons in the bottom-right HUD (Attack, Combat Feats, Force Powers, Items, Grenades, Mines), KotOR displays the active action's name (e.g. "Cure", "Knight Speed", "Critical Strike") in a rounded background pill.
 
-#### Reverse-Engineering the Native Action Description Layout Routine (`0x1002355e6`)
-Disassembly of Aspyr's 64-bit engine revealed the internal mechanics of `CSWGuiMainInterface`:
-
-```assembly
-0x1002355f5: movq   %rdi, %rbx              # rbx = CSWGuiMainInterface (HUD)
-0x1002355f8: leaq   0xce40(%rbx), %r14      # r14 = actionDesc (LBL_ACTIONDESC)
-0x100235612: movl   0xce50(%rbx), %eax      # eax = actionDesc.width
-0x10023561c: movl   %eax, 0x8(%r12)         # outRect.width = actionDesc.width
-0x100235621: movq   0xce48(%rbx), %rax      # rax = actionDesc.left & top
-0x100235628: movq   %rax, (%r12)            # outRect.left = actionDesc.left!
-0x100235636: callq  *0x18(%rax)             # Font text height -> eax
-0x10023563e: movl   0xd170(%rbx), %ecx      # ecx = *(int*)(hud + 0xd170)
-0x100235644: subl   %eax, %ecx              # ecx = baselineTop - textHeight
-0x100235646: movl   %ecx, 0x4(%r12)         # outRect.top = ecx
-0x100235651: callq  0x1004a56f0             # SetExtent(actionDesc, outRect)
-0x100235656: addq   $0xcfd8, %rbx           # rbx = actionDescBg (LBL_ACTIONDESCBG)
-0x100235663: callq  0x1004a56f0             # SetExtent(actionDescBg, outRect)
-```
-
 #### The Widescreen Defects
-1. **Vertical Offset Desynchronization (`hud + 0xd170`)**:
-   At `0x100234197`, the engine initializes `*(int*)(hud + 0xd170)` to `actionDesc.top + actionDesc.height` (the unscaled 4:3 baseline, ~897px). In widescreen resolutions (such as 1440p, 1600p, or 4K Retina), `targetActionTop` shifts down to accommodate the scaled display height. Because `0xd170` was left unscaled, `outRect.top` calculated an obsolete 897px coordinate, leaving the description box floating high above the action buttons.
-2. **Horizontal Position Pinned to Button 0**:
-   Notice lines `0x100235621`–`0x100235628`: the engine simply copies `actionDesc->left` into `outRect.left`. The native engine never recalculates `left` for the hovered action button! As a result, whenever the player hovered button 1, 2, 3, 4, or 5, the title box remained permanently anchored over the far-left button (button 0), completely disconnected from the hovered reticle.
+In vanilla KotOR, `CSWGuiMainInterface::LayoutActionDesc` (`0x1002355e6`) exhibits two layout flaws when rendered in widescreen:
+1. **Vertical Offset Desynchronization (`hud + 0xd170`)**: The engine leaves its vertical baseline coordinate at `hud + 0xd170` fixed to the legacy 4:3 baseline (~897px), causing the description pill to float high above the combat bar on high-resolution displays.
+2. **Horizontal Position Pinned to Button 0**: The engine unconditionally copies `actionDesc->left` without recalculating horizontal placement for hovered slots 1–5, permanently pinning the title box over the far-left button (button 0).
 
 #### The Dual-Layer Alignment Solution
 1. **Baseline Initialization**:
@@ -344,7 +324,7 @@ The rotating compass ring texture, cardinal direction labels (N, E, S, W), and z
 
 #### 3.9.3 Radar Player Arrow & Entity Blip Scaling
 Player direction, party companions, friendly NPCs, and hostile enemies are rendered on the radar via 3D-to-2D planar projection:
-- **Assembly Intercept**: Entity positions are computed relative to the player's world position $(X_w, Y_w, Z_w)$ and transformed to radar space:
+- **Assembly Intercept**: Entity positions are computed relative to the player's world position `(X_p, Y_p, Z_p)` and transformed to radar space:
   $$X_r = \text{centerX} + (X_e - X_p) \cdot \text{zoomScale}$$
   $$Y_r = \text{centerY} - (Y_e - Y_p) \cdot \text{zoomScale}$$
 - **Scissor Bounds**: The circular stencil mask is preserved so blips smoothly fade at the perimeter of the 196px radar disc without leaking onto the main game canvas.
@@ -356,7 +336,7 @@ In KotOR, one-line dialogue quips from ambient non-conversational NPCs (citizens
 
 #### Minimap Overlap & Coordinate Mechanics
 1. **Authored Coordinate Baseline**:
-   In `barkbubble.gui`, the base extent is authored at $\{ \text{left}: 48, \text{top}: 140, \text{width}: 462, \text{height}: 118 \}$. In vanilla $640 \times 480$, a top coordinate of 140px placed the banner immediately below the 144px vanilla minimap border.
+   In `barkbubble.gui`, the base extent is authored at `{ left: 48, top: 140, width: 462, height: 118 }`. In vanilla 640×480, a top coordinate of 140px placed the banner immediately below the 144px vanilla minimap border.
 2. **High-Resolution Overlap Issue**:
    When HUD scaling (`HudScale`) expands the minimap radar (e.g. 216px at 1.50× scale, or 288px on 4K displays), leaving the bark banner at its unscaled baseline causes the dialogue box to render directly across the bottom half of the minimap radar.
 3. **Exclusion from Modal Centering**:
@@ -411,7 +391,7 @@ void positionBarkBubble(char* window) {
 - **Immediate Child Synchronization**: Calling `CSWGuiBarkBubble::SetExtent` (`vtable[2]` at `0x1002de2b8`) immediately resizes the root window and child text label (`LBL_BARKTEXT` at `this + 0x80`), ensuring that the text content and blue border frame shift synchronously below the minimap across all resolutions and HUD scale settings.
 
 ### 3.11 Native Positioning for In-Game Pause Notification (`CSWGuiInGamePause`)
-In vanilla KotOR, pressing the Spacebar toggles an unobtrusive "GAME PAUSED" notification banner (`pause.gui`, base dimensions $251 \times 70$) positioned directly underneath the top-right category bar buttons.
+In vanilla KotOR, pressing the Spacebar toggles an unobtrusive "GAME PAUSED" notification banner (`pause.gui`, base dimensions 251×70) positioned directly underneath the top-right category bar buttons.
 
 #### HUD Sub-Panel Dynamics vs. Modal Windows
 Unlike standalone modal popups that require center-screen placement, `CSWGuiInGamePause` (`0x1005ad640`) is a child component of the HUD interface:
@@ -431,8 +411,8 @@ The engine incorporates a dedicated placement calculation routine within `CSWGui
 0x1002394f8: movl   %ecx, (%rbx)            # Store Left coordinate
 ```
 
-- **Top Coordinate**: Dynamically calculated as $\text{categoryBarBottom} + 2$.
-- **Exclusion from Modal Scaling**: By explicitly excluding `CSWGuiInGamePause` from `isPopupPanel()`, the native engine routine is allowed to position the pause notification flush under the top-right category bar at $(W_{\text{target}} - 254, 46)$, preserving vanilla aesthetic placement with zero modal displacement and zero distortion.
+- **Top Coordinate**: Dynamically calculated as `categoryBarBottom + 2`.
+- **Exclusion from Modal Scaling**: By explicitly excluding `CSWGuiInGamePause` from `isPopupPanel()`, the native engine routine is allowed to position the pause notification flush under the top-right category bar at `(targetWidth - 254, 46)`, preserving vanilla aesthetic placement with zero modal displacement and zero distortion.
 
 ## 4. Main Area Map Screen Edits
 
@@ -498,8 +478,8 @@ The engine's map renderer (`CSWGuiInGameMap::Draw`) and mouse handler (`CSWGuiIn
 In vanilla KotOR, all entities on the main area map (`CSWGuiInGameMap`) are placed relative to an unscaled 440×256 canvas. When the map viewport (`mapView`), texture quad, and fog grid are scaled up to match high-resolution widescreen displays, drawing markers at their raw unscaled coordinates severely displaces them.
 
 #### Coordinate Space Transformation & Resolution Independence
-The engine projects 3D world positions into 2D map space assuming a baseline $640 \times 480$ coordinate grid. Supporting arbitrary display resolutions (such as 1080p, 1200p, 1440p, or 4K) requires dynamic coordinate scaling proportional to display height:
-- On a 1200p display ($1920 \times 1200$, 16:10), the map canvas scale factor is **$2.50\times$** ($1200 / 480$).
+The engine projects 3D world positions into 2D map space assuming a baseline 640×480 coordinate grid. Supporting arbitrary display resolutions (such as 1080p, 1200p, 1440p, or 4K) requires dynamic coordinate scaling proportional to display height:
+- On a 1200p display (1920×1200, 16:10), the map canvas scale factor is **2.50×** (1200 / 480).
 - A static coordinate multiplier would lock coordinates to a single resolution, causing marker alignment to drift on higher or lower resolutions.
 - Furthermore, the HUD minimap radar shares subroutines with the main map but renders via `CSWGuiMinimap` on an unscaled local coordinate system, requiring coordinate scaling to apply exclusively to `CSWGuiMapHider` without affecting minimap calculations.
 
@@ -511,10 +491,10 @@ The patch resolves this by implementing dynamic C++ detour bridges on the engine
 
    $$\text{scale} = \frac{\text{targetHeight}}{480}$$
 
-   (e.g., $2.50\times$ at 1200p, $2.045\times$ at 982p).
+   (e.g., 2.50× at 1200p, 2.045× at 982p).
 2. **`MapHider_GetPlayerMapCoords` (`0x100440300` wrapper)**:
    Intercepts coordinate calculation for party member markers (`0x1002b541b`) and the player direction arrow (`0x1002b54c2`) in `CSWGuiMapHider::Draw`. Routes through a 12-byte machine code bridge at `0x1000f4f78` to our C++ wrapper, invokes the vanilla routine, and scales the coordinates by `g_targetHeight / 480.0f`.
-   Minimap calls (originating from `0x10023790c`) call `0x100440300` directly and remain 100% unscaled ($1.0\times$) and pixel-perfect.
+   Minimap calls (originating from `0x10023790c`) call `0x100440300` directly and remain 100% unscaled (1.0×) and pixel-perfect.
 3. **Native Icon Centering Preservation**:
    Because marker coordinates are scaled dynamically at the coordinate conversion layer, `CSWGuiMapHider::Draw`'s native half-width subtractions (`X - 7` for 14px notes, `X - 10` for 20px selected notes, `X - 8` for 16px party circles, and `X - 16` for the 32px rotating player arrow) remain completely unmodified. This ensures that every marker sits dead center over its corresponding room geometry across all supported display resolutions.
 
@@ -556,10 +536,10 @@ The macOS patch overrides this behavior through a combination of static NOP padd
 3. **Dynamic Row Height & Inter-Item Padding**:
    - `*(int*)(ctrl + 0x368) = geom.itemHeight;` (e.g. 108px at 982p)
    - `*(uint8_t*)(ctrl + 0x373) = (uint8_t)geom.itemPadding;` (e.g. 6px at 982p)
-4. **Scroll Offset Invariance**: With a unified stride ($\text{ItemHeight} + \text{ItemPadding} = 114\text{px}$), mouse wheel scrolling advances in clean 1-item increments without vertical drift.
+4. **Scroll Offset Invariance**: With a unified stride (`ItemHeight + ItemPadding = 114px`), mouse wheel scrolling advances in clean 1-item increments without vertical drift.
 
 ### 5.3 Independent Icon Geometry Hook (`0x1002be42b`)
-In vanilla KotOR, item icon textures, border arches, and highlight brackets were coupled to row height. Expanding the row resulted in rectangularly distorted icons or repetitive $2\times 2$ tiled texture artifacts.
+In vanilla KotOR, item icon textures, border arches, and highlight brackets were coupled to row height. Expanding the row resulted in rectangularly distorted icons or repetitive 2×2 tiled texture artifacts.
 
 The patch installs an independent geometry hook in `CSWGuiInGameItemEntry::Layout`:
 ```cpp
@@ -598,7 +578,7 @@ The quantity indicator (e.g. `×10` next to medpacs or grenades) resides in subc
 ### 5.6 In-Game Skill & Feat List Layout (`CSWGuiInGameSkillEntry` / `0x10022f60f`)
 The Abilities tab in the character menu displays skills and feats through `CSWGuiInGameSkillEntry` items placed inside an `LB_ABILITY` listbox.
 - **The Stride vs. Child Control Decoupling Bug**:
-  In vanilla KotOR, each skill entry row is 42px (`0x2a`) tall via `0x10022f60b: movl $0x2a, 0xc(%r14)`. Inside `CSWGuiInGameSkillEntry::SetExtent` (`0x10022f21e`), the skill icon and pill button heights are hardcoded to 42px (`movl $0x2a, %edx`).
+  In vanilla KotOR, each skill entry row is 42px (`0x2a`) tall via `0x10022f60b: movl \$0x2a, 0xc(%r14)`. Inside `CSWGuiInGameSkillEntry::SetExtent` (`0x10022f21e`), the skill icon and pill button heights are hardcoded to 42px (`movl \$0x2a, %edx`).
   If the row stride at `0x10022f60f` is multiplied by vertical display scale (e.g. 86px at 982p or 105px at 1200p) while child button heights remain 42px, a massive 44px to 63px void of empty black space opens up beneath every skill button. Only 4 skills could fit on screen at once, requiring awkward scrolling.
 - **Contiguous Layout & Live INI Tuning**:
   Because the skills list does not have etched background slots (unlike Inventory), the clean, authentic presentation keeps `skillHeight = 42` (matching the button and icon height). All 8 skills (Computer Use, Demolitions, Stealth, Awareness, Persuade, Repair, Security, Treat Injury) stack contiguously with zero gap and fit cleanly within the listbox without scrolling.
@@ -630,67 +610,23 @@ ItemGeometry GetScaledItemGeometry(int targetHeight) {
 ### 5.8 Item Icon Border Arch Scaling & The 4-Mini-Box Bug (`CSWGuiBorder::Draw` at `0x1004a1e40`)
 In KotOR, item icons across Inventory, Equipment, Store, and Container lists are framed by a distinctive neon hexagon arch (`lbl_hex_3`), rendered by `CSWGuiBorder::Draw`.
 
-#### Item Border Architecture (`lbl_hex_3`)
-Disassembly of `CSWGuiInGameItemEntry::Init` (`0x1002be608`) and `CSWGuiStoreItemEntry::Init` (`0x1002bfdc5`) reveals the true engine structure of the icon border:
-- **No Corner or Edge Textures**: In both item entry classes, the border structures (`0x248` unselected arch, `0x2d0` selected arch) are initialized with empty strings for corners and edges:
-  ```x86asm
-  0x1002be6cc: leaq "" (%rip), %r12        ## Empty corner texture string
-  0x1002be6e2: leaq "" (%rip), %r12        ## Empty edge texture string
-  0x1002be6f1: leaq "lbl_hex_3" (%rip), %rsi ## Assigned as FILL TEXTURE (0x80(%r15))
-  ```
-  `border->cornerTexture (0x70(%r15))` and `border->edgeTexture (0x78(%r15))` are **both NULL**!
-- **Bypassing Corner & Edge Logic**:
-  In `CSWGuiBorder::Draw` (`0x1004a1e40`), line `0x1004a1ea0` checks:
-  ```x86asm
-  0x1004a1ea0: cmpq $0x0, 0x70(%r15)       ## Has corner texture?
-  0x1004a1eaa: je   0x1004a1ee2            ## NULL -> jumps to 0x1004a1ee2 -> jmp 0x1004a2301
-  ```
-  Because `0x70(%r15)` is NULL, execution **always jumps directly to `0x1004a2301`**, completely bypassing all corner radius calculations (`0x1004a1ec0`–`0x1004a22ff`).
+#### Item Border Architecture & The 4-Mini-Box Bug
+KotOR's item arch borders (`lbl_hex_3`) use fill-only textures without corner pieces (`border->cornerTexture == NULL`). In vanilla KotOR, borders default to tile mode (`fillStyle = 0`), which rendered as a single tile on legacy 480p displays (&le; 56px).
 
-#### The True Mechanism of the 4 Mini-Box Bug: Fill Tiling
-`lbl_hex_3` is authored as a complete, closed vertical hexagon box at $56 \times 56\text{ px}$.
-At `0x1004a2301`, `CSWGuiBorder::Draw` draws the fill texture:
-```x86asm
-0x1004a2349: movb 0x34(%r15), %cl          ## cl = border->fillStyle
-0x1004a234d: andb $0x3, %cl
-0x1004a2350: cmpb $0x2, %cl
-0x1004a2353: je   0x1004a2376              ## Native STRETCH Mode -> DrawStretched
-0x1004a2355: cmpb $0x1, %cl
-0x1004a2358: je   0x1004a239b              ## Tile Mode 1
-0x1004a235a: testb %cl, %cl
-0x1004a236f: callq 0x1004a23ca             ## Tile Mode 0 (Tiling Function)
-```
-1. **The Legacy Tiling Flaw**:
-   When BioWare authored KotOR, `CSWGuiInGameItemEntry::Init` pushed `0` (`xorl %eax, %eax; pushq %rax`) as `fillStyle`.
-   At legacy 800×600 or 1024×768 resolutions, item icons were small ($\le 56\text{ px}$). Because $\text{width} / 56 \le 1$, the tiling function at `0x1004a23ca` computed $1 \times 1 = 1$ single tile, completely masking the bug.
-2. **The High-Resolution Trigger**:
-   When widescreen scaling expands icon dimensions to 105px, 115px, 140px, or higher on modern displays:
-   - Line `0x1004a2433: idivl %r10d` divides width by texture width ($112 / 56 = 2$ tiles horizontally).
-   - Line `0x1004a2445: idivl %r9d` divides height by texture height ($112 / 56 = 2$ tiles vertically).
-   - The engine tiles `"lbl_hex_3"` across a $2 \times 2$ grid: **four mini hexagon boxes per item icon!**
-   At width 100px, $100 / 56 < 2$, so only 1 tile rendered (too small). But at 105px+ or higher resolutions, it tipped into 2 tiles, creating the 4 mini-boxes!
+When widescreen scaling expands item icon dimensions beyond 1024×768 (e.g. 105px, 115px, 140px, or 4K), the engine's 2D renderer divides width and height by 56px and tiles the `lbl_hex_3` texture across an integer grid, producing four miniature hexagon boxes per icon.
 
 #### The Triple-Lock Solution: Native DrawStretched
-The engine already possesses a native, hardware-accelerated stretch drawing routine at `0x1004a2376`:
-```x86asm
-0x1004a2376: movq (%rdi), %r10             ## rdi = CSWGuiTexture* (lbl_hex_3)
-0x1004a238a: movl %r12d, %esi              ## x
-0x1004a238d: movl %r8d, %edx               ## y
-0x1004a2390: movl %eax, %ecx               ## width (e.g. 115px or 140px)
-0x1004a2392: movl %ebx, %r8d               ## height
-0x1004a2395: callq *0x38(%r10)             ## CSWGuiTexture::DrawStretched()
-```
-`DrawStretched` scales the single `"lbl_hex_3"` texture across the exact $(x, y, \text{width}, \text{height})$ bounding box with **zero tiling, zero gaps, and zero mini-boxes**!
+KotOR's engine incorporates a native, hardware-accelerated stretch drawing routine (`CSWGuiTexture::DrawStretched` at `0x1004a2376`) that scales the single `lbl_hex_3` texture across the exact bounding box with zero tiling and zero mini-boxes.
 
 The patch enforces `DrawStretched` through a triple-lock architecture:
 1. **Universal Engine Dispatch Intercept (`0x1004a2350`)**:
-   Replaces the 5 bytes at `0x1004a2350` (`cmpb $0x2, %cl; je 0x1004a2376`) with `jmp 0x1000f4f90`.
+   Replaces the 5 bytes at `0x1004a2350` (`cmpb \$0x2, %cl; je 0x1004a2376`) with `jmp 0x1000f4f90`.
    The `stretchFillStub` at `0x1000f4f90` (37 bytes) executes:
    - If `fillStyle == 2`, branch to `0x1004a2376` (`DrawStretched`).
-   - If `0x70(%r15) == NULL` (border has NO corners) AND $\text{width} \le 400$ AND $\text{height} \le 400$ (icon / slot / button border), branch to `0x1004a2376` (`DrawStretched`).
+   - If `0x70(%r15) == NULL` (border has NO corners) and width &le; 400 and height &le; 400 (icon / slot / button border), branch to `0x1004a2376` (`DrawStretched`).
    - All standard window frames with corner textures (`0x70(%r15) != NULL`) branch to `0x1004a2355` (vanilla tiling check).
 2. **Object Constructor Byte Patches**:
-   - `0x1002be754` & `0x1002be80c` in `CSWGuiInGameItemEntry::Init`: Replaces `31 c0 50` (`xorl %eax, %eax; pushq %rax`) with `6a 02 90` (`pushq $2; nop`), passing `fillStyle = 2` upon instantiation.
+   - `0x1002be754` & `0x1002be80c` in `CSWGuiInGameItemEntry::Init`: Replaces `31 c0 50` (`xorl %eax, %eax; pushq %rax`) with `6a 02 90` (`pushq \$2; nop`), passing `fillStyle = 2` upon instantiation.
    - `0x1002bfe55` & `0x1002bff0e` in `CSWGuiStoreItemEntry::Init`: Replaces `31 c0 50` with `6a 02 90`, passing `fillStyle = 2` for store items.
 3. **Dynamic Frame Enforcement (`enforceItemGeometry`)**:
    Every frame, sets `*(uint8_t*)(item + 0x27c) = 2;`, `*(uint8_t*)(item + 0x304) = 2;`, and `*(uint8_t*)(item + 0x38c) = 2;` for all active item entries in Inventory, Equipment, Store, and Container lists.
@@ -710,8 +646,8 @@ From `CSWGuiInGameCharacter` (`0x1005ad790`), clicking the "Scripts" button (`BT
 #### The Distortion & Scaling Conflict
 In widescreen mode, opening the Scripts page previously exhibited severe layout distortion:
 - **Root Cause & Misclassification**:
-  `scriptselect.gui` was authored with a native root dimension of $640 \times 480$ and an integrated console bezel texture (`lbl_char_scr`). Unlike top-level full-screen menus (such as the Inventory or Character Sheet), `CSWGuiScriptSelect` is a self-contained modal overlay designed with a single continuous arched top header and twin metallic console pods at the bottom.
-  When previously classified under `isMenuPanel()`, `scaleMenuPanelTree()` stretched the root window and its border texture across the full widescreen 4:3 canvas (1309×982 at 982p). Furthermore, expanding `CSWGuiScriptSelect` beyond $640 \times 480$ causes the engine's `CExoGuiBorder` renderer to tile the monolithic $640 \times 480$ texture (`lbl_char_scr`). This creates duplicate side-by-side consoles, a vertical center pillar seam, duplicate blue box frames, and a severed green arch.
+  `scriptselect.gui` was authored with a native root dimension of 640×480 and an integrated console bezel texture (`lbl_char_scr`). Unlike top-level full-screen menus (such as the Inventory or Character Sheet), `CSWGuiScriptSelect` is a self-contained modal overlay designed with a single continuous arched top header and twin metallic console pods at the bottom.
+  When previously classified under `isMenuPanel()`, `scaleMenuPanelTree()` stretched the root window and its border texture across the full widescreen 4:3 canvas (1309×982 at 982p). Furthermore, expanding `CSWGuiScriptSelect` beyond 640×480 causes the engine's `CExoGuiBorder` renderer to tile the monolithic 640×480 texture (`lbl_char_scr`). This creates duplicate side-by-side consoles, a vertical center pillar seam, duplicate blue box frames, and a severed green arch.
 
 #### The Resolution: DrawStretched Border & Proportional Scale
 To achieve a fully scaled-up console matching the Character Sheet opening without texture tiling artifacts:
@@ -724,29 +660,22 @@ To achieve a fully scaled-up console matching the Character Sheet opening withou
    *(uint8_t*)(border + 0x34) = (*(uint8_t*)(border + 0x34) & ~0x03) | 0x02;
    *(int*)(border + 0x18) = 0;
    ```
-   This instructs the engine's 2D renderer to draw `lbl_char_scr` as a single continuous stretched quad across the scaled bounds $\{\text{targetLeft}, \text{targetTop}, \text{targetW}, \text{targetH}\}$, eliminating all tiling seams, extra pillars, and duplicate frames!
+    This instructs the engine's 2D renderer to draw `lbl_char_scr` as a single continuous stretched quad across the scaled bounds `{ targetLeft, targetTop, targetW, targetH }`, eliminating all tiling seams, extra pillars, and duplicate frames!
 3. **Proportional Menu Scaling**:
    The console scales uniformly using the exact 4:3 menu scale factor:
-   $$\text{scale} = \frac{g\_targetHeight}{480.0f} \quad (\text{or } menuScale)$$
+   $$\text{scale} = \frac{\text{targetHeight}}{480.0} \quad (\text{or } \text{menuScale})$$
    $$\text{targetW} = \text{round}(640 \times \text{scale}), \quad \text{targetH} = \text{round}(480 \times \text{scale})$$
-   $$\text{targetLeft} = \frac{g\_targetWidth - \text{targetW}}{2}, \quad \text{targetTop} = \frac{g\_targetHeight - \text{targetH}}{2}$$
+   $$\text{targetLeft} = \frac{\text{targetWidth} - \text{targetW}}{2}, \quad \text{targetTop} = \frac{\text{targetHeight} - \text{targetH}}{2}$$
 4. **Calibrated Container Alignment**:
    On the stretched `lbl_char_scr` texture, the illustrated interface contains two distinct light blue container openings:
-   - **Left Container** ($x = 67 \dots 311, y = 81 \dots 410$, width 244): Houses `LST_AIState`. Calibrated to $\{ \text{round}(70 \cdot s), \text{round}(84 \cdot s), \text{round}(238 \cdot s), \text{round}(323 \cdot s) \}$. The 3 item buttons (*Default Attack*, *Grenadier*, *Jedi/Droid Support*) sit snugly inside the container with 3px margins on each side.
-   - **Right Container** ($x = 319 \dots 568, y = 81 \dots 410$, width 249): Houses `LB_DESC`. Calibrated to $\{ \text{round}(322 \cdot s), \text{round}(84 \cdot s), \text{round}(258 \cdot s), \text{round}(323 \cdot s) \}$. Width $258 \cdot s$ ends at $580 \cdot s$, placing its 16px vertical scrollbar (from $564 \cdot s$ to $580 \cdot s$) right alongside the outer border line, while multiline text wraps cleanly within the inner container without spilling onto bezels or dividers.
-   - `LBL_TITLE`: $\{ \text{round}(140 \cdot s), \text{round}(40 \cdot s), \text{round}(364 \cdot s), \text{round}(21 \cdot s) \}$ centered inside the stretched green arch.
-   - `BTN_Accept` ("SELECT"): $\{ \text{round}(247 \cdot s), \text{round}(410 \cdot s), \text{round}(146 \cdot s), \text{round}(28 \cdot s) \}$ inside the bottom left tray.
-   - `BTN_Back` ("CANCEL"): $\{ \text{round}(394 \cdot s), \text{round}(410 \cdot s), \text{round}(146 \cdot s), \text{round}(28 \cdot s) \}$ inside the bottom right tray.
-5. **Vanilla BioWare First-Click Tutorial Architecture**:
-   Disassembly of `CSWGuiInGameCharacter::OnChildNotify` at `0x1002e757c` reveals why clicking "SCRIPTS" for the first time displays a tutorial popup rather than opening the scripts screen:
-   - At `0x1002e75a9`, the engine tests tutorial flag bit `0x1`: `testb $0x1, 0x130(%rax)`.
-   - If `0` (first click of the play session), the engine calls `ShowTutorialBox` (`callq 0x10028c568`) and immediately executes `jmp 0x1002e768a` straight to the function epilogue.
-   - This jump intentionally bypasses the entire script setup, party member evaluation, and modal activation sequence at `0x1002e75fa` through `0x1002e7683` (`movq $-0x2, 0x6058(%r14)`).
-   - BioWare authored this as an explicit `if (!tutorialSeen) ShowTutorial(); else OpenScripts();` pattern. Once the player clicks OK on the tutorial box, the tutorial flag is recorded in the session, and all subsequent clicks on the Scripts button evaluate `testb` to non-zero, branching to `0x1002e75fa` to open `CSWGuiScriptSelect`.
-   - Because this behavior is an intentional design pattern in vanilla KotOR 1 rather than a widescreen scaling defect, the patch leaves BioWare's original control flow untouched, avoiding invasive modal concurrency hacks while maintaining 100% engine stability.
-6. **Coordinate Space & Centering Flags**:
+   - **Left Container** (X: 67–311, Y: 81–410, width 244): Houses `LST_AIState`. Calibrated to `{ round(70*s), round(84*s), round(238*s), round(323*s) }`. The 3 item buttons (*Default Attack*, *Grenadier*, *Jedi/Droid Support*) sit snugly inside the container with 3px margins on each side.
+   - **Right Container** (X: 319–568, Y: 81–410, width 249): Houses `LB_DESC`. Calibrated to `{ round(322*s), round(84*s), round(258*s), round(323*s) }`. Width `258*s` ends at `580*s`, placing its 16px vertical scrollbar right alongside the outer border line, while multiline text wraps cleanly within the inner container without spilling onto bezels or dividers.
+   - `LBL_TITLE`: `{ round(140*s), round(40*s), round(364*s), round(21*s) }` centered inside the stretched green arch.
+   - `BTN_Accept` ("SELECT"): `{ round(247*s), round(410*s), round(146*s), round(28*s) }` inside the bottom left tray.
+   - `BTN_Back` ("CANCEL"): `{ round(394*s), round(410*s), round(146*s), round(28*s) }` inside the bottom right tray.
+5. **Coordinate Space & Centering Flags**:
    Assigning `panel[0x5c] = (panel[0x5c] & ~0x68) | 0x01;` clears automatic centering bits `0x8` and `0x60`, allowing the explicit `scaledRoot` bounds to position the console dead-center on the screen with 0-pixel click error.
-7. **Early Exit Optimization**:
+6. **Early Exit Optimization**:
    If the panel root already matches `targetLeft, targetTop, targetW, targetH`, `scalePopupPanel()` returns immediately, preventing redundant control resizing and preserving `CSWGuiListBox` scroll position across frames.
 
 
@@ -815,7 +744,7 @@ SetControlRect(panel, centered);
 The native engine layout arranges the OK and Cancel buttons with clean padding inside the centered message box, completely eliminating button distortion at all resolutions.
 
 ### 6.5 Merchant Store Screens (`CSWGuiStore` / `0x1005ad040`)
-Merchant store interfaces manage dual inventory lists: the player's sell inventory (`LB_INVITEMS` at `panel + 0x1da0`) and the merchant's stock (`LB_SHOPITEMS` at `panel + 0x2140`), flanking an item description panel (`LB_DESCRIPTION`). Both item listboxes share base authored dimensions of $263 \times 307$.
+Merchant store interfaces manage dual inventory lists: the player's sell inventory (`LB_INVITEMS` at `panel + 0x1da0`) and the merchant's stock (`LB_SHOPITEMS` at `panel + 0x2140`), flanking an item description panel (`LB_DESCRIPTION`). Both item listboxes share base authored dimensions of 263×307.
 
 ```
 +-------------------------------------------------------------------+
@@ -832,24 +761,24 @@ In vanilla KotOR, store entries (`CSWGuiStoreItemEntry`) use a 56px base row hei
 
 To maintain pixel-perfect item row alignment across any resolution:
 1. **Prototype Item Heights**: In `scaleMenuPanelTree()`, when `vtable == (void*)0x1005ad040`, the engine's store prototype heights and padding are synchronized directly to `geom.containerItemHeight`:
-   - `panel + 0x1d60` (Buy item prototype height) $= \text{geom.containerItemHeight}$
-   - `panel + 0x1d93` (Buy item prototype padding) $= 0$
-   - `panel + 0x2100` (Sell item prototype height) $= \text{geom.containerItemHeight}$
-   - `panel + 0x2133` (Sell item prototype padding) $= 0$
+   - `panel + 0x1d60` (Buy item prototype height): `geom.containerItemHeight`
+   - `panel + 0x1d93` (Buy item prototype padding): `0`
+   - `panel + 0x2100` (Sell item prototype height): `geom.containerItemHeight`
+   - `panel + 0x2133` (Sell item prototype padding): `0`
 2. **Listbox Stride Configuration**:
    - For child listboxes matching item listbox dimensions (`r.width == 263 && r.height == 307`):
-     - `ctrl + 0x368` (Listbox item row height) $= \text{geom.containerItemHeight}$
-     - `ctrl + 0x373` (Listbox inter-item padding) $= 0$
+     - `ctrl + 0x368` (Listbox item row height): `geom.containerItemHeight`
+     - `ctrl + 0x373` (Listbox inter-item padding): `0`
      - `ctrl + 0x370 |= 0x8` (Enforces fixed item height flag)
 3. **Dynamic Filtering in `enforceItemGeometry()`**:
-   - `enforceItemGeometry()` specifically filters for listboxes matching the $263 \times 307$ dimension signature. This ensures `LB_INVITEMS` and `LB_SHOPITEMS` receive strict item row height enforcement while `LB_DESCRIPTION` remains free to flow multiline narrative text.
+   - `enforceItemGeometry()` specifically filters for listboxes matching the 263×307 dimension signature. This ensures `LB_INVITEMS` and `LB_SHOPITEMS` receive strict item row height enforcement while `LB_DESCRIPTION` remains free to flow multiline narrative text.
 
 #### Machine-Code Hooks for `CSWGuiStoreItemEntry::SetExtent`
 Dynamic sizing of the store entry subcontrols is driven by byte-level opcode hooks in `kotor1-steam-aspyr-macos.hooks.toml`:
-- `0x1002bfb49`: Replaces `41 bd 38 00 00 00` (`movl $0x38, %r13d`) with `44 8b 6b 14 90 90` (`movl 0x14(%rbx), %r13d; nop; nop`), dynamically loading icon and button dimensions directly from incoming row height (`rect->height`).
-- `0x1002bfbe2`: Replaces `41 83 c7 38` (`addl $0x38, %r15d`) with `45 01 ef 90` (`addl %r13d, %r15d; nop`), positioning the item name and cost button flush after the square icon.
-- `0x1002bfbe9`: Replaces `83 c0 c8` (`addl $-0x38, %eax`) with `44 29 e8` (`subl %r13d, %eax`), setting button width to span the remaining listbox width.
-- `0x1002bfbbf`: Replaces `b8 38 00 00 00` (`movl $0x38, %eax`) with `41 8d 45 f2 90` (`leal -14(%r13), %eax; nop`), anchoring the quantity count badge flush on the bottom-right corner of the scaled icon.
+- `0x1002bfb49`: Replaces `41 bd 38 00 00 00` (`movl \$0x38, %r13d`) with `44 8b 6b 14 90 90` (`movl 0x14(%rbx), %r13d; nop; nop`), dynamically loading icon and button dimensions directly from incoming row height (`rect->height`).
+- `0x1002bfbe2`: Replaces `41 83 c7 38` (`addl \$0x38, %r15d`) with `45 01 ef 90` (`addl %r13d, %r15d; nop`), positioning the item name and cost button flush after the square icon.
+- `0x1002bfbe9`: Replaces `83 c0 c8` (`addl \$-0x38, %eax`) with `44 29 e8` (`subl %r13d, %eax`), setting button width to span the remaining listbox width.
+- `0x1002bfbbf`: Replaces `b8 38 00 00 00` (`movl \$0x38, %eax`) with `41 8d 45 f2 90` (`leal -14(%r13), %eax; nop`), anchoring the quantity count badge flush on the bottom-right corner of the scaled icon.
 
 ### 6.6 Workbench Upgrade Screens (`CSWGuiUpgradeItemSelect` & `CSWGuiUpgrade`)
 The item modification system consists of two distinct GUI interfaces:
@@ -894,24 +823,12 @@ When the player approaches an area boundary (such as a door leading between Uppe
 
 #### The Area Transition GUI Architecture
 In `areatransition.gui`, the interface consists of three distinct subcontrols:
-1. **`LBL_TEXTBG` (`this + 0x80`, child 1)**: The rounded black pill-shaped banner with cyan end caps (`lbl_dindtext`), authored with extent $\{ \text{left}: 0, \text{top}: 0, \text{width}: 400, \text{height}: 32 \}$.
-2. **`LBL_DESCRIPTION` (`this + 0x3b0`, child 2)**: The text label displaying the destination area name (e.g. "Upper City Cantina"), rendered with the `fnt_d16x16` bitmap font and authored with extent $\{ \text{left}: 26, \text{top}: 9, \text{width}: 348, \text{height}: 20 \}$.
-3. **`LBL_ICON` (`this + 0x218`, child 0)**: The circular cyan running person transition icon (`lbl_dindicon`), authored with extent $\{ \text{left}: 174, \text{top}: 31, \text{width}: 50, \text{height}: 50 \}$, anchored flush against the bottom border of the text background pill.
+1. **`LBL_TEXTBG` (`this + 0x80`, child 1)**: The rounded black pill-shaped banner with cyan end caps (`lbl_dindtext`), authored with extent `{ left: 0, top: 0, width: 400, height: 32 }`.
+2. **`LBL_DESCRIPTION` (`this + 0x3b0`, child 2)**: The text label displaying the destination area name (e.g. "Upper City Cantina"), rendered with the `fnt_d16x16` bitmap font and authored with extent `{ left: 26, top: 9, width: 348, height: 20 }`.
+3. **`LBL_ICON` (`this + 0x218`, child 0)**: The circular cyan running person transition icon (`lbl_dindicon`), authored with extent `{ left: 174, top: 31, width: 50, height: 50 }`, anchored flush against the bottom border of the text background pill.
 
 #### The Vertical Text Misalignment Bug
-In vanilla $640 \times 480$:
-- The background pill `LBL_TEXTBG` has an authored height of 32px.
-- The destination name text uses a fixed-height bitmap font (`fnt_d16x16`, glyph height $\approx 16\text{px}$).
-- BioWare authored `top: 9` for `LBL_DESCRIPTION` specifically so that in a 32px tall box, a 16px font would have 9px of margin on top and $32 - (9 + 16) = 7\text{px}$ of margin on bottom—producing near-perfect visual centering on legacy 480p CRT displays.
-
-**The Defect in High-Resolution / Widescreen:**
-When the GUI is scaled to modern widescreen resolutions (e.g. 982p, 1080p, 1440p, or 4K):
-- `scalePopupPanel()` scales `LBL_TEXTBG`'s height proportionally by $\text{scale} = \frac{H_{\text{target}}}{480}$ (expanding from 32px to 65px at 982p, 72px at 1080p, 96px at 1440p).
-- The bitmap font (`fnt_d16x16`) **does not scale**; it remains fixed at 16px tall.
-- If `LBL_DESCRIPTION.top` is scaled linearly ($9 \cdot \text{scale}$), the text starts at 18px at 982p.
-- This creates an asymmetrical margin gap:
-  $$\text{Top Gap} = 18\text{px}, \quad \text{Bottom Gap} = 65 - (18 + 16) = 31\text{px}!$$
-- The space below the text is almost **double** the space above the text, noticeably pushing the location name towards the top edge of the pill banner.
+When widescreen scaling expands the transition banner height from 32px to modern display resolutions (e.g. 65px at 982p, 72px at 1080p, 96px at 1440p), the unscaled 16px bitmap font (`fnt_d16x16`) drifts toward the top edge, creating an asymmetrical vertical margin gap.
 
 #### The Mathematical Centering Solution
 To maintain 50/50 vertical symmetry at any resolution and scale factor, the patch intercepts `LBL_DESCRIPTION` in `scalePopupPanel()`:
@@ -937,7 +854,7 @@ if (vtable == (void*)0x1005a67c0 && (controls[i] == (panel + 0x3b0) || (r.top ==
 }
 ```
 
-- **Resolution Invariance**: At 982p ($\text{scaledBgHeight} = 65$), `s.top` is set to $(65 - 16) / 2 = 24\text{px}$, leaving 24px above the text and 25px below the text. At 1080p, margins are $28\text{px} \times 28\text{px}$; at 1440p, $40\text{px} \times 40\text{px}$.
+- **Resolution Invariance**: At 982p (`scaledBgHeight = 65`), `s.top` is set to `(65 - 16) / 2 = 24px`, leaving 24px above the text and 25px below the text. At 1080p, margins are 28px × 28px; at 1440p, 40px × 40px.
 - **Live Tuning Support**: The knob `AreaTransitionTextOffset = 0` in `[UI Tuning]` allows real-time manual pixel nudging in `swkotor.ini`.
 
 ### 6.8 Computer Terminals & Dialog Reply Listboxes (`CSWGuiDialogComputer` / `0x1005a6db0`)
@@ -961,11 +878,7 @@ The terminal window is a 640×480 root interface hosting two primary text contai
 ```
 
 #### The Missing Replies Defect (The Fixed-Item Stride Bug)
-In widescreen modes, players encountered completely empty reply boxes on computer terminals:
-1. When `scaleMenuPanelTree()` scaled child controls of `CSWGuiDialogComputer`, it called `SetControlRect(ctrl, s)` on `LB_REPLIES`.
-2. Inside `CSWGuiListBox::SetExtent` at `0x1004a8dc6`, the engine unconditionally executes `orb $0x8, 0x370(%rbx)`, setting bit `0x8` in the listbox control flags (`m_hasCustomPadding`).
-3. In KotOR's listbox implementation, bit `0x8` signals **fixed-height item mode**. But terminal replies are dynamically generated text strings of variable height (single-line or wrapped multiline choices).
-4. When `CSWGuiListBox::Draw` runs with bit `0x8` set on text entries, line `0x1004a955f` calculates `visibleItemCount = extentHeight / itemHeight`. Because `itemHeight` (`0x368`) was 0, it reset `0x368 = 0` and visible items `0x378 = 0`—rendering **zero items** and leaving the reply box completely blank!
+Calling `SetExtent` on listboxes automatically sets bit `0x8` in `ctrl + 0x370` (fixed-height item mode). For dynamic text listboxes where row height is variable (such as `LB_REPLIES`), this mode causes the engine to compute 0 visible items, rendering the reply box completely blank.
 
 #### The Variable-Height Mode & Dynamic Wrap Recovery
 To restore full terminal replies:
@@ -1014,15 +927,7 @@ To restore full terminal replies:
 KotOR's in-game Messages screen (`CSWGuiInGameMessages` at `0x1005ae790`) hosts two text logs: the Dialog log (`LB_DIALOG` at `+0x420`) and the Feedback log (`LB_MESSAGES` at `+0x80`). Unlike inventory or equipment lists where every item occupies an identical fixed bounding box, message entries require dynamic, variable line heights—single-line combat messages need ~18–20px, whereas multi-sentence NPC dialogue spans multiple lines and requires 40–80px.
 
 #### The Lifecycle Ordering Conflict
-When scaling GUI panels dynamically, an ordering conflict in BioWare's engine can corrupt listbox spacing:
-
-1. **Lazy Initialization Sequence**:
-   When the Messages tab is activated, `SwitchTab` (`0x10025f3d4`) lazy-allocates `CSWGuiInGameMessages` with unscaled $640 \times 480$ bounds and immediately invokes `CSWGuiInGameMessages::Show()` (`0x100305ae2`). `Show()` triggers `PopulateMessages` (`0x100261850`), which word-wraps dialogue text against the unscaled width ($550\text{ px}$) and loads the message controls into `LB_DIALOG` and `LB_MESSAGES`.
-2. **The `SetExtent` Stride Override**:
-   When `scaleMenuPanelTree` scales `CSWGuiInGameMessages` to target widescreen dimensions ($1280 \times 960$ or user `MenuScale`), `SetControlRect` invokes `CSWGuiListBox::SetExtent` (`0x1004a81ae`) on the message listboxes:
-   - Line `0x1004a822c: orb $0x8, 0x370(%rbx)` automatically sets bit `0x8` in the listbox flag word (`m_hasCustomPadding`).
-   - Because items are already populated (`childCount > 0`), lines `0x1004a8360`–`0x1004a83c9` scan all existing message items, compute the **maximum item height across the entire list** (from the tallest multi-line dialog entry, ~60px), and write it to `m_itemHeight` (`0x368`).
-   - Line `0x1004a8874` subsequently enforces that maximum height as a uniform vertical stride across *every* item in the listbox, creating massive blank gaps between single-line entries and pinning the scrollbar at the top.
+When `scaleMenuPanelTree` scales `CSWGuiInGameMessages`, `SetControlRect` automatically sets bit `0x8` and clamps the row height of all items to the tallest multi-line entry in the list, creating large blank gaps between single-line entries. The patch clears bit `0x8` and re-invokes native `Show()` on the scaled listbox, re-wrapping dialogue to widescreen width and restoring compact ~18px spacing.
 
 #### Variable-Height Enforcement & Immediate Post-Scale Refresh
 To ensure the Messages screen renders with compact, natural line spacing (~18–20px) and proper scroll positioning on its very first frame:
@@ -1051,7 +956,7 @@ To ensure the Messages screen renders with compact, natural line spacing (~18–
 
 ---
 
-### 6.10 Security Camera Live 3D Viewport & Map Reveal Mechanics (`CSWGuiDialogComputerCamera` / `0x1005a6ed8`)
+### 6.10 Security Camera Live 3D Viewport (`CSWGuiDialogComputerCamera` / `0x1005a6ed8`)
 In KotOR, selecting a security camera option at a computer terminal switches the viewport from the 2D terminal console to a live 3D camera placed inside a remote room.
 
 #### Viewport Architecture & Control Hierarchy
@@ -1074,19 +979,17 @@ To deliver the unobstructed 3D security camera view:
    KotOR evaluates whether camera dialog mode is active inside `0x100243bc0` and `0x10025d654` (`CGuiInGame::IsCameraDialog`). The engine traverses a 3-step pointer dereference chain from the global application manager pointer `g_pAppManager` (`0x100677cf0`):
    $$\text{pApp} = *(0x100677cf0) \implies \text{p1} = *(\text{pApp} + 0x8) \implies \text{p2} = *(\text{p1} + 0x8) \implies \text{pGui} = *(\text{p2} + 0x80)$$
    At `pGui`, the engine evaluates two internal 64-bit pointers:
-   $$c_{68} = *(uint64\_t*)(pGui + 0x68), \quad c_{70} = *(uint64\_t*)(pGui + 0x70)$$
-   When camera dialog mode is active, $c_{68} \neq 0$ and $c_{68} == c_{70}$.
+   ```cpp
+   uint64_t c68 = *(uint64_t*)(pGui + 0x68);
+   uint64_t c70 = *(uint64_t*)(pGui + 0x70);
+   ```
+   When camera dialog mode is active, `c68 != 0 && c68 == c70`.
 4. **Live Manager Panel Inspection Without Stuck Latches**:
    Rather than relying on frame count latches (which stall because the in-game HUD does not render during computer terminals), `isCameraModeActive(mgr)` directly checks whether `CSWGuiDialogComputerCamera` (`0x1005a6ed8`) is currently present in `CSWGuiManager` (inspecting standard panels `+0xd8` and modal panels `+0xe8`), paired with the native `CGuiInGame::IsCameraDialog` check. When the player presses Enter to cancel the feed, KotOR's `CGuiInGame::ExitCameraView` (`0x10025cef6`) immediately invokes `CSWGuiManager::RemoveWindow` (`0x10049da14`), removing `0x1005a6ed8` from the manager. On the very next render frame, `isCameraModeActive(mgr)` evaluates to `false`.
 5. **Terminal Visibility Bit Preservation & Feed Return**:
    In `Hook_WindowDraw`, `CSWGuiDialogComputer` (`0x1005a6db0`) maintains its visibility flag `window[0x5c] |= 0x80;`. While `isCameraModeActive(mgr)` is true, it simply clears curtains and returns without drawing. As soon as the camera feed is cancelled, `isCameraModeActive(mgr)` returns false, and `Hook_WindowDraw` proceeds directly to `scaleMenuPanelTree()` and `Original_WindowDraw`, instantly restoring the computer terminal interface without leaving the player stranded in the camera room.
 
-
-
-#### Remote Room Exploration & Fog of War Interaction
-Players reported that using security cameras (such as at the Taris Sith Base reception terminal) caused multiple disconnected rooms across the map to be uncovered through the fog of war:
-- In KotOR's exploration architecture (`CSWArea::LoadArea` at `0x100422606`, `ExploreRadius` at `0x10043ffae`, and `CSWGuiMapHider::Draw` at `0x1002b4bd6`), viewing a remote security camera switches the active camera view to that room. The engine's exploration system naturally triggers map revelation around the active camera position.
-- Because the previous defect rendered the solid terminal background over the live camera feed, players were unaware they were viewing remote rooms, making subsequent map reveals appear unexpected. With the live 3D room footage restored, the exploration of camera-monitored rooms is completely natural, clear, and authentic.
+---
 
 ## 7. Character Generation & Level-Up Edits
 
@@ -1109,24 +1012,17 @@ The Character Generation Class Selection screen (`0x1005af890`) presents 6 class
 
 ### 7.2 Separation of Root Level-Up Console vs. Small Choice Panels
 
-#### Disassembly Analysis: `MAINCG` vs. `LEVELUPPNL`
+#### Interface Separation: `MAINCG` vs. `LEVELUPPNL`
 In Star Wars: KotOR, the Level-Up user interface consists of two distinct classes that interact hierarchically:
 
 1. **`CSWGuiLevelUpCharGen` (`0x1005a9b40`)**:
-   Loads `MAINCG` (the full-screen $640 \times 480$ character generation & level-up master console). It houses the central 3D rotating character viewport, the character stats summary, and the right-hand level-up configuration panels (attributes, skills, feats, Force powers). It is the level-up counterpart to `CSWGuiMainCharGen` (`0x1005ad530`).
+   Loads `MAINCG` (the full-screen 640×480 character generation & level-up master console). It houses the central 3D rotating character viewport, the character stats summary, and the right-hand level-up configuration panels (attributes, skills, feats, Force powers). It is the level-up counterpart to `CSWGuiMainCharGen` (`0x1005ad530`).
 2. **`CSWGuiLevelUpPanel` (`0x1005a4c00`)**:
-   Disassembly at `0x1002138cd` confirms:
-   ```assembly
-   0x1002138cd: leaq 0x31645a(%rip), %rsi   # literal pool for: "LEVELUPPNL"
-   0x1002138dd: leaq -0x40(%rbp), %rsi
-   0x1002138e1: movq %r13, %rdi
-   0x1002138e4: callq 0x10049dfe4           # CSWGuiPanel::LoadGui
-   ```
-   `0x1005a4c00` loads `LEVELUPPNL`, which is the **compact left-hand choice sub-panel** containing buttons `(1) SKILLS`, `(2) ACCEPT`, and `BACK`.
+   Loads `LEVELUPPNL`, which is the **compact left-hand choice sub-panel** containing buttons `(1) SKILLS`, `(2) ACCEPT`, and `BACK`.
 
 #### Window Classification Hierarchy
 Because both classes are instantiated concurrently during level-up, the patch establishes strict classification rules:
-- **Root Window (`CSWGuiLevelUpCharGen`)**: Because `0x1005a9b40` is the $640 \times 480$ root window, classifying it as a small panel would shrink the 3D character viewport and hide the right-hand attribute columns. It is classified as a full-size top-level menu (`isMenuPanel()`).
+- **Root Window (`CSWGuiLevelUpCharGen`)**: Because `0x1005a9b40` is the 640×480 root window, classifying it as a small panel would shrink the 3D character viewport and hide the right-hand attribute columns. It is classified as a full-size top-level menu (`isMenuPanel()`).
 - **Choice Sub-Panel (`CSWGuiLevelUpPanel`)**: The compact choice sub-panel (`0x1005a4c00`) is classified in `isSmallChargenPanel()`, ensuring it receives relative sub-panel anchoring alongside the character console.
 
 #### The Architectural Solution
@@ -1153,43 +1049,13 @@ Because both classes are instantiated concurrently during level-up, the patch es
 ### 8.1 The Universal Menu Centering Flag `0x60`
 The most critical architectural discovery in the macOS 64-bit binary centers around the window flags at `panel + 0x5c`.
 
-When any window renders, `CSWGuiWindow::Draw` (`0x10049ded4`) invokes `CSWGuiWindow::CalculateDrawRect` (`0x10049dd86`):
-
-```assembly
-0x10049dd99: movzwl 0x5c(%rdi), %eax       # Load window flags
-0x10049dd9d: testb  $0x8, %al
-0x10049dd9f: jne    0x10049ddee
-0x10049dda1: testb  $0x20, %al             # Check horizontal centering bit (0x20)
-0x10049dda3: je     0x10049ddc8
-0x10049dda5: movq   0x20(%rdi), %rax       # Get CSWGuiManager
-0x10049dda9: movswl 0xa4(%rax), %eax       # Canvas Width
-0x10049ddb0: leal   -0x280(%rax), %ecx     # Canvas Width - targetWidth
-0x10049ddb6: shrl   $0x1f, %ecx
-0x10049ddb9: leal   -0x280(%rax,%rcx), %eax
-0x10049ddc0: sarl   %eax                   # Divide by 2
-0x10049ddc2: addl   %eax, (%rsi)           # outRect.left += (canvasWidth - targetWidth) / 2
-0x10049ddc4: movw   0x5c(%rdi), %ax
-0x10049ddc8: testb  $0x40, %al             # Check vertical centering bit (0x40)
-0x10049ddca: je     0x10049de21
-0x10049ddcc: movq   0x20(%rdi), %rax
-0x10049ddd0: movswl 0xa6(%rax), %eax       # Canvas Height
-0x10049ddd7: leal   -0x1e0(%rax), %ecx     # Canvas Height - targetHeight
-0x10049dddd: shrl   $0x1f, %ecx
-0x10049dde0: leal   -0x1e0(%rax,%rcx), %eax
-0x10049dde7: sarl   %eax                   # Divide by 2
-0x10049dde9: addl   %eax, 0x4(%rsi)        # outRect.top += (canvasHeight - targetHeight) / 2
-```
-
-In `CSWGuiPanel::HandleMouseInput` (`0x10049dcfd`):
-```assembly
-0x10049dd04: callq  0x10049dd86             # CalculateDrawRect
-0x10049dd09: movl   -0x38(%rbp), %eax      # outRect.left
-0x10049dd0c: movl   %r12d, %r13d           # Mouse X
-0x10049dd0f: subl   %eax, %r13d            # Local Mouse X = Mouse X - outRect.left
-```
+When any window renders, `CSWGuiWindow::Draw` (`0x10049ded4`) invokes `CSWGuiWindow::CalculateDrawRect` (`0x10049dd86`), which inspects the 16-bit flags at `panel + 0x5c`:
+- **Bit `0x20` (Horizontal Centering)**: If set, adds `(canvasWidth - targetWidth) / 2` to `outRect.left`. If cleared, `outRect.left` falls back to `0`, forcing the menu to draw pinned to the left display bezel (shifted left by ~102px on a 1512×982 display).
+- **Bit `0x40` (Vertical Centering)**: If set, adds `(canvasHeight - targetHeight) / 2` to `outRect.top`.
+- **Mouse Input Parity**: `CSWGuiPanel::HandleMouseInput` (`0x10049dcfd`) calls `CalculateDrawRect` and subtracts `outRect.left` from incoming mouse coordinates (`localX = mouseX - outRect.left`), guaranteeing that input hitboxes match visual rendering when `0x60` (`0x20 | 0x40`) is set.
 
 > [!IMPORTANT]
-> If bit `0x20` is cleared from a menu window, its `outRect.left` falls back to `0`, forcing the window to draw at the left display bezel (shifted left by $\sim 101.5\text{ px}$ on a 1512×982 display). Setting `0x60` (`0x20 | 0x40`) adds the centering offset to both `CSWGuiWindow::Draw` and `CSWGuiPanel::HandleMouseInput`.
+> Setting flag `0x60` (`0x20 | 0x40`) automatically centers both rendering and mouse hitboxes across all top-level menus in lockstep.
 
 ### 8.2 The Definitive Centering Fix
 By setting `0x60` across all menu classes:
@@ -1234,7 +1100,7 @@ The engine's input routines calculate centering offsets using 12 hardcoded displ
 
 ### 8.5 Movies Menu List Layout & Stability (`CSWGuiTitleMovies` at `0x1005abc50`)
 The Movies menu allows players to replay unlocked cinematic cutscenes.
-- **The Immediate Alignment Bug**: In `CSWGuiTitleMovies`, the row height for cinematic movie entries is set at `0x1002c4755` via `movl $0x38, 0xc(%rsi)` (`c7 46 0c 38 00 00 00`). The 32-bit immediate begins at `0x1002c4758`.
+- **The Immediate Alignment Bug**: In `CSWGuiTitleMovies`, the row height for cinematic movie entries is set at `0x1002c4755` via `movl \$0x38, 0xc(%rsi)` (`c7 46 0c 38 00 00 00`). The 32-bit immediate begins at `0x1002c4758`.
 - **Instruction Preservation**: An off-by-one write to `0x1002c4759` would overwrite byte `0x1002c475c` (`0x48`), which is the REX.W prefix for the subsequent `movq (%rbx), %rax` instruction (`48 8b 03`), causing an immediate segmentation fault upon clicking "Movies".
 - **Dynamic Patching**: `refreshPatchedListConstants()` writes `containerItemHeight` directly to `0x1002c4758`, dynamically sizing movie rows to match the high-resolution menu stride while keeping adjacent opcodes 100% intact.
 
@@ -1250,37 +1116,31 @@ if (vtable == (void*)0x1005a6220) {
 This prevents the HUD from being shrunk into a centered 4:3 box and ensures that all gameplay HUD elements (minimap, top-right buttons, portrait tray, combat queue) are managed exclusively by `Hook_MainInterfaceDraw`.
 
 ### 8.7 Elimination of 8-Bit Sign-Extension Bugs
-When patching assembly instructions with immediate displacement values, care must be taken regarding operand size. KotOR's original x86_64 code frequently utilized 8-bit sign-extended immediate arithmetic (e.g. `addl $imm8, %reg`). 
+When patching assembly instructions with immediate displacement values, care must be taken regarding operand size. KotOR's original x86_64 code frequently utilized 8-bit sign-extended immediate arithmetic (e.g. `addl \$imm8, %reg`). 
 
 When scaling offsets exceeded 127 pixels (a frequent occurrence when supporting 1200p, 1440p, or 4K resolutions), 8-bit sign extension caused immediate values between `0x80` and `0xFF` to be interpreted as negative numbers, corrupting layout coordinates and throwing controls completely off-screen.
 
 All static hooks in `hooks.toml` and dynamic runtime writes in `mac_widescreen.cpp` strictly deploy full 32-bit immediate instructions:
-- `41 81 c7 ...` (`addl $imm32, %r15d`) instead of `41 83 c7 ...` (`addl $imm8, %r15d`)
-- `2d ...` (`subl $imm32, %eax`) instead of `83 e8 ...` (`subl $imm8, %eax`)
+- `41 81 c7 ...` (`addl \$imm32, %r15d`) instead of `41 83 c7 ...` (`addl \$imm8, %r15d`)
+- `2d ...` (`subl \$imm32, %eax`) instead of `83 e8 ...` (`subl \$imm8, %eax`)
 
 This guarantees that layout calculations remain mathematically exact regardless of target display resolution.
 
 ### 8.8 Pazaak Minigame Screens & Card 2 Scaling Fix
 The Pazaak minigame consists of three distinct graphical interfaces:
-- `0x1005a5a90`: `CSWGuiPazaakStart` (SideDeck Selection screen, `pazaaksetup.gui`, base $640 \times 480$)
-- `0x1005a5b80`: `CSWGuiPazaakGame` (Main Pazaak Game Table, `pazaakgame.gui`, base $640 \times 480$)
-- `0x1005a59a0`: `CSWGuiWagerPopup` (Wager selection dialog, `pazaakwager.gui`, base $640 \times 480$)
+- `0x1005a5a90`: `CSWGuiPazaakStart` (SideDeck Selection screen, `pazaaksetup.gui`, base 640×480)
+- `0x1005a5b80`: `CSWGuiPazaakGame` (Main Pazaak Game Table, `pazaakgame.gui`, base 640×480)
+- `0x1005a59a0`: `CSWGuiWagerPopup` (Wager selection dialog, `pazaakwager.gui`, base 640×480)
 
 #### Screen Classification & Centering Architecture
 The three Pazaak interfaces are full 4:3 screens rather than secondary modal dialogs. In KotOR's window hierarchy, correct placement requires deliberate top-level menu classification:
-- If misclassified as floating popups, modal positioning algorithms would strip the engine's internal centering flag (`0x60`), causing the deck setup screen to offset right while the active table pins to the left display bezel at $X = 0$.
-- By classifying `CSWGuiPazaakStart`, `CSWGuiPazaakGame`, and `CSWGuiWagerPopup` as menu panels in `isMenuPanel()`, `scaleMenuPanelTree()` scales them to uniform 4:3 target dimensions ($\text{targetW} = \text{targetH} \cdot 4 / 3$) and ensures flag `0x60` remains active, aligning all three interfaces dead center on widescreen displays.
+- If misclassified as floating popups, modal positioning algorithms would strip the engine's internal centering flag (`0x60`), causing the deck setup screen to offset right while the active table pins to the left display bezel at X = 0.
+- By classifying `CSWGuiPazaakStart`, `CSWGuiPazaakGame`, and `CSWGuiWagerPopup` as menu panels in `isMenuPanel()`, `scaleMenuPanelTree()` scales them to uniform 4:3 target dimensions (`targetW = targetH * 4 / 3`) and ensures flag `0x60` remains active, aligning all three interfaces dead center on widescreen displays.
 
 #### Second Card Scaling: Correcting BioWare Authored GUI Typo
-During Pazaak gameplay, the second card in the player's hand appeared as an unscaled mini card centered within its slot, while Cards 1, 3, and 4 scaled seamlessly to fill their entire slot boundaries.
+During Pazaak gameplay, the second card in the player's hand appeared as an unscaled mini card centered within its slot, while Cards 1, 3, and 4 scaled seamlessly to fill their entire slots.
 
-GFF binary structure analysis of all 74 controls in `pazaakgame.gui` revealed an authored BioWare typo dating back to 2003:
-- Control 23 (Hand Card Slot 1, X=75, Y=340, 64x64): `FILLSTYLE = 2` (`DrawStretched`)
-- **Control 27 (Hand Card Slot 2, X=129, Y=340, 64x64)**: `FILLSTYLE = 1` (`DrawCentered` / Unstretched Tile Mode 1)
-- Control 22 (Hand Card Slot 3, X=183, Y=340, 64x64): `FILLSTYLE = 2` (`DrawStretched`)
-- Control 26 (Hand Card Slot 4, X=237, Y=340, 64x64): `FILLSTYLE = 2` (`DrawStretched`)
-
-In fact, across all 74 controls in `pazaakgame.gui`, 73 controls are configured with `FILLSTYLE = 2`; Control 27 was the sole outlier with `FILLSTYLE = 1`. In `CSWGuiBorder::Draw`, `FILLSTYLE = 1` renders the 64×64 card texture centered inside the slot without stretching, leaving empty borders around the card.
+Analysis of `pazaakgame.gui` revealed an authored BioWare typo dating back to 2003: while 73 of the 74 controls use `FILLSTYLE = 2` (`DrawStretched`), Control 27 (Hand Card Slot 2, `{129, 340, 64, 64}`) was authored with `FILLSTYLE = 1` (`DrawCentered`), causing `CSWGuiBorder::Draw` to render the card texture unscaled.
 
 #### Runtime Fill Style Normalization
 In `scaleMenuPanelTree()`, when `vtable == (void*)0x1005a5b80` (`CSWGuiPazaakGame`), the patch targets Control 27 specifically by its unique authored coordinates (`{129, 340, 64, 64}`).
@@ -1307,12 +1167,10 @@ if (vtable == (void*)0x1005a5b80 && r.left == 129 && r.top == 340 && r.width == 
 ### 8.9 Quests & Journal Screen Quest Border Calibration (`CSWGuiInGameJournal` at `0x1005aed10`)
 
 #### Problem Overview
-In BioWare's authored `journal.gui`, the quest listbox `LB_ITEMS` (Control 0) has base dimensions `{ LEFT: 54, TOP: 115, WIDTH: 269, HEIGHT: 261 }`, ending at $X = 54 + 269 = 323$. In the journal background artwork (`quest` / `lbl_quest`), the left column's blue border container ends at $X = 321$, and the right column description panel (`LBL_ITEM_DESCRIPTION`) begins at $X = 324$.
-
-Under vanilla 640x480 resolution, quest item buttons extend right up to $X = 323$, overlapping the container's vertical inner divider line. When scaled up proportionally to high display resolutions (e.g. 982p, 1080p, 1440p, or 4K), integer rounding and floating-point expansion cause the rounded right caps of the quest name buttons ("BASTILA", "CARTH", "BENDAK'S BOUNTY", "ESCAPING TARIS", etc.) to spill 1–2 pixels past the background container border into the central gutter.
+In BioWare's authored `journal.gui`, the quest listbox `LB_ITEMS` (`269×261`) slightly overlaps the vertical divider dividing the quest list from the description panel. When scaled proportionally to high display resolutions (such as 982p, 1080p, 1440p, or 4K), floating-point expansion causes the right caps of quest name buttons to spill 1–2 pixels past the background container border into the central gutter.
 
 #### Widescreen Listbox Extent Calibration
-In `scaleMenuPanelTree()`, when `vtable == (void*)0x1005aed10` (`CSWGuiInGameJournal`) and the control matches `LB_ITEMS` (`r.width == 269 && r.height == 261`), the scaled listbox width is brought inward by $2.5 \cdot \text{scale}$ pixels:
+In `scaleMenuPanelTree()`, when `vtable == (void*)0x1005aed10` (`CSWGuiInGameJournal`) and the control matches `LB_ITEMS` (`r.width == 269 && r.height == 261`), the scaled listbox width is brought inward by `2.5 * scale` pixels:
 
 ```cpp
 // Quests / Journal Screen (0x1005aed10): calibrate LB_ITEMS (width 269, height 261)
@@ -1326,8 +1184,8 @@ if (vtable == (void*)0x1005aed10 && r.width == 269 && r.height == 261) {
 
 #### Native Engine Width Propagation
 In `CSWGuiInGameJournal::PopulateItemListBox` (`0x10032e492`), KotOR calculates each quest button's width directly from the listbox client extent:
-$$\text{itemWidth} = (\text{LB\_ITEMS}.\text{client\_width}) - 2 \cdot \text{padding}$$
-where `client_width` is stored at listbox offset `+0x340` (`*(int*)(ctrl + 0x340)`), set by `CSWGuiListBox::SetExtent` as $\text{width} - \text{scrollbar\_width}$.
+$$\text{itemWidth} = \text{clientWidth} - 2 \cdot \text{padding}$$
+where `clientWidth` is stored at listbox offset `+0x340` (`*(int*)(ctrl + 0x340)`), set by `CSWGuiListBox::SetExtent` as `width - scrollbar_width`.
 
 Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` (`0x1005ae6a0`) upon menu creation, `LB_ITEMS` has already received its calibrated `s.width` before `CSWGuiInGameJournal::PopulateItemListBox` ever creates the quest entries. All quest name buttons naturally and automatically inherit the calibrated width, pulling the right button caps inward by ~5 pixels at 982p (~3px at 665p) with zero per-frame CPU overhead and zero redundant child traversal code.
 
@@ -1480,7 +1338,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>MapHider_WorldToMapCoords jump bridge</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Unused padding bytes between code sections in <code>__TEXT,__text</code>.<br><b>After:</b> Encodes a 64-bit absolute jump trampoline (<code>movabsq $func, %rax; jmpq *%rax</code>) dispatching to C++ bridge wrapper <code>MapHider_WorldToMapCoords</code>.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Unused padding bytes between code sections in <code>__TEXT,__text</code>.<br><b>After:</b> Encodes a 64-bit absolute jump trampoline (<code>movabsq &#36;func, %rax; jmpq *%rax</code>) dispatching to C++ bridge wrapper <code>MapHider_WorldToMapCoords</code>.</td>
 </tr>
 <tr>
   <td><code>0x1000f4f78</code></td>
@@ -1552,7 +1410,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWGuiInGameItemEntry::Layout (Text & highlight layout hook)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Sized item name button using 8-bit sign-extended instructions with 56px height, causing text boxes to overlap or clip when scaled.<br><b>After:</b> Injects full 32-bit arithmetic setting text start $X = \text{rowX} + \text{textOffset}$, width $= \text{rowW} - \text{textDeduct}$, and height $= \text{itemHeight}$ (<code>0xb0</code>, <code>0x138</code>, <code>0x1c0</code>).</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Sized item name button using 8-bit sign-extended instructions with 56px height, causing text boxes to overlap or clip when scaled.<br><b>After:</b> Injects full 32-bit arithmetic setting text start X to <code>rowX + textOffset</code>, width to <code>rowW - textDeduct</code>, and height to <code>itemHeight</code> (<code>0xb0</code>, <code>0x138</code>, <code>0x1c0</code>).</td>
 </tr>
 <tr>
   <td><code>0x1002be4a4</code></td>
@@ -1561,7 +1419,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWGuiInGameItemEntry (3-digit quantity badge width)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Hardcoded 3-digit quantity badge width to 70px (<code>0x46</code>).<br><b>After:</b> Scales badge width dynamically with screen resolution ($38 \cdot \text{scale}$).</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Hardcoded 3-digit quantity badge width to 70px (<code>0x46</code>).<br><b>After:</b> Scales badge width dynamically with screen resolution (<code>38 * scale</code>).</td>
 </tr>
 <tr>
   <td><code>0x1002be4a9</code></td>
@@ -1570,7 +1428,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWGuiInGameItemEntry (1-2 digit quantity badge width)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Hardcoded 1-2 digit quantity badge width to 40px (<code>0x28</code>).<br><b>After:</b> Scales badge width dynamically with screen resolution ($20 \cdot \text{scale}$).</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Hardcoded 1-2 digit quantity badge width to 40px (<code>0x28</code>).<br><b>After:</b> Scales badge width dynamically with screen resolution (<code>20 * scale</code>).</td>
 </tr>
 <tr>
   <td><code>0x1002be4c7</code></td>
@@ -1579,7 +1437,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWGuiInGameItemEntry (Quantity badge Y offset)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fixed badge top offset to 52px (<code>0x34</code>).<br><b>After:</b> Dynamically sets badge Y to $\text{itemHeight} - \text{qHeight} + \text{badgeTopOffset}$, anchoring the badge flush at the bottom-right of the icon.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fixed badge top offset to 52px (<code>0x34</code>).<br><b>After:</b> Dynamically sets badge Y to <code>itemHeight - qHeight + badgeTopOffset</code>, anchoring the badge flush at the bottom-right of the icon.</td>
 </tr>
 <tr>
   <td><code>0x1002be4ce</code></td>
@@ -1588,7 +1446,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWGuiInGameItemEntry (Quantity badge label height)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fixed badge label height to 18px (<code>0x12</code>).<br><b>After:</b> Scales badge height proportionally ($18 \cdot \text{scale}$), ensuring item count numbers remain readable.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fixed badge label height to 18px (<code>0x12</code>).<br><b>After:</b> Scales badge height proportionally (<code>18 * scale</code>), ensuring item count numbers remain readable.</td>
 </tr>
 <tr>
   <td><code>0x1002bfb49</code></td>
@@ -1606,7 +1464,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWGuiStoreItemEntry::SetExtent (Store badge anchor X)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Calculated badge X using hardcoded 56px (<code>movl $0x38, %eax</code>).<br><b>After:</b> Uses dynamic icon width <code>%r13d</code> (<code>movl %r13d, %eax; nop; nop</code>), anchoring badge on the right edge of scaled store icons.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Calculated badge X using hardcoded 56px (<code>movl &#36;0x38, %eax</code>).<br><b>After:</b> Uses dynamic icon width <code>%r13d</code> (<code>movl %r13d, %eax; nop; nop</code>), anchoring badge on the right edge of scaled store icons.</td>
 </tr>
 <tr>
   <td><code>0x1002bfbe2</code></td>
@@ -1615,7 +1473,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWGuiStoreItemEntry::SetExtent (Store button start X)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Added fixed 56px offset (<code>addl $0x38, %r15d</code>) after icon.<br><b>After:</b> Executes <code>addl %r13d, %r15d; nop</code>, placing text button flush after the dynamically scaled icon.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Added fixed 56px offset (<code>addl &#36;0x38, %r15d</code>) after icon.<br><b>After:</b> Executes <code>addl %r13d, %r15d; nop</code>, placing text button flush after the dynamically scaled icon.</td>
 </tr>
 <tr>
   <td><code>0x1002bfbe9</code></td>
@@ -1624,7 +1482,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWGuiStoreItemEntry::SetExtent (Store button width)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted fixed 56px (<code>addl $-0x38, %eax</code>).<br><b>After:</b> Executes <code>subl %r13d, %eax</code>, expanding button width to fill the remaining listbox row width.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted fixed 56px (<code>addl &#36;-0x38, %eax</code>).<br><b>After:</b> Executes <code>subl %r13d, %eax</code>, expanding button width to fill the remaining listbox row width.</td>
 </tr>
 <tr>
   <td><code>0x10021c063</code></td>
@@ -1633,7 +1491,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWUpgradeItemEntry::SetExtent (Dynamic workbench icon height)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Loaded fixed 56px (<code>movl $0x38, %r15d</code>) for upgrade item icons.<br><b>After:</b> Executes <code>movl 0x14(%rbx), %r15d; nop; nop</code>, dynamically sizing workbench icons from row height.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Loaded fixed 56px (<code>movl &#36;0x38, %r15d</code>) for upgrade item icons.<br><b>After:</b> Executes <code>movl 0x14(%rbx), %r15d; nop; nop</code>, dynamically sizing workbench icons from row height.</td>
 </tr>
 <tr>
   <td><code>0x10021c0e2</code></td>
@@ -1651,7 +1509,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWUpgradeItemEntry::SetExtent (Workbench button start X)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Added hardcoded 56px (<code>addl $0x38, %r13d</code>).<br><b>After:</b> Executes <code>addl %r15d, %r13d; nop</code>, placing button flush after the scaled icon.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Added hardcoded 56px (<code>addl &#36;0x38, %r13d</code>).<br><b>After:</b> Executes <code>addl %r15d, %r13d; nop</code>, placing button flush after the scaled icon.</td>
 </tr>
 <tr>
   <td><code>0x10021c106</code></td>
@@ -1660,7 +1518,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>CSWUpgradeItemEntry::SetExtent (Workbench button width)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted hardcoded 56px (<code>addl $-0x38, %eax</code>).<br><b>After:</b> Executes <code>subl %r15d, %eax</code>, expanding button to span listbox width.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted hardcoded 56px (<code>addl &#36;-0x38, %eax</code>).<br><b>After:</b> Executes <code>subl %r15d, %eax</code>, expanding button to span listbox width.</td>
 </tr>
 <tr>
   <td><code>0x1002be874</code></td>
@@ -1723,7 +1581,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
   <td>FixMessageLabel (Icon inset height)</td>
 </tr>
 <tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fixed text inset below popup dialog icons to 34px (<code>0x22</code>).<br><b>After:</b> Dynamically writes $34 \cdot \text{scale}$, maintaining proper vertical spacing between prompt icon and message text.</td>
+  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fixed text inset below popup dialog icons to 34px (<code>0x22</code>).<br><b>After:</b> Dynamically writes <code>34 * scale</code>, maintaining proper vertical spacing between prompt icon and message text.</td>
 </tr>
 <tr>
   <td><code>0x100306879, 881</code></td>
@@ -1755,7 +1613,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
 <tr>
   <td><code>0x1002be754, 80c</code></td>
   <td><code>31 c0 50 (push rax)</code></td>
-  <td><code>6a 02 90 (push $2; nop)</code></td>
+  <td><code>6a 02 90 (push &#36;2; nop)</code></td>
   <td>CSWGuiInGameItemEntry::Init (Enforce fillStyle = 2 on item borders)</td>
 </tr>
 <tr>
@@ -1764,7 +1622,7 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
 <tr>
   <td><code>0x1002bfe55, f0e</code></td>
   <td><code>31 c0 50 (push rax)</code></td>
-  <td><code>6a 02 90 (push $2; nop)</code></td>
+  <td><code>6a 02 90 (push &#36;2; nop)</code></td>
   <td>CSWGuiStoreItemEntry::Init (Enforce fillStyle = 2 on store borders)</td>
 </tr>
 <tr>
@@ -1922,10 +1780,10 @@ Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` 
 | :--- | :--- | :--- |
 | `+0x1d60` | `int32_t` | Buy item prototype height (synchronized to `geom.containerItemHeight`) |
 | `+0x1d93` | `uint8_t` | Buy item prototype padding (synchronized to `0`) |
-| `+0x1da0` | `CSWGuiListBox*` | Buy item listbox pointer (`LB_INVITEMS`, base $263 \times 307$) |
+| `+0x1da0` | `CSWGuiListBox*` | Buy item listbox pointer (`LB_INVITEMS`, base 263×307) |
 | `+0x2100` | `int32_t` | Sell item prototype height (synchronized to `geom.containerItemHeight`) |
 | `+0x2133` | `uint8_t` | Sell item prototype padding (synchronized to `0`) |
-| `+0x2140` | `CSWGuiListBox*` | Sell item listbox pointer (`LB_SHOPITEMS`, base $263 \times 307$) |
+| `+0x2140` | `CSWGuiListBox*` | Sell item listbox pointer (`LB_SHOPITEMS`, base 263×307) |
 
 #### `CSWGuiStoreItemEntry` (Store & Loot Container Row Subcontrol)
 | Offset | Type | Subcontrol Role |
