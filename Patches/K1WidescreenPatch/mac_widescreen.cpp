@@ -42,6 +42,79 @@ struct NativeCGRect { NativeCGPoint origin; NativeCGSize size; };
 typedef uint32_t (*CGMainDisplayIDFn)();
 typedef NativeCGRect (*CGDisplayBoundsFn)(uint32_t);
 
+struct GraphicsIniSettings {
+    bool loaded = false;
+    int forceWidth = 0;
+    int forceHeight = 0;
+    int iniWidth = 0;
+    int iniHeight = 0;
+    float menuScale = 0.0f;
+    float combatScale = -1.0f;
+    float hudScale = -1.0f;
+    int hdMenuTextures = 0;
+    float fontScale = 0.0f;
+};
+static GraphicsIniSettings s_graphicsIni;
+
+static void LoadGraphicsIniSettings() {
+    if (s_graphicsIni.loaded) return;
+    s_graphicsIni.loaded = true;
+
+    char path[1024];
+    FILE* f = nullptr;
+    const char* home = getenv("HOME");
+    if (home) {
+        snprintf(path, sizeof(path), "%s/Library/Application Support/Knights of the Old Republic/swkotor.ini", home);
+        f = fopen(path, "r");
+    }
+    if (!f) {
+        f = fopen("swkotor.ini", "r");
+    }
+    if (!f) return;
+
+    char line[256];
+    bool inGraphics = false;
+    while (fgets(line, sizeof(line), f)) {
+        char* p = line;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p == '[') {
+            inGraphics = (strncasecmp(p, "[Graphics Options]", 18) == 0);
+            continue;
+        }
+        if (!inGraphics) continue;
+
+        char* eq = strchr(p, '=');
+        if (!eq) continue;
+        char* val = eq + 1;
+        while (*val == ' ' || *val == '\t') val++;
+
+        if (strncasecmp(p, "ForceWidth", 10) == 0) {
+            s_graphicsIni.forceWidth = atoi(val);
+        } else if (strncasecmp(p, "ForceHeight", 11) == 0) {
+            s_graphicsIni.forceHeight = atoi(val);
+        } else if (strncasecmp(p, "Width", 5) == 0) {
+            s_graphicsIni.iniWidth = atoi(val);
+        } else if (strncasecmp(p, "Height", 6) == 0) {
+            s_graphicsIni.iniHeight = atoi(val);
+        } else if (strncasecmp(p, "MenuScale", 9) == 0) {
+            float v = (float)atof(val);
+            if (v > 0.0f && v <= 10.0f) s_graphicsIni.menuScale = v;
+        } else if (strncasecmp(p, "CombatScale", 11) == 0) {
+            float v = (float)atof(val);
+            if (v >= 0.5f && v <= 5.0f) s_graphicsIni.combatScale = v;
+        } else if (strncasecmp(p, "HudScale", 8) == 0 || strncasecmp(p, "PortraitScale", 13) == 0) {
+            float v = (float)atof(val);
+            if (v >= 0.5f && v <= 5.0f) s_graphicsIni.hudScale = v;
+        } else if (strncasecmp(p, "HDMenuTextures", 14) == 0) {
+            s_graphicsIni.hdMenuTextures = atoi(val);
+        } else if (strncasecmp(p, "FontScale", 9) == 0) {
+            float v = (float)atof(val);
+            if (v > 0.0f && v <= 10.0f) s_graphicsIni.fontScale = v;
+        }
+    }
+    fclose(f);
+}
+
 static bool s_resolutionInitialized = false;
 
 static void InitTargetResolution() {
@@ -75,71 +148,15 @@ static void InitTargetResolution() {
     // 2. Check swkotor.ini for optional user override
     // - ForceWidth / ForceHeight: explicit user override
     // - Width / Height: used if CoreGraphics auto-detection returned 0
-    char path[1024];
-    FILE* f = nullptr;
-    const char* home = getenv("HOME");
-    if (home) {
-        snprintf(path, sizeof(path), "%s/Library/Application Support/Knights of the Old Republic/swkotor.ini", home);
-        f = fopen(path, "r");
-    }
-    if (!f) {
-        f = fopen("swkotor.ini", "r");
-    }
-    if (f) {
-        char line[256];
-        bool inGraphics = false;
-        int forceW = 0, forceH = 0;
-        int iniW = 0, iniH = 0;
-        while (fgets(line, sizeof(line), f)) {
-            char* p = line;
-            while (*p == ' ' || *p == '\t') p++;
-            if (*p == '[') {
-                inGraphics = (strncasecmp(p, "[Graphics Options]", 18) == 0);
-                continue;
-            }
-            if (inGraphics) {
-                if (strncasecmp(p, "ForceWidth", 10) == 0) {
-                    char* eq = strchr(p, '=');
-                    if (eq) {
-                        char* val = eq + 1;
-                        while (*val == ' ' || *val == '\t') val++;
-                        forceW = atoi(val);
-                    }
-                } else if (strncasecmp(p, "ForceHeight", 11) == 0) {
-                    char* eq = strchr(p, '=');
-                    if (eq) {
-                        char* val = eq + 1;
-                        while (*val == ' ' || *val == '\t') val++;
-                        forceH = atoi(val);
-                    }
-                } else if (strncasecmp(p, "Width", 5) == 0) {
-                    char* eq = strchr(p, '=');
-                    if (eq) {
-                        char* val = eq + 1;
-                        while (*val == ' ' || *val == '\t') val++;
-                        iniW = atoi(val);
-                    }
-                } else if (strncasecmp(p, "Height", 6) == 0) {
-                    char* eq = strchr(p, '=');
-                    if (eq) {
-                        char* val = eq + 1;
-                        while (*val == ' ' || *val == '\t') val++;
-                        iniH = atoi(val);
-                    }
-                }
-            }
-        }
-        fclose(f);
-
-        if (forceW >= 640 && forceH >= 480) {
-            // Explicit user override via ForceWidth / ForceHeight
-            g_targetWidth = forceW;
-            g_targetHeight = forceH;
-        } else if ((g_targetWidth <= 0 || g_targetHeight <= 0) && iniW >= 640 && iniH >= 480) {
-            // Fallback to swkotor.ini Width / Height only if CoreGraphics auto-detection failed
-            g_targetWidth = iniW;
-            g_targetHeight = iniH;
-        }
+    LoadGraphicsIniSettings();
+    if (s_graphicsIni.forceWidth >= 640 && s_graphicsIni.forceHeight >= 480) {
+        // Explicit user override via ForceWidth / ForceHeight
+        g_targetWidth = s_graphicsIni.forceWidth;
+        g_targetHeight = s_graphicsIni.forceHeight;
+    } else if ((g_targetWidth <= 0 || g_targetHeight <= 0) && s_graphicsIni.iniWidth >= 640 && s_graphicsIni.iniHeight >= 480) {
+        // Fallback to swkotor.ini Width / Height only if CoreGraphics auto-detection failed
+        g_targetWidth = s_graphicsIni.iniWidth;
+        g_targetHeight = s_graphicsIni.iniHeight;
     }
 }
 
@@ -244,13 +261,7 @@ bool isMenuPanel(void* vtable) {
            vtable == (void*)0x1005a5090 || // CSWGuiUpgradeItemSelect (upgradeitems.gui - Workbench Item Selection)
            vtable == (void*)0x1005abb40 || // CSWGuiPowersLevelUp (pwrlvlup.gui - Force Powers Level-Up)
            vtable == (void*)0x1005a9b40 || // CSWGuiLevelUpCharGen (MAINCG for Level Up)
-           vtable == (void*)0x1005a6db0 || // CSWGuiDialogComputer (computer.gui - Computer Terminals)
-           vtable == (void*)0x1005a6ed8;   // CSWGuiDialogComputerCamera (Security Cameras)
-}
-
-// Check if a panel is an independent top-level root window
-bool isTopLevelMenu(void* vtable) {
-    return isMenuPanel(vtable);
+           vtable == (void*)0x1005a6db0;   // CSWGuiDialogComputer (computer.gui - Computer Terminals)
 }
 
 // Check if a panel is one of the small chargen/level-up root panels (qorcpnl, custpnl, quickpnl, leveluppnl)
@@ -275,11 +286,63 @@ bool isPopupPanel(void* vtable) {
            vtable == (void*)0x1005a9e18 || // CSWGuiSkillInfoBox (Feats / Skills granted popup)
            vtable == (void*)0x1005ae3f0 || // CSWGuiSaveNamePanel
            vtable == (void*)0x1005aeaa8 || // CSWGuiControllerLossBox
-           vtable == (void*)0x1005aee60;   // CSWGuiExamine
+           vtable == (void*)0x1005aee60 || // CSWGuiExamine
+           vtable == (void*)0x1005acc70;   // CSWGuiScriptSelect (scriptselect.gui - AI Scripts Selection)
 }
 
 static char* g_lastGuiManager = nullptr;
 static char* g_lastScaledHud = nullptr;
+
+static bool isCameraModeActive(char* mgr) {
+    // 1. Direct engine state check via native CGuiInGame::IsCameraDialog (0x10025d654)
+    char** ppApp = (char**)0x100677cf0;
+    if (ppApp && is_readable(ppApp)) {
+        char* pApp = *ppApp;
+        if (pApp && is_readable(pApp)) {
+            char* p1 = *(char**)(pApp + 0x8);
+            if (p1 && is_readable(p1)) {
+                char* p2 = *(char**)(p1 + 0x8);
+                if (p2 && is_readable(p2)) {
+                    char* pGui = *(char**)(p2 + 0x80);
+                    if (pGui && is_readable(pGui)) {
+                        uint64_t c68 = *(uint64_t*)(pGui + 0x68);
+                        uint64_t c70 = *(uint64_t*)(pGui + 0x70);
+                        if (c68 != 0 && c68 == c70) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // 2. Inspect CSWGuiManager active standard and modal window lists for CSWGuiDialogComputerCamera (0x1005a6ed8)
+    char* m = (mgr && is_readable(mgr)) ? mgr : g_lastGuiManager;
+    if (m && is_readable(m)) {
+        // Standard panels (+0xd8)
+        char** panels = *(char***)(m + 0xd8);
+        int panelCount = *(int*)(m + 0xe0);
+        if (panels && is_readable(panels) && panelCount > 0 && panelCount <= 256) {
+            for (int i = 0; i < panelCount; i++) {
+                char* p = panels[i];
+                if (p && is_readable(p) && *(void**)p == (void*)0x1005a6ed8) {
+                    return true;
+                }
+            }
+        }
+        // Modal panels (+0xe8)
+        char** modalPanels = *(char***)(m + 0xe8);
+        int modalCount = *(int*)(m + 0xf0);
+        if (modalPanels && is_readable(modalPanels) && modalCount > 0 && modalCount <= 64) {
+            for (int i = 0; i < modalCount; i++) {
+                char* p = modalPanels[i];
+                if (p && is_readable(p) && *(void**)p == (void*)0x1005a6ed8) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
 
 /*
   updateEngineGlobals:
@@ -326,157 +389,38 @@ void updateEngineGlobals(char* mgr) {
 
 static std::unordered_set<void*> s_scaledPanels;
 static int s_lastScaleTargetHeight = 0;
-static float s_cachedIniMenuScale = -1.0f;
-static int s_cachedIniHDMenuTextures = -1;
 
 static float ReadIniMenuScale() {
-    if (s_cachedIniMenuScale >= 0.0f) {
-        return s_cachedIniMenuScale;
-    }
-    s_cachedIniMenuScale = 0.0f;
-    const char* home = getenv("HOME");
-    if (!home) return 0.0f;
-    
-    char path[1024];
-    snprintf(path, sizeof(path), "%s/Library/Application Support/Knights of the Old Republic/swkotor.ini", home);
-    FILE* f = fopen(path, "r");
-    if (!f) return 0.0f;
-    
-    char line[256];
-    bool inGraphics = false;
-    while (fgets(line, sizeof(line), f)) {
-        char* p = line;
-        while (*p == ' ' || *p == '\t') p++;
-        if (*p == '[') {
-            inGraphics = (strncmp(p, "[Graphics Options]", 18) == 0);
-            continue;
-        }
-        if (inGraphics && strncasecmp(p, "MenuScale", 9) == 0) {
-            char* eq = strchr(p, '=');
-            if (eq) {
-                float val = (float)atof(eq + 1);
-                if (val > 0.0f && val <= 10.0f) {
-                    s_cachedIniMenuScale = val;
-                }
-            }
-        }
-    }
-    fclose(f);
-    return s_cachedIniMenuScale;
+    InitTargetResolution();
+    return s_graphicsIni.menuScale;
 }
-
-static float s_cachedIniCombatScale = -1.0f;
 
 static float ReadIniCombatScale() {
-    if (s_cachedIniCombatScale >= 0.0f) {
-        return s_cachedIniCombatScale;
-    }
     InitTargetResolution();
-    float autoCombat = (g_targetHeight > 0) ? (1.60f * (float)g_targetHeight / 982.0f) : 1.60f;
-    s_cachedIniCombatScale = autoCombat; // Default scaled-up combat queue (+33% over vanilla 1.20x)
-    const char* home = getenv("HOME");
-    if (!home) return s_cachedIniCombatScale;
-    
-    char path[1024];
-    snprintf(path, sizeof(path), "%s/Library/Application Support/Knights of the Old Republic/swkotor.ini", home);
-    FILE* f = fopen(path, "r");
-    if (!f) return s_cachedIniCombatScale;
-    
-    char line[256];
-    bool inGraphics = false;
-    while (fgets(line, sizeof(line), f)) {
-        char* p = line;
-        while (*p == ' ' || *p == '\t') p++;
-        if (*p == '[') {
-            inGraphics = (strncmp(p, "[Graphics Options]", 18) == 0);
-            continue;
-        }
-        if (inGraphics && strncasecmp(p, "CombatScale", 11) == 0) {
-            char* eq = strchr(p, '=');
-            if (eq) {
-                float val = (float)atof(eq + 1);
-                if (val >= 0.5f && val <= 5.0f) {
-                    s_cachedIniCombatScale = val;
-                }
-            }
-        }
+    if (s_graphicsIni.combatScale < 0.5f) {
+        float autoCombat = (g_targetHeight > 0) ? (1.60f * (float)g_targetHeight / 982.0f) : 1.60f;
+        s_graphicsIni.combatScale = autoCombat; // Default scaled-up combat queue (+33% over vanilla 1.20x)
     }
-    fclose(f);
-    return s_cachedIniCombatScale;
+    return s_graphicsIni.combatScale;
 }
 
-static float s_cachedIniHudScale = -1.0f;
-
 static float ReadIniHudScale() {
-    if (s_cachedIniHudScale >= 0.0f) {
-        return s_cachedIniHudScale;
-    }
     InitTargetResolution();
-    float autoScale = (g_targetHeight > 0) ? (1.50f * (float)g_targetHeight / 982.0f) : 1.50f;
-    s_cachedIniHudScale = autoScale; // Default scaled-up HUD elements (+25% over vanilla 1.20x)
-    const char* home = getenv("HOME");
-    if (!home) return s_cachedIniHudScale;
-    
-    char path[1024];
-    snprintf(path, sizeof(path), "%s/Library/Application Support/Knights of the Old Republic/swkotor.ini", home);
-    FILE* f = fopen(path, "r");
-    if (!f) return s_cachedIniHudScale;
-    
-    char line[256];
-    bool inGraphics = false;
-    while (fgets(line, sizeof(line), f)) {
-        char* p = line;
-        while (*p == ' ' || *p == '\t') p++;
-        if (*p == '[') {
-            inGraphics = (strncmp(p, "[Graphics Options]", 18) == 0);
-            continue;
-        }
-        if (inGraphics && (strncasecmp(p, "HudScale", 8) == 0 || strncasecmp(p, "PortraitScale", 13) == 0)) {
-            char* eq = strchr(p, '=');
-            if (eq) {
-                float val = (float)atof(eq + 1);
-                if (val >= 0.5f && val <= 5.0f) {
-                    s_cachedIniHudScale = val;
-                }
-            }
-        }
+    if (s_graphicsIni.hudScale < 0.5f) {
+        float autoScale = (g_targetHeight > 0) ? (1.50f * (float)g_targetHeight / 982.0f) : 1.50f;
+        s_graphicsIni.hudScale = autoScale; // Default scaled-up HUD elements (+25% over vanilla 1.20x)
     }
-    fclose(f);
-    return s_cachedIniHudScale;
+    return s_graphicsIni.hudScale;
 }
 
 static bool ReadIniHDMenuTextures() {
-    if (s_cachedIniHDMenuTextures >= 0) {
-        return s_cachedIniHDMenuTextures != 0;
-    }
-    s_cachedIniHDMenuTextures = 0;
-    const char* home = getenv("HOME");
-    if (!home) return false;
-    
-    char path[1024];
-    snprintf(path, sizeof(path), "%s/Library/Application Support/Knights of the Old Republic/swkotor.ini", home);
-    FILE* f = fopen(path, "r");
-    if (!f) return false;
-    
-    char line[256];
-    bool inGraphics = false;
-    while (fgets(line, sizeof(line), f)) {
-        char* p = line;
-        while (*p == ' ' || *p == '\t') p++;
-        if (*p == '[') {
-            inGraphics = (strncmp(p, "[Graphics Options]", 18) == 0);
-            continue;
-        }
-        if (inGraphics && strncasecmp(p, "HDMenuTextures", 14) == 0) {
-            char* eq = strchr(p, '=');
-            if (eq) {
-                int val = atoi(eq + 1);
-                s_cachedIniHDMenuTextures = val;
-            }
-        }
-    }
-    fclose(f);
-    return s_cachedIniHDMenuTextures != 0;
+    InitTargetResolution();
+    return s_graphicsIni.hdMenuTextures != 0;
+}
+
+static float ReadIniFontScale() {
+    InitTargetResolution();
+    return s_graphicsIni.fontScale;
 }
 
 /*
@@ -1133,21 +1077,134 @@ void scalePopupPanel(char* panel) {
     bool isMsgBox = (vtable == (void*)0x1005a8c60 || vtable == (void*)0x1005ae880 ||
                      vtable == (void*)0x1005a5cb8 || vtable == (void*)0x1005ae9a0 ||
                      vtable == (void*)0x1005abea0 || vtable == (void*)0x1005aeaa8);
+    bool isScriptSelect = (vtable == (void*)0x1005acc70);
     
-    if (isMsgBox) {
-        int targetLeft = (g_targetWidth - rect->width) / 2;
-        int targetTop  = (g_targetHeight - rect->height) / 2;
-        if (rect->left == targetLeft && rect->top == targetTop) {
+    if (isScriptSelect) {
+        // AI Script Selection Screen (scriptselect.gui / CSWGuiScriptSelect):
+        // Scale the console proportionally to fill the Character Sheet opening.
+        // In scriptselect.gui, BioWare authored FILLSTYLE = 0 (DrawTiled) on the border.
+        // When width/height expand, DrawTiled repeats the 640x480 texture, causing split
+        // arches and center seams. By enforcing FILLSTYLE = 2 (DrawStretched) and DIMENSION = 0,
+        // the engine stretches lbl_char_scr as a single continuous quad across the entire
+        // scaled console without any tiling seams or duplicate frames!
+        float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
+        float menuScale = ReadIniMenuScale();
+        if (menuScale > 0.0f) {
+            scale = menuScale;
+        }
+        
+        int targetW = (int)(640 * scale + 0.5f);
+        int targetH = (int)(480 * scale + 0.5f);
+        int targetLeft = (g_targetWidth - targetW) / 2;
+        int targetTop  = (g_targetHeight - targetH) / 2;
+        
+        char* border = *(char**)(panel + 0x70);
+        if (border && is_readable(border)) {
+            // Force FILLSTYLE to DrawStretched (2) and DIMENSION to 0
+            *(uint8_t*)(border + 0x34) = (*(uint8_t*)(border + 0x34) & ~0x03) | 0x02;
+            *(int*)(border + 0x18) = 0;
+            Rect borderRect = { 0, 0, targetW, targetH };
+            SetControlRect(border, borderRect);
+        }
+        
+        if (rect->left == targetLeft && rect->top == targetTop && rect->width == targetW && rect->height == targetH) {
+            panel[0x5c] = (panel[0x5c] & ~0x68) | 0x01;
             return;
         }
-        // Centering the message box window on screen without altering child controls.
-        // The engine's FixMessageLabel already sizes the window, insets text by 70px below
-        // the icon, centers text, and places OK/Cancel buttons.
-        Rect centered = { targetLeft, targetTop, rect->width, rect->height };
+        
+        Rect scaledRoot = { targetLeft, targetTop, targetW, targetH };
+        SetControlRect(panel, scaledRoot);
+        
+        char* lstAI = panel + 0x90;
+        if (is_readable(lstAI)) {
+            // Calibrated to sit snuggly inside the left light blue container on lbl_char_scr (x: 67 to 311, y: 81 to 410)
+            Rect lstRect = { 
+                (int)(70 * scale + 0.5f), 
+                (int)(84 * scale + 0.5f), 
+                (int)(238 * scale + 0.5f), 
+                (int)(323 * scale + 0.5f) 
+            };
+            SetControlRect(lstAI, lstRect);
+            if (*(int*)(lstAI + 0x168) != 0) {
+                *(int*)(lstAI + 0x168) = (int)(16 * scale + 0.5f);
+            }
+        }
+        
+        char* lbDesc = panel + 0x430;
+        if (is_readable(lbDesc)) {
+            // Calibrated to sit snuggly inside the right light blue container on lbl_char_scr (x: 319 to 568, y: 81 to 410)
+            // Width 258*scale ends at 580*scale, positioning the 16px scrollbar right along the outer border line
+            Rect descRect = { 
+                (int)(322 * scale + 0.5f), 
+                (int)(84 * scale + 0.5f), 
+                (int)(258 * scale + 0.5f), 
+                (int)(323 * scale + 0.5f) 
+            };
+            SetControlRect(lbDesc, descRect);
+            if (*(int*)(lbDesc + 0x168) != 0) {
+                *(int*)(lbDesc + 0x168) = (int)(16 * scale + 0.5f);
+            }
+            // Clear bit 0x8 for natural multiline text wrapping
+            *(uint8_t*)(lbDesc + 0x370) &= ~0x8;
+            *(int*)(lbDesc + 0x368) = 0;
+        }
+        
+        int numControls = *(int*)(panel + 0x38);
+        char** controls = *(char***)(panel + 0x30);
+        if (controls && is_readable(controls) && numControls > 0 && numControls <= 64) {
+            for (int i = 0; i < numControls; i++) {
+                char* ctrl = controls[i];
+                if (!ctrl || !is_readable(ctrl)) continue;
+                Rect* cr = (Rect*)(ctrl + 0x8);
+                // Title label LBL_TITLE (vanilla: left 140, top 40, width 364, height 21)
+                if (cr->top <= 60 && cr->width >= 300) {
+                    Rect titleRect = {
+                        (int)(140 * scale + 0.5f),
+                        (int)(40 * scale + 0.5f),
+                        (int)(364 * scale + 0.5f),
+                        (int)(21 * scale + 0.5f)
+                    };
+                    SetControlRect(ctrl, titleRect);
+                }
+                // Buttons at bottom (vanilla: top 410, height 28)
+                else if (cr->top >= 380 && cr->height <= 35) {
+                    if (cr->left <= 280) { // BTN_Accept (SELECT): left 247, width 146
+                    Rect btn = {
+                            (int)(247 * scale + 0.5f),
+                            (int)(410 * scale + 0.5f),
+                            (int)(146 * scale + 0.5f),
+                            (int)(28 * scale + 0.5f)
+                        };
+                        SetControlRect(ctrl, btn);
+                    } else if (cr->left >= 350) { // BTN_Back (CANCEL): left 394, width 146
+                        Rect btn = {
+                            (int)(394 * scale + 0.5f),
+                            (int)(410 * scale + 0.5f),
+                            (int)(146 * scale + 0.5f),
+                            (int)(28 * scale + 0.5f)
+                        };
+                        SetControlRect(ctrl, btn);
+                    }
+                }
+            }
+        }
+        panel[0x5c] = (panel[0x5c] & ~0x68) | 0x01;
+        return;
+    }
+    
+    if (isMsgBox) {
+        int targetW = rect->width;
+        int targetH = rect->height;
+        int targetLeft = (g_targetWidth - targetW) / 2;
+        int targetTop  = (g_targetHeight - targetH) / 2;
+        if (rect->left == targetLeft && rect->top == targetTop && rect->width == targetW && rect->height == targetH) {
+            return;
+        }
+        Rect centered = { targetLeft, targetTop, targetW, targetH };
         SetControlRect(panel, centered);
         char* border = *(char**)(panel + 0x70);
         if (border && is_readable(border)) {
-            Rect borderRect = { 0, 0, rect->width, rect->height };
+            Rect borderRect = { 0, 0, targetW, targetH };
             SetControlRect(border, borderRect);
         }
         panel[0x5c] = (panel[0x5c] & ~0x60) | 0x1;
@@ -1521,6 +1578,7 @@ void scaleMenuPanelTree(char* panel) {
     
     void* vtable = *(void**)panel;
     if (vtable == (void*)0x1005d3210) return; // Tooltip panel (hidden coordinate canvas)
+    if (vtable == (void*)0x1005a6ed8) return; // CSWGuiDialogComputerCamera (Security camera live feed)
     if (vtable == (void*)0x1005ad420) {
         positionBarkBubble(panel);
         return;
@@ -1684,6 +1742,13 @@ void scaleMenuPanelTree(char* panel) {
                 s.top -= (int)(2.8f * scale + 0.5f);    // 6px up at 982p (seats top save entry flush with top background slot at Y=18 with 19px padding)
                 s.height = (int)(327.5f * scale + 0.5f); // 670px client height at 982p (produces 108.5px stride and 140px box height)
             }
+            // Quests / Journal Screen (0x1005aed10): calibrate LB_ITEMS (width 269, height 261)
+            // Bring in the right border by ~2.5 unscaled px (~5px at 982p, ~3px at 665p)
+            // so quest name buttons stay cleanly inside the blue background container without
+            // touching or overlapping the vertical divider line.
+            if (vtable == (void*)0x1005aed10 && r.width == 269 && r.height == 261) {
+                s.width -= (int)(2.5f * scale + 0.5f);
+            }
             // In-Game Inventory (0x1005a75c0) and Equipment (0x1005ab508): calibrate LB_ITEMS
             ScaledItemGeometry geom = GetScaledItemGeometry(targetH);
             if ((vtable == (void*)0x1005a75c0 || vtable == (void*)0x1005ab508) &&
@@ -1723,21 +1788,10 @@ void scaleMenuPanelTree(char* panel) {
                     *(uint8_t*)(ctrl + 0x370) |= 0x8;
                     *(int*)(ctrl + 0x368) = s_currentKnobs.workbenchItemHeight;
                 }
-                bool isTextList = (vtable == (void*)0x1005ae790 || // CSWGuiInGameMessages
-                                   vtable == (void*)0x1005a6db0 || // CSWGuiDialogComputer
-                                   vtable == (void*)0x1005a6ed8 || // CSWGuiDialogComputerCamera
-                                   vtable == (void*)0x1005a6a70 || // CSWGuiDialog
-                                   vtable == (void*)0x1005a6c88 || // CSWGuiDialogCinematic
-                                   vtable == (void*)0x1005a6b98);  // CSWGuiDialogLetterbox
-                if (isTextList) {
-                    *(uint8_t*)(ctrl + 0x370) &= ~0x8;
-                    *(int*)(ctrl + 0x368) = 0;
-                }
             }
             SetControlRect(ctrl, s);
             bool isTextList = (vtable == (void*)0x1005ae790 ||
                                vtable == (void*)0x1005a6db0 ||
-                               vtable == (void*)0x1005a6ed8 ||
                                vtable == (void*)0x1005a6a70 ||
                                vtable == (void*)0x1005a6c88 ||
                                vtable == (void*)0x1005a6b98);
@@ -1771,44 +1825,26 @@ void scaleMenuPanelTree(char* panel) {
                             int rowY = *(int*)(item + 0xc);
                             int rowW = *(int*)(item + 0x10);
 
-                            // Text button (0xa8):
-                            *(int*)(item + 0xb0) = rowX + geom.textOffset;
-                            *(int*)(item + 0xb4) = rowY;
-                            *(int*)(item + 0xb8) = rowW - geom.textDeduct;
-                            *(int*)(item + 0xbc) = geom.itemHeight;
-
-                            // Text highlight (0x130):
-                            *(int*)(item + 0x138) = rowX + geom.textOffset;
-                            *(int*)(item + 0x13c) = rowY;
-                            *(int*)(item + 0x140) = rowW - geom.textDeduct;
-                            *(int*)(item + 0x144) = geom.itemHeight;
-
-                            // Text label (0x1b8):
-                            *(int*)(item + 0x1c0) = rowX + geom.textOffset;
-                            *(int*)(item + 0x1c4) = rowY;
-                            *(int*)(item + 0x1c8) = rowW - geom.textDeduct;
-                            *(int*)(item + 0x1cc) = geom.itemHeight;
+                            // Text button (0xa8), text highlight (0x130), text label (0x1b8):
+                            static const int textOffsets[] = { 0xb0, 0x138, 0x1c0 };
+                            for (int off : textOffsets) {
+                                *(int*)(item + off) = rowX + geom.textOffset;
+                                *(int*)(item + off + 0x4) = rowY;
+                                *(int*)(item + off + 0x8) = rowW - geom.textDeduct;
+                                *(int*)(item + off + 0xc) = geom.itemHeight;
+                            }
 
                             // Icon texture (0x248), arch border (0x2d0), icon highlight (0x358):
                             int iconY = rowY + geom.iconTopOffset;
                             int halfIconW = (geom.iconWidth + 1) / 2;
-                            *(int*)(item + 0x250) = rowX;
-                            *(int*)(item + 0x254) = iconY;
-                            *(int*)(item + 0x258) = geom.iconWidth;
-                            *(int*)(item + 0x25c) = geom.iconHeight;
-                            *(int*)(item + 0x260) = halfIconW;
-
-                            *(int*)(item + 0x2d8) = rowX;
-                            *(int*)(item + 0x2dc) = iconY;
-                            *(int*)(item + 0x2e0) = geom.iconWidth;
-                            *(int*)(item + 0x2e4) = geom.iconHeight;
-                            *(int*)(item + 0x2e8) = halfIconW;
-
-                            *(int*)(item + 0x360) = rowX;
-                            *(int*)(item + 0x364) = iconY;
-                            *(int*)(item + 0x368) = geom.iconWidth;
-                            *(int*)(item + 0x36c) = geom.iconHeight;
-                            *(int*)(item + 0x370) = halfIconW;
+                            static const int iconOffsets[] = { 0x250, 0x2d8, 0x360 };
+                            for (int off : iconOffsets) {
+                                *(int*)(item + off) = rowX;
+                                *(int*)(item + off + 0x4) = iconY;
+                                *(int*)(item + off + 0x8) = geom.iconWidth;
+                                *(int*)(item + off + 0xc) = geom.iconHeight;
+                                *(int*)(item + off + 0x10) = halfIconW;
+                            }
 
                             // Quantity badge label (0x3e0):
                             int qTop = geom.itemHeight - (int)(18 * scale + 0.5f) + geom.badgeTopOffset;
@@ -1866,7 +1902,7 @@ void scaleMenuPanelTree(char* panel) {
     // at (screenWidth - targetWidth) / 2 and (screenHeight - targetHeight) / 2.
     // This guarantees that all menu screens, the loading screen, the menu backdrop curtain,
     // and the 8 category tab buttons all share the exact same horizontal center!
-    if (isTopLevelMenu(vtable)) {
+    if (isMenuPanel(vtable)) {
         panel[0x5c] = (panel[0x5c] & ~0x09) | 0x60;
     } else {
         panel[0x5c] = (panel[0x5c] & ~0x68) | 0x01;
@@ -1907,9 +1943,12 @@ void refreshMenuPanelTrees(char* mgr) {
     char** panels = *(char***)(mgr + 0xd8);
     int panelCount = *(int*)(mgr + 0xe0);
     if (!panels || !is_readable(panels) || panelCount <= 0 || panelCount > 256) return;
+    bool cameraActive = isCameraModeActive(mgr);
     for (int i = 0; i < panelCount; i++) {
         char* panel = panels[i];
         if (panel && is_readable(panel)) {
+            void* pv = *(void**)panel;
+            if (cameraActive && pv == (void*)0x1005a6db0) continue;
             scaleMenuPanelTree(panel);
         }
     }
@@ -2390,38 +2429,23 @@ static void enforceItemGeometry(char* panel) {
                         int storeQTop = storeH - qHeight;
                         if (*(int*)(item + 0x14) != storeH || *(int*)(item + 0xbc) != storeH) {
                             *(int*)(item + 0x14) = storeH;
-                            *(int*)(item + 0xb0) = rowX + storeH;
-                            *(int*)(item + 0xb4) = rowY;
-                            *(int*)(item + 0xb8) = rowW - storeH;
-                            *(int*)(item + 0xbc) = storeH;
 
-                            *(int*)(item + 0x138) = rowX + storeH;
-                            *(int*)(item + 0x13c) = rowY;
-                            *(int*)(item + 0x140) = rowW - storeH;
-                            *(int*)(item + 0x144) = storeH;
+                            static const int textOffsets[] = { 0xb0, 0x138, 0x1c0 };
+                            for (int off : textOffsets) {
+                                *(int*)(item + off) = rowX + storeH;
+                                *(int*)(item + off + 0x4) = rowY;
+                                *(int*)(item + off + 0x8) = rowW - storeH;
+                                *(int*)(item + off + 0xc) = storeH;
+                            }
 
-                            *(int*)(item + 0x1c0) = rowX + storeH;
-                            *(int*)(item + 0x1c4) = rowY;
-                            *(int*)(item + 0x1c8) = rowW - storeH;
-                            *(int*)(item + 0x1cc) = storeH;
-
-                            *(int*)(item + 0x250) = rowX;
-                            *(int*)(item + 0x254) = rowY;
-                            *(int*)(item + 0x258) = storeH;
-                            *(int*)(item + 0x25c) = storeH;
-                            *(int*)(item + 0x260) = halfStoreH;
-
-                            *(int*)(item + 0x2d8) = rowX;
-                            *(int*)(item + 0x2dc) = rowY;
-                            *(int*)(item + 0x2e0) = storeH;
-                            *(int*)(item + 0x2e4) = storeH;
-                            *(int*)(item + 0x2e8) = halfStoreH;
-
-                            *(int*)(item + 0x360) = rowX;
-                            *(int*)(item + 0x364) = rowY;
-                            *(int*)(item + 0x368) = storeH;
-                            *(int*)(item + 0x36c) = storeH;
-                            *(int*)(item + 0x370) = halfStoreH;
+                            static const int iconOffsets[] = { 0x250, 0x2d8, 0x360 };
+                            for (int off : iconOffsets) {
+                                *(int*)(item + off) = rowX;
+                                *(int*)(item + off + 0x4) = rowY;
+                                *(int*)(item + off + 0x8) = storeH;
+                                *(int*)(item + off + 0xc) = storeH;
+                                *(int*)(item + off + 0x10) = halfStoreH;
+                            }
 
                             *(int*)(item + 0x3e8) = rowX + storeH - (int)(20 * scale + 0.5f);
                             *(int*)(item + 0x3ec) = rowY + storeQTop;
@@ -2435,39 +2459,23 @@ static void enforceItemGeometry(char* panel) {
                             *(int*)(item + 0x3e8) != targetBadgeX || *(int*)(item + 0x3ec) != targetBadgeY) {
                             *(int*)(item + 0x14) = geom.itemHeight;
 
-                            *(int*)(item + 0xb0) = rowX + geom.textOffset;
-                            *(int*)(item + 0xb4) = rowY;
-                            *(int*)(item + 0xb8) = rowW - geom.textDeduct;
-                            *(int*)(item + 0xbc) = geom.itemHeight;
-
-                            *(int*)(item + 0x138) = rowX + geom.textOffset;
-                            *(int*)(item + 0x13c) = rowY;
-                            *(int*)(item + 0x140) = rowW - geom.textDeduct;
-                            *(int*)(item + 0x144) = geom.itemHeight;
-
-                            *(int*)(item + 0x1c0) = rowX + geom.textOffset;
-                            *(int*)(item + 0x1c4) = rowY;
-                            *(int*)(item + 0x1c8) = rowW - geom.textDeduct;
-                            *(int*)(item + 0x1cc) = geom.itemHeight;
+                            static const int textOffsets[] = { 0xb0, 0x138, 0x1c0 };
+                            for (int off : textOffsets) {
+                                *(int*)(item + off) = rowX + geom.textOffset;
+                                *(int*)(item + off + 0x4) = rowY;
+                                *(int*)(item + off + 0x8) = rowW - geom.textDeduct;
+                                *(int*)(item + off + 0xc) = geom.itemHeight;
+                            }
 
                             int iconY = rowY + geom.iconTopOffset;
-                            *(int*)(item + 0x250) = rowX;
-                            *(int*)(item + 0x254) = iconY;
-                            *(int*)(item + 0x258) = geom.iconWidth;
-                            *(int*)(item + 0x25c) = geom.iconHeight;
-                            *(int*)(item + 0x260) = halfIconW;
-
-                            *(int*)(item + 0x2d8) = rowX;
-                            *(int*)(item + 0x2dc) = iconY;
-                            *(int*)(item + 0x2e0) = geom.iconWidth;
-                            *(int*)(item + 0x2e4) = geom.iconHeight;
-                            *(int*)(item + 0x2e8) = halfIconW;
-
-                            *(int*)(item + 0x360) = rowX;
-                            *(int*)(item + 0x364) = iconY;
-                            *(int*)(item + 0x368) = geom.iconWidth;
-                            *(int*)(item + 0x36c) = geom.iconHeight;
-                            *(int*)(item + 0x370) = halfIconW;
+                            static const int iconOffsets[] = { 0x250, 0x2d8, 0x360 };
+                            for (int off : iconOffsets) {
+                                *(int*)(item + off) = rowX;
+                                *(int*)(item + off + 0x4) = iconY;
+                                *(int*)(item + off + 0x8) = geom.iconWidth;
+                                *(int*)(item + off + 0xc) = geom.iconHeight;
+                                *(int*)(item + off + 0x10) = halfIconW;
+                            }
 
                             *(int*)(item + 0x3e8) = targetBadgeX;
                             *(int*)(item + 0x3ec) = targetBadgeY;
@@ -2504,10 +2512,44 @@ extern "C" void Hook_WindowDraw(char* window, float delta) {
                 *(int*)(window + 0x100) = 500;
             }
         }
+        else if (vtable == (void*)0x1005a6ed8) {
+            // CSWGuiDialogComputerCamera: Fullscreen security camera live feed overlay.
+            // Enforce fullscreen root extent so the 3D room viewport is unobstructed.
+            Rect fullscreen = { 0, 0, g_targetWidth, g_targetHeight };
+            SetControlRect(window, fullscreen);
+            
+            // Clear curtains in GUI manager so 3D scene is 100% visible
+            if (mgr && is_readable(mgr)) {
+                *(uint8_t*)(mgr + 0xa8) = 0;
+                *(uint8_t*)(mgr + 0xa9) = 0;
+            }
+            
+            // Center the "Press Enter to Cancel Live Feed" return prompt at the bottom
+            char* lblRet = window + 0x27b8;
+            if (is_readable(lblRet)) {
+                Rect* r = (Rect*)(lblRet + 0x8);
+                if (r->width > 0 && r->width < 8192) {
+                    r->left = (g_targetWidth - r->width) / 2;
+                    r->top = g_targetHeight - 75;
+                }
+            }
+        }
         else {
+            if (vtable == (void*)0x1005a6db0) {
+                // Ensure computer terminal console has its visibility flag set and 0x60 centering enabled
+                window[0x5c] = (window[0x5c] & ~0x09) | 0xe0; // 0x80 (visible) | 0x40 (center Y) | 0x20 (center X)
+                if (isCameraModeActive(mgr)) {
+                    // Suppress drawing computer terminal console while viewing security camera live feed!
+                    if (mgr && is_readable(mgr)) {
+                        *(uint8_t*)(mgr + 0xa8) = 0;
+                        *(uint8_t*)(mgr + 0xa9) = 0;
+                    }
+                    return;
+                }
+            }
             scaleMenuPanelTree(window);
             enforceItemGeometry(window);
-            if (vtable == (void*)0x1005a6db0 || vtable == (void*)0x1005a6ed8 || vtable == (void*)0x1005a6a70 ||
+            if (vtable == (void*)0x1005a6db0 || vtable == (void*)0x1005a6a70 ||
                 vtable == (void*)0x1005a6c88 || vtable == (void*)0x1005a6b98) {
                 char* lbReplies = window + 0x20c0;
                 if (is_readable(lbReplies)) {
@@ -2528,7 +2570,7 @@ extern "C" void Hook_WindowDraw(char* window, float delta) {
                         }
                     }
                 }
-                if (vtable == (void*)0x1005a6db0 || vtable == (void*)0x1005a6ed8) {
+                if (vtable == (void*)0x1005a6db0) {
                     char* lbMsg = window + 0x3940;
                     if (is_readable(lbMsg)) {
                         *(uint8_t*)(lbMsg + 0x370) &= ~0x8;
@@ -2696,45 +2738,6 @@ constexpr uint32_t FontMetricOffsets[] = {
 
 static void* s_scaledFonts[MaxCachedFonts] = {};
 static uint32_t s_scaledFontCount = 0;
-static float s_cachedIniFontScale = -1.0f;
-
-// Read optional "FontScale" from ~/Library/Application Support/Knights of the Old Republic/swkotor.ini
-static float ReadIniFontScale() {
-    if (s_cachedIniFontScale >= 0.0f) {
-        return s_cachedIniFontScale;
-    }
-    s_cachedIniFontScale = 0.0f;
-    const char* home = getenv("HOME");
-    if (!home) return 0.0f;
-    
-    char path[1024];
-    snprintf(path, sizeof(path), "%s/Library/Application Support/Knights of the Old Republic/swkotor.ini", home);
-    FILE* f = fopen(path, "r");
-    if (!f) return 0.0f;
-    
-    char line[256];
-    bool inGraphics = false;
-    while (fgets(line, sizeof(line), f)) {
-        char* p = line;
-        while (*p == ' ' || *p == '\t') p++;
-        if (*p == '[') {
-            inGraphics = (strncmp(p, "[Graphics Options]", 18) == 0);
-            continue;
-        }
-        if (inGraphics && strncasecmp(p, "FontScale", 9) == 0) {
-            char* eq = strchr(p, '=');
-            if (eq) {
-                float val = (float)atof(eq + 1);
-                if (val > 0.0f && val <= 10.0f) {
-                    s_cachedIniFontScale = val;
-                }
-            }
-        }
-    }
-    fclose(f);
-    return s_cachedIniFontScale;
-}
-
 // Compute effective font scale factor
 static float GetEffectiveFontScale() {
     float iniScale = ReadIniFontScale();
