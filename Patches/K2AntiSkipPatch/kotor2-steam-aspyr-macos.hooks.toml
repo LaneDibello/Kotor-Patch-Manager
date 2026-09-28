@@ -1,0 +1,70 @@
+[metadata]
+target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77"]
+
+# -----------------------------------------------------------------------------
+# Hook 1: Disable Trackpad Finger-Up Skip (Issue 2)
+# -----------------------------------------------------------------------------
+# In ASL::EventUserData::EventFilter (0x100482252):
+# Aspyr checks for SDL_FINGERUP (0x701) and immediately sets skipped = 1:
+#   1004822d2: 3d 01 07 00 00  cmpl $0x701, %eax
+#   1004822d7: 75 03           jne  1004822dc
+#   1004822d9: c6 03 01        movb $0x1, (%rbx)
+#   1004822dc: 31 c0           xorl %eax, %eax
+#
+# On macOS, lifting a finger from a MacBook trackpad sends SDL_FINGERUP.
+# Replacing the conditional jne at 0x1004822D7 with an unconditional near jmp (EB 03)
+# ensures that SDL_FINGERUP always jumps directly to 0x1004822DC (return 0),
+# preventing trackpad lifts (such as after mouse moving) from ever skipping cutscenes.
+[[hooks]]
+address = 0x1004822D7
+type = "simple"
+original_bytes = [0x75, 0x03]
+replacement_bytes = [0xEB, 0x03]
+
+# -----------------------------------------------------------------------------
+# Hook 2: Increase Initial Lockout Grace Period in StartMovie (Issues 1 & 4)
+# -----------------------------------------------------------------------------
+# In CExoMoviePlayerInternal::StartMovie (0x1002CE1E8):
+# Aspyr passes an initial skip-lockout time of 250ms (0xFA) in %edx to PlayBinkMovieGL:
+#   1002ce300: ba fa 00 00 00  movl $0xfa, %edx
+#
+# A natural, relaxed mouse click takes roughly 200 to 350ms to release, and clicking
+# through dialogue that unexpectedly launches a cutscene often introduces an extra click.
+# Bumping this from 250ms to 500ms (0x1F4) provides a half-second grace window to absorb
+# lingering clicks while keeping intentional click-to-skips feeling immediate and responsive.
+[[hooks]]
+address = 0x1002CE300
+type = "simple"
+original_bytes = [0xBA, 0xFA, 0x00, 0x00, 0x00]
+replacement_bytes = [0xBA, 0xF4, 0x01, 0x00, 0x00]
+
+# -----------------------------------------------------------------------------
+# Hook 3: Fix Thread Race Condition & Purge Stale Events (Issue 5)
+# -----------------------------------------------------------------------------
+# In ASL::PlayBinkMovieGL (0x10048130E):
+# Aspyr calls SDL_SetEventFilter BEFORE target_perf_counter is computed:
+#   100481c0a: 48 8d b5 a0 fb ff ff  leaq -0x460(%rbp), %rsi   ## &EventUserData
+#   100481c11: e8 8a 4d b8 ff        callq _SDL_SetEventFilter
+#
+# The UI thread pumps events concurrently on another CPU core. If an event
+# arrives before target_perf_counter (at rbp-0x438) is written, EventFilter
+# compares against uninitialized stack garbage, causing an instant skip.
+#
+# This detour intercepts the frame-relative LEA right before SDL_SetEventFilter,
+# passing &EventUserData and the lockout duration to K2FixMovieRaceCondition().
+# The C++ function flushes stale mouse/key/touch events and pre-populates
+# target_perf_counter so it is never uninitialized when the filter activates.
+[[hooks]]
+address = 0x100481C0A
+function = "K2FixMovieRaceCondition"
+type = "detour"
+original_bytes = [0x48, 0x8D, 0xB5, 0xA0, 0xFB, 0xFF, 0xFF]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "rbp-0x460" # Pointer to EventUserData struct
+type = "pointer"
+
+[[hooks.parameters]]
+source = "rbx" # Initial lockout duration in milliseconds
+type = "uint"
