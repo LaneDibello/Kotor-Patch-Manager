@@ -1,7 +1,7 @@
 # KotOR 1 macOS Widescreen & High-Resolution UI Architecture Guide
 *A Comprehensive Engineering Reference for the Aspyr 64-bit AMD64 Port*
 
-Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. If you want to use this patch, the instructions are simple: simply install the patch with KPM. No gui files or .ini changes are required. There is only two minor "bugs" presently known: the main menu and character screen animations will be at double speed ... and there are a very few buttons here the text isn't perfectly centered. I've tried to fix these issues; just couldn't quite crack it. I hope someone else can! ——FTD
+Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. If you want to use this patch, the instructions are simple: simply install the patch with KPM. No gui files or .ini changes are required. There is only two minor "bugs" presently known: the main menu and character screen animations will be at double speed ... and there are a very few buttons where the text isn't perfectly centered. I've tried to fix these issues; just couldn't quite crack it. I hope someone else can! ——FTD
 
 
 ---
