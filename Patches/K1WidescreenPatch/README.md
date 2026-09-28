@@ -148,7 +148,7 @@ The widescreen patch establishes target rendering bounds through a hierarchical 
    - `mgr + 0xa4`, `mgr + 0xa6`: `CSWGuiManager` canvas width and height
 
 ### 2.2 3D Viewport & Hor+ FOV Scaling
-KotOR's 3D rendering pipeline uses a horizontal-plus (Hor+) field-of-view calculation. For any widescreen aspect ratio (aspect ratio > 4:3), the horizontal FOV expands proportionally:
+KotOR's 3D rendering pipeline uses a horizontal-plus (Hor+) field-of-view calculation. For any widescreen aspect ratio $A = W / H > 4/3$, the horizontal field of view $`\text{FOV}_h`$ expands proportionally based on vertical field of view $`\text{FOV}_v`$:
 
 $$\text{FOV}_h = 2 \cdot \arctan\left(\tan\left(\frac{\text{FOV}_v}{2}\right) \cdot \frac{W}{H}\right)$$
 
@@ -225,8 +225,8 @@ The master HUD render pass is intercepted on every frame via a detour on `CSWGui
 Because `mipc212x9` is universally loaded, the 8 category buttons follow strict deterministic indices:
 - `BTN_EQU` (30), `BTN_INV` (29), `BTN_CHAR` (27), `BTN_ABI` (28), `BTN_MSG` (23), `BTN_JOU` (24), `BTN_MAP` (25), `BTN_OPT` (26).
 - Anchoring calculation:
-  $$\text{lastBtnRight} = \text{targetWidth} - 4, \quad \text{firstBtnLeft} = \text{lastBtnRight} - 42 - (7 \cdot 43)$$
-  $$\text{control[i].left} = \text{firstBtnLeft} + (i \cdot 43)$$
+  $$X_{\text{last}} = W_{\text{target}} - 4, \quad X_{\text{first}} = X_{\text{last}} - 42 - (7 \cdot 43)$$
+  $$X_{\text{btn}}[i] = X_{\text{first}} + (i \cdot 43)$$
 
 **Background Banner Quad (`LBL_MENUBG` / Control 19)**:
 Resized to span `left = firstBtnLeft + 1`, `width = (lastBtnRight - 1) - banner.left`, seating the dark backing quad flush behind all 8 buttons.
@@ -324,9 +324,9 @@ The rotating compass ring texture, cardinal direction labels (N, E, S, W), and z
 
 #### 3.9.3 Radar Player Arrow & Entity Blip Scaling
 Player direction, party companions, friendly NPCs, and hostile enemies are rendered on the radar via 3D-to-2D planar projection:
-- **Assembly Intercept**: Entity positions are computed relative to the player's world position `(X_p, Y_p, Z_p)` and transformed to radar space:
-  $$X_r = \text{centerX} + (X_e - X_p) \cdot \text{zoomScale}$$
-  $$Y_r = \text{centerY} - (Y_e - Y_p) \cdot \text{zoomScale}$$
+- **Assembly Intercept**: Entity positions are computed relative to the player's world position $`(X_p, Y_p, Z_p)`$ and transformed to radar coordinates $`(X_r, Y_r)`$:
+  $$X_r = X_{\text{center}} + (X_e - X_p) \cdot \text{zoomScale}$$
+  $$Y_r = Y_{\text{center}} - (Y_e - Y_p) \cdot \text{zoomScale}$$
 - **Scissor Bounds**: The circular stencil mask is preserved so blips smoothly fade at the perimeter of the 196px radar disc without leaking onto the main game canvas.
 
 ---
@@ -396,7 +396,7 @@ In vanilla KotOR, pressing the Spacebar toggles an unobtrusive "GAME PAUSED" not
 #### HUD Sub-Panel Dynamics vs. Modal Windows
 Unlike standalone modal popups that require center-screen placement, `CSWGuiInGamePause` (`0x1005ad640`) is a child component of the HUD interface:
 1. Classifying the pause banner as an independent modal dialog would subject it to center-screen placement:
-   $$\text{targetLeft} = \frac{W_{\text{screen}} - \text{targetW}}{2}, \quad \text{targetTop} = \frac{H_{\text{screen}} - \text{targetH}}{2}$$
+   $$\text{targetLeft} = \frac{W_{\text{screen}} - W_{\text{target}}}{2}, \quad \text{targetTop} = \frac{H_{\text{screen}} - H_{\text{target}}}{2}$$
 2. Furthermore, modal dimension snapshotting on repeated pause toggles would re-capture already-scaled dimensions into snapshot baselines, compounding horizontal scale factors and stretching the banner across the display.
 
 #### Native Engine Positioning Architecture (`0x100239496`)
@@ -412,7 +412,7 @@ The engine incorporates a dedicated placement calculation routine within `CSWGui
 ```
 
 - **Top Coordinate**: Dynamically calculated as `categoryBarBottom + 2`.
-- **Exclusion from Modal Scaling**: By explicitly excluding `CSWGuiInGamePause` from `isPopupPanel()`, the native engine routine is allowed to position the pause notification flush under the top-right category bar at `(targetWidth - 254, 46)`, preserving vanilla aesthetic placement with zero modal displacement and zero distortion.
+- **Exclusion from Modal Scaling**: By explicitly excluding `CSWGuiInGamePause` from `isPopupPanel()`, the native engine routine is allowed to position the pause notification flush under the top-right category bar at $`(W_{\text{target}} - 254, 46)`$, preserving vanilla aesthetic placement with zero modal displacement and zero distortion.
 
 ## 4. Main Area Map Screen Edits
 
@@ -467,7 +467,7 @@ The patch replaces both instructions with dynamic register reads:
 
 Because `%r12` holds the `CSWGuiMapHider` instance pointer (`this`), `0x10(%r12)` is `this->rect.width` (`mapW`) and `0x14(%r12)` is `this->rect.height` (`mapH`). The fog tile step now scales dynamically:
 
-$$\text{step}_x = \frac{\text{mapW}}{\text{numTilesX}} \qquad \text{step}_y = \frac{\text{mapH}}{\text{numTilesY}}$$
+$$\text{step}_x = \frac{W_{\text{map}}}{N_x} \qquad \text{step}_y = \frac{H_{\text{map}}}{N_y}$$
 
 The revealed map readout and fog-of-war now cover 100% of the widescreen map screen.
 
@@ -525,7 +525,7 @@ The graphical interface background features exactly **5 pre-rendered purple slot
 +-------------------------------------------------------+
 ```
 
-$$\text{Total Item Span} = 5 \cdot \text{ItemHeight} + 4 \cdot \text{ItemPadding} = 5 \cdot 108 + 4 \cdot 6 = 564\text{ px}$$
+$$\text{Total Item Span} = 5 \cdot H_{\text{item}} + 4 \cdot P_{\text{padding}} = 5 \cdot 108 + 4 \cdot 6 = 564\text{ px}$$
 
 ### 5.2 Listbox Row Height & Stride Management (`CSWGuiListBox`)
 In vanilla KotOR, `CSWGuiListBox::RecalculateItemHeight` (`0x1004a9554` and `0x1004a959c`) dynamically recomputed row heights based on item prototype bounds, clamping any calculated row height to an internal 70px ceiling. If more items existed than fit within the visible list bounds, the engine truncated items or dropped the 5th row.
@@ -536,7 +536,7 @@ The macOS patch overrides this behavior through a combination of static NOP padd
 3. **Dynamic Row Height & Inter-Item Padding**:
    - `*(int*)(ctrl + 0x368) = geom.itemHeight;` (e.g. 108px at 982p)
    - `*(uint8_t*)(ctrl + 0x373) = (uint8_t)geom.itemPadding;` (e.g. 6px at 982p)
-4. **Scroll Offset Invariance**: With a unified stride (`ItemHeight + ItemPadding = 114px`), mouse wheel scrolling advances in clean 1-item increments without vertical drift.
+4. **Scroll Offset Invariance**: With a unified stride $`(H_{\text{item}} + P_{\text{padding}} = 114\text{px})`$, mouse wheel scrolling advances in clean 1-item increments without vertical drift.
 
 ### 5.3 Independent Icon Geometry Hook (`0x1002be42b`)
 In vanilla KotOR, item icon textures, border arches, and highlight brackets were coupled to row height. Expanding the row resulted in rectangularly distorted icons or repetitive 2×2 tiled texture artifacts.
@@ -663,9 +663,9 @@ To achieve a fully scaled-up console matching the Character Sheet opening withou
     This instructs the engine's 2D renderer to draw `lbl_char_scr` as a single continuous stretched quad across the scaled bounds `{ targetLeft, targetTop, targetW, targetH }`, eliminating all tiling seams, extra pillars, and duplicate frames!
 3. **Proportional Menu Scaling**:
    The console scales uniformly using the exact 4:3 menu scale factor:
-   $$\text{scale} = \frac{\text{targetHeight}}{480.0} \quad (\text{or } \text{menuScale})$$
-   $$\text{targetW} = \text{round}(640 \times \text{scale}), \quad \text{targetH} = \text{round}(480 \times \text{scale})$$
-   $$\text{targetLeft} = \frac{\text{targetWidth} - \text{targetW}}{2}, \quad \text{targetTop} = \frac{\text{targetHeight} - \text{targetH}}{2}$$
+   $$\text{scale} = \frac{H_{\text{target}}}{480.0}$$
+   $$W_{\text{target}} = \text{round}(640 \cdot \text{scale}), \quad H_{\text{target}} = \text{round}(480 \cdot \text{scale})$$
+   $$\text{targetLeft} = \frac{W_{\text{screen}} - W_{\text{target}}}{2}, \quad \text{targetTop} = \frac{H_{\text{screen}} - H_{\text{target}}}{2}$$
 4. **Calibrated Container Alignment**:
    On the stretched `lbl_char_scr` texture, the illustrated interface contains two distinct light blue container openings:
    - **Left Container** (X: 67–311, Y: 81–410, width 244): Houses `LST_AIState`. Calibrated to `{ round(70*s), round(84*s), round(238*s), round(323*s) }`. The 3 item buttons (*Default Attack*, *Grenadier*, *Jedi/Droid Support*) sit snugly inside the container with 3px margins on each side.
@@ -706,9 +706,9 @@ Dialog boxes, loot containers, message prompts, and tutorial windows are handled
 ### 6.2 Proportional Geometry Scaling & Automatic Centering
 Unlike full-screen menus, popup windows vary in authored dimensions (e.g. 320×240 up to 540×400).
 1. **Dimension Calculation**:
-   $$\text{targetW} = \text{vanillaW} \cdot \text{scale}, \quad \text{targetH} = \text{vanillaH} \cdot \text{scale}$$
+   $$W_{\text{target}} = W_{\text{vanilla}} \cdot \text{scale}, \quad H_{\text{target}} = H_{\text{vanilla}} \cdot \text{scale}$$
 2. **Screen Centering**:
-   $$\text{targetLeft} = \frac{W_{\text{screen}} - \text{targetW}}{2}, \quad \text{targetTop} = \frac{H_{\text{screen}} - \text{targetH}}{2}$$
+   $$\text{targetLeft} = \frac{W_{\text{screen}} - W_{\text{target}}}{2}, \quad \text{targetTop} = \frac{H_{\text{screen}} - H_{\text{target}}}{2}$$
 3. **Border Resizing**: The border quad at `panel + 0x70` is scaled to match the new window bounds `{ 0, 0, targetW, targetH }`.
 4. **Flag Bit 0x1**: Popups receive `panel[0x5c] = (panel[0x5c] & ~0x60) | 0x1;`, enabling client-relative coordinate space so child controls and click hitboxes align with the centered window.
 
@@ -833,7 +833,7 @@ When widescreen scaling expands the transition banner height from 32px to modern
 #### The Mathematical Centering Solution
 To maintain 50/50 vertical symmetry at any resolution and scale factor, the patch intercepts `LBL_DESCRIPTION` in `scalePopupPanel()`:
 
-$$\text{s.top} = \frac{\text{scaledBgHeight} - 16}{2} + \text{AreaTransitionTextOffset}$$
+$$Y_{\text{text}} = \frac{H_{\text{bg}} - 16}{2} + \text{AreaTransitionTextOffset}$$
 
 ```cpp
 if (vtable == (void*)0x1005a67c0 && (controls[i] == (panel + 0x3b0) || (r.top == 9 && r.height == 20))) {
@@ -854,7 +854,7 @@ if (vtable == (void*)0x1005a67c0 && (controls[i] == (panel + 0x3b0) || (r.top ==
 }
 ```
 
-- **Resolution Invariance**: At 982p (`scaledBgHeight = 65`), `s.top` is set to `(65 - 16) / 2 = 24px`, leaving 24px above the text and 25px below the text. At 1080p, margins are 28px × 28px; at 1440p, 40px × 40px.
+- **Resolution Invariance**: At 982p ($`H_{\text{bg}} = 65\text{px}`$), $`Y_{\text{text}}`$ is set to $`(65 - 16) / 2 = 24\text{px}`$, leaving 24px above the text and 25px below the text. At 1080p, margins are $`28\text{px} \times 28\text{px}`$; at 1440p, $`40\text{px} \times 40\text{px}`$.
 - **Live Tuning Support**: The knob `AreaTransitionTextOffset = 0` in `[UI Tuning]` allows real-time manual pixel nudging in `swkotor.ini`.
 
 ### 6.8 Computer Terminals & Dialog Reply Listboxes (`CSWGuiDialogComputer` / `0x1005a6db0`)
@@ -1184,8 +1184,8 @@ if (vtable == (void*)0x1005aed10 && r.width == 269 && r.height == 261) {
 
 #### Native Engine Width Propagation
 In `CSWGuiInGameJournal::PopulateItemListBox` (`0x10032e492`), KotOR calculates each quest button's width directly from the listbox client extent:
-$$\text{itemWidth} = \text{clientWidth} - 2 \cdot \text{padding}$$
-where `clientWidth` is stored at listbox offset `+0x340` (`*(int*)(ctrl + 0x340)`), set by `CSWGuiListBox::SetExtent` as `width - scrollbar_width`.
+$$W_{\text{item}} = W_{\text{client}} - 2 \cdot P_{\text{padding}}$$
+where listbox client width $`W_{\text{client}}`$ is stored at listbox offset `+0x340` (`*(int*)(ctrl + 0x340)`), set by `CSWGuiListBox::SetExtent` as `width - scrollbar_width`.
 
 Because `scaleMenuPanelTree()` scales all 8 embedded tabs of `CSWGuiInGameMenu` (`0x1005ae6a0`) upon menu creation, `LB_ITEMS` has already received its calibrated `s.width` before `CSWGuiInGameJournal::PopulateItemListBox` ever creates the quest entries. All quest name buttons naturally and automatically inherit the calibrated width, pulling the right button caps inward by ~5 pixels at 982p (~3px at 665p) with zero per-frame CPU overhead and zero redundant child traversal code.
 
