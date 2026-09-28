@@ -179,13 +179,3 @@ This patch fixes the issue by addressing all three mechanical triggers:
       std::memcpy(eventUserData + kTargetTimeOffset, &targetTime, sizeof(targetTime));
   }
   ```
-
----
-
-### Summary of Affected Addresses & Files
-
-| Component | Target Symbol / Function | 64-Bit Address | Hook Type | File |
-| :--- | :--- | :--- | :--- | :--- |
-| **Trackpad Fix** | `ASL::EventUserData::EventFilter` | `0x1004822D7` | `simple` | [`hooks.toml`] |
-| **Lockout Window** | `CExoMoviePlayerInternal::StartMovie` | `0x1002CE300` | `simple` | [`hooks.toml`]|
-| **Race / Event Flush**| `ASL::PlayBinkMovieGL` | `0x100481C0A` | `detour` | [`hooks.toml`] / [`VideoPlaybackFix.cpp`]|
