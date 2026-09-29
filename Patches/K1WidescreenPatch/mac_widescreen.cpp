@@ -1567,8 +1567,12 @@ void scaleSmallChargenPanel(char* panel) {
         SetControlRect(childSnap.control, s);
     }
     
-    // Retain 0x60 centering flag so the 4:3 displacement is added to its screen draw position
-    panel[0x5c] = (panel[0x5c] & ~0x09) | 0x60;
+    // Retain 0x60 centering flag so the 4:3 displacement is added to its screen draw position.
+    // Bit 0x08 is the engine's, not a layout flag: AddPanel sets it when it raises the manager's
+    // backdrop count (+0xa8), RemovePanel lowers the count only while it is set, and the
+    // visibility pass after both (0x10049e650) reads it on the topmost panel. Clearing it here
+    // turned the character model black after Quick or Custom Character.
+    panel[0x5c] = (panel[0x5c] & ~0x01) | 0x60;
 }
 
 struct MenuChildSnapshot {
@@ -1977,8 +1981,9 @@ void scaleMenuPanelTree(char* panel) {
     // at (screenWidth - targetWidth) / 2 and (screenHeight - targetHeight) / 2.
     // This guarantees that all menu screens, the loading screen, the menu backdrop curtain,
     // and the 8 category tab buttons all share the exact same horizontal center!
+    // Bit 0x08 stays: it is the engine's backdrop bookkeeping (see scaleSmallChargenPanel).
     if (isMenuPanel(vtable)) {
-        panel[0x5c] = (panel[0x5c] & ~0x09) | 0x60;
+        panel[0x5c] = (panel[0x5c] & ~0x01) | 0x60;
     } else {
         panel[0x5c] = (panel[0x5c] & ~0x68) | 0x01;
     }
