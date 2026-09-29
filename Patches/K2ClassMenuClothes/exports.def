@@ -1,0 +1,6 @@
+LIBRARY ClassMenuModels
+EXPORTS
+    BeginClassMenuAppearance
+    OverrideClassMenuModel
+    OverrideClassMenuTexture
+    EndClassMenuAppearance
