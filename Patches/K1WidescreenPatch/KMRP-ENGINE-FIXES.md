@@ -8,7 +8,8 @@ text or a larger HUD make visible; the rest are needed for the widescreen layout
 - **Code:** byte and replace hooks in `kotor1-steam-aspyr-macos.hooks.toml` (section *KMRP
   ENGINE FIXES*, plus detours at the end of the file); C++ in `kmrp_engine_fixes.cpp`; small
   changes inside `mac_widescreen.cpp` (see *Changes to the widescreen code*).
-- **Build:** `./build_mac.sh [outdir]` compiles `macos_x86_64.dylib` and zips the `.kpatch`.
+- **Build:** from this folder, `python3 ../create-patch.py` compiles `macos_x86_64.dylib` and
+  packs the `.kpatch`, as for every KPM patch.
 - Contributed by RaymanGT (KMRP).
 
 Every original-bytes entry was checked against the binary, and KPM's own KPatchCore validates
