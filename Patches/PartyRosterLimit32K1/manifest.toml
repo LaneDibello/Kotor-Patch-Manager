@@ -1,0 +1,12 @@
+[patch]
+id = "party-roster-limit-32-k1"
+name = "Party Roster Limit 32 - KotOR I Beta"
+version = "0.0.1b"
+author = "Vriff"
+description = "Expands the party roster to 32 slots. The included .gui file must be installed to function."
+
+requires = []
+conflicts = []
+
+[patch.supported_versions]
+kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
