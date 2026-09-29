@@ -564,9 +564,9 @@ struct UiTuningKnobs {
     int itemHeight = 108;
     int itemPadding = 6;
     int listHeight = 0; // 0 = automatic synchronization: (itemHeight + itemPadding) * 5 + 26
-    int iconWidth = 117;
-    int iconHeight = 117;
-    int iconTopOffset = -5;
+    int iconWidth = 118;
+    int iconHeight = 118;
+    int iconTopOffset = -6;
     int textOffset = 118;
     int textDeduct = 118;
     int listLeftOffset = -4;
@@ -2124,11 +2124,11 @@ __attribute__((naked)) void Original_MainInterfaceDraw(void* hud, float delta) {
   Hook_MainInterfaceDraw:
   Intercepts the master HUD rendering function (0x100235e44) called every frame during gameplay.
 */
-extern "C" void Hook_MainInterfaceDraw(char* hud, [[maybe_unused]] float delta) {
+extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
     if (hud && is_readable(hud)) {
         char* mgr = *(char**)(hud + 0x20);
         updateEngineGlobals(mgr);
-        if (GuiFileLayouts()) return;  // the HUD is laid out by its .gui file
+        if (GuiFileLayouts()) return delta;  // the HUD is laid out by its .gui file
         if (mgr && is_readable(mgr)) {
             // In active gameplay, ensure menu backdrop curtains are dismissed
             *(char*)(mgr + 0xa8) = 0;
@@ -2418,10 +2418,7 @@ extern "C" void Hook_MainInterfaceDraw(char* hud, [[maybe_unused]] float delta) 
             }
         }
     }
-    
-    // KMRP: no Original_MainInterfaceDraw here. This is a KPM DETOUR (skipOriginalBytes =
-    // false): the wrapper runs the stolen prologue and continues into CSWGuiMainInterface::Draw
-    // once this returns, so calling the original as well drew the HUD twice per frame.
+    return delta;
 }
 
 
@@ -2571,11 +2568,11 @@ static void enforceItemGeometry(char* panel) {
   Called every frame for every GUI window. Ensures engine globals and in-game menu centering
   remain active even when the HUD is closed or menus are active.
 */
-extern "C" void Hook_WindowDraw(char* window, [[maybe_unused]] float delta) {
+extern "C" float Hook_WindowDraw(char* window, float delta) {
     if (window && is_readable(window)) {
         char* mgr = *(char**)(window + 0x20);
         updateEngineGlobals(mgr);
-        if (GuiFileLayouts()) return;  // every window is laid out by its .gui file
+        if (GuiFileLayouts()) return delta;  // every window is laid out by its .gui file
         
         void* vtable = *(void**)window;
         if (vtable == (void*)0x1005ad420) {
@@ -2624,7 +2621,7 @@ extern "C" void Hook_WindowDraw(char* window, [[maybe_unused]] float delta) {
                         *(uint8_t*)(mgr + 0xa8) = 0;
                         *(uint8_t*)(mgr + 0xa9) = 0;
                     }
-                    return;
+                    return delta;
                 }
             }
             scaleMenuPanelTree(window);
@@ -2667,13 +2664,7 @@ extern "C" void Hook_WindowDraw(char* window, [[maybe_unused]] float delta) {
             }
         }
     }
-    // KMRP: no Original_WindowDraw here. This is a KPM DETOUR (skipOriginalBytes = false):
-    // once it returns, the wrapper runs the stolen prologue and continues into
-    // CSWGuiWindow::Draw. Calling the original as well drew every window twice per frame, and
-    // each draw advanced its animations by delta: the main menu animated at double speed
-    // and in visible jumps, at half the frame rate: the menu scene ran at 51 fps against
-    // 120 fps with the patch off, and at 103 fps without the second draw (measured
-    // 2026-09-29, 1512x982). This is the "too-fast menu animation".
+    return delta;
 }
 
 // ==============================================================================
