@@ -9,7 +9,7 @@ Note: You do not need to read this readme! This is a technical explanation for a
 1. [Architecture & System Overview](#1-architecture--system-overview)
    - 1.1 [The Multi-File Patching Pipeline](#11-the-multi-file-patching-pipeline)
    - 1.2 [Virtual Memory Safety on macOS](#12-virtual-memory-safety-on-macos)
-   - 1.3 [Detour Execution Model: Single-Draw Preservation & Float delta Restoration (Resolving Double Animation & Character Shadow)](#13-detour-execution-model-single-draw-preservation--float-delta-restoration-resolving-double-animation--character-shadow)
+   - 1.3 [Detour Execution Model: Single-Draw Pipeline & Float Delta Preservation](#13-detour-execution-model-single-draw-pipeline--float-delta-preservation)
    - 1.4 [Sequential Hook Validation & Detour Ordering in hooks.toml](#14-sequential-hook-validation--detour-ordering-in-hookstoml)
 2. [Display Resolution & Aspect Ratio Edits](#2-display-resolution--aspect-ratio-edits)
    - 2.1 [Resolution Discovery, Hardware Overrides & Retina (HiDPI) Mode Detection](#21-resolution-discovery-hardware-overrides--retina-hidpi-mode-detection)
@@ -139,41 +139,33 @@ In `kmrp_engine_fixes.cpp`, `ReplaceImageBytes` extends this concept by validati
 > [!NOTE]
 > `VM_PROT_COPY` enforces copy-on-write semantics, guaranteeing that patched pages remain isolated to the running process without corrupting disk binaries or violating system integrity.
 
-### 1.3 Detour Execution Model: Single-Draw Preservation & Float delta Restoration (Resolving Double Animation & Character Shadow)
+### 1.3 Detour Execution Model: Single-Draw Pipeline & Float Delta Preservation
 
 #### The KPM Detour Architecture: Prefix Interception & Wrapper Continuation
 Detour hooks in KotorPatcher (KPM) operate as **prefix detours**. When a function prologue is hooked:
-1. The game executes a near jump to KPM's dynamically generated detour stub.
+1. The game executes a near jump to KPM's dynamically generated detour stub at the function prologue (e.g., `0x10049ded4`).
 2. KPM's stub pushes general-purpose registers (`rax`, `rcx`, `rdx`, `rsi`, `rdi`, `r8`–`r15`) and calls the C++ detour function in `macos_x86_64.dylib`.
 3. When the C++ detour returns (`ret`), KPM's stub restores the saved general-purpose registers.
-4. KPM's stub **automatically executes the stolen prologue bytes and jumps back into the original function** (`target + stolen_bytes_length`).
+4. KPM's stub **automatically executes the stolen prologue bytes and jumps back into the engine function** at `target + stolen_bytes_length` (`0x10049dee3`).
 
-#### The Double Animation Dilemma
-In traditional Windows hooking frameworks (such as MinHook or Microsoft Detours), detours are responsible for explicitly calling the original function via a trampoline (`Original_Func(...)`).
-When early versions of the patch adopted this pattern by calling `Original_WindowDraw(window, delta)` and `Original_MainInterfaceDraw(hud, delta)`:
-- `CSWGuiWindow::Draw` executed once inside the hook via `Original_WindowDraw`.
-- `CSWGuiWindow::Draw` executed a **second time** when the hook returned and KPM's wrapper executed the stolen bytes and jumped back to `0x10049dee3`.
-- **Consequence**: Every window and HUD element was drawn **twice per frame**, advancing animation timers by $2 \cdot \Delta t$ (double animation speed on 3D flybys, menus, and pulsating buttons) and halving framerates from ~100 FPS down to ~50 FPS.
+#### Single-Draw Architecture (1× Animation Speed)
+Because KPM detours automatically execute the stolen prologue bytes and resume the engine function upon return, the C++ detour handlers (`Hook_WindowDraw` and `Hook_MainInterfaceDraw`) do **not** invoke `Original_WindowDraw` or `Original_MainInterfaceDraw`.
 
-#### The Character Shadow Regression (Rayman's Edit)
-To eliminate double rendering, Rayman removed `Original_WindowDraw` and `Original_MainInterfaceDraw` so that KPM's wrapper would execute the draw code only once.
-While this successfully eliminated the double animation speed, it inadvertently triggered the **Character Shadow Bug**:
-1. Under the System V AMD64 ABI on macOS, scalar floating-point arguments are passed in register `%xmm0`:
-   ```cpp
-   void CSWGuiWindow::Draw(CSWGuiWindow* this, float delta); // 'this' in %rdi, 'delta' in %xmm0
-   ```
-2. KPM's wrapper preserves general-purpose registers, but **does NOT save or restore SSE vector registers (`%xmm0`–`%xmm15`)**.
-3. Inside `Hook_WindowDraw`, menu scaling loops, aspect math, and helper functions clobbered `%xmm0`, typically leaving it as `0.0f`.
-4. When `Hook_WindowDraw` returned `void`, KPM's wrapper jumped to `0x10049dee3`:
-   ```asm
-   0x10049dee3: movss %xmm0, -0x24(%rbp)    # Saves delta to local stack frame
-   ```
-5. `CSWGuiWindow::Draw` saved `0.0f` as its frame `delta` and passed `delta = 0.0f` to child controls, including `MODEL_LBL` (`CSWGui3DSceneView` at `0x1005b4b18`).
-6. Passing `delta = 0.0f` halted dynamic light accumulation in `CAurScene::Render`, causing the 3D player preview character model to collapse into a **pitch-black silhouette** upon entering Character Generation Screen 2 (`custpnl` / `quickpnl`).
+This design ensures:
+- The rendering function executes **exactly once per frame**, preserving standard 1× animation speed across 3D title flybys, in-game menus, and pulsating buttons without advancing UI animation timers prematurely.
+- Rendering pipeline overhead and framerate remain unburdened by redundant draw passes.
 
-#### The Unified Solution: Returning `delta` as `float`
-Under the System V AMD64 ABI, the return value of any function returning `float` is placed directly into register `%xmm0`.
-By declaring both detour handlers to return `float` and ending with `return delta;`:
+#### Float Delta Return via System V AMD64 ABI
+Under the System V AMD64 ABI on macOS, scalar floating-point arguments and return values are passed in register `%xmm0`.
+
+In KotOR's engine, rendering routines take the elapsed frame time as a parameter:
+```cpp
+void CSWGuiWindow::Draw(CSWGuiWindow* this, float delta); // 'this' in %rdi, 'delta' in %xmm0
+```
+Inside `CSWGuiWindow::Draw`, instruction `0x10049df3e: movss %xmm0, -0x24(%rbp)` stores `%xmm0` into the stack frame and propagates it to all child control draw calls.
+
+While KPM's detour stub preserves integer registers across the detour call, it does not manage SSE vector registers. To ensure the incoming frame `delta` is passed forward cleanly into the engine's continuation:
+1. Both `Hook_WindowDraw` and `Hook_MainInterfaceDraw` are declared with return type `float`:
 ```cpp
 extern "C" float Hook_WindowDraw(char* window, float delta) {
     if (window && is_readable(window)) {
@@ -189,14 +181,12 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
     return delta;
 }
 ```
-The compiler emits:
+2. The compiler emits:
 ```asm
-movss -0x2c(%rbp), %xmm0    # Restores legitimate incoming delta into %xmm0
+movss -0x2c(%rbp), %xmm0    # Places delta into return register %xmm0
 retq                        # Returns to KPM wrapper
 ```
-When control returns to KPM's wrapper:
-1. **Single-Draw Execution**: Neither `Original_WindowDraw` nor `Original_MainInterfaceDraw` is called inside the hooks. KPM's wrapper executes the stolen prologue bytes exactly **once per frame**, eliminating double animation and restoring 100+ FPS performance.
-2. **Preserved `%xmm0`**: KPM's wrapper restores general-purpose registers without touching `%xmm0`. When control jumps to `0x10049dee3` (`movss %xmm0, -0x24(%rbp)`), `%xmm0` contains the legitimate frame `delta`. Dynamic room lighting (`0x3ea`) accumulates properly in `CAurScene::Render`, keeping the 3D character model brightly and vividly illuminated across all screens.
+When control returns to KPM's wrapper and continues into `0x10049dee3`, register `%xmm0` holds the legitimate elapsed frame `delta`. The engine passes this delta to child controls, ensuring continuous frame advancement for all UI elements and dynamic 3D scene views.
 
 ### 1.4 Sequential Hook Validation & Detour Ordering in hooks.toml
 KPM processes hooks in sequential file order and halts immediately if the `original_bytes` at any address do not match current memory.
@@ -722,8 +712,8 @@ Unlike 2D menus, `CSWGuiMainCharGen::Draw` (`0x1002e01a0`) executes a dedicated 
 flowchart TD
     A["CSWGuiMainCharGen::Draw (0x1002e01a0)"] -->|"Setup dynamic room light 0x3ea"| B["Scene Manager (g_pAppManager)"]
     A -->|"movss %xmm0, [delta]"| C["Hook_WindowDraw Detour (0x10049ded4)"]
-    C -->|"scaleMenuPanelTree & Aspect Math<br/>(clobbers %xmm0)"| D["Layout & Widescreen Scaling"]
-    D -->|"Original_WindowDraw(window, delta)<br/>(restores %xmm0)"| E["CSWGuiWindow::Draw Trampoline (0x10049dee3)"]
+    C -->|"Center and scale menu panels<br/>Preserve bit 0x08 on panel[0x5c]"| D["Layout & Widescreen Scaling"]
+    D -->|"return delta (%xmm0 preserved)"| E["KPM Wrapper Continuation (0x10049dee3)"]
     E -->|"movss %xmm0, -0x24(%rbp)"| F["Child Controls Draw Pass"]
     F -->|"Draw(delta > 0.0f)"| G["MODEL_LBL (CSWGui3DSceneView 0x1005b4b18)"]
     G -->|"Accumulate Dynamic Lighting"| H["CAurScene::Render (Full Brightness)"]
@@ -734,9 +724,14 @@ To prevent layout conflicts between master fullscreen consoles and child choice 
 1. **Master Chargen Subpanels in `isMenuPanel()`**:
    The 5 primary chargen screens (`CSWGuiPortraitCharGen` `0x1005afea0`, `CSWGuiNameChargen` `0x1005aac10`, `CSWGuiAbilitiesCharGen` `0x1005b0950`, `CSWGuiSkillsCharGen` `0x1005a7820`, `CSWGuiFeatsCharGen` `0x1005adc40`) are registered in `isMenuPanel()`.
    - Ensures they receive full standard menu scaling without distorting the underlying 3D room canvas.
-   - Cleanses conflicting flags on `panel + 0x5c` to `0x60` (centering) and `0x01` (fallback), preventing misaligned hitboxes.
-2. **Subpanel Transition Preservation**:
-   During subpanel switching (`CSWGuiMainCharGen::ResetSubPanels` at `0x1002df6bd`), the engine sets internal state bits `0x0100`–`0x0700` in the 16-bit word at `panel + 0x5c`. Preserving standard bit masking `(panel[0x5c] & ~0x09) | 0x60` ensures these transition state bits remain uncorrupted across screen transitions.
+   - Sets centering flags `0x60` (`0x20 | 0x40`) while maintaining client-relative coordinate space.
+2. **Subpanel Transition & Backdrop Curtain Preservation**:
+   In `scaleSmallChargenPanel()` and `scaleMenuPanelTree()`, panel status flags are updated using:
+   ```cpp
+   panel[0x5c] = (panel[0x5c] & ~0x01) | 0x60;
+   ```
+   - **Bit `0x08` (Backdrop Curtain Accounting)**: The engine uses bit `0x08` on `panel + 0x5c` for internal backdrop tracking: `CSWGuiManager::AddPanel` (`0x10049ed36`) sets bit `0x08` when incrementing the manager's backdrop curtain counter (`mgr + 0xa8`), `CSWGuiManager::RemovePanel` (`0x10049db6e: testb $0x8, %al`) decrements the counter only while bit `0x08` is set, and the manager visibility pass (`0x10049e650: testb $0x8, %dl`) inspects it on the topmost panel to determine whether underlying 3D controls should receive dynamic lighting.
+   - **Bit Masking Integrity**: Masking strictly with `& ~0x01` clears only the unscaled layout flag while preserving bit `0x08` and internal subpanel transition bits (`0x0100`–`0x0700` manipulated by `CSWGuiMainCharGen::ResetSubPanels`). This ensures curtain counters remain perfectly synchronized across subpanel transitions (`custpnl` / `quickpnl`), preventing the 3D player preview character model from losing dynamic lighting.
 3. **Choice Panels in `isSmallChargenPanel()`**:
    Compact choice panels such as `LEVELUPPNL` (`CSWGuiLevelUpPanel` at `0x1005a4c00`) are handled by `scaleSmallChargenPanel()`, anchoring them responsively on the right side of the screen while keeping the left-side 3D model unobstructed.
 
@@ -754,12 +749,12 @@ To prevent layout conflicts between master fullscreen consoles and child choice 
 Setting `0x60` across menu classes:
 ```cpp
 if (isMenuPanel(vtable)) {
-    panel[0x5c] = (panel[0x5c] & ~0x09) | 0x60;
+    panel[0x5c] = (panel[0x5c] & ~0x01) | 0x60;
 } else {
     panel[0x5c] = (panel[0x5c] & ~0x68) | 0x01;
 }
 ```
-All top-level menus, load screens, and category tab buttons share the exact same horizontal center.
+Masking with `& ~0x01` clears the unscaled flag while preserving bit `0x08` (backdrop curtain tracking). All top-level menus, load screens, and category tab buttons share the exact same horizontal center.
 
 ### 8.3 Dynamic Centering Displacements (`patchMenuCenteringConstants`)
 The patch dynamically updates 12 hardcoded displacements to `-targetWidth` and `-targetHeight`:
@@ -1340,8 +1335,20 @@ A fresh font carries unscaled TXI metrics, triggering scaling even at a recycled
 | `+0x20` | `char*` | Pointer to parent `CSWGuiManager` |
 | `+0x30` | `char**` | Pointer to child controls array |
 | `+0x38` | `int32_t` | Child controls count |
-| `+0x5c` | `uint16_t` | Window flags (`0x20` = Horiz Centering, `0x40` = Vert Centering, `0x01` = Client-relative mouse) |
+| `+0x5c` | `uint16_t` | Window flags (`0x20` = Horiz Centering, `0x40` = Vert Centering, `0x08` = Backdrop curtain tracking, `0x01` = Client-relative mouse) |
 | `+0x70` | `char*` | Pointer to border frame subcontrol quad |
+
+#### `CSWGuiManager` (Master GUI Manager)
+| Offset | Type | Field Description |
+| :--- | :--- | :--- |
+| `+0xa4` | `int16_t` | Canvas width (`screenWidth`) |
+| `+0xa6` | `int16_t` | Canvas height (`screenHeight`) |
+| `+0xa8` | `uint8_t` | Active backdrop curtain count (`m_nCurtains`) |
+| `+0xa9` | `uint8_t` | Secondary backdrop curtain count |
+| `+0xd8` | `char**` | Active non-modal panel array |
+| `+0xe0` | `int32_t` | Active non-modal panel count |
+| `+0xe8` | `char**` | Active modal panel array |
+| `+0xf0` | `int32_t` | Active modal panel count |
 
 #### `CSWGuiListBox` (Container List)
 | Offset | Type | Field Description |
