@@ -1,0 +1,12 @@
+[patch]
+id = "k2-class-menu-clothes"
+name = "K2 Class Menu Clothes"
+version = "1.0.0"
+author = "J"
+description = "Changes the class selection menu clothes to match the screenshot from Prima Guide. Can be changed in new classmenu.2da."
+
+requires = []
+conflicts = []
+
+[patch.supported_versions]
+kotor2_gog_aspyr = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"
