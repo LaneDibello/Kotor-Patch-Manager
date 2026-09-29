@@ -94,6 +94,9 @@ class Program
             return false;
         }
 
+        // Asked for explicitly, so it outranks the method a game was installed with too.
+        DeploymentPolicy.RequestedDeployment = requested;
+
         // Asking for something the host cannot do is not fatal, but it would otherwise be silent:
         // a Linux host has no way to inject and stays on the proxy whatever was asked for.
         var effective = DeploymentPolicy.ForCurrentPlatform();
@@ -302,12 +305,16 @@ class Program
             Console.WriteLine($"Patcher module: {patcherModuleName}");
             Console.WriteLine();
 
-            // Launch with DLL injection (method depends on distribution)
+            // Launch the way the game was installed, as the window does: a proxy install is only
+            // started, an injection install is injected into (DeploymentPolicy.ForLaunch).
             var result = GameLauncher.Launch(
                 gameExePath,
                 patcherModulePath,
                 distribution: distribution,
-                commandLineArgs: null);
+                commandLineArgs: null,
+                deployment: versionResult.Success && versionResult.Data != null
+                    ? DeploymentPolicy.ForLaunch(versionResult.Data, gameExePath)
+                    : null);
 
             if (!result.Success)
             {

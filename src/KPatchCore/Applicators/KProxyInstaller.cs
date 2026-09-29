@@ -53,6 +53,25 @@ public static class KProxyInstaller
     }
 
     /// <summary>
+    /// Whether the proxy is in place: the saved original beside a binkw32.dll that is not the
+    /// same file. Steam's file check puts the stock binkw32.dll back and leaves
+    /// binkw32Hooked.dll, and then the two are identical.
+    /// </summary>
+    /// <param name="gameDir">Directory the proxy was installed into.</param>
+    public static bool IsStaged(string gameDir)
+    {
+        var bink = new FileInfo(Path.Combine(gameDir, BinkDll));
+        var hooked = new FileInfo(Path.Combine(gameDir, BinkHookedDll));
+        if (!bink.Exists || !hooked.Exists)
+        {
+            return false;
+        }
+
+        return bink.Length != hooked.Length ||
+            !File.ReadAllBytes(bink.FullName).AsSpan().SequenceEqual(File.ReadAllBytes(hooked.FullName));
+    }
+
+    /// <summary>
     /// Reverses <see cref="Install"/>: removes the proxy and restores the original
     /// binkw32.dll. A no-op if the proxy was never installed.
     /// </summary>
