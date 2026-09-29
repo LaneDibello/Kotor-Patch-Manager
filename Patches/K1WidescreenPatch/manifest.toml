@@ -2,7 +2,7 @@
 id = "k1widescreenpatch"
 name = "Widescreen Patch (beta)"
 version = "0.1.0"
-description = "Widescreen patch featuring HUD and menu scaling/realignment. Auto detects resolution (can be forced w/ .ini variables ForceWidth/ForceHeight). No .gui files required, though they are optional by adding "UseGuiFileLayouts=1" (no quotation marks) under [Graphics Options] in your skotor.ini file."
+description = "Widescreen patch featuring HUD and menu scaling/realignment. Auto detects resolution (can be forced w/ .ini variables ForceWidth/ForceHeight). No .gui files required, though they are optional by adding UseGuiFileLayouts=1 under [Graphics Options] in your skotor.ini file."
 author = "FTD, Rayman, J, Vriff"
 
 [patch.supported_versions]
