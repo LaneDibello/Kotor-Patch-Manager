@@ -78,6 +78,7 @@ Note: You do not need to read this readme! This is a technical explanation for a
    - 8.11 [KMRP Listbox Row Inflation on Repopulate Fix (0x1004a8927)](#811-kmrp-listbox-row-inflation-on-repopulate-fix-0x1004a8927)
    - 8.12 [KMRP Wrapped Text Measurement Under-Estimation Fix (0x1001bca20)](#812-kmrp-wrapped-text-measurement-under-estimation-fix-0x1001bca20)
    - 8.13 [Font Cache Invalidation by Height & Address (MarkFontScaled)](#813-font-cache-invalidation-by-height--address-markfontscaled)
+   - 8.14 [FontScale Calibration & UI Box Bounds](#814-fontscale-calibration--ui-box-bounds)
 9. [Master Reference Tables](#9-master-reference-tables)
    - 9.1 [Active Binary Detour Hooks (mac_widescreen.cpp & kmrp_engine_fixes.cpp)](#91-active-binary-detour-hooks-mac_widescreencpp--kmrp_engine_fixescpp)
    - 9.2 [Dynamic & Static Byte-Level Engine Patches](#92-dynamic--static-byte-level-engine-patches)
@@ -213,6 +214,8 @@ The widescreen patch establishes target rendering bounds through a hierarchical 
    ForceWidth=1920
    ForceHeight=1200
    ```
+   > [!IMPORTANT]
+   > **Display Mode Validation**: Any resolution configured via `ForceWidth` and `ForceHeight` must match a real display mode reported by macOS and SDL for the active monitor (such as the native point resolution e.g. 1512×982, or the native Retina pixel resolution e.g. 3024×1964 unlocked by `KMRP_DisplayModeScale`). If an arbitrary resolution not present in the system's display mode list is requested (e.g. 1400×900 on a 1512×982 MacBook), the engine's internal `FindDisplayMode` validator rejects it and falls back to a 1024×768 CGL surface, causing the frame to be cropped.
 4. **Runtime Engine Canvas Updates**: The target dimensions are propagated directly to the engine's internal global structures:
    - `0x1005d3b8c`: Global UI Canvas Width (`g_uiWidth`)
    - `0x1005d3b90`: Global UI Canvas Height (`g_uiHeight`)
@@ -233,6 +236,11 @@ extern "C" void KMRP_UseTargetVideoMode(int* width, int* height) {
 }
 ```
 This forces `r12` (width) and `r15` (height) to match the target resolution, ensuring that the CGL fullscreen surface, OpenGL viewport, and widescreen layout agree.
+
+> [!NOTE]
+> **Windowed Mode vs. Fullscreen Aspect Ratio**:
+> The patch is architected for Fullscreen mode (`FullScreen=1` under `[Graphics Options]`), which is the native and standard mode of play.
+> In Windowed mode (`FullScreen=0`), macOS enforces title bar and menu bar clearance, reducing the available OpenGL content area height by approximately 61 px (e.g. 921 px instead of 982 px on a 14" MacBook Pro). Because the game's projection matrix and 2D layout are calibrated for the monitor's full height (982 px), this creates a minor ~6.2% vertical compression in windowed mode. For true 1:1 pixel geometry, play in Fullscreen mode.
 
 ### 2.3 Retina Display Mode List Scaling (`KMRP_DisplayModeScale`)
 In Aspyr's port, a display mode is only accepted if it exists in the engine's internal mode list (`0x100204d5a`); missing modes fall back to 1024×768. The list-builder at `0x10001ddee` was designed to generate HiDPI twin modes scaled by the monitor's backing scale factor, but Aspyr hardcoded the factor to constant `1.0` (`0x10001de62`). Consequently, requesting full Retina pixel targets (such as `ForceWidth=3024` and `ForceHeight=1964`) failed validation and fell back to 1024×768.
@@ -822,6 +830,15 @@ static bool IsFontAlreadyScaled(void* fontInfo) {
 }
 ```
 A fresh font carries unscaled TXI metrics, triggering scaling even at a recycled heap address. Oldest entries are recycled via circular FIFO indexing when the table reaches capacity.
+
+### 8.14 FontScale Calibration & UI Box Bounds
+By default, the patch dynamically calculates font scaling based on vertical resolution:
+$$\text{scale} = \frac{g\_targetHeight}{1080.0\text{f}} \quad (\text{clamped to } \ge 1.0\text{f})$$
+This ensures crisp text readability on high-resolution displays while maintaining exact alignment within the game's 480p-scaled buttons, tabs, headers, and list rows.
+
+> [!TIP]
+> **Manual FontScale Bounds**:
+> While `FontScale` can be manually overridden in `swkotor.ini` (within a safe range of `0.5` to `3.0`), setting values significantly above the automatic baseline will cause font glyph heights to exceed the fixed bounding dimensions of single-line buttons and dialog boxes, causing the engine's text renderer (`CAurGUIStringInternal::Draw`) to truncate or cull the overflowed lines.
 
 ---
 
