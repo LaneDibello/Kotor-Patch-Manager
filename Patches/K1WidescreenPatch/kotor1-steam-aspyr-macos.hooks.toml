@@ -419,23 +419,7 @@ type = "simple"
 original_bytes = [0xF3, 0x0F, 0x58, 0x05, 0x78, 0x22, 0x3B, 0x00]
 replacement_bytes = [0xF3, 0x0F, 0x58, 0x05, 0x9C, 0xB3, 0x37, 0x00]
 
-# ------------------------------------------------------------------------------
-# K7. Dialogue letterbox - CSWGuiDialogLetterbox / CSWGuiDialogCinematic
-# ------------------------------------------------------------------------------
-# Vanilla sizes the bars from the screen WIDTH (a 21:9 band, 7/3 at 0x100570a14),
-# so they shrink on wide screens and go negative past 21:9, and the reply panel
-# under the bottom bar is a fixed 100px with LB_REPLIES at 98px: enlarged replies
-# scroll while most of the bar stays empty. kmrp_engine_fixes.cpp sets bar = H/6
-# (KMRP's Windows formula) and sizes the reply panel to the bar once the video mode
-# is known; this hook stretches LB_REPLIES to that panel.
-#   CSWGuiDialogCinematic::SetExtent (0x100244d4a): after "list width = panel
-#   width", also set list height = panel height - list top, never shrinking it.
-#   Block source: KMRP-ENGINE-FIXES.md.
-[[hooks]]
-address = 0x100244d7d
-type = "replace"
-original_bytes = [0x8B, 0x43, 0x10, 0x41, 0x89, 0x46, 0x08]
-replacement_bytes = [0x8B, 0x43, 0x10, 0x41, 0x89, 0x46, 0x08, 0x8B, 0x43, 0x14, 0x41, 0x2B, 0x46, 0x04, 0x41, 0x3B, 0x46, 0x0C, 0x7E, 0x04, 0x41, 0x89, 0x46, 0x0C]
+
 
 # ==============================================================================
 # DETOURS - KEEP THESE LAST
@@ -608,3 +592,4 @@ original_bytes = [0x4C, 0x89, 0xF7, 0xF3, 0x0F, 0x10, 0x45, 0xD4]
 [[hooks.parameters]]
 source = "rbx"
 type = "pointer"
+  
