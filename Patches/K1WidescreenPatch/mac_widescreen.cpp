@@ -2124,7 +2124,7 @@ __attribute__((naked)) void Original_MainInterfaceDraw(void* hud, float delta) {
   Hook_MainInterfaceDraw:
   Intercepts the master HUD rendering function (0x100235e44) called every frame during gameplay.
 */
-extern "C" void Hook_MainInterfaceDraw(char* hud, float delta) {
+extern "C" void Hook_MainInterfaceDraw(char* hud, [[maybe_unused]] float delta) {
     if (hud && is_readable(hud)) {
         char* mgr = *(char**)(hud + 0x20);
         updateEngineGlobals(mgr);
@@ -2571,7 +2571,7 @@ static void enforceItemGeometry(char* panel) {
   Called every frame for every GUI window. Ensures engine globals and in-game menu centering
   remain active even when the HUD is closed or menus are active.
 */
-extern "C" void Hook_WindowDraw(char* window, float delta) {
+extern "C" void Hook_WindowDraw(char* window, [[maybe_unused]] float delta) {
     if (window && is_readable(window)) {
         char* mgr = *(char**)(window + 0x20);
         updateEngineGlobals(mgr);
