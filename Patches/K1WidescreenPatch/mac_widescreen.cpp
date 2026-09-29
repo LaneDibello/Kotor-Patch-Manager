@@ -30,6 +30,11 @@
      in ~/Library/Application Support/Knights of the Old Republic/swkotor.ini.
   3. Legacy Fallback:
      Standard Width/Height in swkotor.ini is used only if CoreGraphics hardware detection fails.
+  4. Menus already laid out for the resolution (Optional):
+     To use .gui sets laid out for the screen's resolution (KOTOR High Resolution Menus, KMRP)
+     and only unlock the resolution, with no layout of the patch's own:
+        [Graphics Options]
+        UseGuiFileLayouts=1
  ==============================================================================================
 */
 int g_targetWidth  = 1512; // Target display width (defaults to 14" MacBook Pro Liquid Retina default)
@@ -41,6 +46,14 @@ struct NativeCGRect { NativeCGPoint origin; NativeCGSize size; };
 
 typedef uint32_t (*CGMainDisplayIDFn)();
 typedef NativeCGRect (*CGDisplayBoundsFn)(uint32_t);
+typedef void* (*CGDisplayCopyDisplayModeFn)(uint32_t);
+typedef size_t (*CGDisplayModeGetPixelSizeFn)(void*);
+typedef void (*CGDisplayModeReleaseFn)(void*);
+
+// The main display's size in points and in pixels; a Retina display has twice as many pixels
+// as points. 0 if CoreGraphics was unavailable.
+int g_displayPointWidth = 0, g_displayPointHeight = 0;
+int g_displayPixelWidth = 0, g_displayPixelHeight = 0;
 
 struct GraphicsIniSettings {
     bool loaded = false;
@@ -53,6 +66,7 @@ struct GraphicsIniSettings {
     float hudScale = -1.0f;
     int hdMenuTextures = 0;
     float fontScale = 0.0f;
+    int guiFileLayouts = 0;
 };
 static GraphicsIniSettings s_graphicsIni;
 
@@ -110,6 +124,8 @@ static void LoadGraphicsIniSettings() {
         } else if (strncasecmp(p, "FontScale", 9) == 0) {
             float v = (float)atof(val);
             if (v > 0.0f && v <= 10.0f) s_graphicsIni.fontScale = v;
+        } else if (strncasecmp(p, "UseGuiFileLayouts", 17) == 0) {
+            s_graphicsIni.guiFileLayouts = atoi(val);
         }
     }
     fclose(f);
@@ -117,9 +133,12 @@ static void LoadGraphicsIniSettings() {
 
 static bool s_resolutionInitialized = false;
 
-static void InitTargetResolution() {
+// Not static: the Retina display-mode fix (kmrp_engine_fixes.cpp) needs the target before the
+// engine builds its mode list, which is earlier than anything here asks for it.
+void InitTargetResolution() {
     if (s_resolutionInitialized) return;
     s_resolutionInitialized = true;
+    LoadGraphicsIniSettings();
 
     // 1. Hardware Display Auto-Detection via macOS CoreGraphics (loaded dynamically via dlopen)
     // Obtains the active monitor's native point resolution (e.g. 1512x982 on 14" MacBook Pro,
@@ -137,6 +156,23 @@ static void InitTargetResolution() {
             NativeCGRect bounds = pfnBounds(display);
             int dispW = (int)bounds.size.width;
             int dispH = (int)bounds.size.height;
+            g_displayPointWidth = g_displayPixelWidth = dispW;
+            g_displayPointHeight = g_displayPixelHeight = dispH;
+            auto pfnCopyMode = (CGDisplayCopyDisplayModeFn)dlsym(cgLib, "CGDisplayCopyDisplayMode");
+            auto pfnPixelW = (CGDisplayModeGetPixelSizeFn)dlsym(cgLib, "CGDisplayModeGetPixelWidth");
+            auto pfnPixelH = (CGDisplayModeGetPixelSizeFn)dlsym(cgLib, "CGDisplayModeGetPixelHeight");
+            auto pfnRelease = (CGDisplayModeReleaseFn)dlsym(cgLib, "CGDisplayModeRelease");
+            if (pfnCopyMode && pfnPixelW && pfnPixelH && pfnRelease) {
+                if (void* mode = pfnCopyMode(display)) {
+                    int pixelW = (int)pfnPixelW(mode);
+                    int pixelH = (int)pfnPixelH(mode);
+                    pfnRelease(mode);
+                    if (pixelW >= dispW && pixelH >= dispH) {
+                        g_displayPixelWidth = pixelW;
+                        g_displayPixelHeight = pixelH;
+                    }
+                }
+            }
             if (dispW >= 640 && dispH >= 480) {
                 g_targetWidth = dispW;
                 g_targetHeight = dispH;
@@ -148,7 +184,6 @@ static void InitTargetResolution() {
     // 2. Check swkotor.ini for optional user override
     // - ForceWidth / ForceHeight: explicit user override
     // - Width / Height: used if CoreGraphics auto-detection returned 0
-    LoadGraphicsIniSettings();
     if (s_graphicsIni.forceWidth >= 640 && s_graphicsIni.forceHeight >= 480) {
         // Explicit user override via ForceWidth / ForceHeight
         g_targetWidth = s_graphicsIni.forceWidth;
@@ -158,6 +193,25 @@ static void InitTargetResolution() {
         g_targetWidth = s_graphicsIni.iniWidth;
         g_targetHeight = s_graphicsIni.iniHeight;
     }
+}
+
+/*
+  Layouts from the .gui files
+  ----------------------------------------------------------------------------------------------
+  UseGuiFileLayouts=1 in [Graphics Options] is for .gui sets already laid out at the screen's
+  resolution in Override, such as KOTOR High Resolution Menus (and KMRP, which builds on it and
+  derives sets for the Mac displays). The patch then only unlocks the resolution: the engine's
+  UI size, viewport, GUI canvas and tooltip bounds (updateEngineGlobals), the recentring
+  constants at the full screen (as the High Resolution Menus executable patch sets them), the
+  video mode and the engine fixes. It lays nothing out itself: no menu, popup or HUD scaling,
+  no list or row constants, no font scaling, the class-selection screen runs its own loop, and
+  the store and workbench stack-count badge keeps its vanilla place.
+  The HUD loads mipc28x6.gui, or mipc210x7.gui at 3440x1440, as KMRP's Windows executable does,
+  instead of the pinned mipc212x9.
+*/
+static bool GuiFileLayouts() {
+    InitTargetResolution();
+    return s_graphicsIni.guiFileLayouts != 0;
 }
 
 // Native template dimensions used internally by the Mac 4:3 GUI layout (mipc212x9)
@@ -697,6 +751,24 @@ extern "C" int MapHider_GetPlayerMapCoords(char* pMapInfo, int partyIdx, int* ou
     return res;
 }
 
+namespace ScaledFont { static float GetEffectiveFontScale(); }
+
+/*
+  StackBadgeHeight (KMRP):
+  The quantity badge's label must grow with the FONT, not only with the layout. The text
+  renderer (CAurGUIStringInternal::Draw, 0x1001bcb04) skips any line taller than its box, so
+  with FontScale > 1 (explicit, or automatic at 1080p and above) the digits outgrew the
+  18*scale badge and every stack count disappeared (measured 2026-09-29 at FontScale=2: the
+  string is laid out as one line, then culled). Same defect KMRP fixes on Windows by sizing
+  the stack label with the font (.ksc). The badge stays bottom-anchored (qTop is derived
+  from it), and at the default 1x font nothing changes.
+*/
+static int StackBadgeHeight(float layoutScale) {
+    float growth = ScaledFont::GetEffectiveFontScale();
+    if (growth < 1.0f) growth = 1.0f;
+    return (int)(18 * layoutScale * growth + 0.5f);
+}
+
 /*
   refreshPatchedListConstants:
   Dynamically writes the calculated scaled row heights into the game's item, skill, and
@@ -726,7 +798,7 @@ void refreshPatchedListConstants() {
     int saveHeight = (int)(43.5f * scale + 0.5f);
     int qBadgeX = geom.badgeOffset;
     
-    int qHeight = (int)(18 * scale + 0.5f);
+    int qHeight = StackBadgeHeight(scale);
     int qTop = itemHeight - qHeight + geom.badgeTopOffset;
     int qWidthShort = (int)(20 * scale + 0.5f);
     int qWidthLong = (int)(38 * scale + 0.5f);
@@ -1018,8 +1090,11 @@ void patchMenuCenteringConstants(int targetWidth, int targetHeight) {
     
     // Bypass vanilla CSWGuiClassSelection::Update loop (0x100337897 -> jmp 0x100337b38)
     // Ensures the vanilla mutating delta animation math is disabled, preventing rapid flashing
-    uint8_t bypassClassUpdateLoop[5] = { 0xe9, 0x9c, 0x02, 0x00, 0x00 };
-    writeMemBytes(0x100337897, bypassClassUpdateLoop, 5);
+    // With UseGuiFileLayouts the vanilla loop runs instead (the hook lays nothing out).
+    if (!GuiFileLayouts()) {
+        uint8_t bypassClassUpdateLoop[5] = { 0xe9, 0x9c, 0x02, 0x00, 0x00 };
+        writeMemBytes(0x100337897, bypassClassUpdateLoop, 5);
+    }
     
     s_lastPatchedCenteringW = targetWidth;
     s_lastPatchedCenteringH = targetHeight;
@@ -1847,7 +1922,7 @@ void scaleMenuPanelTree(char* panel) {
                             }
 
                             // Quantity badge label (0x3e0):
-                            int qTop = geom.itemHeight - (int)(18 * scale + 0.5f) + geom.badgeTopOffset;
+                            int qTop = geom.itemHeight - StackBadgeHeight(scale) + geom.badgeTopOffset;
                             *(int*)(item + 0x3e8) = rowX + geom.badgeOffset;
                             *(int*)(item + 0x3ec) = rowY + qTop;
                         }
@@ -1962,6 +2037,7 @@ void refreshMenuPanelTrees(char* mgr) {
 */
 extern "C" void Hook_ClassSelectionUpdate(char* panel, float delta) {
     if (!panel || !is_readable(panel)) return;
+    if (GuiFileLayouts()) return;  // the vanilla update loop runs (DylibInit restores it)
     
     scaleMenuPanelTree(panel);
     
@@ -2052,6 +2128,7 @@ extern "C" void Hook_MainInterfaceDraw(char* hud, float delta) {
     if (hud && is_readable(hud)) {
         char* mgr = *(char**)(hud + 0x20);
         updateEngineGlobals(mgr);
+        if (GuiFileLayouts()) return;  // the HUD is laid out by its .gui file
         if (mgr && is_readable(mgr)) {
             // In active gameplay, ensure menu backdrop curtains are dismissed
             *(char*)(mgr + 0xa8) = 0;
@@ -2342,7 +2419,9 @@ extern "C" void Hook_MainInterfaceDraw(char* hud, float delta) {
         }
     }
     
-    Original_MainInterfaceDraw(hud, delta);
+    // KMRP: no Original_MainInterfaceDraw here. This is a KPM DETOUR (skipOriginalBytes =
+    // false): the wrapper runs the stolen prologue and continues into CSWGuiMainInterface::Draw
+    // once this returns, so calling the original as well drew the HUD twice per frame.
 }
 
 
@@ -2378,7 +2457,7 @@ static void enforceItemGeometry(char* panel) {
     
     ScaledItemGeometry geom = GetScaledItemGeometry(g_targetHeight);
     float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
-    int qHeight = (int)(18 * scale + 0.5f);
+    int qHeight = StackBadgeHeight(scale);
     int qTop = geom.itemHeight - qHeight + geom.badgeTopOffset;
     
     for (int i = 0; i < numControls; i++) {
@@ -2496,6 +2575,7 @@ extern "C" void Hook_WindowDraw(char* window, float delta) {
     if (window && is_readable(window)) {
         char* mgr = *(char**)(window + 0x20);
         updateEngineGlobals(mgr);
+        if (GuiFileLayouts()) return;  // every window is laid out by its .gui file
         
         void* vtable = *(void**)window;
         if (vtable == (void*)0x1005ad420) {
@@ -2549,8 +2629,12 @@ extern "C" void Hook_WindowDraw(char* window, float delta) {
             }
             scaleMenuPanelTree(window);
             enforceItemGeometry(window);
+            // KMRP: only CSWGuiDialog (0x1005a6a70) and its subclasses Cinematic (0x1005a6c88)
+            // and Computer (0x1005a6db0) have LB_REPLIES at +0x20c0. 0x1005a6b98 is the
+            // CSWGuiDialogLetterbox bar, a ~0xc8-byte object (constructor 0x100243fc0): for it
+            // the two writes below landed ~9KB past its end on every dialogue frame.
             if (vtable == (void*)0x1005a6db0 || vtable == (void*)0x1005a6a70 ||
-                vtable == (void*)0x1005a6c88 || vtable == (void*)0x1005a6b98) {
+                vtable == (void*)0x1005a6c88) {
                 char* lbReplies = window + 0x20c0;
                 if (is_readable(lbReplies)) {
                     *(uint8_t*)(lbReplies + 0x370) &= ~0x8;
@@ -2583,7 +2667,13 @@ extern "C" void Hook_WindowDraw(char* window, float delta) {
             }
         }
     }
-    Original_WindowDraw(window, delta);
+    // KMRP: no Original_WindowDraw here. This is a KPM DETOUR (skipOriginalBytes = false):
+    // once it returns, the wrapper runs the stolen prologue and continues into
+    // CSWGuiWindow::Draw. Calling the original as well drew every window twice per frame, and
+    // each draw advanced its animations by delta: the main menu animated at double speed
+    // and in visible jumps, at half the frame rate: the menu scene ran at 51 fps against
+    // 120 fps with the patch off, and at 103 fps without the second draw (measured
+    // 2026-09-29, 1512x982). This is the "too-fast menu animation".
 }
 
 // ==============================================================================
@@ -2736,8 +2826,15 @@ constexpr uint32_t FontMetricOffsets[] = {
     SpacingROffset, SpacingBOffset
 };
 
+// KMRP: a font is identified by its CAurFontInfo address AND the height we left in it.
+// The engine frees font textures and allocates new ones at recycled addresses; keyed by
+// address alone, a freshly parsed font at a reused address was taken for "already scaled"
+// and stayed at 1x (measured 2026-09-29: which fonts were hit varied with heap layout from
+// launch to launch). A fresh parse carries its unscaled TXI height, so it no longer matches.
 static void* s_scaledFonts[MaxCachedFonts] = {};
+static float s_scaledHeights[MaxCachedFonts] = {};
 static uint32_t s_scaledFontCount = 0;
+static uint32_t s_scaledFontNext = 0;
 // Compute effective font scale factor
 static float GetEffectiveFontScale() {
     float iniScale = ReadIniFontScale();
@@ -2764,17 +2861,28 @@ static bool HasSaneFontMetrics(char* fontInfo) {
             tw > 0.0f && tw < 4096.0f);
 }
 
+static float CurrentFontHeight(void* fontInfo) {
+    return *reinterpret_cast<float*>(static_cast<char*>(fontInfo) + FontHeightOffset);
+}
+
 static bool IsFontAlreadyScaled(void* fontInfo) {
+    const float fh = CurrentFontHeight(fontInfo);
     for (uint32_t i = 0; i < s_scaledFontCount; ++i) {
-        if (s_scaledFonts[i] == fontInfo) return true;
+        if (s_scaledFonts[i] == fontInfo && s_scaledHeights[i] == fh) return true;
     }
     return false;
 }
 
+// Record (or refresh) the entry for this address with the height it now holds. Call it
+// after scaling. Oldest entries are recycled once the table is full.
 static void MarkFontScaled(void* fontInfo) {
-    if (s_scaledFontCount < MaxCachedFonts) {
-        s_scaledFonts[s_scaledFontCount++] = fontInfo;
+    const float fh = CurrentFontHeight(fontInfo);
+    for (uint32_t i = 0; i < s_scaledFontCount; ++i) {
+        if (s_scaledFonts[i] == fontInfo) { s_scaledHeights[i] = fh; return; }
     }
+    uint32_t slot = s_scaledFontCount < MaxCachedFonts ? s_scaledFontCount++ : (s_scaledFontNext++ % MaxCachedFonts);
+    s_scaledFonts[slot] = fontInfo;
+    s_scaledHeights[slot] = fh;
 }
 
 static float FloorFontMetricToPixel(float value) {
@@ -2802,6 +2910,7 @@ static void MultiplyFontInfo(void* fontInfoPtr, float scale) {
 */
 extern "C" void scaleLoadedTextureMetadata(void* texture) {
     if (!texture || !is_readable(texture)) return;
+    if (GuiFileLayouts()) return;  // fonts come at their size from their own TXI metrics
     
     // Check if texture has an attached CAurFontInfo object (+0x48 on Mac 64-bit)
     void* fontInfo = *(void**)((char*)texture + ScaledFont::FontInfoOffset);
@@ -2809,12 +2918,11 @@ extern "C" void scaleLoadedTextureMetadata(void* texture) {
     
     // Ensure each font is scaled exactly once
     if (ScaledFont::IsFontAlreadyScaled(fontInfo)) return;
-    ScaledFont::MarkFontScaled(fontInfo);
-    
     float scale = ScaledFont::GetEffectiveFontScale();
     if (scale <= 0.0f || scale == 1.0f) return;
     
     ScaledFont::MultiplyFontInfo(fontInfo, scale);
+    ScaledFont::MarkFontScaled(fontInfo);
 }
 
 /*
@@ -2826,7 +2934,32 @@ extern "C" void scaleLoadedTextureMetadata(void* texture) {
 __attribute__((constructor))
 static void DylibInit() {
     InitTargetResolution();
-    
+
+    if (GuiFileLayouts()) {
+        // The HUD file the .gui sets are laid out for: mipc28x6, or mipc210x7 at 3440x1440,
+        // on every branch of the CSWGuiMainInterface constructor's height test (the five
+        // lea rsi, [rip + string] below; strings at 0x10052ac32 ... 0x10052ac5c).
+        const uintptr_t sites[5] = { 0x100233429, 0x10023345e, 0x100233489, 0x1002334b4, 0x1002334d8 };
+        const uintptr_t hudString = (g_targetWidth == 3440 && g_targetHeight == 1440)
+                                        ? 0x10052ac52 : 0x10052ac5c;
+        for (uintptr_t site : sites) {
+            uint8_t lea[7] = { 0x48, 0x8d, 0x35, 0, 0, 0, 0 };
+            int32_t disp = (int32_t)(hudString - (site + 7));
+            memcpy(lea + 3, &disp, 4);
+            writeMemBytes(site, lea, 7);
+        }
+        // The class-selection screen's own update loop, which the hooks file bypasses.
+        const uint8_t vanillaClassLoop[5] = { 0xf3, 0x0f, 0x11, 0x45, 0xd4 };
+        writeMemBytes(0x100337897, vanillaClassLoop, 5);
+        // The store and workbench stack-count badge at the icon's right edge, as in vanilla;
+        // the hooks file pulls it 14px left for the patch's own layout.
+        const uint8_t vanillaBadgeX[5] = { 0xb8, 0x38, 0x00, 0x00, 0x00 };
+        writeMemBytes(0x1002bfbbf, vanillaBadgeX, 5);
+        writeMemBytes(0x10021c0e2, vanillaBadgeX, 5);
+        patchMenuCenteringConstants(g_targetWidth, g_targetHeight);
+        return;
+    }
+
     // Force uniform HUD GUI template (mipc212x9) across all resolutions:
     // Safely repoint the "mipc216x12" (0x100233429), "mipc212x10" (0x10023345e),
     // "mipc210x7" (0x1002334b4), and "mipc28x6" (0x1002334d8) string pointers to "mipc212x9"
