@@ -329,8 +329,10 @@ public class PatchApplicator
             var installOrder = orderResult.Data;
             messages.Add($"  Install order: {string.Join(" -> ", installOrder)}");
 
-            // Choose how the patcher is loaded for the detected game.
-            var deployment = DeploymentPolicy.ForGame(gameVersion);
+            // Choose how the patcher is loaded for the detected game. A patched game keeps the
+            // method it was installed with: the clean-up before this install undid it, and the
+            // managed state it kept is what still says which.
+            var deployment = DeploymentPolicy.ForInstalledGame(gameVersion, options.GameExePath);
 
             // Step 4: Create backup
             if (options.CreateBackup)

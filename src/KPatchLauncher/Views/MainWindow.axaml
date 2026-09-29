@@ -196,7 +196,7 @@
                 <!-- MenuItem.ToggleType arrived after Avalonia 11.0, so the check state lives on a
                      CheckBox in the header instead. -->
                 <MenuItem IsVisible="{Binding ShowDeploymentOption}"
-                          ToolTip.Tip="Load the patcher through a stand-in binkw32.dll instead of injecting at launch. Uninstall patches before changing this.">
+                          ToolTip.Tip="Load the patcher through a stand-in binkw32.dll instead of injecting at launch. While patches are installed this shows how they were installed; uninstall them before changing it.">
                     <MenuItem.Header>
                         <CheckBox Content="Use library proxy"
                                   IsChecked="{Binding PreferLibraryProxy}"
