@@ -40,8 +40,11 @@ public static class GameLauncher
         var versionResult = GameDetector.DetectVersion(gameExePath, allowManagedInstallState: true);
         var gameVersion = versionResult.Data;
         var distribution = gameVersion?.Distribution ?? Distribution.Other;
+        // A patched game is started the way it was installed: a proxy install is only started,
+        // since the proxy loads the patcher, and an injection install is injected into. A proxy
+        // that is no longer in place is injected instead (DeploymentPolicy.ForLaunch).
         var deployment = gameVersion != null
-            ? DeploymentPolicy.ForGame(gameVersion)
+            ? DeploymentPolicy.ForLaunch(gameVersion, gameExePath)
             : DeploymentPolicy.ForCurrentPlatform();
 
         if (!File.Exists(patchConfigPath))

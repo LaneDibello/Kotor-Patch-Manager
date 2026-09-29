@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using KPatchCore.Applicators;
+using KPatchCore.Managers;
 using KPatchCore.Models;
 
 // This file needs RuntimeInformation, and the namespace that comes with brings an
@@ -64,6 +66,22 @@ public static class DeploymentPolicy
     public static bool PreferLibraryProxy { get; set; }
 
     /// <summary>
+    /// A method asked for explicitly, by the CLI's <c>--deployment</c>, for this run only. It
+    /// outranks both the preference and the method a game was installed with.
+    /// </summary>
+    public static DeploymentMethod? RequestedDeployment { get; set; }
+
+    /// <summary>
+    /// Stands in for the host check in tests, so the Windows rules run on every CI host.
+    /// </summary>
+    internal static bool? HostCanInjectOverride { get; set; }
+
+    // Injection is Win32 API work, so only a Windows host can do it at all. Everywhere else the
+    // proxy is the only way into a Windows build of the game, whatever the user prefers.
+    private static bool HostCanInject =>
+        HostCanInjectOverride ?? RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+    /// <summary>
     /// The deployment method for the current platform. Linux must use the proxy, since native
     /// injection cannot reach a Wine process; Windows injects unless asked for the proxy.
     /// </summary>
@@ -72,9 +90,7 @@ public static class DeploymentPolicy
     /// </remarks>
     public static DeploymentMethod ForCurrentPlatform()
     {
-        // Injection is Win32 API work, so only a Windows host can do it at all. Everywhere else
-        // the proxy is the only way into a Windows build of the game, whatever the user prefers.
-        return RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && !PreferLibraryProxy
+        return HostCanInject && !PreferLibraryProxy
             ? DeploymentMethod.RuntimeInjection
             : DeploymentMethod.LibraryProxy;
     }
@@ -92,7 +108,7 @@ public static class DeploymentPolicy
     /// </remarks>
     public static bool HasDeploymentChoice(GameVersion? gameVersion)
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (!HostCanInject)
         {
             return false;
         }
@@ -111,6 +127,76 @@ public static class DeploymentPolicy
         return gameVersion.Platform == Platform.Windows
             ? ForCurrentPlatform()
             : DeploymentMethod.LinkedDependency;
+    }
+
+    /// <summary>
+    /// The deployment method for a detected game that may already be patched. A Windows build
+    /// keeps the method its managed state records, in either direction, since the preference is
+    /// global and can change while another game is selected. An explicit
+    /// <see cref="RequestedDeployment"/> outranks it; with neither, the preference decides.
+    /// </summary>
+    /// <remarks>
+    /// Apply's clean-up keeps the managed state, so the method is still recorded when the install
+    /// that follows it decides. Uninstall All deletes the state.
+    /// </remarks>
+    public static DeploymentMethod ForGame(GameVersion gameVersion, ManagedInstallState? installed)
+    {
+        if (gameVersion.Platform != Platform.Windows)
+        {
+            return ForGame(gameVersion);
+        }
+
+        var method = RequestedDeployment
+            ?? (installed is null
+                ? ForCurrentPlatform()
+                : installed.LibraryProxyInstalled ? DeploymentMethod.LibraryProxy : DeploymentMethod.RuntimeInjection);
+
+        // A host that cannot inject stays on the proxy, whatever was recorded or asked for.
+        return method == DeploymentMethod.RuntimeInjection && !HostCanInject
+            ? DeploymentMethod.LibraryProxy
+            : method;
+    }
+
+    /// <summary>
+    /// <see cref="ForGame(GameVersion, ManagedInstallState?)"/> with the managed state kept beside
+    /// the game executable, when there is one.
+    /// </summary>
+    public static DeploymentMethod ForInstalledGame(GameVersion gameVersion, string gameExePath)
+    {
+        var state = InstallStateManager.Load(gameExePath);
+        return ForGame(gameVersion, state.Success ? state.Data : null);
+    }
+
+    /// <summary>
+    /// The method to launch a game with: <see cref="ForInstalledGame"/>, except that where the
+    /// proxy is no longer in place, as after Steam's file check puts the stock binkw32.dll back,
+    /// a host that can inject does, so the game still starts patched. The next Apply stages the
+    /// proxy again.
+    /// </summary>
+    public static DeploymentMethod ForLaunch(GameVersion gameVersion, string gameExePath)
+    {
+        var method = ForInstalledGame(gameVersion, gameExePath);
+        var gameDir = Path.GetDirectoryName(Path.GetFullPath(gameExePath));
+        return method == DeploymentMethod.LibraryProxy && HostCanInject &&
+               gameDir is not null && !KProxyInstaller.IsStaged(gameDir)
+            ? DeploymentMethod.RuntimeInjection
+            : method;
+    }
+
+    /// <summary>
+    /// Whether the managed state beside the game executable records the library proxy, or null
+    /// when it records no install. The window shows it in place of the preference while patches
+    /// are installed.
+    /// </summary>
+    public static bool? InstalledWithLibraryProxy(string? gameExePath)
+    {
+        if (string.IsNullOrWhiteSpace(gameExePath))
+        {
+            return null;
+        }
+
+        var state = InstallStateManager.Load(gameExePath);
+        return state.Success && state.Data is not null ? state.Data.LibraryProxyInstalled : null;
     }
 
     /// <summary>
