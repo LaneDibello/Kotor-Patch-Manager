@@ -64,7 +64,6 @@ struct GraphicsIniSettings {
     float menuScale = 0.0f;
     float combatScale = -1.0f;
     float hudScale = -1.0f;
-    int hdMenuTextures = 0;
     float fontScale = 0.0f;
     int guiFileLayouts = 0;
 };
@@ -119,11 +118,9 @@ static void LoadGraphicsIniSettings() {
         } else if (strncasecmp(p, "HudScale", 8) == 0 || strncasecmp(p, "PortraitScale", 13) == 0) {
             float v = (float)atof(val);
             if (v >= 0.5f && v <= 5.0f) s_graphicsIni.hudScale = v;
-        } else if (strncasecmp(p, "HDMenuTextures", 14) == 0) {
-            s_graphicsIni.hdMenuTextures = atoi(val);
         } else if (strncasecmp(p, "FontScale", 9) == 0) {
             float v = (float)atof(val);
-            if (v > 0.0f && v <= 10.0f) s_graphicsIni.fontScale = v;
+            if (v >= 0.5f && v <= 3.0f) s_graphicsIni.fontScale = v;
         } else if (strncasecmp(p, "UseGuiFileLayouts", 17) == 0) {
             s_graphicsIni.guiFileLayouts = atoi(val);
         }
@@ -465,11 +462,6 @@ static float ReadIniHudScale() {
         s_graphicsIni.hudScale = autoScale; // Default scaled-up HUD elements (+25% over vanilla 1.20x)
     }
     return s_graphicsIni.hudScale;
-}
-
-static bool ReadIniHDMenuTextures() {
-    InitTargetResolution();
-    return s_graphicsIni.hdMenuTextures != 0;
 }
 
 static float ReadIniFontScale() {
