@@ -1,0 +1,138 @@
+[metadata]
+target_versions = ["C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"]
+
+# ==============================================================================
+# 1. WORD-WRAP INFINITE LOOP HANG ("INVENTORY CRASH") (K1)
+# ==============================================================================
+# Function: CAurGUIStringInternal::WrapStrings (0x1001bc644)
+# A line with no space to break on that cannot fit even two characters backs its
+# cursor up one character and restarts. The no-progress guard compares against
+# the start of the whole STRING instead of the current LINE, so the line restarts
+# where it began forever, appending a line entry each pass until allocation fails.
+# (Stack counts are bare numbers in a narrow label: enlarged fonts hit this.)
+#
+# Fix: test progress against the line start (r15). With no progress, take the rest
+# of the line whole and hand it to the engine's own end-of-line path (0x1001bca69),
+# which appends it and moves on. Unfittable text degrades to one overflowing line.
+[[hooks]]
+address = 0x1001bc7ec
+type = "replace"
+original_bytes = [0x49, 0xFF, 0xC8, 0x4C, 0x8B, 0x65, 0xB0, 0x4D, 0x3B, 0x44, 0x24, 0x18, 0x0F, 0x84, 0xF8, 0x02, 0x00, 0x00]
+replacement_bytes = [0x49, 0xFF, 0xC8, 0x4C, 0x8B, 0x65, 0xB0, 0x4D, 0x39, 0xF8, 0x77, 0x25, 0x4D, 0x89, 0xF8, 0x41, 0x0F, 0xB6, 0x00, 0x84, 0xC0, 0x74, 0x09, 0x3C, 0x0A, 0x74, 0x05, 0x49, 0xFF, 0xC0, 0xEB, 0xEF, 0x41, 0x88, 0xC5, 0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, 0x69, 0xCA, 0x1B, 0x00, 0x01, 0x00, 0x00, 0x00]
+
+# Two guards before the loop blank strings of one or two characters outright when
+# the box is narrower than one or two 'o' glyphs, so enlarged stack counts vanish.
+# Removing them is only safe together with the fix above (a box too narrow for one
+# character used to hang; it now draws one overflowing line). A set: never alone.
+#   0x1001bc71e  strlen == 1 and width < w('o')   : jmp return -> jmp to the loop
+[[hooks]]
+address = 0x1001bc71e
+type = "simple"
+original_bytes = [0xE9, 0xC4, 0x03, 0x00, 0x00]
+replacement_bytes = [0xEB, 0x1E, 0x90, 0x90, 0x90]
+
+#   0x1001bc738  strlen <= 2 and width < 2*w('o') : jl return -> fall through
+[[hooks]]
+address = 0x1001bc738
+type = "simple"
+original_bytes = [0x0F, 0x8C, 0xA9, 0x03, 0x00, 0x00]
+replacement_bytes = [0x90, 0x90, 0x90, 0x90, 0x90, 0x90]
+
+# ==============================================================================
+# 2. LISTBOX ROW HEIGHT INFLATION ON REPOPULATE (K2)
+# ==============================================================================
+# Function: CSWGuiListBox::OrganizeControls (0x1004a82b4)
+# The visible-row loop spreads the box's leftover height over the rows by making
+# each row taller (rowHeight + leftover/rows, +1px on the remainder rows) and
+# writes that height into the reused row controls. The next pass recomputes the
+# list's item height (+0x368) as the max row height, reads the inflated value back
+# and inflates again: lists grow each time they are refilled.
+#
+# Fix: keep the rect height at the item height stored before the loop ([rbp-0x34]);
+# row positions still spread exactly as before (they advance by ebx, untouched).
+#   0x1004a8927  mov [rbp-0x34], ebx   (rowHeight + extra)
+[[hooks]]
+address = 0x1004a8927
+type = "simple"
+original_bytes = [0x89, 0x5D, 0xCC]
+replacement_bytes = [0x90, 0x90, 0x90]
+
+#   0x1004a8939  mov [rbp-0x34], eax   (rowHeight + extra + 1, remainder rows)
+[[hooks]]
+address = 0x1004a8939
+type = "simple"
+original_bytes = [0x89, 0x45, 0xCC]
+replacement_bytes = [0x90, 0x90, 0x90]
+
+# ==============================================================================
+# 3. SINGLE LINE TALLER THAN BOX VANISHING (K5)
+# ==============================================================================
+# Function: CAurGUIStringInternal::Draw (0x1001bcb04)
+# When a text's lines do not fit its box, Draw drops lines from the top until the
+# rest fits (bottom-aligned 0x20 and centred 0x10 alignment). A single line taller
+# than its box is therefore dropped entirely and nothing is drawn: stack counts
+# disappear as soon as the font outgrows the badge (FontScale, HD fonts, font mods).
+# Fix: never drop the last line. Text that partly fits behaves exactly as before;
+# text that cannot fit even one line is drawn overflowing instead of vanishing.
+# [r13+0x50] = line count, r12 = lines dropped so far (first line to draw).
+#   bottom-aligned entry: single line -> keep it (0x1001bcc2a), else drop loop
+[[hooks]]
+address = 0x1001bcbef
+type = "replace"
+original_bytes = [0x0F, 0x2E, 0xCA, 0x76, 0x36]
+replacement_bytes = [0x0F, 0x2E, 0xCA, 0x76, 0x09, 0x41, 0x83, 0x7D, 0x50, 0x01, 0x7E, 0x02, 0xEB, 0x0E, 0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, 0x2A, 0xCC, 0x1B, 0x00, 0x01, 0x00, 0x00, 0x00]
+
+#   bottom-aligned loop: stop once only one line would remain
+[[hooks]]
+address = 0x1001bcc22
+type = "replace"
+original_bytes = [0x49, 0xFF, 0xC4, 0x0F, 0x2E, 0xCA, 0x77, 0xD1]
+replacement_bytes = [0x49, 0xFF, 0xC4, 0x0F, 0x2E, 0xCA, 0x76, 0x19, 0x41, 0x8B, 0x4D, 0x50, 0xFF, 0xC9, 0x41, 0x39, 0xCC, 0x7D, 0x0E, 0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, 0xFB, 0xCB, 0x1B, 0x00, 0x01, 0x00, 0x00, 0x00]
+
+#   centred entry: single line -> keep it (0x1001bccb1), else drop loop
+[[hooks]]
+address = 0x1001bcc72
+type = "replace"
+original_bytes = [0x0F, 0x2E, 0xD1, 0x76, 0x3A]
+replacement_bytes = [0x0F, 0x2E, 0xD1, 0x76, 0x09, 0x41, 0x83, 0x7D, 0x50, 0x01, 0x7E, 0x02, 0xEB, 0x0E, 0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, 0xB1, 0xCC, 0x1B, 0x00, 0x01, 0x00, 0x00, 0x00]
+
+#   centred loop: stop once only one line would remain
+[[hooks]]
+address = 0x1001bcca9
+type = "replace"
+original_bytes = [0x49, 0xFF, 0xC4, 0x0F, 0x2E, 0xD1, 0x77, 0xD1]
+replacement_bytes = [0x49, 0xFF, 0xC4, 0x0F, 0x2E, 0xD1, 0x76, 0x19, 0x41, 0x8B, 0x4D, 0x50, 0xFF, 0xC9, 0x41, 0x39, 0xCC, 0x7D, 0x0E, 0xFF, 0x25, 0x00, 0x00, 0x00, 0x00, 0x82, 0xCC, 0x1B, 0x00, 0x01, 0x00, 0x00, 0x00]
+
+# ==============================================================================
+# 4. WRAPPED TEXT MEASUREMENT UNDER-ESTIMATION (K6)
+# ==============================================================================
+# Function: CAurGUIStringInternal::WrapStrings
+# The line-breaker truncates every glyph advance to whole pixels after adding
+# 0.25, so it under-measures a line by ~0.25px per character on average while
+# Draw advances by the exact float widths: long lines can end up wider than the
+# box they were wrapped for and run into the scrollbar. KMRP's Windows fix adds a
+# 0.5px wrap margin (unbiased rounding); here the one accumulation in the loop is
+# pointed at the engine's existing 0.5f (0x100537dc4) instead of 0.25f
+# (0x10056eca0, shared by 42 other instructions, so the constant stays).
+#   addss xmm0, [rip+disp] : 0x10056eca0 -> 0x100537dc4
+[[hooks]]
+address = 0x1001bca20
+type = "simple"
+original_bytes = [0xF3, 0x0F, 0x58, 0x05, 0x78, 0x22, 0x3B, 0x00]
+replacement_bytes = [0xF3, 0x0F, 0x58, 0x05, 0x9C, 0xB3, 0x37, 0x00]
+
+# ==============================================================================
+# 5. LEADING NEWLINE TRIM IN GUI TEXT (K3)
+# ==============================================================================
+# Function: CSWGuiTextParams::SetText (0x1004a3714)
+# Descriptions that open with a property block start with "\n" and render an
+# empty first line. Trimmed in place right after the setter's string assignment,
+# so wrapping and drawing see the same text. Cut: mov eax, -1 (5 bytes).
+[[hooks]]
+address = 0x1004a3726
+type = "detour"
+function = "KMRP_TrimLeadingNewlines"
+original_bytes = [0xB8, 0xFF, 0xFF, 0xFF, 0xFF]
+[[hooks.parameters]]
+source = "rbx"
+type = "pointer"
