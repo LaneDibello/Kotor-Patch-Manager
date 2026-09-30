@@ -91,25 +91,30 @@ Note: You do not need to read this readme! This is a technical explanation for a
 ## 1. Architecture & System Overview
 
 ### 1.1 The Multi-File Patching Pipeline
-The Knights of the Old Republic (KotOR 1) macOS widescreen and engine enhancement patch operates on Aspyr’s 64-bit AMD64 binary (`k1_mac_aspyr_swkotor.app_x64`). Rather than modifying the executable file on disk, the patch utilizes a clean, non-destructive runtime injection architecture consisting of interconnected layers across multiple source modules:
+The Knights of the Old Republic (KotOR 1) macOS widescreen and engine enhancement patch operates on Aspyr’s 64-bit AMD64 binary (`k1_mac_aspyr_swkotor.app_x64`). Rather than modifying the executable file on disk, the patch utilizes a clean, non-destructive runtime injection architecture consisting of interconnected layers across modular patch packages:
 
 ```mermaid
 flowchart TD
-    Launcher["kpatch Loader (Game Launch)"] --> Ingest["Ingests manifest.toml & hooks.toml"]
-    Ingest --> StaticHooks["1. Static Byte Hooks (hooks.toml)"]
-    Ingest --> DylibLoad["2. Dynamic Detour Runtime (macos_x86_64.dylib)"]
+    Launcher["kpatch Loader (Game Launch)"] --> DepCheck["Resolves Dependencies (manifest.toml)"]
+    DepCheck --> StrayPatch["Stray Bug Fixes Patch (stray-bug-fixes-patch)"]
+    DepCheck --> WidescreenPatch["Widescreen Patch (k1widescreenpatch)"]
+    StrayPatch --> StaticBugs["General Engine Bug Fixes (hooks & stray_bug_fixes.cpp)"]
+    WidescreenPatch --> StaticHooks["Widescreen Byte Hooks (hooks.toml)"]
+    WidescreenPatch --> DylibLoad["Dynamic Detour Runtime (macos_x86_64.dylib)"]
     DylibLoad --> WidescreenCpp["mac_widescreen.cpp (Layout & Scaling Engine)"]
-    DylibLoad --> KmrpCpp["kmrp_engine_fixes.cpp (Engine Stability & Video Mode)"]
-    StaticHooks --> EngineMemory["KotOR Mach-O Engine Memory (0x100000000)"]
+    DylibLoad --> KmrpCpp["kmrp_engine_fixes.cpp (Widescreen Video Mode & Letterbox)"]
+    StaticBugs --> EngineMemory["KotOR Mach-O Engine Memory (0x100000000)"]
+    StaticHooks --> EngineMemory
     WidescreenCpp --> EngineMemory
     KmrpCpp --> EngineMemory
 ```
 
-1. **`kpatch` Loader Archive (`FTD Vriff.kpatch`)**: A zip container containing `manifest.toml`, `kotor1-steam-aspyr-macos.hooks.toml`, and the compiled dynamic library `binaries/macos_x86_64.dylib`.
-2. **Static Machine-Code Hooks (`kotor1-steam-aspyr-macos.hooks.toml`)**: Byte-level patches that modify assembly instructions at specific virtual addresses upon injection. Used for static instruction replacements such as register operand swaps, opcode modifications, NOP padding, and KMRP stability fixes.
+1. **`kpatch` Loader Archive (`Current Patch.kpatch` / `K1WidescreenPatch.kpatch`)**: A zip container containing `manifest.toml`, `kotor1-steam-aspyr-macos.hooks.toml`, and the compiled dynamic library `binaries/macos_x86_64.dylib`. Its `manifest.toml` specifies `requires = ["stray-bug-fixes-patch"]` so general bug fixes are automatically installed as a prerequisite.
+2. **Static Machine-Code Hooks (`kotor1-steam-aspyr-macos.hooks.toml`)**: Byte-level patches that modify assembly instructions at specific virtual addresses upon injection. Used for static instruction replacements such as aspect ratio override, map viewport displacements, uniform HUD template forcing (`mipc212x9`), dynamic row scaling, and menu centering displacements.
 3. **C++ Detour Runtime (`macos_x86_64.dylib`)**: Compiled with Apple Clang (`clang++ -dynamiclib -std=c++17 -arch x86_64`) from two primary source files:
    - `mac_widescreen.cpp`: Installs function detours, intercepts engine rendering and layout passes, manages dynamic UI coordinate hierarchies, and updates internal engine structures.
-   - `kmrp_engine_fixes.cpp`: Implements low-level macOS video mode synchronization, Retina display mode expansion, letterbox aspect calibration, minimap zoom preservation, and string sanitization ported from the KotOR Modding Restoration Project (KMRP).
+   - `kmrp_engine_fixes.cpp`: Implements low-level macOS video mode synchronization (`KMRP_UseTargetVideoMode`), Retina HiDPI display mode expansion (`KMRP_DisplayModeScale`), height-proportional letterbox aspect calibration (`SizeDialogueLetterbox`), and minimap zoom normalization (`KMRP_MinimapMapRect` / `KMRP_MinimapZoomBegin` / `KMRP_MinimapZoomEnd`).
+4. **Prerequisite: Stray Bug Fixes Patch (`stray-bug-fixes-patch`)**: A standalone companion patch delivering pure vanilla engine bug fixes (word-wrap infinite loop hang, listbox row height inflation, single-line text vanishing, wrapped text measurement rounding, and leading description newline trimming).
 
 ### 1.2 Virtual Memory Safety on macOS
 Writing to code and read-only data segments in macOS Mach-O processes requires interacting directly with Darwin kernel Mach Virtual Memory APIs. The helper routines execute safe page-protection toggles:
@@ -562,7 +567,7 @@ The patch enforces `DrawStretched` (`0x1004a2376`) through a triple-lock archite
 ### 5.9 Leading Newline Trim in GUI Text (`KMRP_TrimLeadingNewlines` at `0x1004a3726`)
 In vanilla KotOR, item and quest descriptions are constructed by prefixing each property line with `\n`. Descriptions starting with properties open with a newline, rendering an unsightly empty top line (~16px in vanilla, magnified when fonts are scaled).
 
-The detour `KMRP_TrimLeadingNewlines` intercepts `CSWGuiTextParams::SetText` at `0x1004a3726`:
+This fix is provided by the prerequisite **Stray Bug Fixes Patch** (`stray_bug_fixes.cpp`), intercepting `CSWGuiTextParams::SetText` at `0x1004a3726`:
 ```cpp
 extern "C" void KMRP_TrimLeadingNewlines(char** exoString) {
     if (!exoString) return;
@@ -799,6 +804,8 @@ All static hooks in `hooks.toml` and dynamic runtime writes deploy full 32-bit i
 In `scaleMenuPanelTree()`, when the control matches `LB_ITEMS` (`width 269, height 261`), listbox width is brought inward by `2.5 * scale` pixels. Quest name buttons automatically inherit this reduced client width from `ctrl + 0x340`, seating buttons cleanly inside the blue background container without spilling into the divider gutter.
 
 ### 8.10 KMRP Word-Wrap Infinite Loop Hang ("Inventory Crash") Fix (`0x1001bc644`)
+*Provided by prerequisite: **Stray Bug Fixes Patch** (`stray-bug-fixes-patch`)*
+
 In `CAurGUIStringInternal::WrapStrings` (`0x1001bc644`), when a text line with no breakable spaces cannot fit even two characters, the engine backs up one character and restarts. The vanilla progress guard compared `r8` (cursor) against `[rsp+0x18]` (start of the entire string) instead of `r15` (start of the current line). Because cursor > string start, the engine believed progress was occurring, looping indefinitely and allocating line objects until the process ran out of memory (the classic KotOR inventory crash).
 
 The replacement hook at `0x1001bc644`:
@@ -807,11 +814,15 @@ The replacement hook at `0x1001bc644`:
 3. Byte patches at `0x1001bc71e` and `0x1001bc738` bypass legacy checks that blanked 1- or 2-character strings in narrow labels.
 
 ### 8.11 KMRP Listbox Row Inflation on Repopulate Fix (`0x1004a8927`)
+*Provided by prerequisite: **Stray Bug Fixes Patch** (`stray-bug-fixes-patch`)*
+
 In `CSWGuiListBox::OrganizeControls` (`0x1004a82b4`), the visible-row loop distributes leftover listbox height across rows by increasing row heights and writing the enlarged height back to `[rbp-0x34]`. When the list re-opened or refilled, the engine recomputed item height from this inflated value and inflated it again, causing list rows to expand continuously.
 
 The patch NOPs the two instructions at `0x1004a8927` (`89 5d cc -> 90 90 90`) and `0x1004a8939` (`89 45 cc -> 90 90 90`), stopping row height inflation while preserving row spacing advancement.
 
 ### 8.12 KMRP Wrapped Text Measurement Under-Estimation Fix (`0x1001bca20`)
+*Provided by prerequisite: **Stray Bug Fixes Patch** (`stray-bug-fixes-patch`)*
+
 In `CAurGUIStringInternal::WrapStrings`, the line-breaker truncated glyph advances after adding `0.25f` (`0x10056eca0`), under-measuring line widths by ~0.25px per character relative to `Draw` (which uses exact floating-point widths). Long wrapped lines often exceeded their container box and collided with scrollbars.
 
 The hook at `0x1001bca20` points the displacement to the engine's existing `0.5f` constant (`0x100537dc4`), restoring unbiased half-up rounding.
@@ -852,7 +863,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
 | `Hook_WindowDraw` | `0x10049ded4` | Detour | `mac_widescreen.cpp` | Master menu render pass: scales 4:3 menu hierarchy, applies 0x60 centering flag, scales popups, stores, inventory |
 | `Hook_ClassSelectionUpdate` | `0x100337886` | Detour | `mac_widescreen.cpp` | Responsive 6-slot class selection matrix and 3D preview model synchronization in Character Generation |
 | `scaleLoadedTextureMetadata` | `0x1001f8883` | Detour | `mac_widescreen.cpp` | Intercepts texture TXI parser to dynamically scale font glyph metrics (`CAurFontInfo`) |
-| `KMRP_TrimLeadingNewlines` | `0x1004a3726` | Detour | `kmrp_engine_fixes.cpp` | Trims leading `\n` in GUI text params in-place to prevent empty top lines in item/quest descriptions |
+| `KMRP_TrimLeadingNewlines` | `0x1004a3726` | Detour | `stray_bug_fixes.cpp` (Stray Bug Fixes Patch) | Trims leading `\n` in GUI text params in-place to prevent empty top lines in item/quest descriptions |
 | `KMRP_UseTargetVideoMode` | `0x10026ed44` | Detour | `kmrp_engine_fixes.cpp` | Forces fullscreen video mode to widescreen target, eliminating CGL surface cropping |
 | `KMRP_DisplayModeScale` | `0x10001de6c` | Detour | `kmrp_engine_fixes.cpp` | Supplies true pixel/point backing ratio to unlock native Retina (HiDPI) display modes |
 | `KMRP_MinimapMapRect` | `0x100237974` | Detour | `kmrp_engine_fixes.cpp` | Re-centers `LBL_MAP` for 120px vanilla radar normalization |
@@ -1140,7 +1151,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
   <td><code>0x1001bc644</code></td>
   <td><code>49 ff c8 4c 8b 65 b0 4d 3b 44 24 18 0f 84 f8 02 00 00</code></td>
   <td><code>49 ff c8 4c 8b 65 b0 4d 39 f8 77 25 4d 89 f8 ...</code></td>
-  <td>CAurGUIStringInternal::WrapStrings (K1: Word-wrap hang fix)</td>
+  <td>CAurGUIStringInternal::WrapStrings (K1: Word-wrap hang fix - Stray Bug Fixes Patch)</td>
 </tr>
 <tr>
   <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Compared progress against start of entire string, causing infinite loop when narrow text could not break.<br><b>After:</b> Compares progress against current line start (<code>r15</code>); routes unfittable text to single overflowing line, preventing memory crash.</td>
@@ -1149,7 +1160,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
   <td><code>0x1001bc71e</code></td>
   <td><code>e9 c4 03 00 00</code></td>
   <td><code>eb 1e 90 90 90</code></td>
-  <td>CAurGUIStringInternal::WrapStrings (Single char blanking bypass)</td>
+  <td>CAurGUIStringInternal::WrapStrings (Single char blanking bypass - Stray Bug Fixes Patch)</td>
 </tr>
 <tr>
   <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Blanked 1-character strings outright if narrower than 'o' glyph.<br><b>After:</b> Jumps to wrap loop, allowing enlarged single-digit stack counts to draw.</td>
@@ -1158,7 +1169,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
   <td><code>0x1001bc738</code></td>
   <td><code>0f 8c a9 03 00 00</code></td>
   <td><code>90 90 90 90 90 90</code></td>
-  <td>CAurGUIStringInternal::WrapStrings (Two char blanking bypass)</td>
+  <td>CAurGUIStringInternal::WrapStrings (Two char blanking bypass - Stray Bug Fixes Patch)</td>
 </tr>
 <tr>
   <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Blanked 2-character strings if narrower than 2 'o' glyphs.<br><b>After:</b> NOPs branch, allowing two-digit stack counts to draw.</td>
@@ -1167,7 +1178,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
   <td><code>0x1004a8927, 939</code></td>
   <td><code>89 5d cc / 89 45 cc</code></td>
   <td><code>90 90 90 / 90 90 90</code></td>
-  <td>CSWGuiListBox::OrganizeControls (K2: Listbox row inflation fix)</td>
+  <td>CSWGuiListBox::OrganizeControls (K2: Listbox row inflation fix - Stray Bug Fixes Patch)</td>
 </tr>
 <tr>
   <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Wrote remainder pixels back into row height template, compounding row heights each time list reloaded.<br><b>After:</b> NOPs both writes, keeping row heights stable across repopulations.</td>
@@ -1176,7 +1187,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
   <td><code>0x1001bcbef, c22</code></td>
   <td><code>0f 2e ca 76 36 / 49 ff c4...</code></td>
   <td><code>Replace hooks (28 bytes each)</code></td>
-  <td>CAurGUIStringInternal::Draw (K5: Bottom-aligned line drop prevention)</td>
+  <td>CAurGUIStringInternal::Draw (K5: Bottom-aligned line drop prevention - Stray Bug Fixes Patch)</td>
 </tr>
 <tr>
   <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Dropped single lines when taller than box, making item count badges vanish with scaled fonts.<br><b>After:</b> Ensures final remaining line is never dropped.</td>
@@ -1185,7 +1196,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
   <td><code>0x1001bcc72, ca9</code></td>
   <td><code>0f 2e d1 76 3a / 49 ff c4...</code></td>
   <td><code>Replace hooks (28 bytes each)</code></td>
-  <td>CAurGUIStringInternal::Draw (K5: Centered line drop prevention)</td>
+  <td>CAurGUIStringInternal::Draw (K5: Centered line drop prevention - Stray Bug Fixes Patch)</td>
 </tr>
 <tr>
   <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Dropped centered lines taller than box.<br><b>After:</b> Retains final centered line.</td>
@@ -1194,7 +1205,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
   <td><code>0x1001bca20</code></td>
   <td><code>f3 0f 58 05 78 22 3b 00</code></td>
   <td><code>f3 0f 58 05 9c b3 37 00</code></td>
-  <td>CAurGUIStringInternal::WrapStrings (K6: Wrapped text rounding fix)</td>
+  <td>CAurGUIStringInternal::WrapStrings (K6: Wrapped text rounding fix - Stray Bug Fixes Patch)</td>
 </tr>
 <tr>
   <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Added 0.25f rounding displacement, under-measuring lines and clipping into scrollbars.<br><b>After:</b> Points to engine's 0.5f constant (<code>0x100537dc4</code>), restoring standard half-up rounding.</td>
