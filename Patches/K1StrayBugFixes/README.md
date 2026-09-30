@@ -45,11 +45,8 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 - **Issue**: The line-breaker truncates every glyph advance to whole pixels after adding `0.25f` (`0x10056eca0`), under-measuring line widths by ~0.25px per character relative to `Draw`. Long wrapped lines often exceeded their container box and collided with scrollbars.
 - **Fix**: Repoints the displacement to the engine's existing `0.5f` constant (`0x100537dc4`), restoring unbiased half-up rounding.
 
----
-
-## Packaging & Dependencies
-
-- **Patch ID**: `k1-stray-bug-fixes-patch`
-- **Supported Binary**: Aspyr macOS 64-bit AMD64 (`C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71`)
-- **Integration**: The Widescreen Patch declares `requires = ["k1-stray-bug-fixes-patch"]` in its `manifest.toml`. KotOR Patch Manager (KPM) automatically verifies and installs this patch prior to installing the Widescreen Patch.
-```
+### 6. K7. Scripts Menu Enter Key Bug
+- **Target**: Enter-key button callback for script list rows (`0x1002d3e34`)
+- **Hook**: Simple hook at `0x1002d3e34` (`55 -> c3`, 1 byte)
+- **Issue**: Opening the AI Scripts selection menu from the Character Sheet displays Tutorial Box 10 ("Combat Scripts"). Pressing Enter to dismiss the tutorial immediately closed both the popup and the Scripts menu, whereas clicking "OK" with the mouse kept the menu open. Each script row control in the list registered an Enter (`0x27`) button callback (`0x1002d3e34`) that hijacked Enter keypresses intended for the tutorial popup, popping the modal panel and setting the `0x200` closing flag on `CSWGuiScriptSelect`.
+- **Fix**: Replaces the function's entry instruction (`pushq %rbp`) with `retq` (`0xC3`). This neutralizes the premature row callback, allowing Enter to dismiss the tutorial popup cleanly on the first press. Once dismissed, native Enter handling in `CSWGuiScriptSelect::HandleInputEvent` (Case 0 / Case 6) and the Select button confirm scripts normally.
