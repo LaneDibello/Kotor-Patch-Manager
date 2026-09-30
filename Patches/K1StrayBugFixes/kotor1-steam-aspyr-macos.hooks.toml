@@ -136,3 +136,23 @@ original_bytes = [0xB8, 0xFF, 0xFF, 0xFF, 0xFF]
 [[hooks.parameters]]
 source = "rbx"
 type = "pointer"
+
+# ==============================================================================
+# 6. SCRIPTS MENU ENTER KEY BUG (K7)
+# ==============================================================================
+# Function: Enter button callback for script list rows (0x1002d3e34)
+# When the AI Scripts menu opens, Tutorial Box 10 ("Combat Scripts") appears.
+# In vanilla, each script entry row in the listbox registers a button callback
+# (0x1002d3e34) for event 0x27 (Enter). When Enter was pressed to dismiss the
+# tutorial popup, this row callback hijacked the Enter key, saving the script,
+# popping the modal panel, and setting the 0x200 closing flag on ScriptSelect.
+#
+# Fix: Retq (0xC3) at the very start of the callback function (0x1002d3e34).
+# Disables this redundant callback so the Enter key dismisses the tutorial popup
+# cleanly on the first press. Once dismissed, native Enter handling in
+# CSWGuiScriptSelect::HandleInputEvent and the Select button confirm scripts.
+[[hooks]]
+address = 0x1002d3e34
+type = "simple"
+original_bytes = [0x55]
+replacement_bytes = [0xC3]
