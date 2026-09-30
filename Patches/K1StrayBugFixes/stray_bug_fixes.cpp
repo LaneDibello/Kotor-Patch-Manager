@@ -38,3 +38,4 @@ extern "C" void KMRP_TrimLeadingNewlines(char** exoString) {
     while (s[skip] == '\n') ++skip;
     memmove(s, s + skip, strlen(s + skip) + 1);
 }
+
