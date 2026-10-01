@@ -1,7 +1,7 @@
 # KotOR 1 macOS Widescreen & High-Resolution UI Architecture Guide
 *A Comprehensive Engineering Reference for the Aspyr 64-bit AMD64 Port (with KMRP Engine Enhancements)*
 
-Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. If you want to use this patch, the instructions are simple: simply install the patch with KPM. No gui files or .ini changes are required, but they may be used with a .ini edit (UseGuiFileLayouts=1 under [Graphics Options]).——FTD
+Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. This patch offers two modes: (1) a scaled-up vanilla mode (with no additional files required) and (2) an external gui mode, with specific variables (or the variables for the conventional scaling formula, see section 9.2) defined in swkotor.ini. For mode 2, add `UseGuiFileLayouts=1` under `[Graphics Options]` to your .ini file.——FTD
 
 ---
 
@@ -9,7 +9,7 @@ Note: You do not need to read this readme! This is a technical explanation for a
 1. [Architecture & System Overview](#1-architecture--system-overview)
    - 1.1 [The Multi-File Patching Pipeline](#11-the-multi-file-patching-pipeline)
    - 1.2 [Virtual Memory Safety on macOS](#12-virtual-memory-safety-on-macos)
-   - 1.3 [Detour Execution Model: Single-Draw Pipeline & Float Delta Preservation](#13-detour-execution-model-single-draw-pipeline--float-delta-preservation)
+   - 1.3 [Detour Execution Model: Single-Draw Preservation & Float delta Restoration](#13-detour-execution-model-single-draw-preservation--float-delta-restoration)
    - 1.4 [Sequential Hook Validation & Detour Ordering in hooks.toml](#14-sequential-hook-validation--detour-ordering-in-hookstoml)
 2. [Display Resolution & Aspect Ratio Edits](#2-display-resolution--aspect-ratio-edits)
    - 2.1 [Resolution Discovery, Hardware Overrides & Retina (HiDPI) Mode Detection](#21-resolution-discovery-hardware-overrides--retina-hidpi-mode-detection)
@@ -78,43 +78,41 @@ Note: You do not need to read this readme! This is a technical explanation for a
    - 8.11 [KMRP Listbox Row Inflation on Repopulate Fix (0x1004a8927)](#811-kmrp-listbox-row-inflation-on-repopulate-fix-0x1004a8927)
    - 8.12 [KMRP Wrapped Text Measurement Under-Estimation Fix (0x1001bca20)](#812-kmrp-wrapped-text-measurement-under-estimation-fix-0x1001bca20)
    - 8.13 [Font Cache Invalidation by Height & Address (MarkFontScaled)](#813-font-cache-invalidation-by-height--address-markfontscaled)
-   - 8.14 [FontScale Calibration & UI Box Bounds](#814-fontscale-calibration--ui-box-bounds)
-9. [Master Reference Tables](#9-master-reference-tables)
-   - 9.1 [Active Binary Detour Hooks (mac_widescreen.cpp & kmrp_engine_fixes.cpp)](#91-active-binary-detour-hooks-mac_widescreencpp--kmrp_engine_fixescpp)
-   - 9.2 [Dynamic & Static Byte-Level Engine Patches](#92-dynamic--static-byte-level-engine-patches)
-   - 9.3 [Engine Global Variables & Pointers](#93-engine-global-variables--pointers)
-   - 9.4 [Master Vtable Inventory](#94-master-vtable-inventory)
-   - 9.5 [Internal Structure Memory Offsets](#95-internal-structure-memory-offsets)
+9. [UI Customization & Dual-Mode Engine Architecture](#9-ui-customization--dual-mode-engine-architecture)
+   - 9.1 [Dual-Mode Operation: Procedural Stretch vs. External GUI Files](#91-dual-mode-operation-procedural-stretch-vs-external-gui-files)
+   - 9.2 [Multi-Skin Scaling Engine (UI Scaling Bases)](#92-multi-skin-scaling-engine-ui-scaling-bases)
+   - 9.3 [Complete Configuration Reference (swkotor.ini)](#93-complete-configuration-reference-swkotorini)
+10. [Master Reference Tables](#10-master-reference-tables)
+   - 10.1 [Active Binary Detour Hooks (mac_widescreen.cpp & kmrp_engine_fixes.cpp)](#101-active-binary-detour-hooks-mac_widescreencpp--kmrp_engine_fixescpp)
+   - 10.2 [Dynamic & Static Byte-Level Engine Patches](#102-dynamic--static-byte-level-engine-patches)
+   - 10.3 [Engine Global Variables & Pointers](#103-engine-global-variables--pointers)
+   - 10.4 [Master Vtable Inventory](#104-master-vtable-inventory)
+   - 10.5 [Internal Structure Memory Offsets](#105-internal-structure-memory-offsets)
 
 ---
 
 ## 1. Architecture & System Overview
 
 ### 1.1 The Multi-File Patching Pipeline
-The Knights of the Old Republic (KotOR 1) macOS widescreen and engine enhancement patch operates on Aspyr’s 64-bit AMD64 binary (`k1_mac_aspyr_swkotor.app_x64`). Rather than modifying the executable file on disk, the patch utilizes a clean, non-destructive runtime injection architecture consisting of interconnected layers across modular patch packages:
+The Knights of the Old Republic (KotOR 1) macOS widescreen and engine enhancement patch operates on Aspyr’s 64-bit AMD64 binary (`k1_mac_aspyr_swkotor.app_x64`). Rather than modifying the executable file on disk, the patch utilizes a clean, non-destructive runtime injection architecture consisting of interconnected layers across multiple source modules:
 
 ```mermaid
 flowchart TD
-    Launcher["kpatch Loader (Game Launch)"] --> DepCheck["Resolves Dependencies (manifest.toml)"]
-    DepCheck --> StrayPatch["Stray Bug Fixes Patch (stray-bug-fixes-patch)"]
-    DepCheck --> WidescreenPatch["Widescreen Patch (k1widescreenpatch)"]
-    StrayPatch --> StaticBugs["General Engine Bug Fixes (hooks & stray_bug_fixes.cpp)"]
-    WidescreenPatch --> StaticHooks["Widescreen Byte Hooks (hooks.toml)"]
-    WidescreenPatch --> DylibLoad["Dynamic Detour Runtime (macos_x86_64.dylib)"]
+    Launcher["kpatch Loader (Game Launch)"] --> Ingest["Ingests manifest.toml & hooks.toml"]
+    Ingest --> StaticHooks["1. Static Byte Hooks (hooks.toml)"]
+    Ingest --> DylibLoad["2. Dynamic Detour Runtime (macos_x86_64.dylib)"]
     DylibLoad --> WidescreenCpp["mac_widescreen.cpp (Layout & Scaling Engine)"]
-    DylibLoad --> KmrpCpp["kmrp_engine_fixes.cpp (Widescreen Video Mode & Letterbox)"]
-    StaticBugs --> EngineMemory["KotOR Mach-O Engine Memory (0x100000000)"]
-    StaticHooks --> EngineMemory
+    DylibLoad --> KmrpCpp["kmrp_engine_fixes.cpp (Engine Stability & Video Mode)"]
+    StaticHooks --> EngineMemory["KotOR Mach-O Engine Memory (0x100000000)"]
     WidescreenCpp --> EngineMemory
     KmrpCpp --> EngineMemory
 ```
 
-1. **`kpatch` Loader Archive (`Current Patch.kpatch` / `K1WidescreenPatch.kpatch`)**: A zip container containing `manifest.toml`, `kotor1-steam-aspyr-macos.hooks.toml`, and the compiled dynamic library `binaries/macos_x86_64.dylib`. Its `manifest.toml` specifies `requires = ["stray-bug-fixes-patch"]` so general bug fixes are automatically installed as a prerequisite.
-2. **Static Machine-Code Hooks (`kotor1-steam-aspyr-macos.hooks.toml`)**: Byte-level patches that modify assembly instructions at specific virtual addresses upon injection. Used for static instruction replacements such as aspect ratio override, map viewport displacements, uniform HUD template forcing (`mipc212x9`), dynamic row scaling, and menu centering displacements.
+1. **`kpatch` Loader Archive (`FTD Vriff.kpatch`)**: A zip container containing `manifest.toml`, `kotor1-steam-aspyr-macos.hooks.toml`, and the compiled dynamic library `binaries/macos_x86_64.dylib`.
+2. **Static Machine-Code Hooks (`kotor1-steam-aspyr-macos.hooks.toml`)**: Byte-level patches that modify assembly instructions at specific virtual addresses upon injection. Used for static instruction replacements such as register operand swaps, opcode modifications, NOP padding, and KMRP stability fixes.
 3. **C++ Detour Runtime (`macos_x86_64.dylib`)**: Compiled with Apple Clang (`clang++ -dynamiclib -std=c++17 -arch x86_64`) from two primary source files:
    - `mac_widescreen.cpp`: Installs function detours, intercepts engine rendering and layout passes, manages dynamic UI coordinate hierarchies, and updates internal engine structures.
-   - `kmrp_engine_fixes.cpp`: Implements low-level macOS video mode synchronization (`KMRP_UseTargetVideoMode`), Retina HiDPI display mode expansion (`KMRP_DisplayModeScale`), height-proportional letterbox aspect calibration (`SizeDialogueLetterbox`), and minimap zoom normalization (`KMRP_MinimapMapRect` / `KMRP_MinimapZoomBegin` / `KMRP_MinimapZoomEnd`).
-4. **Prerequisite: Stray Bug Fixes Patch (`stray-bug-fixes-patch`)**: A standalone companion patch delivering pure vanilla engine bug fixes (word-wrap infinite loop hang, listbox row height inflation, single-line text vanishing, wrapped text measurement rounding, and leading description newline trimming).
+   - `kmrp_engine_fixes.cpp`: Implements low-level macOS video mode synchronization, Retina display mode expansion, letterbox aspect calibration, minimap zoom preservation, and string sanitization ported from the KotOR Modding Restoration Project (KMRP).
 
 ### 1.2 Virtual Memory Safety on macOS
 Writing to code and read-only data segments in macOS Mach-O processes requires interacting directly with Darwin kernel Mach Virtual Memory APIs. The helper routines execute safe page-protection toggles:
@@ -145,55 +143,46 @@ In `kmrp_engine_fixes.cpp`, `ReplaceImageBytes` extends this concept by validati
 > [!NOTE]
 > `VM_PROT_COPY` enforces copy-on-write semantics, guaranteeing that patched pages remain isolated to the running process without corrupting disk binaries or violating system integrity.
 
-### 1.3 Detour Execution Model: Single-Draw Pipeline & Float Delta Preservation
+### 1.3 Detour Execution Model: Single-Draw Preservation & Float delta Restoration
 
-#### The KPM Detour Architecture: Prefix Interception & Wrapper Continuation
+#### KPM Detour Architecture: Prefix Interception & Prologue Continuation
 Detour hooks in KotorPatcher (KPM) operate as **prefix detours**. When a function prologue is hooked:
-1. The game executes a near jump to KPM's dynamically generated detour stub at the function prologue (e.g., `0x10049ded4`).
+1. The game executes a near jump to KPM's dynamically generated detour stub.
 2. KPM's stub pushes general-purpose registers (`rax`, `rcx`, `rdx`, `rsi`, `rdi`, `r8`–`r15`) and calls the C++ detour function in `macos_x86_64.dylib`.
 3. When the C++ detour returns (`ret`), KPM's stub restores the saved general-purpose registers.
-4. KPM's stub **automatically executes the stolen prologue bytes and jumps back into the engine function** at `target + stolen_bytes_length` (`0x10049dee3`).
+4. KPM's stub **automatically executes the stolen prologue bytes and jumps back into the original function** (`target + stolen_bytes_length`).
 
-#### Single-Draw Architecture (1× Animation Speed)
-Because KPM detours automatically execute the stolen prologue bytes and resume the engine function upon return, the C++ detour handlers (`Hook_WindowDraw` and `Hook_MainInterfaceDraw`) do **not** invoke `Original_WindowDraw` or `Original_MainInterfaceDraw`.
+Because KPM handles the stolen prologue bytes and execution continuation automatically, C++ detour handlers do not—and must not—call explicit trampolines (`Original_Func`). Omitting trampolines guarantees **single-draw execution**, preventing doubled animation speeds and preserving full framerate performance.
 
-This design ensures:
-- The rendering function executes **exactly once per frame**, preserving standard 1× animation speed across 3D title flybys, in-game menus, and pulsating buttons without advancing UI animation timers prematurely.
-- Rendering pipeline overhead and framerate remain unburdened by redundant draw passes.
+#### Floating-Point ABI Preservation (`%xmm0`) & Dynamic Lighting
+Under the System V AMD64 ABI on macOS:
+1. Scalar floating-point parameters (such as `delta` in `CSWGuiWindow::Draw(void* this, float delta)`) are passed in register `%xmm0`.
+2. KPM's stub saves and restores general-purpose integer registers around the detour call, but **does not preserve SSE vector registers (`%xmm0`–`%xmm15`)**.
+3. Any floating-point math performed inside the C++ detour (e.g. aspect ratio scaling or viewport calculation) clobbers `%xmm0`. If the hook returned `void`, `%xmm0` would exit containing arbitrary math remainders (often `0.0f`).
+4. When KPM's stub jumps back to the original function at `0x10049dee3`, the engine executes:
+   ```asm
+   0x10049dee3: movss %xmm0, -0x24(%rbp)    # Saves delta to local stack frame
+   ```
+   If `%xmm0` were `0.0f`, child controls such as `CSWGui3DSceneView` would receive zero delta, halting dynamic room lighting accumulation in `CAurScene::Render` and collapsing 3D character models into pitch-black silhouettes.
 
-#### Float Delta Return via System V AMD64 ABI
-Under the System V AMD64 ABI on macOS, scalar floating-point arguments and return values are passed in register `%xmm0`.
-
-In KotOR's engine, rendering routines take the elapsed frame time as a parameter:
-```cpp
-void CSWGuiWindow::Draw(CSWGuiWindow* this, float delta); // 'this' in %rdi, 'delta' in %xmm0
-```
-Inside `CSWGuiWindow::Draw`, instruction `0x10049df3e: movss %xmm0, -0x24(%rbp)` stores `%xmm0` into the stack frame and propagates it to all child control draw calls.
-
-While KPM's detour stub preserves integer registers across the detour call, it does not manage SSE vector registers. To ensure the incoming frame `delta` is passed forward cleanly into the engine's continuation:
-1. Both `Hook_WindowDraw` and `Hook_MainInterfaceDraw` are declared with return type `float`:
+#### The Architectural Solution: Returning `float delta`
+By declaring detour handlers to return `float` and ending with `return delta;`:
 ```cpp
 extern "C" float Hook_WindowDraw(char* window, float delta) {
     if (window && is_readable(window)) {
-        ...
+        // Apply coordinate hierarchy, centering, and scaling
     }
     return delta;
 }
 
 extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
     if (hud && is_readable(hud)) {
-        ...
+        // Enforce widescreen anchors and viewport bounds
     }
     return delta;
 }
 ```
-2. The compiler emits:
-```asm
-movss -0x2c(%rbp), %xmm0    # Places delta into return register %xmm0
-retq                        # Returns to KPM wrapper
-```
-When control returns to KPM's wrapper and continues into `0x10049dee3`, register `%xmm0` holds the legitimate elapsed frame `delta`. The engine passes this delta to child controls, ensuring continuous frame advancement for all UI elements and dynamic 3D scene views.
-
+Under System V ABI conventions, a function's scalar `float` return value is placed directly into `%xmm0`. When control returns through KPM's stub to the original function prologue, `%xmm0` holds the legitimate frame `delta`. Dynamic scene lighting accumulates normally, keeping 3D character models vividly illuminated across all menus.
 ### 1.4 Sequential Hook Validation & Detour Ordering in hooks.toml
 KPM processes hooks in sequential file order and halts immediately if the `original_bytes` at any address do not match current memory.
 
@@ -219,8 +208,6 @@ The widescreen patch establishes target rendering bounds through a hierarchical 
    ForceWidth=1920
    ForceHeight=1200
    ```
-   > [!IMPORTANT]
-   > **Display Mode Validation**: Any resolution configured via `ForceWidth` and `ForceHeight` must match a real display mode reported by macOS and SDL for the active monitor (such as the native point resolution e.g. 1512×982, or the native Retina pixel resolution e.g. 3024×1964 unlocked by `KMRP_DisplayModeScale`). If an arbitrary resolution not present in the system's display mode list is requested (e.g. 1400×900 on a 1512×982 MacBook), the engine's internal `FindDisplayMode` validator rejects it and falls back to a 1024×768 CGL surface, causing the frame to be cropped.
 4. **Runtime Engine Canvas Updates**: The target dimensions are propagated directly to the engine's internal global structures:
    - `0x1005d3b8c`: Global UI Canvas Width (`g_uiWidth`)
    - `0x1005d3b90`: Global UI Canvas Height (`g_uiHeight`)
@@ -241,11 +228,6 @@ extern "C" void KMRP_UseTargetVideoMode(int* width, int* height) {
 }
 ```
 This forces `r12` (width) and `r15` (height) to match the target resolution, ensuring that the CGL fullscreen surface, OpenGL viewport, and widescreen layout agree.
-
-> [!NOTE]
-> **Windowed Mode vs. Fullscreen Aspect Ratio**:
-> The patch is architected for Fullscreen mode (`FullScreen=1` under `[Graphics Options]`), which is the native and standard mode of play.
-> In Windowed mode (`FullScreen=0`), macOS enforces title bar and menu bar clearance, reducing the available OpenGL content area height by approximately 61 px (e.g. 921 px instead of 982 px on a 14" MacBook Pro). Because the game's projection matrix and 2D layout are calibrated for the monitor's full height (982 px), this creates a minor ~6.2% vertical compression in windowed mode. For true 1:1 pixel geometry, play in Fullscreen mode.
 
 ### 2.3 Retina Display Mode List Scaling (`KMRP_DisplayModeScale`)
 In Aspyr's port, a display mode is only accepted if it exists in the engine's internal mode list (`0x100204d5a`); missing modes fall back to 1024×768. The list-builder at `0x10001ddee` was designed to generate HiDPI twin modes scaled by the monitor's backing scale factor, but Aspyr hardcoded the factor to constant `1.0` (`0x10001de62`). Consequently, requesting full Retina pixel targets (such as `ForceWidth=3024` and `ForceHeight=1964`) failed validation and fell back to 1024×768.
@@ -535,7 +517,7 @@ The Abilities tab displays skills and feats through `CSWGuiInGameSkillEntry` ite
 - A tuning knob `skillHeight = 42` in `UiTuningKnobs` allows live tuning via `[UI Tuning]` in `swkotor.ini`.
 
 ### 5.7 Continuous Resolution Scaling Formula
-To eliminate dependence on static INI configuration files, the runtime implements `GetScaledItemGeometry(int targetHeight)`:
+To provide clean list layouts out-of-the-box across arbitrary screen heights without requiring manual configuration, the runtime implements `GetScaledItemGeometry(int targetHeight)`. In Procedural Mode (`UseGuiFileLayouts=0`), listbox row strides, item dimensions, and offsets are computed dynamically:
 ```cpp
 ItemGeometry GetScaledItemGeometry(int targetHeight) {
     float scale = (targetHeight > 0) ? ((float)targetHeight / 982.0f) : 1.0f;
@@ -556,6 +538,10 @@ ItemGeometry GetScaledItemGeometry(int targetHeight) {
 }
 ```
 
+> [!TIP]
+> Every variable in this formula can be explicitly overridden in `swkotor.ini` under the `[UI Tuning]` section (e.g. `ItemHeight`, `ItemPadding`, `IconWidth`, `IconHeight`, `IconTopOffset`, `TextOffset`, `TextDeduct`, `ListLeftOffset`, `ListTopOffset`, `ListWidthOffset`, `BadgeOffset`, `BadgeTopOffset`). If a variable is specified in `swkotor.ini`, the engine honors the INI value; otherwise, it computes the scaled value automatically via the formula above.
+
+
 ### 5.8 Item Icon Border Arch Scaling & The 4-Mini-Box Bug (`CSWGuiBorder::Draw` at `0x1004a1e40`)
 KotOR's item arch borders (`lbl_hex_3`) use fill-only textures without corner pieces (`border->cornerTexture == NULL`). In vanilla KotOR, borders default to tile mode (`fillStyle = 0`). Expanding item icon dimensions beyond 1024×768 caused the engine's 2D renderer to divide width and height by 56px and tile `lbl_hex_3` across a 2×2 grid, producing four miniature hexagon boxes per icon.
 
@@ -567,7 +553,7 @@ The patch enforces `DrawStretched` (`0x1004a2376`) through a triple-lock archite
 ### 5.9 Leading Newline Trim in GUI Text (`KMRP_TrimLeadingNewlines` at `0x1004a3726`)
 In vanilla KotOR, item and quest descriptions are constructed by prefixing each property line with `\n`. Descriptions starting with properties open with a newline, rendering an unsightly empty top line (~16px in vanilla, magnified when fonts are scaled).
 
-This fix is provided by the prerequisite **Stray Bug Fixes Patch** (`stray_bug_fixes.cpp`), intercepting `CSWGuiTextParams::SetText` at `0x1004a3726`:
+The detour `KMRP_TrimLeadingNewlines` intercepts `CSWGuiTextParams::SetText` at `0x1004a3726`:
 ```cpp
 extern "C" void KMRP_TrimLeadingNewlines(char** exoString) {
     if (!exoString) return;
@@ -725,8 +711,8 @@ Unlike 2D menus, `CSWGuiMainCharGen::Draw` (`0x1002e01a0`) executes a dedicated 
 flowchart TD
     A["CSWGuiMainCharGen::Draw (0x1002e01a0)"] -->|"Setup dynamic room light 0x3ea"| B["Scene Manager (g_pAppManager)"]
     A -->|"movss %xmm0, [delta]"| C["Hook_WindowDraw Detour (0x10049ded4)"]
-    C -->|"Center and scale menu panels<br/>Preserve bit 0x08 on panel[0x5c]"| D["Layout & Widescreen Scaling"]
-    D -->|"return delta (%xmm0 preserved)"| E["KPM Wrapper Continuation (0x10049dee3)"]
+    C -->|"scaleMenuPanelTree & Aspect Math<br/>(clobbers %xmm0)"| D["Layout & Widescreen Scaling"]
+    D -->|"Original_WindowDraw(window, delta)<br/>(restores %xmm0)"| E["CSWGuiWindow::Draw Trampoline (0x10049dee3)"]
     E -->|"movss %xmm0, -0x24(%rbp)"| F["Child Controls Draw Pass"]
     F -->|"Draw(delta > 0.0f)"| G["MODEL_LBL (CSWGui3DSceneView 0x1005b4b18)"]
     G -->|"Accumulate Dynamic Lighting"| H["CAurScene::Render (Full Brightness)"]
@@ -737,14 +723,9 @@ To prevent layout conflicts between master fullscreen consoles and child choice 
 1. **Master Chargen Subpanels in `isMenuPanel()`**:
    The 5 primary chargen screens (`CSWGuiPortraitCharGen` `0x1005afea0`, `CSWGuiNameChargen` `0x1005aac10`, `CSWGuiAbilitiesCharGen` `0x1005b0950`, `CSWGuiSkillsCharGen` `0x1005a7820`, `CSWGuiFeatsCharGen` `0x1005adc40`) are registered in `isMenuPanel()`.
    - Ensures they receive full standard menu scaling without distorting the underlying 3D room canvas.
-   - Sets centering flags `0x60` (`0x20 | 0x40`) while maintaining client-relative coordinate space.
-2. **Subpanel Transition & Backdrop Curtain Preservation**:
-   In `scaleSmallChargenPanel()` and `scaleMenuPanelTree()`, panel status flags are updated using:
-   ```cpp
-   panel[0x5c] = (panel[0x5c] & ~0x01) | 0x60;
-   ```
-   - **Bit `0x08` (Backdrop Curtain Accounting)**: The engine uses bit `0x08` on `panel + 0x5c` for internal backdrop tracking: `CSWGuiManager::AddPanel` (`0x10049ed36`) sets bit `0x08` when incrementing the manager's backdrop curtain counter (`mgr + 0xa8`), `CSWGuiManager::RemovePanel` (`0x10049db6e: testb $0x8, %al`) decrements the counter only while bit `0x08` is set, and the manager visibility pass (`0x10049e650: testb $0x8, %dl`) inspects it on the topmost panel to determine whether underlying 3D controls should receive dynamic lighting.
-   - **Bit Masking Integrity**: Masking strictly with `& ~0x01` clears only the unscaled layout flag while preserving bit `0x08` and internal subpanel transition bits (`0x0100`–`0x0700` manipulated by `CSWGuiMainCharGen::ResetSubPanels`). This ensures curtain counters remain perfectly synchronized across subpanel transitions (`custpnl` / `quickpnl`), preventing the 3D player preview character model from losing dynamic lighting.
+   - Cleanses conflicting flags on `panel + 0x5c` to `0x60` (centering) and `0x01` (fallback), preventing misaligned hitboxes.
+2. **Subpanel Transition Preservation**:
+   During subpanel switching (`CSWGuiMainCharGen::ResetSubPanels` at `0x1002df6bd`), the engine sets internal state bits `0x0100`–`0x0700` in the 16-bit word at `panel + 0x5c`. Preserving standard bit masking `(panel[0x5c] & ~0x09) | 0x60` ensures these transition state bits remain uncorrupted across screen transitions.
 3. **Choice Panels in `isSmallChargenPanel()`**:
    Compact choice panels such as `LEVELUPPNL` (`CSWGuiLevelUpPanel` at `0x1005a4c00`) are handled by `scaleSmallChargenPanel()`, anchoring them responsively on the right side of the screen while keeping the left-side 3D model unobstructed.
 
@@ -762,12 +743,12 @@ To prevent layout conflicts between master fullscreen consoles and child choice 
 Setting `0x60` across menu classes:
 ```cpp
 if (isMenuPanel(vtable)) {
-    panel[0x5c] = (panel[0x5c] & ~0x01) | 0x60;
+    panel[0x5c] = (panel[0x5c] & ~0x09) | 0x60;
 } else {
     panel[0x5c] = (panel[0x5c] & ~0x68) | 0x01;
 }
 ```
-Masking with `& ~0x01` clears the unscaled flag while preserving bit `0x08` (backdrop curtain tracking). All top-level menus, load screens, and category tab buttons share the exact same horizontal center.
+All top-level menus, load screens, and category tab buttons share the exact same horizontal center.
 
 ### 8.3 Dynamic Centering Displacements (`patchMenuCenteringConstants`)
 The patch dynamically updates 12 hardcoded displacements to `-targetWidth` and `-targetHeight`:
@@ -804,8 +785,6 @@ All static hooks in `hooks.toml` and dynamic runtime writes deploy full 32-bit i
 In `scaleMenuPanelTree()`, when the control matches `LB_ITEMS` (`width 269, height 261`), listbox width is brought inward by `2.5 * scale` pixels. Quest name buttons automatically inherit this reduced client width from `ctrl + 0x340`, seating buttons cleanly inside the blue background container without spilling into the divider gutter.
 
 ### 8.10 KMRP Word-Wrap Infinite Loop Hang ("Inventory Crash") Fix (`0x1001bc644`)
-*Provided by prerequisite: **Stray Bug Fixes Patch** (`stray-bug-fixes-patch`)*
-
 In `CAurGUIStringInternal::WrapStrings` (`0x1001bc644`), when a text line with no breakable spaces cannot fit even two characters, the engine backs up one character and restarts. The vanilla progress guard compared `r8` (cursor) against `[rsp+0x18]` (start of the entire string) instead of `r15` (start of the current line). Because cursor > string start, the engine believed progress was occurring, looping indefinitely and allocating line objects until the process ran out of memory (the classic KotOR inventory crash).
 
 The replacement hook at `0x1001bc644`:
@@ -814,15 +793,11 @@ The replacement hook at `0x1001bc644`:
 3. Byte patches at `0x1001bc71e` and `0x1001bc738` bypass legacy checks that blanked 1- or 2-character strings in narrow labels.
 
 ### 8.11 KMRP Listbox Row Inflation on Repopulate Fix (`0x1004a8927`)
-*Provided by prerequisite: **Stray Bug Fixes Patch** (`stray-bug-fixes-patch`)*
-
 In `CSWGuiListBox::OrganizeControls` (`0x1004a82b4`), the visible-row loop distributes leftover listbox height across rows by increasing row heights and writing the enlarged height back to `[rbp-0x34]`. When the list re-opened or refilled, the engine recomputed item height from this inflated value and inflated it again, causing list rows to expand continuously.
 
 The patch NOPs the two instructions at `0x1004a8927` (`89 5d cc -> 90 90 90`) and `0x1004a8939` (`89 45 cc -> 90 90 90`), stopping row height inflation while preserving row spacing advancement.
 
 ### 8.12 KMRP Wrapped Text Measurement Under-Estimation Fix (`0x1001bca20`)
-*Provided by prerequisite: **Stray Bug Fixes Patch** (`stray-bug-fixes-patch`)*
-
 In `CAurGUIStringInternal::WrapStrings`, the line-breaker truncated glyph advances after adding `0.25f` (`0x10056eca0`), under-measuring line widths by ~0.25px per character relative to `Draw` (which uses exact floating-point widths). Long wrapped lines often exceeded their container box and collided with scrollbars.
 
 The hook at `0x1001bca20` points the displacement to the engine's existing `0.5f` constant (`0x100537dc4`), restoring unbiased half-up rounding.
@@ -842,20 +817,117 @@ static bool IsFontAlreadyScaled(void* fontInfo) {
 ```
 A fresh font carries unscaled TXI metrics, triggering scaling even at a recycled heap address. Oldest entries are recycled via circular FIFO indexing when the table reaches capacity.
 
-### 8.14 FontScale Calibration & UI Box Bounds
-By default, the patch dynamically calculates font scaling based on vertical resolution:
-$$\text{scale} = \frac{g\_targetHeight}{1080.0\text{f}} \quad (\text{clamped to } \ge 1.0\text{f})$$
-This ensures crisp text readability on high-resolution displays while maintaining exact alignment within the game's 480p-scaled buttons, tabs, headers, and list rows.
+---
 
-> [!TIP]
-> **Manual FontScale Bounds**:
-> While `FontScale` can be manually overridden in `swkotor.ini` (within a safe range of `0.5` to `3.0`), setting values significantly above the automatic baseline will cause font glyph heights to exceed the fixed bounding dimensions of single-line buttons and dialog boxes, causing the engine's text renderer (`CAurGUIStringInternal::Draw`) to truncate or cull the overflowed lines.
+## 9. UI Customization & Dual-Mode Engine Architecture
+
+### 9.1 Dual-Mode Operation: Procedural Stretch vs. External GUI Files
+A core feature of this patch is its **Dual-Mode UI Architecture**, governed by the setting `UseGuiFileLayouts` under `[Graphics Options]` in `swkotor.ini`. In short, this patch actually contains two modes:
+
+1. **Procedural Mode (`UseGuiFileLayouts=0`, Default)**:
+   - **Zero Dependencies**: Operates 100% out-of-the-box without requiring any custom `.gui` files, texture overrides, or external assets.
+   - **Dynamic Hierarchy Scaling**: Analyzes the engine's vanilla 4:3 GUI hierarchy at runtime, stretching backdrops, centering root consoles, repositioning HUD clusters, and scaling floating target reticles across arbitrary widescreen resolutions (16:10, 16:9, 21:9, and beyond).
+   - **Continuous Resolution Layout**: Derives listbox row strides, item heights, and text gutters proportionally using continuous scaling formulas.
+
+2. **External GUI Mode (`UseGuiFileLayouts=1`)**:
+   - **Full Mod Compatibility**: Designed for use with comprehensive widescreen GUI redesigns, such as the KotOR Modding Restoration Project (KMRP) or custom high-resolution UI layouts placed in the `Override/` directory.
+   - **Suppression of Procedural Stretching**: Bypasses procedural scaling (`scaleMenuPanelTree`) globally across all menus and popups (including HUD, In-Game Menu, Area Map, Options, and `skillinfo.gui` granted popups), preserving the exact dimensions and positions authored in modded `.gui` files.
+   - **Windows Gold Listbox Padding Rules**: Fixes the Mac port's vertical padding anomaly. Under vanilla Mac logic, listbox `padding` was incorrectly added to the vertical row pitch, causing severe spacing blowouts. Under `UseGuiFileLayouts=1`, the patch enforces Windows Gold v11/v12 behavior: vertical row padding is zeroed, the first row starts at $Y=0$, and `padding` serves purely as a horizontal scrollbar gutter.
+   - **High-Resolution Area Map Scaling**: Synchronizes the engine's internal map canvas ($880\times 491$) and overlay ($756\times 491$), while dynamically scaling world-to-map coordinate conversions (`MapHider_WorldToMapCoords` and `MapHider_GetPlayerMapCoords`) so player, party, and quest markers align perfectly with high-resolution map textures.
+   - **Content-Fitted Message & Tutorial Popups**: When custom high-resolution GUI files (e.g. `confirm.gui`) are active, the patch dynamically installs `KMRP_FitMessageBox` and scales tutorial icon geometry (`tut_attack.tga`). This binary-searches the minimum width required for the text, strips vertical slack, centers buttons and icons, and eliminates oversized boxes, overlapping text, and unnecessary scrollbars.
+   - **Dialogue Reply List Height Stretch (K7 Hook)**: Intercepts `CSWGuiDialogCinematic::SetExtent` (`0x100244d7d`). Rather than capping the dialogue choice listbox `LB_REPLIES` at vanilla's hardcoded 98px, it expands the list height dynamically to fill the bottom letterbox panel ($\text{panel height} - \text{list top}$), preventing early scrollbars on widescreen displays.
+   - **Level-Up Granted Popup Row Formatting**: Formats the "You have been granted..." feat and Force power popup rows (`skillinfo.gui`, `0x1005a9e18`) to match inventory row standards: expands the hex frames to fit the full text frame height, centers the icon, insets the text by an eighth of the row, and trims vertical row gaps (`KMRP_GrantedFill` at `0x10028ea4f` and `KMRP_GrantedRowText` at `0x10022f321`).
+   - **Dynamic Options Checkbox Scaling**: Dynamically scales the Options screens' toggle circles and state quads (`CSWGuiOptionsCheckbox::SetExtent` at `0x1002cecee`), growing the box from vanilla's 25px and text label from 30px proportionally with the display height factor $s = H / \text{BaseRefH}$.
 
 ---
 
-## 9. Master Reference Tables
+### 9.2 Multi-Skin Scaling Engine (`[UI Scaling Bases]`)
+To eliminate manual row-by-row pixel math in `swkotor.ini` when running external UI skins at different resolutions, the patch implements a universal skin-scaling engine under `[UI Scaling Bases]`:
+- **The Scaling Formula**: External UI skins declare their native authoring reference resolution height (`BaseReferenceHeight`, e.g. `720` for KMRP or `1080` for 1080p skins). The engine derives a dynamic scale factor $s$:
+  $$s = \frac{H_{\text{screen}}}{\text{BaseReferenceHeight}}$$
+- **Proportional Element Scaling**: Row heights and checkbox dimensions are scaled dynamically via:
+  $$\text{ItemHeight} = \text{round}(\text{BaseItemHeight} \cdot s)$$
+  $$\text{SkillHeight} = \text{round}(\text{BaseSkillHeight} \cdot s)$$
+  $$\text{ChainHeight} = \text{round}(\text{BaseChainHeight} \cdot s)$$
+  $$\text{CheckboxSize} = \text{round}(\text{BaseCheckboxSize} \cdot s)$$
+- **Configurable INI Variables**: All five parameters can be configured directly in `swkotor.ini` under `[UI Scaling Bases]` (`BaseReferenceHeight`, `BaseItemHeight`, `BaseSkillHeight`, `BaseChainHeight`, `BaseCheckboxSize`).
+- **Explicit Override Precedence**: If a user specifies an explicit row height under `[UI Tuning]` (e.g. `ItemHeight=76`), the explicit value takes priority over the scaling formula.
 
-### 9.1 Active Binary Detour Hooks (`mac_widescreen.cpp` & `kmrp_engine_fixes.cpp`)
+---
+
+### 9.3 Complete Configuration Reference (`swkotor.ini`)
+
+All aspects of the engine layout, listbox geometry, font sizes, and map dimensions can be tuned via `swkotor.ini` (located in `~/Library/Application Support/Knights of the Old Republic/swkotor.ini` or the Steam application directory).
+
+#### `[Graphics Options]` Core Engine Settings
+| Setting Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `UseGuiFileLayouts` | `int` | `0` | Set to `1` to enable external `.gui` layout mode (KMRP compatibility, Windows Gold padding, high-res map scaling). Set to `0` for procedural stretch mode. |
+| `ForceWidth` | `int` | Auto | Overrides monitor detection to force a specific horizontal rendering resolution (e.g. `1920`, `2560`, `3024`). |
+| `ForceHeight` | `int` | Auto | Overrides monitor detection to force a specific vertical rendering resolution (e.g. `1080`, `1440`, `1964`). |
+
+#### `[UI Scaling Bases]` UI Skin Customization (Multi-Skin Architecture)
+| Setting Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `BaseReferenceHeight` | `int` | `720` | Baseline reference resolution height for custom `.gui` skin sets (e.g. `720` for KMRP/HD, `1080` for 1080p-authored sets). Scales dynamically via $s = H / \text{BaseReferenceHeight}$. |
+| `BaseItemHeight` | `int` | `56` | Baseline unscaled row height for inventory and store list items at reference height. |
+| `BaseSkillHeight` | `int` | `50` | Baseline unscaled row height for character sheet skills and abilities list items. |
+| `BaseChainHeight` | `int` | `50` | Baseline unscaled row height for progression chain rows (Feats & Powers tabs). |
+| `BaseCheckboxSize` | `int` | `25` | Baseline unscaled square dimension for Options menu toggle checkboxes. |
+
+#### `[UI Tuning]` Global & Menu Scaling
+| Setting Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `MenuScale` | `float` | `1.0` | Global scaling factor applied to centered in-game menus and dialog panels. |
+| `CombatScale` | `float` | `1.0` | Scaling multiplier for the bottom-right combat action bar and action queue. |
+| `HudScale` | `float` | `1.0` | Scaling multiplier for HUD widgets, portrait clusters, and top-right menu buttons. |
+| `FontScale` | `float` | `1.0` | Scaling multiplier for bitmap font glyph metrics (`CAurFontInfo`). |
+
+#### `[UI Tuning]` Listbox & Item Geometry
+| Setting Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `ItemHeight` | `int` | `64` / `70` | Height in pixels for standard listbox rows (Inventory, Equipment). |
+| `ItemPadding` | `int` | `0` | Vertical padding between consecutive item rows. |
+| `ListHeight` | `int` | `370` | Viewport height for the inventory item listbox. |
+| `IconWidth` | `int` | `56` | Width in pixels for item icon, border, and selection highlight quads. |
+| `IconHeight` | `int` | `56` | Height in pixels for item icon, border, and selection highlight quads. |
+| `IconTopOffset` | `int` | `4` | Vertical offset of item icons relative to the row top. |
+| `TextOffset` | `int` | `60` | Horizontal starting coordinate for item name and description labels. |
+| `TextDeduct` | `int` | `66` | Width deducted from the item text box to provide gutter space for the scrollbar. |
+| `ListLeftOffset` | `int` | `0` | Horizontal displacement added to listbox containers. |
+| `ListTopOffset` | `int` | `0` | Vertical displacement added to listbox containers. |
+| `ListWidthOffset` | `int` | `0` | Width adjustment added to listbox containers. |
+| `BadgeOffset` | `int` | `32` | Horizontal position of item stack quantity badges relative to the row origin. |
+| `BadgeTopOffset` | `int` | `38` | Vertical position of item stack quantity badges relative to the row origin. |
+
+#### `[UI Tuning]` Containers, Stores, & Other Menus
+| Setting Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `ContainerItemHeight` | `int` | `58` | Row height in loot containers (chests, corpses) and merchant store lists. |
+| `ContainerPadding` | `int` | `0` | Vertical padding between container / store rows. |
+| `WorkbenchItemHeight` | `int` | `58` | Row height in workbench item selection and upgrade lists. |
+| `SkillHeight` | `int` | `58` | Row height in Character Sheet skills and feats listboxes. |
+| `SaveHeight` | `int` | `80` | Row height in the Save & Load Game listbox. |
+| `AreaTransitionTextOffset`| `int` | `4` | Vertical offset for text centering inside the in-game area transition prompt. |
+
+#### `[UI Tuning]` Area Map Scaling & Markers
+| Setting Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `MapCanvasWidth` | `int` | `880` | Horizontal resolution of the area map canvas texture (`0x100571398`). |
+| `MapCanvasHeight` | `int` | `491` | Vertical resolution of the area map canvas texture (`0x100571398`). |
+| `MapOverlayWidth` | `int` | `756` | Horizontal width of the map overlay viewport (`0x1005713a8`). |
+| `MapOverlayHeight` | `int` | `491` | Vertical height of the map overlay viewport (`0x1005713a8`). |
+| `MapMarkerScale` | `float` | `1.0` | Scaling factor applied to map marker coordinate transformations. |
+| `MapArrowSize` | `float` | `24.0` | Display size of the player orientation direction arrow on the area map. |
+| `MapPartySize` | `float` | `18.0` | Display size of party member marker dots on the area map. |
+| `MapNoteSize` | `float` | `20.0` | Display size of unselected map note / bullseye pins on the area map. |
+| `MapNoteSelSize` | `float` | `24.0` | Display size of selected map note / bullseye pins on the area map. |
+
+---
+
+## 10. Master Reference Tables
+
+### 10.1 Active Binary Detour Hooks (`mac_widescreen.cpp` & `kmrp_engine_fixes.cpp`)
 
 | Function Name | Virtual Address | Detour Type | Source File | Purpose |
 | :--- | :--- | :--- | :--- | :--- |
@@ -863,7 +935,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
 | `Hook_WindowDraw` | `0x10049ded4` | Detour | `mac_widescreen.cpp` | Master menu render pass: scales 4:3 menu hierarchy, applies 0x60 centering flag, scales popups, stores, inventory |
 | `Hook_ClassSelectionUpdate` | `0x100337886` | Detour | `mac_widescreen.cpp` | Responsive 6-slot class selection matrix and 3D preview model synchronization in Character Generation |
 | `scaleLoadedTextureMetadata` | `0x1001f8883` | Detour | `mac_widescreen.cpp` | Intercepts texture TXI parser to dynamically scale font glyph metrics (`CAurFontInfo`) |
-| `KMRP_TrimLeadingNewlines` | `0x1004a3726` | Detour | `stray_bug_fixes.cpp` (Stray Bug Fixes Patch) | Trims leading `\n` in GUI text params in-place to prevent empty top lines in item/quest descriptions |
+| `KMRP_TrimLeadingNewlines` | `0x1004a3726` | Detour | `kmrp_engine_fixes.cpp` | Trims leading `\n` in GUI text params in-place to prevent empty top lines in item/quest descriptions |
 | `KMRP_UseTargetVideoMode` | `0x10026ed44` | Detour | `kmrp_engine_fixes.cpp` | Forces fullscreen video mode to widescreen target, eliminating CGL surface cropping |
 | `KMRP_DisplayModeScale` | `0x10001de6c` | Detour | `kmrp_engine_fixes.cpp` | Supplies true pixel/point backing ratio to unlock native Retina (HiDPI) display modes |
 | `KMRP_MinimapMapRect` | `0x100237974` | Detour | `kmrp_engine_fixes.cpp` | Re-centers `LBL_MAP` for 120px vanilla radar normalization |
@@ -874,393 +946,59 @@ This ensures crisp text readability on high-resolution displays while maintainin
 
 ---
 
-### 9.2 Dynamic & Static Byte-Level Engine Patches
+### 10.2 Dynamic & Static Byte-Level Engine Patches
 
-<table>
-<thead>
-<tr>
-  <th style="width: 16%;">Address</th>
-  <th style="width: 28%;">Original Bytes</th>
-  <th style="width: 28%;">Replacement Bytes</th>
-  <th style="width: 28%;">Description / Instruction</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><code>0x100204a24</code></td>
-  <td><code>55 48 89 e5 81 fe 20 03 00 00 b8</code></td>
-  <td><code>55 48 89 e5 b8 01 00 00 00 5d c3</code></td>
-  <td>CSWGuiManager::GetAspectRatio</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Clamped non-4:3 aspect ratios to legacy fallbacks.<br><b>After:</b> Returns <code>1</code> (true) in <code>%eax</code>, unlocking native widescreen aspect ratios (16:10, 16:9, 21:9).</td>
-</tr>
-<tr>
-  <td><code>0x100233429</code></td>
-  <td><code>48 8d 35 02 78 2f 00</code></td>
-  <td><code>48 8d 35 18 78 2f 00</code></td>
-  <td>CSWGuiMainInterface::Create (1600x1200 string repoint)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Loaded <code>"mipc216x12"</code> when height &ge; 1200, which had conflicting control indices.<br><b>After:</b> Repoints to <code>"mipc212x9"</code> (1280×960 base template).</td>
-</tr>
-<tr>
-  <td><code>0x10023345e</code></td>
-  <td><code>48 8d 35 d8 77 2f 00</code></td>
-  <td><code>48 8d 35 e3 77 2f 00</code></td>
-  <td>CSWGuiMainInterface::Create (1280x1024 string repoint)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Loaded <code>"mipc212x10"</code> (5:4 aspect ratio) when height between 1024px and 1199px.<br><b>After:</b> Repoints to <code>"mipc212x9"</code>.</td>
-</tr>
-<tr>
-  <td><code>0x1002334b4</code></td>
-  <td><code>48 8d 35 97 77 2f 00</code></td>
-  <td><code>48 8d 35 8d 77 2f 00</code></td>
-  <td>CSWGuiMainInterface::Create (1024x768 string repoint)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Loaded <code>"mipc210x7"</code> when height between 768px and 959px.<br><b>After:</b> Repoints to <code>"mipc212x9"</code>.</td>
-</tr>
-<tr>
-  <td><code>0x1002334d8</code></td>
-  <td><code>48 8d 35 7d 77 2f 00</code></td>
-  <td><code>48 8d 35 69 77 2f 00</code></td>
-  <td>CSWGuiMainInterface::Create (800x600 string repoint)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Loaded <code>"mipc28x6"</code> when height &lt; 768px.<br><b>After:</b> Repoints to <code>"mipc212x9"</code>.</td>
-</tr>
-<tr>
-  <td><code>0x100337897</code></td>
-  <td><code>f3 0f 11 45 d4</code></td>
-  <td><code>e9 9c 02 00 00</code></td>
-  <td>CSWGuiClassSelection::Update (Epilogue bypass)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Recalculated unscaled delta offsets, causing class boxes to rapidly flicker.<br><b>After:</b> Direct jump to epilogue (`jmp 0x100337b38`), preserving widescreen slot coordinates.</td>
-</tr>
-<tr>
-  <td><code>0x1002b4b4e</code></td>
-  <td><code>8d 88 20 fe ff ff</code></td>
-  <td><code>8d 88 2a fc ff ff</code></td>
-  <td>CSWGuiInGameMap::Draw (Map viewport X displacement)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted hardcoded 640px to calculate horizontal centering offset.<br><b>After:</b> Subtracted target scaled menu width displacement, centering map viewport.</td>
-</tr>
-<tr>
-  <td><code>0x1002b4b60</code></td>
-  <td><code>8d 9c 08 20 fe ff ff</code></td>
-  <td><code>8d 9c 08 2a fc ff ff</code></td>
-  <td>CSWGuiInGameMap::Draw (Map viewport Y displacement)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted hardcoded 480px to calculate vertical centering offset.<br><b>After:</b> Subtracted target scaled menu height displacement, centering map vertically.</td>
-</tr>
-<tr>
-  <td><code>0x1002b562f</code></td>
-  <td><code>8d 88 20 fe ff ff</code></td>
-  <td><code>8d 88 2a fc ff ff</code></td>
-  <td>CSWGuiInGameMap::HandleMouseInput (Map mouse X displacement)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted legacy 640px centering displacement, creating cursor offset.<br><b>After:</b> Subtracts target menu width displacement, restoring pixel-perfect mouse hit-testing.</td>
-</tr>
-<tr>
-  <td><code>0x1002b5638</code></td>
-  <td><code>8d 84 08 20 fe ff ff</code></td>
-  <td><code>8d 84 08 2a fc ff ff</code></td>
-  <td>CSWGuiInGameMap::HandleMouseInput (Map mouse Y displacement)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted legacy 480px vertical displacement.<br><b>After:</b> Subtracts target menu height displacement.</td>
-</tr>
-<tr>
-  <td><code>0x1002b4ce9</code></td>
-  <td><code>f3 0f 10 0d a7 bb 2b 00</code></td>
-  <td><code>f3 41 0f 2a 4c 24 10 90</code></td>
-  <td>CSWGuiMapHider::Draw (Dynamic fog step X)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fog stepping X loaded from hardcoded float constant <code>440.0f</code>.<br><b>After:</b> Converted <code>0x10(%r12)</code> (<code>width</code>) dynamically to float, synchronizing fog tile step size.</td>
-</tr>
-<tr>
-  <td><code>0x1002b4cfc</code></td>
-  <td><code>f3 0f 10 15 a8 8c 28 00</code></td>
-  <td><code>f3 41 0f 2a 54 24 14 90</code></td>
-  <td>CSWGuiMapHider::Draw (Dynamic fog step Y)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fog stepping Y loaded from hardcoded float constant <code>256.0f</code>.<br><b>After:</b> Converted <code>0x14(%r12)</code> (<code>height</code>) dynamically to float, synchronizing vertical step size.</td>
-</tr>
-<tr>
-  <td><code>0x1000f4f68</code></td>
-  <td><code>Code cave / padding</code></td>
-  <td><code>48 b8 ... ff e0 (12 bytes)</code></td>
-  <td><code>MapHider_WorldToMapCoords</code> jump bridge</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>After:</b> Encodes 64-bit absolute jump dispatching to <code>MapHider_WorldToMapCoords</code>.</td>
-</tr>
-<tr>
-  <td><code>0x1000f4f78</code></td>
-  <td><code>Code cave / padding</code></td>
-  <td><code>48 b8 ... ff e0 (12 bytes)</code></td>
-  <td><code>MapHider_GetPlayerMapCoords</code> jump bridge</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>After:</b> Encodes 64-bit absolute jump dispatching to <code>MapHider_GetPlayerMapCoords</code>.</td>
-</tr>
-<tr>
-  <td><code>0x1002b4fca</code></td>
-  <td><code>e8 03 b1 18 00</code></td>
-  <td><code>e8 99 ff e3 ff</code></td>
-  <td>CSWGuiMapHider::Draw (Map note callsite)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Called unscaled conversion <code>0x1004400d2</code>, bunching notes in the top-left.<br><b>After:</b> Redirects to bridge <code>0x1000f4f68</code>, multiplying output coordinates by <code>scale</code>.</td>
-</tr>
-<tr>
-  <td><code>0x1002b541b</code></td>
-  <td><code>e8 e0 ae 18 00</code></td>
-  <td><code>e8 58 fb e3 ff</code></td>
-  <td>CSWGuiMapHider::Draw (Party marker callsite)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Called unscaled helper <code>0x100440300</code>, causing party dots to drift.<br><b>After:</b> Redirects to bridge <code>0x1000f4f78</code>, dynamically scaling party coordinates.</td>
-</tr>
-<tr>
-  <td><code>0x1002b54c2</code></td>
-  <td><code>e8 39 ae 18 00</code></td>
-  <td><code>e8 b1 fa e3 ff</code></td>
-  <td>CSWGuiMapHider::Draw (Player arrow callsite)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Called unscaled helper <code>0x100440300</code>.<br><b>After:</b> Redirects to bridge <code>0x1000f4f78</code>, aligning player arrow with dynamic map geometry.</td>
-</tr>
-<tr>
-  <td><code>0x1004a9554</code></td>
-  <td><code>41 89 84 24 68 03 00 00</code></td>
-  <td><code>90 90 90 90 90 90</code></td>
-  <td>CSWGuiListBox::RecalculateItemHeight (NOP clamp 1)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Clamped <code><code>m_itemHeight</code></code> (<code>ctrl + 0x368</code>) to prototype 70px height.<br><b>After:</b> Replaced with NOPs, preserving dynamic scaled item row heights (108px).</td>
-</tr>
-<tr>
-  <td><code>0x1004a959c</code></td>
-  <td><code>41 89 84 24 68 03 00 00</code></td>
-  <td><code>90 90 90 90 90 90</code></td>
-  <td>CSWGuiListBox::RecalculateItemHeight (NOP clamp 2)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Secondary path resetting <code>ctrl + 0x368</code> to prototype height.<br><b>After:</b> Replaced with NOPs, preventing scroll height calculation from reverting.</td>
-</tr>
-<tr>
-  <td><code>0x1002be42b</code></td>
-  <td><code>98 bytes</code></td>
-  <td><code>98 bytes</code></td>
-  <td>CSWGuiInGameItemEntry::SetExtent (Icon geometry hook)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Hardcoded item icon, border, and highlight to 56×56px.<br><b>After:</b> Loads dynamic <code>iconWidth</code>, <code>iconHeight</code>, and <code>iconTopOffset</code> into subquads.</td>
-</tr>
-<tr>
-  <td><code>0x1002be4da</code></td>
-  <td><code>64 bytes</code></td>
-  <td><code>64 bytes</code></td>
-  <td>CSWGuiInGameItemEntry::Layout (Text & highlight layout hook)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Sized item button using 8-bit sign-extended arithmetic.<br><b>After:</b> Injects full 32-bit arithmetic setting text bounds to <code>rowX + textOffset</code> and <code>rowW - textDeduct</code>.</td>
-</tr>
-<tr>
-  <td><code>0x1002bfb49</code></td>
-  <td><code>41 bd 38 00 00 00</code></td>
-  <td><code>44 8b 6b 14 90 90</code></td>
-  <td>CSWGuiStoreItemEntry::SetExtent (Dynamic row height)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Hardcoded store icon dimensions to 56px (<code>0x38</code>).<br><b>After:</b> Loads icon dimensions dynamically from incoming row height (<code>0x14(%rbx)</code>).</td>
-</tr>
-<tr>
-  <td><code>0x1002bfbe2</code></td>
-  <td><code>41 83 c7 38</code></td>
-  <td><code>45 01 ef 90</code></td>
-  <td>CSWGuiStoreItemEntry::SetExtent (Button X offset)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Added fixed 56px offset after icon.<br><b>After:</b> Dynamically adds scaled icon width (<code>addl %r13d, %r15d; nop</code>).</td>
-</tr>
-<tr>
-  <td><code>0x1002bfbe9</code></td>
-  <td><code>83 c0 c8</code></td>
-  <td><code>44 29 e8</code></td>
-  <td>CSWGuiStoreItemEntry::SetExtent (Button width deduction)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted hardcoded 56px from button width.<br><b>After:</b> Subtracted dynamic icon width (<code>subl %r13d, %eax</code>).</td>
-</tr>
-<tr>
-  <td><code>0x1002bfbbf</code></td>
-  <td><code>b8 38 00 00 00</code></td>
-  <td><code>41 8d 45 f2 90</code></td>
-  <td>CSWGuiStoreItemEntry::SetExtent (Quantity badge X anchor)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fixed badge X anchor to 56px.<br><b>After:</b> Dynamically anchors badge flush on bottom-right of scaled icon (<code>leal -14(%r13), %eax</code>).</td>
-</tr>
-<tr>
-  <td><code>0x10021c063</code></td>
-  <td><code>41 bf 38 00 00 00</code></td>
-  <td><code>44 8b 7b 14 90 90</code></td>
-  <td>CSWUpgradeItemEntry::SetExtent (Dynamic workbench icon)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Hardcoded workbench icon dimensions to 56px.<br><b>After:</b> Loads icon dimensions dynamically from row height (<code>0x14(%rbx)</code>).</td>
-</tr>
-<tr>
-  <td><code>0x10021c0e2</code></td>
-  <td><code>b8 38 00 00 00</code></td>
-  <td><code>41 8d 47 f2 90</code></td>
-  <td>CSWUpgradeItemEntry::SetExtent (Workbench badge X anchor)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Fixed badge anchor to 56px.<br><b>After:</b> Dynamically anchors badge on bottom-right of workbench icon (<code>leal -14(%r15), %eax</code>).</td>
-</tr>
-<tr>
-  <td><code>0x10021c0ff</code></td>
-  <td><code>41 83 c5 38</code></td>
-  <td><code>45 01 fd 90</code></td>
-  <td>CSWUpgradeItemEntry::SetExtent (Workbench button X offset)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Added fixed 56px offset.<br><b>After:</b> Adds dynamic icon width (<code>addl %r15d, %r13d</code>).</td>
-</tr>
-<tr>
-  <td><code>0x10021c106</code></td>
-  <td><code>83 c0 c8</code></td>
-  <td><code>44 29 f8</code></td>
-  <td>CSWUpgradeItemEntry::SetExtent (Workbench button width deduction)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Subtracted fixed 56px from button width.<br><b>After:</b> Subtracted dynamic icon width (<code>subl %r15d, %eax</code>).</td>
-</tr>
-<tr>
-  <td><code>0x1001bc644</code></td>
-  <td><code>49 ff c8 4c 8b 65 b0 4d 3b 44 24 18 0f 84 f8 02 00 00</code></td>
-  <td><code>49 ff c8 4c 8b 65 b0 4d 39 f8 77 25 4d 89 f8 ...</code></td>
-  <td>CAurGUIStringInternal::WrapStrings (K1: Word-wrap hang fix - Stray Bug Fixes Patch)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Compared progress against start of entire string, causing infinite loop when narrow text could not break.<br><b>After:</b> Compares progress against current line start (<code>r15</code>); routes unfittable text to single overflowing line, preventing memory crash.</td>
-</tr>
-<tr>
-  <td><code>0x1001bc71e</code></td>
-  <td><code>e9 c4 03 00 00</code></td>
-  <td><code>eb 1e 90 90 90</code></td>
-  <td>CAurGUIStringInternal::WrapStrings (Single char blanking bypass - Stray Bug Fixes Patch)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Blanked 1-character strings outright if narrower than 'o' glyph.<br><b>After:</b> Jumps to wrap loop, allowing enlarged single-digit stack counts to draw.</td>
-</tr>
-<tr>
-  <td><code>0x1001bc738</code></td>
-  <td><code>0f 8c a9 03 00 00</code></td>
-  <td><code>90 90 90 90 90 90</code></td>
-  <td>CAurGUIStringInternal::WrapStrings (Two char blanking bypass - Stray Bug Fixes Patch)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Blanked 2-character strings if narrower than 2 'o' glyphs.<br><b>After:</b> NOPs branch, allowing two-digit stack counts to draw.</td>
-</tr>
-<tr>
-  <td><code>0x1004a8927, 939</code></td>
-  <td><code>89 5d cc / 89 45 cc</code></td>
-  <td><code>90 90 90 / 90 90 90</code></td>
-  <td>CSWGuiListBox::OrganizeControls (K2: Listbox row inflation fix - Stray Bug Fixes Patch)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Wrote remainder pixels back into row height template, compounding row heights each time list reloaded.<br><b>After:</b> NOPs both writes, keeping row heights stable across repopulations.</td>
-</tr>
-<tr>
-  <td><code>0x1001bcbef, c22</code></td>
-  <td><code>0f 2e ca 76 36 / 49 ff c4...</code></td>
-  <td><code>Replace hooks (28 bytes each)</code></td>
-  <td>CAurGUIStringInternal::Draw (K5: Bottom-aligned line drop prevention - Stray Bug Fixes Patch)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Dropped single lines when taller than box, making item count badges vanish with scaled fonts.<br><b>After:</b> Ensures final remaining line is never dropped.</td>
-</tr>
-<tr>
-  <td><code>0x1001bcc72, ca9</code></td>
-  <td><code>0f 2e d1 76 3a / 49 ff c4...</code></td>
-  <td><code>Replace hooks (28 bytes each)</code></td>
-  <td>CAurGUIStringInternal::Draw (K5: Centered line drop prevention - Stray Bug Fixes Patch)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Dropped centered lines taller than box.<br><b>After:</b> Retains final centered line.</td>
-</tr>
-<tr>
-  <td><code>0x1001bca20</code></td>
-  <td><code>f3 0f 58 05 78 22 3b 00</code></td>
-  <td><code>f3 0f 58 05 9c b3 37 00</code></td>
-  <td>CAurGUIStringInternal::WrapStrings (K6: Wrapped text rounding fix - Stray Bug Fixes Patch)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Added 0.25f rounding displacement, under-measuring lines and clipping into scrollbars.<br><b>After:</b> Points to engine's 0.5f constant (<code>0x100537dc4</code>), restoring standard half-up rounding.</td>
-</tr>
-<tr>
-  <td><code>0x100244d7d</code></td>
-  <td><code>8b 43 10 41 89 46 08</code></td>
-  <td><code>8b 43 10 41 89 46 08 8b 43 14...</code></td>
-  <td>CSWGuiDialogCinematic::SetExtent (K7: Reply list height stretch)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Set list width = panel width, but left list height fixed at 98px.<br><b>After:</b> Also sets <code>list height = panel height - list top</code>, stretching reply list to fill expanded letterbox bar.</td>
-</tr>
-<tr>
-  <td><code>0x1004a2350</code></td>
-  <td><code>80 f9 02 74 21</code></td>
-  <td><code>e9 3b 2c c5 ff</code></td>
-  <td>CSWGuiBorder::Draw (Intercept fill dispatch)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> If <code>fillStyle != 2</code>, divided border dimensions by 56px, rendering a 2×2 grid of 4 mini-boxes for item icon arches.<br><b>After:</b> Jumps to <code>stretchFillStub</code> at <code>0x1000f4f90</code>. If border has no corners (<code>0x70 == NULL</code>), routes directly to <code>DrawStretched</code> (<code>0x1004a2376</code>), eliminating the 4-mini-box bug.</td>
-</tr>
-<tr>
-  <td><code>0x1000f4f90</code></td>
-  <td><code>Code cave / padding</code></td>
-  <td><code>37 bytes</code></td>
-  <td>stretchFillStub (Pure-fill border inspection logic)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>After:</b> Branches to <code>DrawStretched</code> for icon borders without corners, while preserving vanilla tile mode for outer window frames with corners.</td>
-</tr>
-<tr>
-  <td><code>0x1002be754, 80c</code></td>
-  <td><code>31 c0 50 (push rax)</code></td>
-  <td><code>6a 02 90 (push $2; nop)</code></td>
-  <td>CSWGuiInGameItemEntry::Init (Enforce fillStyle = 2 on item borders)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Passed <code>fillStyle = 0</code> (tile mode) to item arch constructors.<br><b>After:</b> Passes <code>fillStyle = 2</code> (<code>DrawStretched</code>) directly upon creation.</td>
-</tr>
-<tr>
-  <td><code>0x1002bfe55, f0e</code></td>
-  <td><code>31 c0 50 (push rax)</code></td>
-  <td><code>6a 02 90 (push $2; nop)</code></td>
-  <td>CSWGuiStoreItemEntry::Init (Enforce fillStyle = 2 on store borders)</td>
-</tr>
-<tr>
-  <td colspan="4" style="background-color: #f8fafc; color: #1e293b; font-size: 8pt; padding: 6px 10px;"><b>Behavior & Rationale:</b><br><b>Before:</b> Passed <code>fillStyle = 0</code> (tile mode) to store border constructors.<br><b>After:</b> Passes <code>fillStyle = 2</code> (<code>DrawStretched</code>), guaranteeing single-frame borders.</td>
-</tr>
-</tbody>
-</table>
+| Address | Original Bytes | Replacement Bytes | Target Function | Behavior & Rationale |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x100204a24` | `55 48 89 e5 81 fe 20 03...` | `55 48 89 e5 b8 01 00 00...` | `CSWGuiManager::GetAspectRatio` | Returns `1` (true) in `%eax`, unlocking native widescreen aspect ratios (16:10, 16:9, 21:9). |
+| `0x100233429` | `48 8d 35 02 78 2f 00` | `48 8d 35 18 78 2f 00` | `CSWGuiMainInterface::Create` | Standardizes &ge;1200px HUD template string from `mipc216x12` to `mipc212x9`. |
+| `0x10023345e` | `48 8d 35 d8 77 2f 00` | `48 8d 35 e3 77 2f 00` | `CSWGuiMainInterface::Create` | Standardizes 1024-1199px HUD template from `mipc212x10` to `mipc212x9`. |
+| `0x1002334b4` | `48 8d 35 97 77 2f 00` | `48 8d 35 8d 77 2f 00` | `CSWGuiMainInterface::Create` | Standardizes 768-959px HUD template from `mipc210x7` to `mipc212x9`. |
+| `0x1002334d8` | `48 8d 35 7d 77 2f 00` | `48 8d 35 69 77 2f 00` | `CSWGuiMainInterface::Create` | Standardizes &lt;768px HUD template from `mipc28x6` to `mipc212x9`. |
+| `0x100337897` | `f3 0f 11 45 d4` | `e9 9c 02 00 00` | `CSWGuiClassSelection::Update` | Jumps directly to epilogue (`0x100337b38`), preserving widescreen class card coordinates. |
+| `0x1002b4b4e` | `8d 88 20 fe ff ff` | `8d 88 2a fc ff ff` | `CSWGuiInGameMap::Draw` | Subtracts scaled menu width displacement instead of fixed 640px to center map. |
+| `0x1002b4b60` | `8d 9c 08 20 fe ff ff` | `8d 9c 08 2a fc ff ff` | `CSWGuiInGameMap::Draw` | Subtracts scaled menu height displacement instead of fixed 480px to center map. |
+| `0x1002b562f` | `8d 88 20 fe ff ff` | `8d 88 2a fc ff ff` | `CSWGuiInGameMap::HandleMouseInput` | Restores pixel-perfect map mouse hit-testing using scaled menu width displacement. |
+| `0x1002b5638` | `8d 84 08 20 fe ff ff` | `8d 84 08 2a fc ff ff` | `CSWGuiInGameMap::HandleMouseInput` | Restores pixel-perfect map mouse hit-testing using scaled menu height displacement. |
+| `0x1002b4ce9` | `f3 0f 10 0d a7 bb 2b 00` | `f3 41 0f 2a 4c 24 10 90` | `CSWGuiMapHider::Draw` | Converts map width `0x10(%r12)` dynamically to float, synchronizing fog tile step size X. |
+| `0x1002b4cfc` | `f3 0f 10 15 a8 8c 28 00` | `f3 41 0f 2a 54 24 14 90` | `CSWGuiMapHider::Draw` | Converts map height `0x14(%r12)` dynamically to float, synchronizing fog tile step size Y. |
+| `0x1000f4f68` | Code cave padding | `48 b8 ... ff e0` | Jump Bridge | 64-bit absolute jump bridge dispatching to `MapHider_WorldToMapCoords`. |
+| `0x1000f4f78` | Code cave padding | `48 b8 ... ff e0` | Jump Bridge | 64-bit absolute jump bridge dispatching to `MapHider_GetPlayerMapCoords`. |
+| `0x1002b4fca` | `e8 03 b1 18 00` | `e8 99 ff e3 ff` | `CSWGuiMapHider::Draw` | Redirects map note coordinates to bridge `0x1000f4f68`, scaling by `scale`. |
+| `0x1002b541b` | `e8 e0 ae 18 00` | `e8 58 fb e3 ff` | `CSWGuiMapHider::Draw` | Redirects party member markers to bridge `0x1000f4f78`, scaling coordinates. |
+| `0x1002b54c2` | `e8 39 ae 18 00` | `e8 b1 fa e3 ff` | `CSWGuiMapHider::Draw` | Redirects player orientation arrow to bridge `0x1000f4f78`, aligning with map geometry. |
+| `0x1004a9554` | `41 89 84 24 68 03 00 00` | `90 90 90 90 90 90` | `CSWGuiListBox::RecalculateItemHeight` | NOPs 70px prototype clamp 1, preserving dynamic scaled item row heights (108px). |
+| `0x1004a959c` | `41 89 84 24 68 03 00 00` | `90 90 90 90 90 90` | `CSWGuiListBox::RecalculateItemHeight` | NOPs prototype clamp 2, preventing scroll height calculation from reverting. |
+| `0x1002be42b` | 98 bytes | 98 bytes | `CSWGuiInGameItemEntry::SetExtent` | Loads dynamic `iconWidth`, `iconHeight`, and `iconTopOffset` into subquads. |
+| `0x1002be4da` | 64 bytes | 64 bytes | `CSWGuiInGameItemEntry::Layout` | Applies dynamic `textOffset` and `textDeduct` to item text labels. |
+| `0x1002bfbe2` | `41 83 c7 38` | `45 01 ef 90` | `CSWGuiStoreItemEntry::SetExtent` | Dynamically adds scaled icon width (`addl %r13d, %r15d`) to store button offset. |
+| `0x1002bfbe9` | `83 c0 c8` | `44 29 e8` | `CSWGuiStoreItemEntry::SetExtent` | Deducts dynamic icon width (`subl %r13d, %eax`) from store button width. |
+| `0x1002bfbbf` | `b8 38 00 00 00` | `41 8d 45 f2 90` | `CSWGuiStoreItemEntry::SetExtent` | Anchors store quantity badge flush on bottom-right of scaled icon (`leal -14(%r13), %eax`). |
+| `0x10021c063` | `41 bf 38 00 00 00` | `44 8b 7b 14 90 90` | `CSWUpgradeItemEntry::SetExtent` | Loads workbench icon dimensions dynamically from row height (`0x14(%rbx)`). |
+| `0x10021c0e2` | `b8 38 00 00 00` | `41 8d 47 f2 90` | `CSWUpgradeItemEntry::SetExtent` | Anchors workbench quantity badge flush on bottom-right of icon (`leal -14(%r15), %eax`). |
+| `0x10021c0ff` | `41 83 c5 38` | `45 01 fd 90` | `CSWUpgradeItemEntry::SetExtent` | Adds dynamic icon width (`addl %r15d, %r13d`) to workbench button offset. |
+| `0x10021c106` | `83 c0 c8` | `44 29 f8` | `CSWUpgradeItemEntry::SetExtent` | Deducts dynamic icon width (`subl %r15d, %eax`) from workbench button width. |
+| `0x1001bc644` | `49 ff c8 4c 8b 65 b0 4d...` | `49 ff c8 4c 8b 65 b0 4d...` | `CAurGUIStringInternal::WrapStrings` | K1 Word-wrap infinite loop hang fix; degrades unfittable text safely to overflowing line. |
+| `0x1001bc71e` | `e9 c4 03 00 00` | `eb 1e 90 90 90` | `CAurGUIStringInternal::WrapStrings` | Bypasses single-character string blanking, allowing 1-digit stack counts to draw. |
+| `0x1001bc738` | `0f 8c a9 03 00 00` | `90 90 90 90 90 90` | `CAurGUIStringInternal::WrapStrings` | Bypasses two-character string blanking, allowing 2-digit stack counts to draw. |
+| `0x1004a8927` | `89 5d cc` | `90 90 90` | `CSWGuiListBox::OrganizeControls` | K2 Listbox row inflation fix; prevents compound height growth on refill. |
+| `0x1004a8939` | `89 45 cc` | `90 90 90` | `CSWGuiListBox::OrganizeControls` | K2 Listbox row inflation fix; secondary write NOP. |
+| `0x1001bcbef` | `0f 2e ca 76 36` | 28-byte replace hook | `CAurGUIStringInternal::Draw` | K5 Bottom-aligned text line drop prevention; retains single line if taller than box. |
+| `0x1001bcc72` | `0f 2e d1 76 3a` | 28-byte replace hook | `CAurGUIStringInternal::Draw` | K5 Centered text line drop prevention; retains centered lines taller than box. |
+| `0x1001bca20` | `f3 0f 58 05 78 22 3b 00` | `f3 0f 58 05 9c b3 37 00` | `CAurGUIStringInternal::WrapStrings` | K6 Wrapped text rounding fix; restores standard 0.5f half-up rounding. |
+| `0x100244d7d` | `8b 43 10 41 89 46 08` | `e9 52 02 eb ff 90 90` | `CSWGuiDialogCinematic::SetExtent` | K7 Reply list height stretch; jumps to stub at `0x1000f4fd4`, expanding height to panel. |
+| `0x1004a2350` | `80 f9 02 74 21` | `e9 3b 2c c5 ff` | `CSWGuiBorder::Draw` | Jumps to `stretchFillStub`, routing borders without corners to `DrawStretched`. |
+| `0x1000f4f90` | Code cave padding | 37 bytes | `stretchFillStub` | Pure-fill border inspection logic (eliminates 4-mini-box bug). |
+| `0x1002be754` | `31 c0 50` | `6a 02 90` | `CSWGuiInGameItemEntry::Init` | Enforces `fillStyle = 2` (stretched) on item icon neon arches. |
+| `0x1002bfe55` | `31 c0 50` | `6a 02 90` | `CSWGuiStoreItemEntry::Init` | Enforces `fillStyle = 2` (stretched) on store icon neon arches. |
+| `0x1002cecee` | 17-byte prologue | 14-byte `jmp *0(%rip)` | `CSWGuiOptionsCheckbox::SetExtent` | Scales Options menu check quads dynamically by $s = H / \text{BaseRefH}$. |
+| `0x100306a88` | `e8 a9 71 19 00` | `e8 2b e5 de ff` | `CSWGuiMessageBox::FixMessageLabel` | Bridges to `KMRP_FitMessageBox` at `0x1000f4fb8`, auto-fitting popups to text. |
+| `0x10028ea4f` | `e8 92 b1 21 00` | `e8 [rel32]` | `CSWGuiSkillInfoBox::Fill` | Calls near-page thunk to `KMRP_GrantedFill`, fitting granted rows to content. |
+| `0x10022f321` | `e8 26 4a 27 00` | `e8 [rel32]` | `CSWGuiInGameSkillEntry::SetExtent` | Calls near-page thunk to `KMRP_GrantedRowText`, formatting granted hex/icon/text bounds. |
 
 ---
 
-### 9.3 Engine Global Variables & Pointers
+### 10.3 Engine Global Variables & Pointers
 
 | Virtual Address | Type | Identifier / Description |
 | :--- | :--- | :--- |
@@ -1276,7 +1014,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
 
 ---
 
-### 9.4 Master Vtable Inventory
+### 10.4 Master Vtable Inventory
 
 | Virtual Address | Class Name | Menu / Panel Role |
 | :--- | :--- | :--- |
@@ -1350,7 +1088,7 @@ This ensures crisp text readability on high-resolution displays while maintainin
 
 ---
 
-### 9.5 Internal Structure Memory Offsets
+### 10.5 Internal Structure Memory Offsets
 
 #### `CSWGuiWindow` / `CSWGuiPanel` (Base UI Control)
 | Offset | Type | Field Description |
@@ -1363,20 +1101,8 @@ This ensures crisp text readability on high-resolution displays while maintainin
 | `+0x20` | `char*` | Pointer to parent `CSWGuiManager` |
 | `+0x30` | `char**` | Pointer to child controls array |
 | `+0x38` | `int32_t` | Child controls count |
-| `+0x5c` | `uint16_t` | Window flags (`0x20` = Horiz Centering, `0x40` = Vert Centering, `0x08` = Backdrop curtain tracking, `0x01` = Client-relative mouse) |
+| `+0x5c` | `uint16_t` | Window flags (`0x20` = Horiz Centering, `0x40` = Vert Centering, `0x01` = Client-relative mouse) |
 | `+0x70` | `char*` | Pointer to border frame subcontrol quad |
-
-#### `CSWGuiManager` (Master GUI Manager)
-| Offset | Type | Field Description |
-| :--- | :--- | :--- |
-| `+0xa4` | `int16_t` | Canvas width (`screenWidth`) |
-| `+0xa6` | `int16_t` | Canvas height (`screenHeight`) |
-| `+0xa8` | `uint8_t` | Active backdrop curtain count (`m_nCurtains`) |
-| `+0xa9` | `uint8_t` | Secondary backdrop curtain count |
-| `+0xd8` | `char**` | Active non-modal panel array |
-| `+0xe0` | `int32_t` | Active non-modal panel count |
-| `+0xe8` | `char**` | Active modal panel array |
-| `+0xf0` | `int32_t` | Active modal panel count |
 
 #### `CSWGuiListBox` (Container List)
 | Offset | Type | Field Description |
