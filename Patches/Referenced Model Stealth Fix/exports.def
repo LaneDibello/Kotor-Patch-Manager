@@ -1,2 +1,8 @@
 EXPORTS
-    InheritReferencedModelStealthTexture
+    InitializeReferencedModelStealth
+    EnableReferencedModelStealth
+    DisableReferencedModelStealth
+    CleanupReferencedModelStealth
+    InitializeReferencedModelStealthK2
+    EnableReferencedModelStealthK2
+    DisableReferencedModelStealthK2
