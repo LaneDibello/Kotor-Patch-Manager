@@ -1,7 +1,7 @@
 [patch]
 id = "k1widescreenpatch"
 name = "Widescreen Patch (beta)"
-version = 0.9"
+version = "0.9"
 description = "Alone, this widescreen patch provides a scaled-up vanilla version of KOTOR. But it can also be paired with custom GUIs with edits to swkotor.ini. Resolution can optionally be forced but is otherwise auto-detected. REQUIRED: the Stray Bug Fixes patch."
 author = "FTD, RaymanGT, J, Vriff"
 
