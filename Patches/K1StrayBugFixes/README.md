@@ -45,6 +45,36 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 - **Issue**: The line-breaker truncates every glyph advance to whole pixels after adding `0.25f` (`0x10056eca0`), under-measuring line widths by ~0.25px per character relative to `Draw`. Long wrapped lines often exceeded their container box and collided with scrollbars.
 - **Fix**: Repoints the displacement to the engine's existing `0.5f` constant (`0x100537dc4`), restoring unbiased half-up rounding.
 
+### 6. K7. Scripts Menu Enter Key Bug
+- **Target**:
+  - **macOS**: Enter-key button callback for script list rows (`0x1002d3e34`)
+  - **Windows (v1.03 PE32)**: `CSWGuiScriptSelect::OnScriptSelected` (`0x006E9E70`)
+- **Hooks**:
+  - **macOS**: Simple hook at `0x1002d3e34` (`55 -> c3`, 1 byte `retq`)
+  - **Windows**: Simple hook at `0x006E9E70` (`56 8b f1 -> c2 04 00`, 3 bytes `ret $4`)
+- **Issue**: Opening the AI Scripts selection menu from the Character Sheet displays Tutorial Box 10 ("Combat Scripts"). Pressing Enter to dismiss the tutorial immediately closed both the popup and the Scripts menu, whereas clicking "OK" with the mouse kept the menu open. Each script row control in the list registered an Enter (`0x27`) button callback (`0x1002d3e34` on macOS, `0x006E9E70` on Windows) that hijacked Enter keypresses intended for the tutorial popup, popping the modal panel and setting the `0x200` closing flag on `CSWGuiScriptSelect`.
+- **Fix**: Replaces the function's entry with an immediate return (`retq` on macOS, `ret $4` on Windows). This neutralizes the premature row callback, allowing Enter to dismiss the tutorial popup cleanly on the first press. Once dismissed, native Enter handling in `CSWGuiScriptSelect::HandleInputEvent` and the Select button confirm scripts normally.
+
+### 7. Texture Bucket Array Bounds & Maximum Safety
+- **Targets**:
+  - `Texture bucket insertion` (`0x1001d0663`)
+  - `GetMaxTextureID` (`0x1001fa2bb`)
+- **Hooks**:
+  - Replace hook at `0x1001d0663`
+  - Replace hook at `0x1001fa2bf`
+- **Issue**: The engine indexes three 5000-entry internal arrays using raw OpenGL texture IDs without bounds checking. IDs $\ge 5000$ index past the end of the arrays, causing memory corruption. Additionally, in the all-textures builder path, the engine sets the maximum texture ID without a range check, which the bucket-clearing loop then uses.
+- **Fix**: The insertion hook accepts unsigned IDs 0..4999 and bypasses insertion directly to the native shadow path continuation (`0x1001d067b`) for IDs $\ge 5000$. The maximum hook reads global `0x100635ba8` and caps its value at 4999 (preserving `RFLAGS`), eliminating out-of-bounds indexing across both insertion and clearing loops.
+
+### 8. Grass Buffer Cleanup Double-Free Safety
+- **Targets**:
+  - Grass destructor cleanup loop (`0x1001e00cd`)
+  - `DestroyGrassPolys` cleanup loop (`0x1001e1627`)
+- **Hooks**:
+  - Replace hook at `0x1001e00cd`
+  - Replace hook at `0x1001e1627`
+- **Issue**: In the grass rendering system, `+0x38` is the primary buffer and `+0x40` is a temporary alias pointer. When an allocation fails or early cleanup occurs, both cleanup routines attempt to delete the temporary pointer and then the primary pointer even when both point to the same memory allocation, triggering a heap double-free crash.
+- **Fix**: Compares the temporary pointer in `[rbx+0x40]` against the primary pointer in `[rbx+0x38]`. If they point to the same allocation, `%rdi` is zeroed so the native `je` skips the redundant `free` call. When pointers differ, the temporary allocation is freed normally.
+
 ---
 
 ## Packaging & Dependencies
