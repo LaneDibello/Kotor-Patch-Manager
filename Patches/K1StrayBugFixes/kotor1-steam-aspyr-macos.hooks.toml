@@ -122,12 +122,95 @@ original_bytes = [0xF3, 0x0F, 0x58, 0x05, 0x78, 0x22, 0x3B, 0x00]
 replacement_bytes = [0xF3, 0x0F, 0x58, 0x05, 0x9C, 0xB3, 0x37, 0x00]
 
 # ==============================================================================
-# 5. LEADING NEWLINE TRIM IN GUI TEXT (K3)
+# 5. TEXTURE BUCKET ARRAY BOUNDS & MAXIMUM SAFETY
+# ==============================================================================
+# The engine manages texture buckets using three 5000-entry internal arrays indexed
+# by raw OpenGL texture IDs. Texture IDs >= 5000 index past the end of the arrays,
+# causing memory corruption. Two cooperating safety hooks prevent out-of-bounds
+# indexing and unsafe loop bounds:
+#
+# 5.1 Texture Insertion Bounds Guard
+# Function: Texture bucket insertion callsite (0x1001d0663)
+# Accepts unsigned texture IDs 0..4999 and executes normal index calculation
+# (cltq; shl rax, 4). Any texture ID >= 5000 bypasses the bucket insertion call
+# and transfers directly to 0x1001d067b (the native shadow path continuation),
+# keeping the stack balanced and preserving RAX.
+[[hooks]]
+address = 0x1001d0663
+type = "replace"
+original_bytes = [0x48, 0x98, 0x48, 0xc1, 0xe0, 0x04]
+replacement_bytes = [0x3d, 0x88, 0x13, 0x00, 0x00, 0x72, 0x10, 0x50, 0x48, 0xb8, 0x7b, 0x06, 0x1d, 0x00, 0x01, 0x00, 0x00, 0x00, 0x48, 0x87, 0x04, 0x24, 0xc3, 0x48, 0x98, 0x48, 0xc1, 0xe0, 0x04]
+
+# 5.2 Texture Maximum ID Clamp
+# Function: GetMaxTextureID (0x1001fa2bb)
+# In the all-textures builder path, the engine sets the maximum texture ID without
+# range validation, which the bucket-clearing loop then uses. This hook intercepts
+# the global read from 0x100635ba8 at 0x1001fa2bf and caps the returned maximum ID
+# at 4999 (preserving RFLAGS), preventing buffer overrun during bucket clearing.
+[[hooks]]
+address = 0x1001fa2bf
+type = "replace"
+original_bytes = [0x8b, 0x05, 0xe3, 0xb8, 0x43, 0x00]
+replacement_bytes = [0x9c, 0x48, 0xb8, 0xa8, 0x5b, 0x63, 0x00, 0x01, 0x00, 0x00, 0x00, 0x8b, 0x00, 0x3d, 0x88, 0x13, 0x00, 0x00, 0x72, 0x05, 0xb8, 0x87, 0x13, 0x00, 0x00, 0x9d]
+
+# ==============================================================================
+# 6. GRASS BUFFER CLEANUP DOUBLE-FREE SAFETY
+# ==============================================================================
+# In the engine's grass rendering system, +0x38 is the primary polygon buffer and
+# +0x40 is a temporary alias pointer. During normal cleanup, the temporary alias
+# is cleared. However, when an allocation fails or early exit occurs, both the
+# grass destructor and DestroyGrassPolys attempt to delete the temporary pointer
+# and then the primary pointer even when both point to the same memory allocation,
+# causing a heap double-free crash.
+#
+# The hooks compare the temporary pointer in [rbx+0x40] against the primary pointer
+# in [rbx+0x38]. If they match, %rdi is zeroed so the native 'je' skips the duplicate
+# delete. If the pointers differ, the temporary allocation is freed normally.
+#
+# 6.1 Grass Destructor Temporary Alias Check
+# Function: Grass destructor cleanup loop (0x1001e00cd)
+[[hooks]]
+address = 0x1001e00cd
+type = "replace"
+original_bytes = [0x48, 0x8b, 0x7b, 0x40, 0x48, 0x85, 0xff]
+replacement_bytes = [0x48, 0x8b, 0x7b, 0x40, 0x48, 0x3b, 0x7b, 0x38, 0x75, 0x02, 0x31, 0xff, 0x48, 0x85, 0xff]
+
+# 6.2 DestroyGrassPolys Temporary Alias Check
+# Function: DestroyGrassPolys cleanup loop (0x1001e1627)
+[[hooks]]
+address = 0x1001e1627
+type = "replace"
+original_bytes = [0x48, 0x8b, 0x7b, 0x40, 0x48, 0x85, 0xff]
+replacement_bytes = [0x48, 0x8b, 0x7b, 0x40, 0x48, 0x3b, 0x7b, 0x38, 0x75, 0x02, 0x31, 0xff, 0x48, 0x85, 0xff]
+
+# ==============================================================================
+# 7. SCRIPTS MENU ENTER KEY BUG (K7)
+# ==============================================================================
+# Function: Enter button callback for script list rows (0x1002d3e34)
+# When the AI Scripts menu opens, Tutorial Box 10 ("Combat Scripts") appears.
+# In vanilla, each script entry row in the listbox registers a button callback
+# (0x1002d3e34) for event 0x27 (Enter). When Enter was pressed to dismiss the
+# tutorial popup, this row callback hijacked the Enter key, saving the script,
+# popping the modal panel, and setting the 0x200 closing flag on ScriptSelect.
+#
+# Fix: Retq (0xC3) at the very start of the callback function (0x1002d3e34).
+# Disables this redundant callback so the Enter key dismisses the tutorial popup
+# cleanly on the first press. Once dismissed, native Enter handling in
+# CSWGuiScriptSelect::HandleInputEvent and the Select button confirm scripts.
+[[hooks]]
+address = 0x1002d3e34
+type = "simple"
+original_bytes = [0x55]
+replacement_bytes = [0xC3]
+
+# ==============================================================================
+# 8. LEADING NEWLINE TRIM IN GUI TEXT (K3)
 # ==============================================================================
 # Function: CSWGuiTextParams::SetText (0x1004a3714)
 # Descriptions that open with a property block start with "\n" and render an
 # empty first line. Trimmed in place right after the setter's string assignment,
 # so wrapping and drawing see the same text. Cut: mov eax, -1 (5 bytes).
+# (Placed at the end of the file so all static/replace byte hooks verify first).
 [[hooks]]
 address = 0x1004a3726
 type = "detour"
