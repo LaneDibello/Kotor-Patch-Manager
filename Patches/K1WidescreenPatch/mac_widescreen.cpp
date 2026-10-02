@@ -2548,9 +2548,9 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
 
 
 /*
-  KMRP Listbox Padding & High-Resolution Layout Support:
+  High-Resolution Listbox Padding & External GUI Layout Support:
   When UseGuiFileLayouts=1 is active in swkotor.ini, listbox controls from custom .gui files
-  (e.g. KMRP) are laid out using Windows Gold v11/v12 rules:
+  (e.g. KOTOR High Resolution Menus, KMRP, etc.) are laid out using Windows Gold v11/v12 rules:
   1. PADDING is treated as a horizontal scrollbar gutter only (not added to vertical row pitch).
   2. First row top starts at 0 (no vertical gap above the first row).
   3. Template rows (save/load list and quest journal) are scaled by s = max(1.0, H / 720).
@@ -2559,8 +2559,8 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
 __asm__(
     ".text\n"
     ".p2align 4\n"
-    ".globl _kmrp_rows_stub\n"
-    "_kmrp_rows_stub:\n"
+    ".globl _guimode_rows_stub\n"
+    "_guimode_rows_stub:\n"
     "    movl    0x344(%r12), %r14d\n"      // height
     "    movswl  0x378(%r12), %edi\n"       // visible rows
     "    movl    %edi, %eax\n"
@@ -2586,12 +2586,12 @@ __asm__(
     "    imull   %r8d, %ecx\n"
     "    movl    %ecx, %r15d\n"
     "    negl    %r15d\n"                   // first top
-    "    jmpq    *_kmrp_rows_resume(%rip)\n"
-    "_kmrp_rows_resume:\n"
+    "    jmpq    *_guimode_rows_resume(%rip)\n"
+    "_guimode_rows_resume:\n"
     "    .quad   0x1004a889e\n"
     ".p2align 4\n"
-    ".globl _kmrp_scroll_stub\n"
-    "_kmrp_scroll_stub:\n"
+    ".globl _guimode_scroll_stub\n"
+    "_guimode_scroll_stub:\n"
     "    movzbl  0x373(%rbx), %r9d\n"       // PADDING
     "    movl    0x340(%rbx), %esi\n"       // content width
     "    movl    0x368(%rbx), %eax\n"       // row height
@@ -2604,31 +2604,31 @@ __asm__(
     "    movl    %esi, -0x10(%rbp)\n"       // width
     "    movl    %eax, -0xc(%rbp)\n"        // height
     "    xorl    %r9d, %r9d\n"              // no PADDING in top
-    "    jmpq    *_kmrp_scroll_resume(%rip)\n"
-    "_kmrp_scroll_resume:\n"
+    "    jmpq    *_guimode_scroll_resume(%rip)\n"
+    "_guimode_scroll_resume:\n"
     "    .quad   0x1004a93a5\n"
     ".p2align 4\n"
-    ".globl _kmrp_button_stub\n"
-    "_kmrp_button_stub:\n"
+    ".globl _guimode_button_stub\n"
+    "_guimode_button_stub:\n"
     "    movq      (%rsi), %rax\n"
     "    movq      8(%rsi), %rdx\n"
     "    movq      %rdx, 0x10(%rbx)\n"
     "    movq      %rax, 8(%rbx)\n"
     "    cvtsi2sdl 0x14(%rbx), %xmm0\n"
-    "    cvtss2sd  _g_kmrp_row_scale(%rip), %xmm1\n"
+    "    cvtss2sd  _g_guimode_row_scale(%rip), %xmm1\n"
     "    mulsd     %xmm1, %xmm0\n"
     "    cvtsd2si  %xmm0, %eax\n"
     "    movl      %eax, 0x14(%rbx)\n"
-    "    jmpq      *_kmrp_button_resume(%rip)\n"
-    "_kmrp_button_resume:\n"
+    "    jmpq      *_guimode_button_resume(%rip)\n"
+    "_guimode_button_resume:\n"
     "    .quad     0x1004a5a14\n"
 );
 
 extern "C" {
-    extern const uint8_t kmrp_rows_stub[];
-    extern const uint8_t kmrp_scroll_stub[];
-    extern const uint8_t kmrp_button_stub[];
-    float g_kmrp_row_scale = 1.0f;
+    extern const uint8_t guimode_rows_stub[];
+    extern const uint8_t guimode_scroll_stub[];
+    extern const uint8_t guimode_button_stub[];
+    float g_guimode_row_scale = 1.0f;
 }
 
 static void InstallListboxPaddingFix() {
@@ -2651,7 +2651,7 @@ static void InstallListboxPaddingFix() {
         uint8_t jmpRows[102];
         memset(jmpRows, 0x90, sizeof(jmpRows));
         jmpRows[0] = 0xff; jmpRows[1] = 0x25; jmpRows[2] = 0; jmpRows[3] = 0; jmpRows[4] = 0; jmpRows[5] = 0;
-        uintptr_t targetRows = (uintptr_t)kmrp_rows_stub;
+        uintptr_t targetRows = (uintptr_t)guimode_rows_stub;
         memcpy(&jmpRows[6], &targetRows, 8);
         writeMemBytes(0x1004a8838, jmpRows, 102);
 
@@ -2660,14 +2660,14 @@ static void InstallListboxPaddingFix() {
         uint8_t jmpScroll[43];
         memset(jmpScroll, 0x90, sizeof(jmpScroll));
         jmpScroll[0] = 0xff; jmpScroll[1] = 0x25; jmpScroll[2] = 0; jmpScroll[3] = 0; jmpScroll[4] = 0; jmpScroll[5] = 0;
-        uintptr_t targetScroll = (uintptr_t)kmrp_scroll_stub;
+        uintptr_t targetScroll = (uintptr_t)guimode_scroll_stub;
         memcpy(&jmpScroll[6], &targetScroll, 8);
         writeMemBytes(0x1004a937a, jmpScroll, 43);
 
         uint8_t jmpButton[15];
         memset(jmpButton, 0x90, sizeof(jmpButton));
         jmpButton[0] = 0xff; jmpButton[1] = 0x25; jmpButton[2] = 0; jmpButton[3] = 0; jmpButton[4] = 0; jmpButton[5] = 0;
-        uintptr_t targetButton = (uintptr_t)kmrp_button_stub;
+        uintptr_t targetButton = (uintptr_t)guimode_button_stub;
         memcpy(&jmpButton[6], &targetButton, 8);
         writeMemBytes(0x1004a5a05, jmpButton, 15);
 
@@ -2689,7 +2689,7 @@ static void InstallListboxPaddingFix() {
     if (s_currentKnobs.hasSaveHeight && s_currentKnobs.saveHeight > 0) {
         s = (float)s_currentKnobs.saveHeight / 42.0f;
     }
-    g_kmrp_row_scale = s;
+    g_guimode_row_scale = s;
 
     int baseItem = (s_currentKnobs.baseItemHeight > 0) ? s_currentKnobs.baseItemHeight : 56;
     int baseSkill = (s_currentKnobs.baseSkillHeight > 0) ? s_currentKnobs.baseSkillHeight : 50;
@@ -2894,7 +2894,7 @@ int32_t GetInstalledTutorialIconSize() {
 }
 } // namespace
 
-extern "C" void KMRP_FitMessageBox(void* box) {
+extern "C" void GuiMode_FitMessageBox(void* box) {
     if (!box || !is_readable(box)) return;
     char* const base = static_cast<char*>(box);
     void* list = base + kMsgList;
@@ -2974,7 +2974,7 @@ static void InstallMessageBoxLayout() {
             0x48, 0xb8, 0x36, 0xdc, 0x49, 0x00, 0x01, 0x00, 0x00, 0x00,
             0xff, 0xe0
         };
-        *(void**)&bridge[3] = (void*)&KMRP_FitMessageBox;
+        *(void**)&bridge[3] = (void*)&GuiMode_FitMessageBox;
         writeMemBytes(0x1000f4fb8, bridge, sizeof(bridge));
 
         uint8_t callFit[5] = { 0xe8, 0x2b, 0xe5, 0xde, 0xff };
@@ -3171,7 +3171,7 @@ void FitGrantedRows(char* popup) {
     GrantedSetExtent(popup, panel);
 }
 
-extern "C" void KMRP_GrantedFill(void* list, void* rows, int a, int b, int c) {
+extern "C" void GuiMode_GrantedFill(void* list, void* rows, int a, int b, int c) {
     char* const popup = static_cast<char*>(list) - kGrantedList;
     const bool granted = is_readable(popup) && GrantedAt<uintptr_t>(popup, 0) == kGrantedVtable;
     if (granted) g_grantedPopup = popup;
@@ -3179,7 +3179,7 @@ extern "C" void KMRP_GrantedFill(void* list, void* rows, int a, int b, int c) {
     if (granted) FitGrantedRows(popup);
 }
 
-extern "C" void KMRP_GrantedRowText(void* text, int32_t* rect) {
+extern "C" void GuiMode_GrantedRowText(void* text, int32_t* rect) {
     char* const row = static_cast<char*>(text) - kGrantedRowText;
     if (g_grantedPopup && is_readable(row) && IsGrantedRow(row)) {
         const int32_t size = GrantedAt<int32_t>(row, kGrantedHex + 8);
@@ -3215,19 +3215,19 @@ static void InstallGrantedPopupLayout() {
     static bool s_installed = false;
     if (s_installed) return;
     s_installed = true;
-
+    
     uintptr_t page = GetNearPage();
     if (!page) return;
 
     // Build thunks on the near page:
-    // Offset 0: Thunk to KMRP_GrantedFill (16 bytes)
-    // Offset 16: Thunk to KMRP_GrantedRowText (16 bytes)
+    // Offset 0: Thunk to GuiMode_GrantedFill (16 bytes)
+    // Offset 16: Thunk to GuiMode_GrantedRowText (16 bytes)
     uint8_t thunkFill[16] = {
         0xff, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp *0(%rip)
         0, 0, 0, 0, 0, 0, 0, 0,
         0xcc, 0xcc
     };
-    uint64_t targetFill = reinterpret_cast<uintptr_t>(&KMRP_GrantedFill);
+    uint64_t targetFill = reinterpret_cast<uintptr_t>(&GuiMode_GrantedFill);
     memcpy(&thunkFill[6], &targetFill, 8);
 
     uint8_t thunkRow[16] = {
@@ -3235,7 +3235,7 @@ static void InstallGrantedPopupLayout() {
         0, 0, 0, 0, 0, 0, 0, 0,
         0xcc, 0xcc
     };
-    uint64_t targetRow = reinterpret_cast<uintptr_t>(&KMRP_GrantedRowText);
+    uint64_t targetRow = reinterpret_cast<uintptr_t>(&GuiMode_GrantedRowText);
     memcpy(&thunkRow[6], &targetRow, 8);
 
     memcpy((void*)page, thunkFill, 16);
