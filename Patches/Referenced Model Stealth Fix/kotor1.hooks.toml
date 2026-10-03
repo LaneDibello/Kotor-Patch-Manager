@@ -17,12 +17,24 @@ source = "ecx"
 type = "pointer"
 
 [[hooks.parameters]]
-source = "esp+4"
+source = "[esp+4]"
 type = "pointer"
 
 [[hooks.parameters]]
-source = "esp+0"
+source = "[esp+0]"
 type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0x17C"
+type = "uint"
+
+[[hooks.parameters]]
+source = "const:0x004448C0"
+type = "uint"
+
+[[hooks.parameters]]
+source = "const:0x00444D90"
+type = "uint"
 
 [[hooks]]
 address = 0x00449AF0
@@ -35,6 +47,10 @@ exclude_from_restore = []
 [[hooks.parameters]]
 source = "ecx"
 type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0x17C"
+type = "uint"
 
 [[hooks]]
 address = 0x0044B2F0
@@ -59,3 +75,7 @@ exclude_from_restore = []
 [[hooks.parameters]]
 source = "ecx"
 type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0x17C"
+type = "uint"

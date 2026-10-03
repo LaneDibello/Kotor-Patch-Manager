@@ -1,0 +1,13 @@
+[patch]
+id = "party-roster-limit-32-K2"
+name = "Party Roster Limit 32 K2 Beta"
+version = "0.0.1b"
+author = "Vriff"
+description = "Expands the Party roster to 32 slots. The included .gui file must be installed in override to function"
+
+conflicts = [
+  "full-party-select",
+]
+
+[patch.supported_versions]
+kotor2_gog_aspyr = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"

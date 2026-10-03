@@ -39,6 +39,11 @@ public class MainViewModel : ViewModelBase
     private readonly List<string> _installedPatchOrder = new();
     private readonly AppSettings _settings;
     private bool _hasInstalledPatches;
+
+    // Whether the installed patches were deployed through the library proxy, as their managed
+    // state records, or null when it records none. Apply and Launch keep that method whatever the
+    // preference says (DeploymentPolicy.ForInstalledGame).
+    private bool? _installedWithLibraryProxy;
     private bool _isOperationInProgress;
     private double _progressValue = 0;
     private bool? _selectAllPatches = false;
@@ -131,7 +136,18 @@ public class MainViewModel : ViewModelBase
         get => _hasInstalledPatches;
         private set
         {
-            if (SetProperty(ref _hasInstalledPatches, value))
+            var changed = SetProperty(ref _hasInstalledPatches, value);
+
+            // Read again whenever the installed set is, since an install may have used the other
+            // method: the deployment checkbox shows it while patches are installed.
+            var withProxy = value ? DeploymentPolicy.InstalledWithLibraryProxy(GamePath) : null;
+            if (withProxy != _installedWithLibraryProxy)
+            {
+                _installedWithLibraryProxy = withProxy;
+                OnPropertyChanged(nameof(PreferLibraryProxy));
+            }
+
+            if (changed)
             {
                 OnPropertyChanged(nameof(CanChangeDeployment));
                 ((SimpleCommand)UninstallAllCommand).RaiseCanExecuteChanged();
@@ -226,10 +242,15 @@ public class MainViewModel : ViewModelBase
     /// <summary>
     /// Whether the game is reached through the library proxy instead of injection. Only Windows
     /// can choose; Linux is on the proxy either way, which is why the menu item is disabled there.
+    /// While patches are installed it shows how they were installed, since Apply and Launch keep
+    /// that whatever the saved preference says. It cannot be changed then
+    /// (<see cref="CanChangeDeployment"/>), so the preference itself is untouched.
     /// </summary>
     public bool PreferLibraryProxy
     {
-        get => DeploymentPolicy.PreferLibraryProxy;
+        get => HasInstalledPatches && _installedWithLibraryProxy is bool installed
+            ? installed
+            : DeploymentPolicy.PreferLibraryProxy;
         set
         {
             if (DeploymentPolicy.PreferLibraryProxy == value)
