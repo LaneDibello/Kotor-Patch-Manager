@@ -1,14 +1,13 @@
 [metadata]
 target_versions = [
-    "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435",
-    "761F9466F456A83909036BAEBB5C43167D722387BE66E54617BA20A8C49E9886",
+    "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914",
 ]
 
 [[hooks]]
-address = 0x00443820
+address = 0x00853C00
 type = "detour"
-function = "InitializeReferencedModelStealth"
-original_bytes = [0x64, 0xA1, 0x00, 0x00, 0x00, 0x00]
+function = "InitializeReferencedModelStealthK2"
+original_bytes = [0x55, 0x8B, 0xEC, 0x6A, 0xFF]
 skip_original_bytes = false
 exclude_from_restore = []
 
@@ -25,10 +24,10 @@ source = "esp+0"
 type = "pointer"
 
 [[hooks]]
-address = 0x00449AF0
+address = 0x0084BFD0
 type = "detour"
-function = "EnableReferencedModelStealth"
-original_bytes = [0xC6, 0x81, 0x7C, 0x01, 0x00, 0x00, 0x01]
+function = "EnableReferencedModelStealthK2"
+original_bytes = [0x55, 0x8B, 0xEC, 0x51, 0x89, 0x4D, 0xFC]
 skip_original_bytes = false
 exclude_from_restore = []
 
@@ -37,10 +36,10 @@ source = "ecx"
 type = "pointer"
 
 [[hooks]]
-address = 0x0044B2F0
+address = 0x0084C2E0
 type = "detour"
 function = "CleanupReferencedModelStealth"
-original_bytes = [0x6A, 0xFF, 0x68, 0x03, 0x64, 0x71, 0x00]
+original_bytes = [0x55, 0x8B, 0xEC, 0x51, 0x89, 0x4D, 0xFC]
 skip_original_bytes = false
 exclude_from_restore = []
 
@@ -49,10 +48,10 @@ source = "ecx"
 type = "pointer"
 
 [[hooks]]
-address = 0x00449B00
+address = 0x0084BFF0
 type = "detour"
-function = "DisableReferencedModelStealth"
-original_bytes = [0xC6, 0x81, 0x7C, 0x01, 0x00, 0x00, 0x00]
+function = "DisableReferencedModelStealthK2"
+original_bytes = [0x55, 0x8B, 0xEC, 0x51, 0x89, 0x4D, 0xFC]
 skip_original_bytes = false
 exclude_from_restore = []
 
