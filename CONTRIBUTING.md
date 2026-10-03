@@ -131,4 +131,4 @@ Open an issue with:
 
 ## License
 
-By contributing, you agree that your contributions are licensed under the project's [LICENSE](LICENSE).
+By contributing to this repository, you agree that your contributions are licensed in accordance with the project's [LICENSE](LICENSE).
