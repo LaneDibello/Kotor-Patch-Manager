@@ -29,7 +29,7 @@ This downloads will contain the following:
 	- `.kpatch` files: These are the patch files that the framework can read in and apply to the game
 	- "additional files": These are resources associated with certain patches that may be necessary to make use of them (i.e. modified nwscript.nss for the script extender)
 - tools/
-	- create-patch.bat and create-patch.py: Files that are alternative means for building `.kpatch` files (Linux and MacOS users must us the python script). The .bat file isn't too useful in its current iteration without the added GameAPI source and examples, but it's included nonetheless.
+	- create-patch.bat and create-patch.py: Files that are alternative means for building `.kpatch` files (Linux and MacOS users must use the python script). The .bat file isn't too useful in its current iteration without the added GameAPI source and examples, but it's included nonetheless.
 - README.txt: A brief contents and quick-start guide
 
 To use, just run the launcher. Set the "Game" path to target your game executable (i.e. `swkotor.exe`). Set the "Patches" path to target the directory with your `.kpatch` files (i.e. `<release>/patches`).
