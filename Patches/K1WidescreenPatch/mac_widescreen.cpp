@@ -5,12 +5,15 @@
 #include <sys/stat.h>
 #include <dlfcn.h>
 #include <mach/mach.h>
+#include <mach/mach_vm.h>
 #include <mach/vm_map.h>
 #include <cmath>
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
+
+static void InstallDialogueReplyStretch();
 
 /*
  ==============================================================================================
@@ -496,17 +499,6 @@ static void writeMemByte(uintptr_t addr, uint8_t val) {
     }
 }
 
-static void writeMemFloat(uintptr_t addr, float val) {
-    vm_address_t page = addr & ~0xFFF;
-    kern_return_t kr = vm_protect(mach_task_self(), page, 0x2000, FALSE, 
-                                  VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
-    if (kr == KERN_SUCCESS) {
-        *(float*)addr = val;
-        vm_protect(mach_task_self(), page, 0x2000, FALSE, 
-                   VM_PROT_READ | VM_PROT_EXECUTE);
-    }
-}
-
 static void writeMemBytes(uintptr_t addr, const uint8_t* src, size_t len) {
     vm_address_t page = addr & ~0xFFF;
     kern_return_t kr = vm_protect(mach_task_self(), page, 0x2000, FALSE, 
@@ -571,6 +563,51 @@ struct UiTuningKnobs {
     int skillHeight = 42;
     int workbenchItemHeight = 56;
     int areaTransitionTextOffset = 0;
+
+    bool hasItemHeight = false;
+    bool hasItemPadding = false;
+    bool hasListHeight = false;
+    bool hasIconWidth = false;
+    bool hasIconHeight = false;
+    bool hasIconTopOffset = false;
+    bool hasTextOffset = false;
+    bool hasTextDeduct = false;
+    bool hasListLeftOffset = false;
+    bool hasListTopOffset = false;
+    bool hasListWidthOffset = false;
+    bool hasBadgeOffset = false;
+    bool hasBadgeTopOffset = false;
+    bool hasContainerItemHeight = false;
+    bool hasContainerPadding = false;
+    bool hasSkillHeight = false;
+    bool hasWorkbenchItemHeight = false;
+    int saveHeight = 0;
+    bool hasSaveHeight = false;
+    int mapOverlayWidth = 0;
+    bool hasMapOverlayWidth = false;
+    int mapOverlayHeight = 0;
+    bool hasMapOverlayHeight = false;
+    int mapCanvasWidth = 0;
+    bool hasMapCanvasWidth = false;
+    int mapCanvasHeight = 0;
+    bool hasMapCanvasHeight = false;
+    int mapMarkerScale = 0;
+    bool hasMapMarkerScale = false;
+    int mapArrowSize = 0;
+    bool hasMapArrowSize = false;
+    int mapPartySize = 0;
+    bool hasMapPartySize = false;
+    int mapNoteSize = 0;
+    bool hasMapNoteSize = false;
+    int mapNoteSelSize = 0;
+    bool hasMapNoteSelSize = false;
+
+    // Base UI scaling units for skin mods ([UI Scaling Bases] / [UI Tuning])
+    int baseReferenceHeight = 720;
+    int baseItemHeight = 56;
+    int baseSkillHeight = 50;
+    int baseChainHeight = 50;
+    int baseCheckboxSize = 25;
 };
 
 static UiTuningKnobs s_currentKnobs;
@@ -578,13 +615,26 @@ static time_t s_lastIniModTime = 0;
 static int s_knobVersion = 0;
 
 static bool CheckAndReloadUiKnobs() {
-    const char* home = getenv("HOME");
-    if (!home) return false;
+    static uint32_t s_checkCounter = 0;
+    if (s_lastIniModTime != 0 && (++s_checkCounter % 60 != 0)) return false;
+
     char path[1024];
-    snprintf(path, sizeof(path), "%s/Library/Application Support/Knights of the Old Republic/swkotor.ini", home);
-    
     struct stat st;
-    if (stat(path, &st) != 0) return false;
+    bool found = false;
+    const char* home = getenv("HOME");
+    if (home) {
+        snprintf(path, sizeof(path), "%s/Library/Application Support/Knights of the Old Republic/swkotor.ini", home);
+        if (stat(path, &st) == 0) {
+            found = true;
+        }
+    }
+    if (!found) {
+        snprintf(path, sizeof(path), "swkotor.ini");
+        if (stat(path, &st) == 0) {
+            found = true;
+        }
+    }
+    if (!found) return false;
     if (s_lastIniModTime != 0 && st.st_mtime == s_lastIniModTime) return false;
     
     s_lastIniModTime = st.st_mtime;
@@ -599,7 +649,9 @@ static bool CheckAndReloadUiKnobs() {
         char* p = line;
         while (*p == ' ' || *p == '\t') p++;
         if (*p == '[') {
-            inTuning = (strncasecmp(p, "[UI Tuning]", 11) == 0);
+            inTuning = (strncasecmp(p, "[UI Tuning]", 11) == 0 ||
+                        strncasecmp(p, "[UI Scaling Bases]", 18) == 0 ||
+                        strncasecmp(p, "[Graphics Options]", 18) == 0);
             continue;
         }
         if (inTuning) {
@@ -616,23 +668,38 @@ static bool CheckAndReloadUiKnobs() {
                 endKey--;
             }
             
-            if (strcasecmp(p, "ItemHeight") == 0) newKnobs.itemHeight = val;
-            else if (strcasecmp(p, "ItemPadding") == 0) newKnobs.itemPadding = val;
-            else if (strcasecmp(p, "ListHeight") == 0) newKnobs.listHeight = val;
-            else if (strcasecmp(p, "IconWidth") == 0) newKnobs.iconWidth = val;
-            else if (strcasecmp(p, "IconHeight") == 0) newKnobs.iconHeight = val;
-            else if (strcasecmp(p, "IconTopOffset") == 0) newKnobs.iconTopOffset = val;
-            else if (strcasecmp(p, "TextOffset") == 0) newKnobs.textOffset = val;
-            else if (strcasecmp(p, "TextDeduct") == 0) newKnobs.textDeduct = val;
-            else if (strcasecmp(p, "ListLeftOffset") == 0) newKnobs.listLeftOffset = val;
-            else if (strcasecmp(p, "ListTopOffset") == 0) newKnobs.listTopOffset = val;
-            else if (strcasecmp(p, "ListWidthOffset") == 0) newKnobs.listWidthOffset = val;
-            else if (strcasecmp(p, "BadgeOffset") == 0) newKnobs.badgeOffset = val;
-            else if (strcasecmp(p, "BadgeTopOffset") == 0 || strcasecmp(p, "BadgeYOffset") == 0) newKnobs.badgeTopOffset = val;
-            else if (strcasecmp(p, "ContainerItemHeight") == 0) newKnobs.containerItemHeight = val;
-            else if (strcasecmp(p, "ContainerPadding") == 0) newKnobs.containerPadding = val;
-            else if (strcasecmp(p, "SkillHeight") == 0) newKnobs.skillHeight = val;
-            else if (strcasecmp(p, "WorkbenchItemHeight") == 0) newKnobs.workbenchItemHeight = val;
+            if (strcasecmp(p, "BaseReferenceHeight") == 0 && val > 0) newKnobs.baseReferenceHeight = val;
+            else if (strcasecmp(p, "BaseItemHeight") == 0 && val > 0) newKnobs.baseItemHeight = val;
+            else if (strcasecmp(p, "BaseSkillHeight") == 0 && val > 0) newKnobs.baseSkillHeight = val;
+            else if (strcasecmp(p, "BaseChainHeight") == 0 && val > 0) newKnobs.baseChainHeight = val;
+            else if (strcasecmp(p, "BaseCheckboxSize") == 0 && val > 0) newKnobs.baseCheckboxSize = val;
+            else if (strcasecmp(p, "ItemHeight") == 0) { newKnobs.itemHeight = val; newKnobs.hasItemHeight = true; }
+            else if (strcasecmp(p, "ItemPadding") == 0) { newKnobs.itemPadding = val; newKnobs.hasItemPadding = true; }
+            else if (strcasecmp(p, "ListHeight") == 0) { newKnobs.listHeight = val; newKnobs.hasListHeight = true; }
+            else if (strcasecmp(p, "IconWidth") == 0) { newKnobs.iconWidth = val; newKnobs.hasIconWidth = true; }
+            else if (strcasecmp(p, "IconHeight") == 0) { newKnobs.iconHeight = val; newKnobs.hasIconHeight = true; }
+            else if (strcasecmp(p, "IconTopOffset") == 0) { newKnobs.iconTopOffset = val; newKnobs.hasIconTopOffset = true; }
+            else if (strcasecmp(p, "TextOffset") == 0) { newKnobs.textOffset = val; newKnobs.hasTextOffset = true; }
+            else if (strcasecmp(p, "TextDeduct") == 0) { newKnobs.textDeduct = val; newKnobs.hasTextDeduct = true; }
+            else if (strcasecmp(p, "ListLeftOffset") == 0) { newKnobs.listLeftOffset = val; newKnobs.hasListLeftOffset = true; }
+            else if (strcasecmp(p, "ListTopOffset") == 0) { newKnobs.listTopOffset = val; newKnobs.hasListTopOffset = true; }
+            else if (strcasecmp(p, "ListWidthOffset") == 0) { newKnobs.listWidthOffset = val; newKnobs.hasListWidthOffset = true; }
+            else if (strcasecmp(p, "BadgeOffset") == 0) { newKnobs.badgeOffset = val; newKnobs.hasBadgeOffset = true; }
+            else if (strcasecmp(p, "BadgeTopOffset") == 0 || strcasecmp(p, "BadgeYOffset") == 0) { newKnobs.badgeTopOffset = val; newKnobs.hasBadgeTopOffset = true; }
+            else if (strcasecmp(p, "ContainerItemHeight") == 0) { newKnobs.containerItemHeight = val; newKnobs.hasContainerItemHeight = true; }
+            else if (strcasecmp(p, "ContainerPadding") == 0) { newKnobs.containerPadding = val; newKnobs.hasContainerPadding = true; }
+            else if (strcasecmp(p, "SkillHeight") == 0) { newKnobs.skillHeight = val; newKnobs.hasSkillHeight = true; }
+            else if (strcasecmp(p, "WorkbenchItemHeight") == 0) { newKnobs.workbenchItemHeight = val; newKnobs.hasWorkbenchItemHeight = true; }
+            else if (strcasecmp(p, "SaveHeight") == 0) { newKnobs.saveHeight = val; newKnobs.hasSaveHeight = true; }
+            else if (strcasecmp(p, "MapOverlayWidth") == 0) { newKnobs.mapOverlayWidth = val; newKnobs.hasMapOverlayWidth = true; }
+            else if (strcasecmp(p, "MapOverlayHeight") == 0) { newKnobs.mapOverlayHeight = val; newKnobs.hasMapOverlayHeight = true; }
+            else if (strcasecmp(p, "MapCanvasWidth") == 0) { newKnobs.mapCanvasWidth = val; newKnobs.hasMapCanvasWidth = true; }
+            else if (strcasecmp(p, "MapCanvasHeight") == 0) { newKnobs.mapCanvasHeight = val; newKnobs.hasMapCanvasHeight = true; }
+            else if (strcasecmp(p, "MapMarkerScale") == 0) { newKnobs.mapMarkerScale = val; newKnobs.hasMapMarkerScale = true; }
+            else if (strcasecmp(p, "MapArrowSize") == 0) { newKnobs.mapArrowSize = val; newKnobs.hasMapArrowSize = true; }
+            else if (strcasecmp(p, "MapPartySize") == 0) { newKnobs.mapPartySize = val; newKnobs.hasMapPartySize = true; }
+            else if (strcasecmp(p, "MapNoteSize") == 0) { newKnobs.mapNoteSize = val; newKnobs.hasMapNoteSize = true; }
+            else if (strcasecmp(p, "MapNoteSelSize") == 0) { newKnobs.mapNoteSelSize = val; newKnobs.hasMapNoteSelSize = true; }
             else if (strcasecmp(p, "AreaTransitionTextOffset") == 0) newKnobs.areaTransitionTextOffset = val;
         }
     }
@@ -672,10 +739,14 @@ struct ScaledItemGeometry {
   At 982p, resScale == 1.0f (exact calibrated values).
   On any other display resolution (e.g. 1080p, 1440p, 4K, 720p), scales all coordinates
   proportionally to preserve pixel-perfect alignment with the scaled background slots.
+  When UseGuiFileLayouts=1 is active, coordinates are taken 1:1 without 982p scaling.
 */
 static ScaledItemGeometry GetScaledItemGeometry(int currentTargetH) {
     float scale = (currentTargetH > 0) ? ((float)currentTargetH / 480.0f) : 1.0f;
     float resScale = (currentTargetH > 0) ? ((float)currentTargetH / 982.0f) : 1.0f;
+    if (GuiFileLayouts()) {
+        resScale = 1.0f;
+    }
     ScaledItemGeometry g;
     g.itemHeight = (int)(s_currentKnobs.itemHeight * resScale + 0.5f);
     g.itemPadding = (int)(s_currentKnobs.itemPadding * resScale + 0.5f);
@@ -686,17 +757,58 @@ static ScaledItemGeometry GetScaledItemGeometry(int currentTargetH) {
     } else {
         g.listHeight = autoListHeight;
     }
-    g.iconWidth = (int)(s_currentKnobs.iconWidth * resScale + 0.5f);
-    g.iconHeight = (int)(s_currentKnobs.iconHeight * resScale + 0.5f);
-    g.iconTopOffset = (int)(s_currentKnobs.iconTopOffset * resScale + (s_currentKnobs.iconTopOffset < 0 ? -0.5f : 0.5f));
-    g.textOffset = (int)(s_currentKnobs.textOffset * resScale + 0.5f);
-    g.textDeduct = (int)(s_currentKnobs.textDeduct * resScale + 0.5f);
+    
+    if (GuiFileLayouts() && !s_currentKnobs.hasIconWidth && g.itemHeight < 90) {
+        g.iconWidth = g.itemHeight;
+    } else {
+        g.iconWidth = (int)(s_currentKnobs.iconWidth * resScale + 0.5f);
+    }
+    
+    if (GuiFileLayouts() && !s_currentKnobs.hasIconHeight && g.itemHeight < 90) {
+        g.iconHeight = g.itemHeight;
+    } else {
+        g.iconHeight = (int)(s_currentKnobs.iconHeight * resScale + 0.5f);
+    }
+    
+    if (GuiFileLayouts() && !s_currentKnobs.hasIconTopOffset && g.itemHeight < 90) {
+        g.iconTopOffset = 0;
+    } else {
+        g.iconTopOffset = (int)(s_currentKnobs.iconTopOffset * resScale + (s_currentKnobs.iconTopOffset < 0 ? -0.5f : 0.5f));
+    }
+    
+    if (GuiFileLayouts() && !s_currentKnobs.hasTextOffset && g.itemHeight < 90) {
+        g.textOffset = g.itemHeight;
+    } else {
+        g.textOffset = (int)(s_currentKnobs.textOffset * resScale + 0.5f);
+    }
+    
+    if (GuiFileLayouts() && !s_currentKnobs.hasTextDeduct && g.itemHeight < 90) {
+        g.textDeduct = g.itemHeight;
+    } else {
+        g.textDeduct = (int)(s_currentKnobs.textDeduct * resScale + 0.5f);
+    }
+    
     g.listLeftOffset = (int)(s_currentKnobs.listLeftOffset * resScale + (s_currentKnobs.listLeftOffset < 0 ? -0.5f : 0.5f));
     g.listTopOffset = (int)(s_currentKnobs.listTopOffset * resScale + (s_currentKnobs.listTopOffset < 0 ? -0.5f : 0.5f));
     g.listWidthOffset = (int)(s_currentKnobs.listWidthOffset * resScale + (s_currentKnobs.listWidthOffset < 0 ? -0.5f : 0.5f));
-    g.badgeOffset = (int)(s_currentKnobs.badgeOffset * resScale + 0.5f);
-    g.badgeTopOffset = (int)(s_currentKnobs.badgeTopOffset * resScale + (s_currentKnobs.badgeTopOffset < 0 ? -0.5f : 0.5f));
-    g.containerItemHeight = (int)(56.0f * scale + 0.5f);
+    
+    if (GuiFileLayouts() && !s_currentKnobs.hasBadgeOffset && g.itemHeight < 90) {
+        g.badgeOffset = g.itemHeight - 5;
+    } else {
+        g.badgeOffset = (int)(s_currentKnobs.badgeOffset * resScale + 0.5f);
+    }
+    
+    if (GuiFileLayouts() && !s_currentKnobs.hasBadgeTopOffset && g.itemHeight < 90) {
+        g.badgeTopOffset = 0;
+    } else {
+        g.badgeTopOffset = (int)(s_currentKnobs.badgeTopOffset * resScale + (s_currentKnobs.badgeTopOffset < 0 ? -0.5f : 0.5f));
+    }
+    
+    if (GuiFileLayouts()) {
+        g.containerItemHeight = s_currentKnobs.hasContainerItemHeight ? s_currentKnobs.containerItemHeight : (g.itemHeight < 90 ? g.itemHeight : 56);
+    } else {
+        g.containerItemHeight = (int)(56.0f * scale + 0.5f);
+    }
     g.containerPadding = (int)(s_currentKnobs.containerPadding * resScale + 0.5f);
     return g;
 }
@@ -722,11 +834,20 @@ static const GetPlayerMapCoordsFn Orig_GetPlayerMapCoords = (GetPlayerMapCoordsF
 extern "C" int MapHider_WorldToMapCoords(void* pMapInfo, double xy, float z, int* outX, int* outY) {
     int res = Orig_WorldToMapCoords(pMapInfo, xy, z, outX, outY);
     if (res && outX && outY) {
-        float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
-        float menuScale = ReadIniMenuScale();
-        if (menuScale > 0.0f) scale = menuScale;
-        *outX = (int)(*outX * scale + 0.5f);
-        *outY = (int)(*outY * scale + 0.5f);
+        if (GuiFileLayouts()) {
+            int ow = (s_currentKnobs.hasMapOverlayWidth && s_currentKnobs.mapOverlayWidth > 0)
+                         ? s_currentKnobs.mapOverlayWidth : (g_targetWidth / 2);
+            int oh = (s_currentKnobs.hasMapOverlayHeight && s_currentKnobs.mapOverlayHeight > 0)
+                         ? s_currentKnobs.mapOverlayHeight : (g_targetHeight / 2);
+            *outX = (*outX * ow + 220) / 440;
+            *outY = (*outY * oh + 128) / 256;
+        } else {
+            float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
+            float menuScale = ReadIniMenuScale();
+            if (menuScale > 0.0f) scale = menuScale;
+            *outX = (int)(*outX * scale + 0.5f);
+            *outY = (int)(*outY * scale + 0.5f);
+        }
     }
     return res;
 }
@@ -734,11 +855,20 @@ extern "C" int MapHider_WorldToMapCoords(void* pMapInfo, double xy, float z, int
 extern "C" int MapHider_GetPlayerMapCoords(char* pMapInfo, int partyIdx, int* outX, int* outY) {
     int res = Orig_GetPlayerMapCoords(pMapInfo, partyIdx, outX, outY);
     if (res && outX && outY) {
-        float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
-        float menuScale = ReadIniMenuScale();
-        if (menuScale > 0.0f) scale = menuScale;
-        *outX = (int)(*outX * scale + 0.5f);
-        *outY = (int)(*outY * scale + 0.5f);
+        if (GuiFileLayouts()) {
+            int ow = (s_currentKnobs.hasMapOverlayWidth && s_currentKnobs.mapOverlayWidth > 0)
+                         ? s_currentKnobs.mapOverlayWidth : (g_targetWidth / 2);
+            int oh = (s_currentKnobs.hasMapOverlayHeight && s_currentKnobs.mapOverlayHeight > 0)
+                         ? s_currentKnobs.mapOverlayHeight : (g_targetHeight / 2);
+            *outX = (*outX * ow + 220) / 440;
+            *outY = (*outY * oh + 128) / 256;
+        } else {
+            float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
+            float menuScale = ReadIniMenuScale();
+            if (menuScale > 0.0f) scale = menuScale;
+            *outX = (int)(*outX * scale + 0.5f);
+            *outY = (int)(*outY * scale + 0.5f);
+        }
     }
     return res;
 }
@@ -769,13 +899,22 @@ static int StackBadgeHeight(float layoutScale) {
 */
 void refreshPatchedListConstants() {
     InitTargetResolution();
+    if (GuiFileLayouts()) return;
+    CheckAndReloadUiKnobs();
+
+    static int s_lastAppliedKnobVersion = -1;
+    static int s_lastAppliedHeight = -1;
+    if (s_lastAppliedKnobVersion == s_knobVersion && s_lastAppliedHeight == g_targetHeight) {
+        return;
+    }
+    s_lastAppliedKnobVersion = s_knobVersion;
+    s_lastAppliedHeight = g_targetHeight;
+
     float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
     float menuScale = ReadIniMenuScale();
     if (menuScale > 0.0f) {
         scale = menuScale;
     }
-
-    CheckAndReloadUiKnobs();
 
     ScaledItemGeometry geom = GetScaledItemGeometry(g_targetHeight);
 
@@ -1010,6 +1149,8 @@ void refreshPatchedListConstants() {
         0xff, 0xff
     };
     writeMemBytes(0x1002b54cf, vanillaArrow, sizeof(vanillaArrow));
+
+    InstallDialogueReplyStretch();
 
     s_lastPatchedTargetHeight = g_targetHeight;
 }
@@ -1643,6 +1784,7 @@ void positionBarkBubble(char* window) {
 
 void scaleMenuPanelTree(char* panel) {
     if (!panel || !is_readable(panel)) return;
+    if (GuiFileLayouts()) return; // Menus and popups are authored by external .gui files
     if (panel == g_lastScaledHud) return; // HUD interface has its own custom anchoring
     
     refreshPatchedListConstants();
@@ -2101,21 +2243,6 @@ extern "C" void Hook_ClassSelectionUpdate(char* panel, float delta) {
     ((void(*)(char*, float))0x10049ded4)(panel, delta);
 }
 
-/*
-  Trampoline for CSWGuiMainInterface::Draw (0x100235e44)
-*/
-__attribute__((naked)) void Original_MainInterfaceDraw(void* hud, float delta) {
-    __asm__ volatile (
-        "pushq %rbp\n"
-        "movq %rsp, %rbp\n"
-        "pushq %r15\n"
-        "pushq %r14\n"
-        "pushq %r13\n"
-        "pushq %r12\n"
-        "movq $0x100235e50, %rax\n"
-        "jmpq *%rax\n"
-    );
-}
 
 /*
   Hook_MainInterfaceDraw:
@@ -2419,22 +2546,713 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
 }
 
 
+
 /*
-  Trampoline for CSWGuiWindow::Draw (0x10049ded4)
-  Base render method for ALL GUI windows, including menus, dialogs, and containers.
+  High-Resolution Listbox Padding & External GUI Layout Support:
+  When UseGuiFileLayouts=1 is active in swkotor.ini, listbox controls from custom .gui files
+  (e.g. KOTOR High Resolution Menus, KMRP, etc.) are laid out using Windows Gold v11/v12 rules:
+  1. PADDING is treated as a horizontal scrollbar gutter only (not added to vertical row pitch).
+  2. First row top starts at 0 (no vertical gap above the first row).
+  3. Template rows (save/load list and quest journal) are scaled by s = max(1.0, H / 720).
+  4. Item, skill, store, and chain rows match high-resolution proportional heights or user [UI Tuning] knobs.
 */
-__attribute__((naked)) void Original_WindowDraw(void* window, float delta) {
-    __asm__ volatile (
-        "pushq %rbp\n"
-        "movq %rsp, %rbp\n"
-        "pushq %r15\n"
-        "pushq %r14\n"
-        "pushq %r12\n"
-        "pushq %rbx\n"
-        "subq $0x20, %rsp\n"
-        "movq $0x10049dee3, %rax\n"
-        "jmpq *%rax\n"
-    );
+__asm__(
+    ".text\n"
+    ".p2align 4\n"
+    ".globl _guimode_rows_stub\n"
+    "_guimode_rows_stub:\n"
+    "    movl    0x344(%r12), %r14d\n"      // height
+    "    movswl  0x378(%r12), %edi\n"       // visible rows
+    "    movl    %edi, %eax\n"
+    "    movl    -0x2c(%rbp), %r8d\n"       // pitch
+    "    imull   %r8d, %eax\n"
+    "    subl    %eax, %r14d\n"             // leftover
+    "    movl    %r14d, %eax\n"
+    "    cltd\n"
+    "    idivl   %edi\n"                    // extra per row
+    "    movzbl  0x373(%r12), %r15d\n"      // PADDING
+    "    movl    0x340(%r12), %ecx\n"       // content width
+    "    movl    0x368(%r12), %ebx\n"       // row height
+    "    subl    %r15d, %ecx\n"             // width - PADDING
+    "    xorl    %edx, %edx\n"
+    "    testb   $0x10, 0x370(%r12)\n"      // LEFTSCROLLBAR
+    "    cmovnel %r15d, %edx\n"
+    "    movl    %edx, -0x40(%rbp)\n"       // left
+    "    movl    %r13d, -0x3c(%rbp)\n"
+    "    movl    %ecx, -0x38(%rbp)\n"       // width
+    "    movl    %ebx, -0x34(%rbp)\n"       // height
+    "    movswl  0x37c(%r12), %esi\n"       // scroll top
+    "    movl    %esi, %ecx\n"
+    "    imull   %r8d, %ecx\n"
+    "    movl    %ecx, %r15d\n"
+    "    negl    %r15d\n"                   // first top
+    "    jmpq    *_guimode_rows_resume(%rip)\n"
+    "_guimode_rows_resume:\n"
+    "    .quad   0x1004a889e\n"
+    ".p2align 4\n"
+    ".globl _guimode_scroll_stub\n"
+    "_guimode_scroll_stub:\n"
+    "    movzbl  0x373(%rbx), %r9d\n"       // PADDING
+    "    movl    0x340(%rbx), %esi\n"       // content width
+    "    movl    0x368(%rbx), %eax\n"       // row height
+    "    subl    %r9d, %esi\n"              // width - PADDING
+    "    xorl    %ecx, %ecx\n"
+    "    testb   $0x10, 0x370(%rbx)\n"      // LEFTSCROLLBAR
+    "    cmovnel %r9d, %ecx\n"
+    "    movl    %ecx, -0x18(%rbp)\n"       // left
+    "    movl    $0, -0x14(%rbp)\n"         // top
+    "    movl    %esi, -0x10(%rbp)\n"       // width
+    "    movl    %eax, -0xc(%rbp)\n"        // height
+    "    xorl    %r9d, %r9d\n"              // no PADDING in top
+    "    jmpq    *_guimode_scroll_resume(%rip)\n"
+    "_guimode_scroll_resume:\n"
+    "    .quad   0x1004a93a5\n"
+    ".p2align 4\n"
+    ".globl _guimode_button_stub\n"
+    "_guimode_button_stub:\n"
+    "    movq      (%rsi), %rax\n"
+    "    movq      8(%rsi), %rdx\n"
+    "    movq      %rdx, 0x10(%rbx)\n"
+    "    movq      %rax, 8(%rbx)\n"
+    "    cvtsi2sdl 0x14(%rbx), %xmm0\n"
+    "    cvtss2sd  _g_guimode_row_scale(%rip), %xmm1\n"
+    "    mulsd     %xmm1, %xmm0\n"
+    "    cvtsd2si  %xmm0, %eax\n"
+    "    movl      %eax, 0x14(%rbx)\n"
+    "    jmpq      *_guimode_button_resume(%rip)\n"
+    "_guimode_button_resume:\n"
+    "    .quad     0x1004a5a14\n"
+);
+
+extern "C" {
+    extern const uint8_t guimode_rows_stub[];
+    extern const uint8_t guimode_scroll_stub[];
+    extern const uint8_t guimode_button_stub[];
+    float g_guimode_row_scale = 1.0f;
+}
+
+static void InstallListboxPaddingFix() {
+    InitTargetResolution();
+    CheckAndReloadUiKnobs();
+
+    static bool s_stubsInstalled = false;
+    if (!s_stubsInstalled) {
+        s_stubsInstalled = true;
+
+        const uint8_t zeroBl[8] = { 0xb3, 0x00, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
+        const uint8_t zeroR13d[9] = { 0x45, 0x31, 0xed, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
+        const uint8_t zeroEax[9] = { 0x31, 0xc0, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
+
+        writeMemBytes(0x1004a82fd, zeroBl, 8);
+        writeMemBytes(0x1004a83de, zeroR13d, 9);
+        writeMemBytes(0x1004a8697, zeroEax, 9);
+        writeMemBytes(0x1004a8752, zeroBl, 8);
+
+        uint8_t jmpRows[102];
+        memset(jmpRows, 0x90, sizeof(jmpRows));
+        jmpRows[0] = 0xff; jmpRows[1] = 0x25; jmpRows[2] = 0; jmpRows[3] = 0; jmpRows[4] = 0; jmpRows[5] = 0;
+        uintptr_t targetRows = (uintptr_t)guimode_rows_stub;
+        memcpy(&jmpRows[6], &targetRows, 8);
+        writeMemBytes(0x1004a8838, jmpRows, 102);
+
+        writeMemBytes(0x1004a895d, zeroEax, 9);
+
+        uint8_t jmpScroll[43];
+        memset(jmpScroll, 0x90, sizeof(jmpScroll));
+        jmpScroll[0] = 0xff; jmpScroll[1] = 0x25; jmpScroll[2] = 0; jmpScroll[3] = 0; jmpScroll[4] = 0; jmpScroll[5] = 0;
+        uintptr_t targetScroll = (uintptr_t)guimode_scroll_stub;
+        memcpy(&jmpScroll[6], &targetScroll, 8);
+        writeMemBytes(0x1004a937a, jmpScroll, 43);
+
+        uint8_t jmpButton[15];
+        memset(jmpButton, 0x90, sizeof(jmpButton));
+        jmpButton[0] = 0xff; jmpButton[1] = 0x25; jmpButton[2] = 0; jmpButton[3] = 0; jmpButton[4] = 0; jmpButton[5] = 0;
+        uintptr_t targetButton = (uintptr_t)guimode_button_stub;
+        memcpy(&jmpButton[6], &targetButton, 8);
+        writeMemBytes(0x1004a5a05, jmpButton, 15);
+
+        writeMemBytes(0x1002be4da, (const uint8_t*)"\x45\x01\xef\x90", 4);
+        writeMemBytes(0x1002be4e1, (const uint8_t*)"\x44\x29\xe8", 3);
+        writeMemBytes(0x10022f297, (const uint8_t*)"\x01\xd0\x90", 3);
+        writeMemBytes(0x10022f29d, (const uint8_t*)"\x29\xd6\x90", 3);
+    }
+
+    static int s_lastAppliedKnobVersion = -1;
+    static int s_lastAppliedHeight = -1;
+    if (s_lastAppliedKnobVersion == s_knobVersion && s_lastAppliedHeight == g_targetHeight) return;
+    s_lastAppliedKnobVersion = s_knobVersion;
+    s_lastAppliedHeight = g_targetHeight;
+
+    float baseRefH = (s_currentKnobs.baseReferenceHeight > 0) ? (float)s_currentKnobs.baseReferenceHeight : 720.0f;
+    float s = (g_targetHeight > 0) ? ((float)g_targetHeight / baseRefH) : 1.0f;
+    if (s < 1.0f) s = 1.0f;
+    if (s_currentKnobs.hasSaveHeight && s_currentKnobs.saveHeight > 0) {
+        s = (float)s_currentKnobs.saveHeight / 42.0f;
+    }
+    g_guimode_row_scale = s;
+
+    int baseItem = (s_currentKnobs.baseItemHeight > 0) ? s_currentKnobs.baseItemHeight : 56;
+    int baseSkill = (s_currentKnobs.baseSkillHeight > 0) ? s_currentKnobs.baseSkillHeight : 50;
+    int baseChain = (s_currentKnobs.baseChainHeight > 0) ? s_currentKnobs.baseChainHeight : 50;
+
+    int row56 = (s_currentKnobs.hasItemHeight && s_currentKnobs.itemHeight > 0)
+                    ? s_currentKnobs.itemHeight : (int)((float)baseItem * s + 0.5f);
+    int rowSkill = (s_currentKnobs.hasSkillHeight && s_currentKnobs.skillHeight > 0)
+                    ? s_currentKnobs.skillHeight : (int)((float)baseSkill * s + 0.5f);
+
+    writeMemInt(0x1002be443, row56);
+    writeMemInt(0x1002be874, row56);
+    writeMemInt(0x1002bff71, row56);
+
+    writeMemInt(0x10022f257, rowSkill);
+    writeMemInt(0x10022f60f, rowSkill);
+
+    writeMemInt(0x100570efc, (int)((float)baseChain * s + 0.5f));
+
+    // Stack count label
+    int w = (int)(21.0f * s + 0.5f);
+    int icon = (int)((float)baseItem * s + 0.5f);
+    int top = (int)(37.0f * s + 0.5f);
+    int h = (int)(19.0f * s + 0.5f);
+    uint8_t blk[50] = {
+        0x83, 0xf8, 0x02,
+        0xb9, 0, 0, 0, 0,
+        0x7e, 0x02,
+        0x01, 0xc9,
+        0x48, 0x8d, 0x75, 0x98,
+        0x89, 0x4e, 0x08,
+        0x41, 0x8d, 0x87, 0, 0, 0, 0,
+        0x29, 0xc8,
+        0x89, 0x06,
+        0x41, 0x8d, 0x84, 0x24, 0, 0, 0, 0,
+        0x89, 0x46, 0x04,
+        0xc7, 0x46, 0x0c, 0, 0, 0, 0,
+        0x90, 0x90
+    };
+    *(int*)&blk[4] = w;
+    *(int*)&blk[22] = icon;
+    *(int*)&blk[34] = top;
+    *(int*)&blk[44] = h;
+    writeMemBytes(0x1002be4a0, blk, 50);
+    writeMemInt(0x1002bfbc0, icon);
+}
+
+static void InstallAreaMapLayout() {
+    InitTargetResolution();
+    CheckAndReloadUiKnobs();
+
+    // 1. Install coordinate scaling bridges to MapHider_WorldToMapCoords & MapHider_GetPlayerMapCoords
+    static bool s_bridgesInstalled = false;
+    if (!s_bridgesInstalled) {
+        s_bridgesInstalled = true;
+        uint8_t bridgeWorld[12] = { 0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0 };
+        *(void**)&bridgeWorld[2] = (void*)&MapHider_WorldToMapCoords;
+        writeMemBytes(0x1000f4f68, bridgeWorld, 12);
+
+        uint8_t bridgePlayer[12] = { 0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0 };
+        *(void**)&bridgePlayer[2] = (void*)&MapHider_GetPlayerMapCoords;
+        writeMemBytes(0x1000f4f78, bridgePlayer, 12);
+
+        uint8_t callWorld[5] = { 0xe8, 0x99, 0xff, 0xe3, 0xff };
+        writeMemBytes(0x1002b4fca, callWorld, 5);
+
+        uint8_t callParty[5] = { 0xe8, 0x58, 0xfb, 0xe3, 0xff };
+        writeMemBytes(0x1002b541b, callParty, 5);
+
+        uint8_t callPlayer[5] = { 0xe8, 0xb1, 0xfa, 0xe3, 0xff };
+        writeMemBytes(0x1002b54c2, callPlayer, 5);
+
+        // Ensure fog tile step X and Y hooks are installed
+        uint8_t mapHiderWidthHook[8] = { 0xf3, 0x41, 0x0f, 0x2a, 0x4c, 0x24, 0x10, 0x90 };
+        writeMemBytes(0x1002b4ce9, mapHiderWidthHook, 8);
+        uint8_t mapHiderHeightHook[8] = { 0xf3, 0x41, 0x0f, 0x2a, 0x54, 0x24, 0x14, 0x90 };
+        writeMemBytes(0x1002b4cfc, mapHiderHeightHook, 8);
+    }
+
+    static int s_lastAppliedMapKnobVersion = -1;
+    static int s_lastAppliedMapHeight = -1;
+    static int s_lastAppliedMapWidth = -1;
+    if (s_lastAppliedMapKnobVersion == s_knobVersion &&
+        s_lastAppliedMapHeight == g_targetHeight &&
+        s_lastAppliedMapWidth == g_targetWidth) {
+        return;
+    }
+    s_lastAppliedMapKnobVersion = s_knobVersion;
+    s_lastAppliedMapHeight = g_targetHeight;
+    s_lastAppliedMapWidth = g_targetWidth;
+
+    // 2. Compute overlay and canvas dimensions
+    int ow = (s_currentKnobs.hasMapOverlayWidth && s_currentKnobs.mapOverlayWidth > 0)
+                 ? s_currentKnobs.mapOverlayWidth : (g_targetWidth / 2);
+    int oh = (s_currentKnobs.hasMapOverlayHeight && s_currentKnobs.mapOverlayHeight > 0)
+                 ? s_currentKnobs.mapOverlayHeight : (g_targetHeight / 2);
+    int cw = (s_currentKnobs.hasMapCanvasWidth && s_currentKnobs.mapCanvasWidth > 0)
+                ? s_currentKnobs.mapCanvasWidth : (int)std::round((double)ow * 512.0 / 440.0);
+    int ch = (s_currentKnobs.hasMapCanvasHeight && s_currentKnobs.mapCanvasHeight > 0)
+                ? s_currentKnobs.mapCanvasHeight : oh;
+
+    // 3. Write binary template rects for canvas and overlay
+    writeMemInt(0x100571398, cw);
+    writeMemInt(0x10057139c, ch);
+    writeMemInt(0x1005713a8, ow);
+    writeMemInt(0x1005713ac, oh);
+
+    // 4. Marker scaling
+    float m = (g_targetHeight > 0) ? ((float)g_targetHeight / 720.0f) : 1.0f;
+    if (m < 1.0f) m = 1.0f;
+    if (m > 127.0f / 16.0f) m = 127.0f / 16.0f;
+    if (s_currentKnobs.hasMapMarkerScale && s_currentKnobs.mapMarkerScale > 0) {
+        m = (float)s_currentKnobs.mapMarkerScale / 100.0f;
+    }
+
+    int arrow = (s_currentKnobs.hasMapArrowSize && s_currentKnobs.mapArrowSize > 0)
+                    ? s_currentKnobs.mapArrowSize : (int)std::round(32.0f * m);
+    int party = (s_currentKnobs.hasMapPartySize && s_currentKnobs.mapPartySize > 0)
+                    ? s_currentKnobs.mapPartySize : (int)std::round(16.0f * m);
+    int note = (s_currentKnobs.hasMapNoteSize && s_currentKnobs.mapNoteSize > 0)
+                   ? s_currentKnobs.mapNoteSize : (int)std::round(14.0f * m);
+    int noteSel = (s_currentKnobs.hasMapNoteSelSize && s_currentKnobs.mapNoteSelSize > 0)
+                      ? s_currentKnobs.mapNoteSelSize : (int)std::round(20.0f * m);
+
+    int8_t arrowOff = - (int8_t)std::round((float)arrow / 2.0f);
+    int8_t partyOff = - (int8_t)std::round((float)party / 2.0f);
+    int8_t noteOff = - (int8_t)std::round((float)note / 2.0f);
+    int8_t noteSelOff = - (int8_t)std::round((float)noteSel / 2.0f);
+
+    writeMemInt(0x1005713c8, arrow);
+    writeMemInt(0x1005713cc, arrow);
+
+    writeMemInt(0x1002b54ee, arrow);
+    writeMemInt(0x1002b550e, arrow);
+    writeMemInt(0x1002b5513, arrow);
+    writeMemByte(0x1002b54d7, (uint8_t)arrowOff);
+    writeMemByte(0x1002b54e6, (uint8_t)arrowOff);
+
+    writeMemInt(0x1002b544f, party);
+    writeMemByte(0x1002b5438, (uint8_t)partyOff);
+    writeMemByte(0x1002b5447, (uint8_t)partyOff);
+
+    writeMemInt(0x1002b500b, note);
+    writeMemByte(0x1002b4ff4, (uint8_t)noteOff);
+    writeMemByte(0x1002b5003, (uint8_t)noteOff);
+
+    writeMemInt(0x1002b52cb, noteSel);
+    writeMemByte(0x1002b52b4, (uint8_t)noteSelOff);
+    writeMemByte(0x1002b52c3, (uint8_t)noteSelOff);
+}
+
+namespace {
+const auto ListSetExtent = reinterpret_cast<void (*)(void*, const int32_t*)>(0x1004a81aeUL);
+const auto RebuildMessage = reinterpret_cast<void (*)(void*)>(0x100306b86UL);
+const auto ButtonSetExtent = reinterpret_cast<void (*)(void*, const int32_t*)>(0x1004a5adcUL);
+const auto LabelSetExtent = reinterpret_cast<void (*)(void*, const int32_t*)>(0x1004a56f0UL);
+
+const size_t kMsgExtent = 0x8, kMsgList = 0x850, kMsgOk = 0x3d0, kMsgCancel = 0x610, kMsgIcon = 0x238;
+const size_t kSavedMessageTop = 0xc04, kIconFlags = 0x79;
+const size_t kListInner = 0x344, kListItem = 0x368, kListPad = 0x373, kButtonFlags = 0x68;
+
+template <typename T> T& MsgAt(void* base, size_t offset) {
+    return *reinterpret_cast<T*>(static_cast<char*>(base) + offset);
+}
+
+bool MsgShown(void* box, size_t button) {
+    return (MsgAt<uint8_t>(box, button + kButtonFlags) & 0x2) != 0;
+}
+
+void MsgRelayout(void* box, void* list, const int32_t* extent) {
+    ListSetExtent(list, extent);
+    RebuildMessage(box);
+}
+
+bool MsgFits(void* list) {
+    return MsgAt<uint8_t>(list, kListPad) + MsgAt<int32_t>(list, kListItem) <= MsgAt<int32_t>(list, kListInner);
+}
+
+int32_t MsgCentred(int32_t across, int32_t width) {
+    return across / 2 - width / 2;
+}
+
+int32_t GetInstalledTutorialIconSize() {
+    const char* home = getenv("HOME");
+    char path[1024];
+    FILE* f = nullptr;
+    if (home) {
+        snprintf(path, sizeof(path), "%s/Library/Application Support/Steam/steamapps/common/swkotor/Knights of the Old Republic.app/Contents/Assets/override/tut_attack.tga", home);
+        f = fopen(path, "rb");
+    }
+    if (!f) {
+        f = fopen("override/tut_attack.tga", "rb");
+    }
+    if (!f) return 0;
+    uint8_t header[18];
+    size_t got = fread(header, 1, sizeof(header), f);
+    fclose(f);
+    if (got != sizeof(header)) return 0;
+    int32_t width = header[12] | (header[13] << 8);
+    int32_t height = header[14] | (header[15] << 8);
+    return (width > 0 && width == height) ? width : 0;
+}
+} // namespace
+
+extern "C" void GuiMode_FitMessageBox(void* box) {
+    if (!box || !is_readable(box)) return;
+    char* const base = static_cast<char*>(box);
+    void* list = base + kMsgList;
+    if (!is_readable(list)) return;
+    const int32_t item = MsgAt<int32_t>(list, kListItem);
+    if (item <= 0 || !MsgFits(list)) return;
+    
+    int32_t message[4], ok[4], cancel[4], icon[4], panel[4];
+    memcpy(message, &MsgAt<int32_t>(list, kMsgExtent), sizeof(message));
+    memcpy(ok, &MsgAt<int32_t>(box, kMsgOk + kMsgExtent), sizeof(ok));
+    memcpy(cancel, &MsgAt<int32_t>(box, kMsgCancel + kMsgExtent), sizeof(cancel));
+    memcpy(icon, &MsgAt<int32_t>(box, kMsgIcon + kMsgExtent), sizeof(icon));
+    memcpy(panel, &MsgAt<int32_t>(box, kMsgExtent), sizeof(panel));
+    const bool hasIcon = (MsgAt<uint8_t>(box, kIconFlags) & 0x10) != 0;
+
+    int32_t least = 1;
+    if (MsgShown(box, kMsgOk) && ok[2] > least) least = ok[2];
+    if (MsgShown(box, kMsgCancel) && cancel[2] > least) least = cancel[2];
+    if (hasIcon && icon[2] > least) least = icon[2];
+    int32_t low = least, high = message[2];
+    while (low < high) {
+        message[2] = low + (high - low) / 2;
+        MsgRelayout(box, list, message);
+        if (MsgAt<int32_t>(list, kListItem) == item && MsgFits(list)) high = message[2];
+        else low = message[2] + 1;
+    }
+    message[2] = high;
+    MsgRelayout(box, list, message);
+
+    const int32_t slack = MsgAt<int32_t>(list, kListInner) - (MsgAt<uint8_t>(list, kListPad) + MsgAt<int32_t>(list, kListItem));
+    if (slack > 0) {
+        message[3] -= slack;
+        MsgRelayout(box, list, message);
+        if (!MsgFits(list)) {
+            message[3] += slack;
+            MsgRelayout(box, list, message);
+        }
+    }
+
+    int32_t width = message[2] + 2 * message[0];
+    if (width > panel[2]) width = panel[2];
+    ok[0] = MsgCentred(width, ok[2]);
+    ok[1] = message[1] + message[3] + 4;
+    cancel[0] = MsgCentred(width, cancel[2]);
+    cancel[1] = ok[1] + ok[3] + 2;
+    ButtonSetExtent(base + kMsgOk, ok);
+    ButtonSetExtent(base + kMsgCancel, cancel);
+    icon[0] = MsgCentred(width, icon[2]);
+    LabelSetExtent(base + kMsgIcon, icon);
+    int32_t bottom = message[1] + message[3];
+    if (MsgShown(box, kMsgOk)) bottom = ok[1] + ok[3];
+    if (MsgShown(box, kMsgCancel)) bottom = cancel[1] + cancel[3];
+
+    const int32_t height = bottom + MsgAt<int32_t>(box, kSavedMessageTop);
+    panel[0] += (panel[2] - width) / 2;
+    panel[2] = width;
+    if (height < panel[3]) {
+        panel[1] += (panel[3] - height) / 2;
+        panel[3] = height;
+    }
+    using SetExtentFn = void (*)(void*, const int32_t*);
+    (*reinterpret_cast<SetExtentFn*>(*reinterpret_cast<char**>(box) + 0x10))(box, panel);
+}
+
+static void InstallMessageBoxLayout() {
+    InitTargetResolution();
+    CheckAndReloadUiKnobs();
+
+    static bool s_popupHookInstalled = false;
+    if (!s_popupHookInstalled) {
+        s_popupHookInstalled = true;
+        uint8_t bridge[26] = {
+            0x57,
+            0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0,
+            0xff, 0xd0,
+            0x5f,
+            0x48, 0xb8, 0x36, 0xdc, 0x49, 0x00, 0x01, 0x00, 0x00, 0x00,
+            0xff, 0xe0
+        };
+        *(void**)&bridge[3] = (void*)&GuiMode_FitMessageBox;
+        writeMemBytes(0x1000f4fb8, bridge, sizeof(bridge));
+
+        uint8_t callFit[5] = { 0xe8, 0x2b, 0xe5, 0xde, 0xff };
+        writeMemBytes(0x100306a88, callFit, 5);
+    }
+
+    static int s_lastAppliedPopupHeight = -1;
+    if (s_lastAppliedPopupHeight == g_targetHeight) return;
+    s_lastAppliedPopupHeight = g_targetHeight;
+
+    float s = (g_targetHeight > 0) ? ((float)g_targetHeight / 720.0f) : 1.0f;
+    if (s < 1.0f) s = 1.0f;
+
+    int installedIcon = GetInstalledTutorialIconSize();
+    int icon = (installedIcon > 0) ? installedIcon : (int)(64.0f * s + 0.5f);
+    int width = (int)(800.0f * s + 0.5f);
+    int height = (int)(450.0f * s + 0.5f);
+
+    writeMemInt(0x100306879, width);
+    writeMemInt(0x10030688d, width - 1);
+    writeMemInt(0x100306881, height - 1);
+    writeMemInt(0x1003068ff, height - 1);
+    writeMemInt(0x1003065a2, icon);
+    writeMemInt(0x100571bb8, icon);
+    writeMemInt(0x100571bbc, icon);
+}
+
+// -----------------------------------------------------------------------------
+// K7 Dialogue Reply List Height Stretch (dialogue_replies.cpp)
+// -----------------------------------------------------------------------------
+// CSWGuiDialogCinematic::SetExtent (0x100244d4a) sets LB_REPLIES width to panel width,
+// but leaves the height at vanilla's hardcoded 98px.
+// Hook at 0x100244d7d jumps to our stub in the code cave at 0x1000f4fd4,
+// which sets width = panel width, and height = panel height - list top (never below original).
+static void InstallDialogueReplyStretch() {
+    static bool s_installed = false;
+    if (s_installed) return;
+    s_installed = true;
+
+    // Stub at 0x1000f4fd4 (29 bytes):
+    //   movl    0x10(%rbx), %eax      ; panel width (as vanilla did)
+    //   movl    %eax, 0x8(%r14)       ; list rect width
+    //   movl    0x14(%rbx), %eax      ; panel height
+    //   subl    0x4(%r14), %eax       ; less list top
+    //   cmpl    0xc(%r14), %eax       ; compare with authored height
+    //   jle     1f                    ; never shorter than list already is
+    //   movl    %eax, 0xc(%r14)       ; update list height
+    // 1:
+    //   jmp     0x100244d84           ; resume in CSWGuiDialogCinematic::SetExtent
+    uint8_t stub[29] = {
+        0x8b, 0x43, 0x10,
+        0x41, 0x89, 0x46, 0x08,
+        0x8b, 0x43, 0x14,
+        0x41, 0x2b, 0x46, 0x04,
+        0x41, 0x3b, 0x46, 0x0c,
+        0x7e, 0x04,
+        0x41, 0x89, 0x46, 0x0c,
+        0xe9, 0x93, 0xfd, 0x14, 0x00
+    };
+    writeMemBytes(0x1000f4fd4, stub, sizeof(stub));
+
+    // Jump from 0x100244d7d to 0x1000f4fd4 (7 bytes):
+    // e9 52 02 eb ff 90 90 (jmp 0x1000f4fd4; nop; nop)
+    uint8_t hook[7] = { 0xe9, 0x52, 0x02, 0xeb, 0xff, 0x90, 0x90 };
+    writeMemBytes(0x100244d7d, hook, sizeof(hook));
+}
+
+// -----------------------------------------------------------------------------
+// Options Checkboxes Scaling (resolution_sizes.cpp)
+// -----------------------------------------------------------------------------
+namespace {
+int32_t g_checkbox_box = 25, g_checkbox_label = 30, g_checkbox_drop = 2;
+
+void CheckboxExtent(void* self, const int32_t* rect) {
+    if (!self || !rect || !is_readable(self)) return;
+    char* box = static_cast<char*>(self);
+    const int32_t left = rect[0], top = rect[1], width = rect[2], height = rect[3];
+    const int32_t y = top + g_checkbox_drop + (height - g_checkbox_box) / 2;
+    for (const size_t image : {0xb0, 0x138, 0x2d8, 0x250}) {
+        const int32_t square[4] = {left, y, g_checkbox_box, g_checkbox_box};
+        memcpy(box + image, square, sizeof(square));
+    }
+    const int32_t text[4] = {left + g_checkbox_label, top, width - g_checkbox_label, height};
+    reinterpret_cast<void (*)(void*, const int32_t*)>(0x1004a3d4cUL)(box + 0x1b8, text);
+    memcpy(box + 0x8, rect, 16);
+}
+} // namespace
+
+static void InstallCheckboxScaling() {
+    static bool s_installed = false;
+    if (!s_installed) {
+        s_installed = true;
+        uint8_t jump[17] = {
+            0xff, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp *0(%rip)
+            0, 0, 0, 0, 0, 0, 0, 0,             // 64-bit pointer
+            0x90, 0x90, 0x90                    // padding
+        };
+        uint64_t target = reinterpret_cast<uintptr_t>(&CheckboxExtent);
+        memcpy(&jump[6], &target, 8);
+        writeMemBytes(0x1002cecee, jump, sizeof(jump));
+    }
+
+    static int s_lastAppliedHeight = -1;
+    if (s_lastAppliedHeight == g_targetHeight) return;
+    s_lastAppliedHeight = g_targetHeight;
+
+    float baseRefH = (s_currentKnobs.baseReferenceHeight > 0) ? (float)s_currentKnobs.baseReferenceHeight : 720.0f;
+    float s = (g_targetHeight > 0) ? ((float)g_targetHeight / baseRefH) : 1.0f;
+    if (s < 1.0f) s = 1.0f;
+    int baseBox = (s_currentKnobs.baseCheckboxSize > 0) ? s_currentKnobs.baseCheckboxSize : 25;
+    g_checkbox_box = (int)std::nearbyint((double)((float)baseBox * s));
+    g_checkbox_label = (int)std::nearbyint((double)(30.0f * s));
+    g_checkbox_drop = (int)std::nearbyint((double)(2.0f * s));
+}
+
+// -----------------------------------------------------------------------------
+// Level-up Granted Feats/Powers Popup Row Formatting (granted_popup.cpp)
+// -----------------------------------------------------------------------------
+namespace {
+const uintptr_t kFillAddControls = 0x10028ea4f;
+const uintptr_t kAddControlsAddress = 0x1004a9be6;
+const uintptr_t kRowTextExtent = 0x10022f321;
+const uintptr_t kTextSetExtentAddress = 0x1004a3d4c;
+const uintptr_t kGrantedVtable = 0x1005a9e18;
+const auto AddControls = reinterpret_cast<void (*)(void*, void*, int, int, int)>(0x1004a9be6UL);
+const auto TextSetExtent = reinterpret_cast<void (*)(void*, const int32_t*)>(0x1004a3d4cUL);
+const auto ListSetExtentGranted = reinterpret_cast<void (*)(void*, const int32_t*)>(0x1004a81aeUL);
+
+const size_t kGrantedExtent = 0x8, kGrantedList = 0x80, kGrantedOk = 0x5b8, kGrantedRows = 0x7f8;
+const size_t kGrantedRowStride = 0x3b8, kGrantedRowCount = 10;
+const size_t kGrantedRowText = 0x110, kGrantedHex = 0x228, kGrantedHexLit = 0x2b0, kGrantedIcon = 0x338;
+const size_t kGrantedListInner = 0x344, kGrantedListCount = 0x350, kGrantedListRow = 0x368, kGrantedListVisible = 0x378;
+
+struct GrantedFileLayout {
+    void* popup;
+    int32_t list[4], ok[4], panel[4];
+};
+GrantedFileLayout g_grantedFile;
+char* g_grantedPopup = nullptr;
+
+template <typename T> T& GrantedAt(void* base, size_t offset) {
+    return *reinterpret_cast<T*>(static_cast<char*>(base) + offset);
+}
+
+void GrantedSetExtent(void* control, const int32_t* extent) {
+    using Fn = void (*)(void*, const int32_t*);
+    (*reinterpret_cast<Fn*>(*reinterpret_cast<char**>(control) + 0x10))(control, extent);
+}
+
+bool IsGrantedRow(char* row) {
+    if (!g_grantedPopup) return false;
+    char* const first = g_grantedPopup + kGrantedRows;
+    if (row < first || row >= first + kGrantedRowCount * kGrantedRowStride) return false;
+    return (row - first) % kGrantedRowStride == 0 && GrantedAt<uintptr_t>(g_grantedPopup, 0) == kGrantedVtable;
+}
+
+void FitGrantedRows(char* popup) {
+    void* const list = popup + kGrantedList;
+    void* const ok = popup + kGrantedOk;
+    if (g_grantedFile.popup != popup) {
+        g_grantedFile.popup = popup;
+        memcpy(g_grantedFile.list, &GrantedAt<int32_t>(list, kGrantedExtent), sizeof(g_grantedFile.list));
+        memcpy(g_grantedFile.ok, &GrantedAt<int32_t>(ok, kGrantedExtent), sizeof(g_grantedFile.ok));
+        memcpy(g_grantedFile.panel, &GrantedAt<int32_t>(popup, kGrantedExtent), sizeof(g_grantedFile.panel));
+    }
+    int32_t extent[4], okExtent[4], panel[4];
+    memcpy(extent, g_grantedFile.list, sizeof(extent));
+    memcpy(okExtent, g_grantedFile.ok, sizeof(okExtent));
+    memcpy(panel, g_grantedFile.panel, sizeof(panel));
+
+    ListSetExtentGranted(list, extent);
+    const int32_t row = GrantedAt<int32_t>(list, kGrantedListRow);
+    const int32_t fit = GrantedAt<int16_t>(list, kGrantedListVisible);
+    const int32_t count = GrantedAt<int32_t>(list, kGrantedListCount);
+    const int32_t rows = count < fit ? count : fit;
+    int32_t cut = 0;
+    if (row > 0 && rows > 0) {
+        const int32_t want = rows * (row + row / 11);
+        if (want < GrantedAt<int32_t>(list, kGrantedListInner)) {
+            cut = GrantedAt<int32_t>(list, kGrantedListInner) - want;
+            extent[3] -= cut;
+            ListSetExtentGranted(list, extent);
+            if (GrantedAt<int16_t>(list, kGrantedListVisible) != rows) {
+                extent[3] += cut;
+                cut = 0;
+                ListSetExtentGranted(list, extent);
+            }
+        }
+    }
+    okExtent[1] -= cut;
+    GrantedSetExtent(ok, okExtent);
+    panel[1] += cut / 2;
+    panel[3] -= cut;
+    GrantedSetExtent(popup, panel);
+}
+
+extern "C" void GuiMode_GrantedFill(void* list, void* rows, int a, int b, int c) {
+    char* const popup = static_cast<char*>(list) - kGrantedList;
+    const bool granted = is_readable(popup) && GrantedAt<uintptr_t>(popup, 0) == kGrantedVtable;
+    if (granted) g_grantedPopup = popup;
+    AddControls(list, rows, a, b, c);
+    if (granted) FitGrantedRows(popup);
+}
+
+extern "C" void GuiMode_GrantedRowText(void* text, int32_t* rect) {
+    char* const row = static_cast<char*>(text) - kGrantedRowText;
+    if (g_grantedPopup && is_readable(row) && IsGrantedRow(row)) {
+        const int32_t size = GrantedAt<int32_t>(row, kGrantedHex + 8);
+        const int32_t grown = size + size / 7;
+        const int32_t left = GrantedAt<int32_t>(row, kGrantedHex) - (grown - size) / 2;
+        const int32_t top = GrantedAt<int32_t>(row, kGrantedHex + 4) - (grown - size) / 2 + size / 40;
+        const int32_t square[4] = {left, top, grown, grown};
+        for (size_t offset : {kGrantedHex, kGrantedHexLit, kGrantedIcon}) {
+            memcpy(&GrantedAt<int32_t>(row, offset), square, sizeof(square));
+        }
+        const int32_t inset = size / 8;
+        rect[0] += inset;
+        rect[2] -= 2 * inset;
+    }
+    TextSetExtent(text, rect);
+}
+
+uintptr_t GetNearPage() {
+    static uintptr_t s_page = 0;
+    if (s_page) return s_page;
+    for (mach_vm_address_t address = 0x101000000; address < 0x170000000; address += 0x1000000) {
+        mach_vm_address_t page = address;
+        if (mach_vm_allocate(mach_task_self(), &page, 0x1000, VM_FLAGS_FIXED) == KERN_SUCCESS) {
+            s_page = static_cast<uintptr_t>(page);
+            return s_page;
+        }
+    }
+    return 0;
+}
+} // namespace
+
+static void InstallGrantedPopupLayout() {
+    static bool s_installed = false;
+    if (s_installed) return;
+    s_installed = true;
+    
+    uintptr_t page = GetNearPage();
+    if (!page) return;
+
+    // Build thunks on the near page:
+    // Offset 0: Thunk to GuiMode_GrantedFill (16 bytes)
+    // Offset 16: Thunk to GuiMode_GrantedRowText (16 bytes)
+    uint8_t thunkFill[16] = {
+        0xff, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp *0(%rip)
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0xcc, 0xcc
+    };
+    uint64_t targetFill = reinterpret_cast<uintptr_t>(&GuiMode_GrantedFill);
+    memcpy(&thunkFill[6], &targetFill, 8);
+
+    uint8_t thunkRow[16] = {
+        0xff, 0x25, 0x00, 0x00, 0x00, 0x00, // jmp *0(%rip)
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0xcc, 0xcc
+    };
+    uint64_t targetRow = reinterpret_cast<uintptr_t>(&GuiMode_GrantedRowText);
+    memcpy(&thunkRow[6], &targetRow, 8);
+
+    memcpy((void*)page, thunkFill, 16);
+    memcpy((void*)(page + 16), thunkRow, 16);
+    mach_vm_protect(mach_task_self(), page, 0x1000, FALSE, VM_PROT_READ | VM_PROT_EXECUTE);
+
+    // Call site 1: 0x10028ea4f (call nearPage + 0)
+    int32_t relFill = static_cast<int32_t>(static_cast<int64_t>(page) - static_cast<int64_t>(kFillAddControls + 5));
+    uint8_t callFill[5] = { 0xe8, 0, 0, 0, 0 };
+    memcpy(&callFill[1], &relFill, 4);
+    writeMemBytes(kFillAddControls, callFill, 5);
+
+    // Call site 2: 0x10022f321 (call nearPage + 16)
+    int32_t relRow = static_cast<int32_t>(static_cast<int64_t>(page + 16) - static_cast<int64_t>(kRowTextExtent + 5));
+    uint8_t callRow[5] = { 0xe8, 0, 0, 0, 0 };
+    memcpy(&callRow[1], &relRow, 4);
+    writeMemBytes(kRowTextExtent, callRow, 5);
 }
 
 static void enforceItemGeometry(char* panel) {
@@ -2569,7 +3387,32 @@ extern "C" float Hook_WindowDraw(char* window, float delta) {
     if (window && is_readable(window)) {
         char* mgr = *(char**)(window + 0x20);
         updateEngineGlobals(mgr);
-        if (GuiFileLayouts()) return delta;  // every window is laid out by its .gui file
+        if (GuiFileLayouts()) {
+            InstallListboxPaddingFix();
+            InstallAreaMapLayout();
+            InstallMessageBoxLayout();
+            InstallDialogueReplyStretch();
+            InstallCheckboxScaling();
+            InstallGrantedPopupLayout();
+
+            void* vtable = *(void**)window;
+            if (vtable == (void*)0x1005ab010) {
+                int ow = (s_currentKnobs.hasMapOverlayWidth && s_currentKnobs.mapOverlayWidth > 0)
+                             ? s_currentKnobs.mapOverlayWidth : (g_targetWidth / 2);
+                int oh = (s_currentKnobs.hasMapOverlayHeight && s_currentKnobs.mapOverlayHeight > 0)
+                             ? s_currentKnobs.mapOverlayHeight : (g_targetHeight / 2);
+                int cw = (s_currentKnobs.hasMapCanvasWidth && s_currentKnobs.mapCanvasWidth > 0)
+                            ? s_currentKnobs.mapCanvasWidth : (int)std::round((double)ow * 512.0 / 440.0);
+                int ch = (s_currentKnobs.hasMapCanvasHeight && s_currentKnobs.mapCanvasHeight > 0)
+                            ? s_currentKnobs.mapCanvasHeight : oh;
+
+                Rect hiderRect = { 0, 0, ow, oh };
+                SetControlRect(window + 0x1220, hiderRect);
+                Rect texRect = { 0, 0, cw, ch };
+                SetControlRect(window + 0x1528, texRect);
+            }
+            return delta;  // every window is laid out by its .gui file
+        }
         
         void* vtable = *(void**)window;
         if (vtable == (void*)0x1005ad420) {
@@ -2704,30 +3547,6 @@ extern "C" float Hook_WindowDraw(char* window, float delta) {
   Every matched floating target control is scaled uniformly with nearest-integer rounding (+0.5f),
   ensuring 1:1 square action icons, crisp readable health bars, and perfect alignment on any display.
 */
-
-static const Rect s_floatingTargetRects[] = {
-    // Action Slot 1:
-    { 43, 35, 35, 59 },   // BTN_TARGET0 (Slot 1 container button)
-    { 45, 49, 32, 32 },   // LBL_TARGET0 (Slot 1 action icon)
-    { 43, 36, 35, 12 },   // BTN_TARGETUP0 (Slot 1 cycle up arrow)
-    { 44, 80, 35, 12 },   // BTN_TARGETDOWN0 (Slot 1 cycle down arrow)
-
-    // Action Slot 2:
-    { 83, 35, 35, 59 },   // BTN_TARGET1 (Slot 2 container button)
-    { 85, 49, 32, 32 },   // LBL_TARGET1 (Slot 2 action icon)
-    { 83, 36, 35, 12 },   // BTN_TARGETUP1 (Slot 2 cycle up arrow)
-    { 84, 80, 35, 12 },   // BTN_TARGETDOWN1 (Slot 2 cycle down arrow)
-
-    // Action Slot 3:
-    { 122, 35, 35, 59 },  // BTN_TARGET2 (Slot 3 container button)
-    { 124, 49, 32, 32 },  // LBL_TARGET2 (Slot 3 action icon)
-    { 122, 36, 35, 12 },  // BTN_TARGETUP2 (Slot 3 cycle up arrow)
-    { 123, 80, 35, 12 },  // BTN_TARGETDOWN2 (Slot 3 cycle down arrow)
-
-    // Target Nameplate & Health Bar:
-    { 0, 0, 200, 26 },    // LBL_NAME / LBL_NAMEBG (Target nameplate)
-    { 0, 27, 200, 6 }     // LBL_HEALTHBG / PB_HEALTH (Target health bar)
-};
 
 /*
   Note on 0x1004a17c2:
@@ -2945,6 +3764,12 @@ static void DylibInit() {
         writeMemBytes(0x1002bfbbf, vanillaBadgeX, 5);
         writeMemBytes(0x10021c0e2, vanillaBadgeX, 5);
         patchMenuCenteringConstants(g_targetWidth, g_targetHeight);
+        InstallListboxPaddingFix();
+        InstallAreaMapLayout();
+        InstallMessageBoxLayout();
+        InstallDialogueReplyStretch();
+        InstallCheckboxScaling();
+        InstallGrantedPopupLayout();
         return;
     }
 
