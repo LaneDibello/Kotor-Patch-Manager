@@ -34,7 +34,7 @@ This downloads will contain the following:
 
 To use, just run the launcher. Set the "Game" path to target your game executable (i.e. `swkotor.exe`). Set the "Patches" path to target the directory with your `.kpatch` files (i.e. `<release>/patches`).
 
-**Linux users only**: There are two kinds of Linux and MacOS installs, and the manager picks the right one from the executable you point it at:
+**Linux users only**: There are two kinds of Linux installs, and the manager picks the right one from the executable you point it at:
 
 - **The Windows game under Wine/Proton.** Because a native app can't inject into a Wine/Proton process, `bin` additionally contains `binkw32.dll` (a small proxy) and `sqlite3.dll`, which the manager stages into the game folder so the patches load when the game starts. Point the "Game" path at the game executable inside your Wine/Proton install (i.e. `swkotor.exe`).
 - **KOTOR II's native Linux build (Aspyr).** This is a separate binary, an extensionless `KOTOR2` rather than a `.exe`, so point the "Game" path at that. The manager stages `KotorPatcher.so` and adds it to the game's library dependencies, so the game loads the patcher itself with no proxy and nothing to inject. See [docs/NATIVE_LINUX.md](docs/NATIVE_LINUX.md) for the details and current limitations. KOTOR I has no native Linux port, so this only applies to KOTOR II.
