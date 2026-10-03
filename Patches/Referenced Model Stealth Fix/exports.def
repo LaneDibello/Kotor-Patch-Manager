@@ -3,6 +3,3 @@ EXPORTS
     EnableReferencedModelStealth
     DisableReferencedModelStealth
     CleanupReferencedModelStealth
-    InitializeReferencedModelStealthK2
-    EnableReferencedModelStealthK2
-    DisableReferencedModelStealthK2
