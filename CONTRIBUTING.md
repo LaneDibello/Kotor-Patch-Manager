@@ -4,6 +4,8 @@ Thanks for helping out! Bug reports, new patches, ports of existing patches to m
 
 If you're not sure where to start, browse the [open issues](https://github.com/LaneDibello/Kotor-Patch-Manager/issues) or the [roadmap](docs/Roadmap2026.md). For anything large, open an issue first so the approach can be discussed before you write a lot of code.
 
+Contributing a patch here is welcome but not required. A `.kpatch` built outside this repository installs the same way, so you can keep your patch in your own repository. For example, [kotor-modern-driver-compatibility](https://codeberg.org/Synchro/kotor-modern-driver-compatibility) is hosted on Codeberg.
+
 ## Repository layout
 
 | Path | What it is |
@@ -29,7 +31,7 @@ Patches/MyPatch/
 └── additional/                       # optional loose files shipped with the release
 ```
 
-The [README](README.md#patches) is the reference for every manifest and hook field. Parameter sources and types for detour hooks are documented in the [KotorPatcher README](src/KotorPatcher/README.md#parameterinfo).
+The [README](README.md#patches) is the reference for every manifest and hook field. Its [Hooks](README.md#hooks) section explains the hook types (simple, replace, detour and static) and when to use each one. Parameter sources and types for detour hooks are documented in the [KotorPatcher README](src/KotorPatcher/README.md#parameterinfo).
 
 ### `manifest.toml`
 
