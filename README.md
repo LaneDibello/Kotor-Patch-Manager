@@ -162,7 +162,7 @@ You can contact Lane on Discord @lane_d
 
 Related [DeadlyStream thread](https://deadlystream.com/topic/11948-kotor-1-gog-reverse-engineering/)
 
-My [YouTube Channel](https://www.youtube.com/@lane_m)
+Lane's [YouTube Channel](https://www.youtube.com/@lane_m)
 
 ## License
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for the full text.
