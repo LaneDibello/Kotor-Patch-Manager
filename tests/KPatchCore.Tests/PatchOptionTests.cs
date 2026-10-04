@@ -362,32 +362,58 @@ public class PatchOptionTests
     }
 
     [Fact]
-    public void ConfigRecordsTheInstalledValuesUnderThePatch()
+    public void TheOptionsFileRecordsTheInstalledValuesUnderThePatch()
     {
         var chosen = new Dictionary<string, string> { ["map-notes"] = "true" };
         var values = OptionValidator.ResolveValues(ParsedManifest(), chosen).Data!;
         var config = new PatchConfig();
         config.AddPatch("sample", "patches/sample.dll", OptionValidator.SelectHooks(ParsedHooks(), values), values);
 
+        // A section per patch and a key per option; a toggle is 1 or 0, as the game's
+        // own INI settings are.
+        Assert.Equal("[sample]\r\nmap-notes=1\r\nhud-style=classic\r\n", PatchOptionsIni.Generate(config));
+
         var toml = ConfigGenerator.GenerateConfigString(config);
         var model = Tomlyn.Toml.ToModel(toml);
         var patch = ((Tomlyn.Model.TomlTableArray)model["patches"])[0];
-        var options = (Tomlyn.Model.TomlTable)patch["options"];
 
-        Assert.Equal(true, options["map-notes"]);
-        Assert.Equal("classic", options["hud-style"]);
-        // The condition itself never reaches the runtime's file.
+        // Neither the values nor the condition reach the runtime's file.
+        Assert.DoesNotContain("options", toml);
         Assert.DoesNotContain("when", toml);
         Assert.Equal(3, ((Tomlyn.Model.TomlTableArray)patch["hooks"]).Count);
     }
 
     [Fact]
-    public void APatchWithoutOptionsWritesNoOptionsTable()
+    public void APatchWithoutOptionsRecordsNothing()
     {
         var config = new PatchConfig();
         config.AddPatch("plain", string.Empty, new List<Hook>());
 
-        Assert.DoesNotContain("options", ConfigGenerator.GenerateConfigString(config));
+        Assert.Equal(string.Empty, PatchOptionsIni.Generate(config));
+
+        // An apply without options also clears the file an earlier apply left behind.
+        var directory = Directory.CreateTempSubdirectory("kpatch-options-").FullName;
+        try
+        {
+            var file = Path.Combine(directory, PatchOptionsIni.FileName);
+            File.WriteAllText(file, "[gone]\r\nx=1\r\n");
+
+            Assert.True(PatchOptionsIni.WriteFile(config, directory).Success);
+            Assert.False(File.Exists(file));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void OnlyAToggleReadsOneAndZeroAsOnAndOff()
+    {
+        Assert.Equal(PatchOption.On, PatchOptionsIni.FromIniValue(isToggle: true, "1"));
+        Assert.Equal(PatchOption.Off, PatchOptionsIni.FromIniValue(isToggle: true, "0"));
+        // A choice may have an entry whose id is a digit.
+        Assert.Equal("1", PatchOptionsIni.FromIniValue(isToggle: false, "1"));
     }
 
     [Theory]
@@ -558,12 +584,16 @@ public class PatchOptionTests
             var game = Path.Combine(directory, "swkotor.exe");
             File.WriteAllBytes(game, Array.Empty<byte>());
             File.WriteAllText(Path.Combine(directory, "patch_config.toml"), ConfigGenerator.GenerateConfigString(config));
+            Assert.True(PatchOptionsIni.WriteFile(config, directory).Success);
 
             var info = PatchRemover.GetInstallationInfo(game);
 
             Assert.True(info.Success, info.Error);
-            // A toggle comes back as "true", not as the boolean the file holds.
-            Assert.Equal(chosen, info.Data!.InstalledOptions["sample"]);
+            var installed = info.Data!.InstalledOptions["sample"];
+            // The file's spelling comes back; a toggle is translated by whoever knows it is one.
+            Assert.Equal("1", installed["map-notes"]);
+            Assert.Equal(PatchOption.On, PatchOptionsIni.FromIniValue(isToggle: true, installed["map-notes"]));
+            Assert.Equal("compact", installed["hud-style"]);
             Assert.False(info.Data.InstalledOptions.ContainsKey("plain"));
         }
         finally

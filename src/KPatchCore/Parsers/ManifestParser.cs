@@ -185,8 +185,8 @@ public static class ManifestParser
                     if (!choiceId.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-'))
                         return PatchResult<List<PatchOption>>.Fail($"{where}: choice id '{choiceId}' may only use [a-zA-Z0-9_-]");
 
-                    // A toggle's values. patch_config.toml writes those two as booleans, and
-                    // a hook's `is = true` means the toggle, so a choice may not be named either.
+                    // A toggle's values. A hook's `is = true` means the toggle, and so does
+                    // `--option x=true`, so a choice may not be named either.
                     if (choiceId is PatchOption.On or PatchOption.Off)
                         return PatchResult<List<PatchOption>>.Fail($"{where}: a choice cannot be called '{choiceId}'");
 

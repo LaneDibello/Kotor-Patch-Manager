@@ -65,7 +65,7 @@ To also target KOTOR II's native Linux build, run `./build-linux.sh`, which comp
 ## Usage
 Available patches will appear on the left-hand side, with descriptions on the right-hand side. Select the patches you want and select "Apply", to prepare the game for use with those patches. Select "Launch", to run the game with these patches applied.
 
-A patch that has [options](#options) shows a gear button on its row. Select it to list the patch's options beneath the patch: tick the ones you want, or pick one of a set. Selecting an option shows its description on the right-hand side, with what is selected, what is installed and the default. Options count as changes like ticking a patch does, so select "Apply" afterwards.
+Selecting a patch, by its name or its checkbox, shows its details on the right-hand side. A patch that has [options](#options) lists them there, under its description: tick the ones you want, or pick one of a set. The triangle before an option drops down what it does, what the game is installed with and the default. Options can be changed while the patch is checked, and count as changes like checking a patch does, so select "Apply" afterwards.
 
 Patches can be uninstalled by unchecking them and applying, or using the "Uninstall All" button.
 
@@ -115,23 +115,21 @@ choices = [
 default = "classic"
 ```
 
-Options are resolved when patches are applied. The launcher lists a patch's options beneath the patch (see [Usage](#usage)); on the command line they are set with `--option <patch_id>.<option_id>=<value>`, alongside `--patches` (a toggle takes `true` or `false`; a choice takes one of its ids, spelled as the manifest spells it). An option that is not set takes its default. Changing an option afterwards means applying again, like ticking a patch.
+Options are resolved when patches are applied. The launcher lists a patch's options in its details (see [Usage](#usage)); on the command line they are set with `--option <patch_id>.<option_id>=<value>`, alongside `--patches` (a toggle takes `true` or `false`; a choice takes one of its ids, spelled as the manifest spells it). An option that is not set takes its default. Changing an option afterwards means applying again, like ticking a patch.
 
-A hook uses an option through its `when` field (see [Shared Fields](#shared-fields)): a hook whose condition does not hold is left out of the install. The chosen values are also written under the patch in `patch_config.toml`, where the patch's own code can read them:
+A hook uses an option through its `when` field (see [Shared Fields](#shared-fields)): a hook whose condition does not hold is left out of the install. The chosen values are also written to `patch-options.ini` in the game directory, one section per patch and one key per option, where the patch's own code and scripts can read them with the usual INI functions. A toggle is `1` or `0`; a choice is its id:
 
-```toml
-[[patches]]
-id = "my_patch"
-dll = "patches/my_patch.dll"
-
-[patches.options]
-map-notes = true
-hud-style = "classic"
+```ini
+[my_patch]
+map-notes=1
+hud-style=classic
 ```
 
-**Managers without options.** A release from before this feature ignores `[[patch.options]]` and `when`: it installs every hook of the patch and writes no `[patches.options]` table. So:
-- A patch whose hooks all have their own `address` still installs there, as if every toggle were on. Give such toggles `default = true`, and have the patch's code treat a missing table as the defaults.
-- A patch with two hooks at one `address` (one per value of an option) is refused there with "Hook conflicts detected", as any two hooks at one address are. If the patch should still install on those releases, keep one hook at the address and choose between the variants in the patch's own code, from the `[patches.options]` table.
+The file is the manager's record of what was applied. It is rewritten on every apply, and changing it by hand or from the game does not change which hooks are installed: that takes applying again and restarting the game.
+
+**Managers without options.** A release from before this feature ignores `[[patch.options]]` and `when`: it installs every hook of the patch and writes no `patch-options.ini`. So:
+- A patch whose hooks all have their own `address` still installs there, as if every toggle were on. Give such toggles `default = true`, and have the patch's code treat a missing entry as the default.
+- A patch with two hooks at one `address` (one per value of an option) is refused there with "Hook conflicts detected", as any two hooks at one address are. If the patch should still install on those releases, keep one hook at the address and choose between the variants in the patch's own code, from `patch-options.ini`.
 
 ### Hooks
 There are 4 different types of hooks currently, `simple`, `replace`, `detour`, and `static`. Though they all share certain fields.
@@ -216,7 +214,7 @@ Lane's [YouTube Channel](https://www.youtube.com/@lane_m)
 ## License
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for the full text.
 
-Third-party components keep their own licenses: `tomlplusplus` is MIT, the bundled SQLite is public domain, and the outline of the launcher's options gear is the "cog" icon of [Material Design Icons](https://pictogrammers.com/library/mdi/) (Apache License 2.0).
+Third-party components keep their own licenses: `tomlplusplus` is MIT, and the bundled SQLite is public domain.
 
 This project is an unofficial fan work. It is not affiliated with, authorized by, or endorsed by BioWare, Obsidian Entertainment, LucasArts, Aspyr, or Disney. Star Wars: Knights of the Old Republic and all related trademarks are the property of their respective owners. No original game assets or executables are distributed here; you must own a copy of the game.
 

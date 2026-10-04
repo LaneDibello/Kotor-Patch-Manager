@@ -34,8 +34,8 @@ public sealed class PatchOptionChoice
 /// <remarks>
 /// Options are resolved when patches are installed. A hook whose <see cref="Hook.When"/>
 /// does not hold for the chosen values is left out, and the values are written under the
-/// patch in patch_config.toml, where the patch's own code can read them. The runtime never
-/// sees an unresolved option.
+/// patch's id in patch-options.ini, where the patch's own code and scripts can read them.
+/// The runtime never sees an unresolved option.
 /// </remarks>
 public sealed class PatchOption
 {

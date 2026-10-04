@@ -26,7 +26,7 @@ Headers live under `include/`, the shared engine under `src/core/`, and the entr
 
 **patcher.h / src/core/patcher.cpp**: Core patching engine containing hook application logic, patch binary loading, and configuration management. Defines the `PatchInfo` structure that represents a single hook configuration.
 
-**config_reader.h / src/core/config_reader.cpp**: TOML parser that reads `patch_config.toml` and converts it into `PatchInfo` structures. Uses the tomlplusplus library for parsing. A patch's `[patches.options]` table is not read here: options are resolved at install time, and the table is there for the patch's own code.
+**config_reader.h / src/core/config_reader.cpp**: TOML parser that reads `patch_config.toml` and converts it into `PatchInfo` structures. Uses the tomlplusplus library for parsing.
 
 **trampoline.h / src/core/trampoline.cpp**: Low-level memory patching utilities for writing JMP/CALL instructions, verifying bytes, managing memory protection, and writing NOP instructions.
 

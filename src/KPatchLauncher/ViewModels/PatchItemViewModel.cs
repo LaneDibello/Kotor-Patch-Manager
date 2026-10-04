@@ -107,7 +107,7 @@ public class PatchItemViewModel : ViewModelBase
     public bool HasOptions => Options.Count > 0;
 
     /// <summary>
-    /// Gives the row its options. They start usable exactly when the patch is ticked.
+    /// Gives the patch its options. They start usable exactly when the patch is ticked.
     /// </summary>
     public void SetOptions(IEnumerable<KPatchCore.Models.PatchOption> options)
     {
@@ -117,17 +117,6 @@ public class PatchItemViewModel : ViewModelBase
             Options.Add(new PatchOptionViewModel(this, option) { IsAvailable = IsChecked });
         }
         OnPropertyChanged(nameof(HasOptions));
-    }
-
-    private bool _isExpanded;
-
-    /// <summary>
-    /// Whether the row's options are shown beneath it (the gear beside the name).
-    /// </summary>
-    public bool IsExpanded
-    {
-        get => _isExpanded;
-        set => SetProperty(ref _isExpanded, value);
     }
 
     /// <summary>

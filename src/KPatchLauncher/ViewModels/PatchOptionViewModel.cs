@@ -3,7 +3,7 @@ using KPatchCore.Models;
 namespace KPatchLauncher.ViewModels;
 
 /// <summary>
-/// One entry of a choice option, as a row the player ticks. Ticking one unticks the others.
+/// One entry of a choice option, as a radio button. Picking one unpicks the others.
 /// </summary>
 public class PatchChoiceViewModel : ViewModelBase
 {
@@ -19,7 +19,7 @@ public class PatchChoiceViewModel : ViewModelBase
     public string Id { get; }
     public string Name { get; }
 
-    /// <summary>The option this is an entry of, for the row's own bindings.</summary>
+    /// <summary>The option this is an entry of, for the entry's own bindings.</summary>
     public PatchOptionViewModel Option => _option;
 
     public bool IsSelected
@@ -27,8 +27,8 @@ public class PatchChoiceViewModel : ViewModelBase
         get => _option.Value == Id;
         set
         {
-            // Only ticking does anything: a choice always holds one of its entries, so
-            // unticking the current one would leave it holding none.
+            // Only picking does anything: a choice always holds one of its entries, so
+            // unpicking the current one would leave it holding none.
             if (value)
             {
                 _option.Value = Id;
@@ -44,8 +44,9 @@ public class PatchChoiceViewModel : ViewModelBase
 }
 
 /// <summary>
-/// One option of a patch, as a row under that patch in the list: a tick box for a toggle,
-/// one tick per entry for a choice.
+/// One option of a patch, as the details panel shows it under the patch's description:
+/// a tick box for a toggle, one radio button per entry for a choice, with a triangle that
+/// drops down what the option does.
 /// </summary>
 /// <remarks>
 /// Holds the value the player has picked and the value the game was last installed with.
@@ -56,7 +57,6 @@ public class PatchOptionViewModel : ViewModelBase
     private string _value;
     private string _installedValue;
     private bool _isAvailable;
-    private bool _isSelected;
 
     public PatchOptionViewModel(PatchItemViewModel patch, PatchOption option)
     {
@@ -71,6 +71,7 @@ public class PatchOptionViewModel : ViewModelBase
         _value = option.Default;
         _installedValue = option.Default;
         Choices = option.Choices.Select(c => new PatchChoiceViewModel(this, c)).ToList();
+        ToggleDetailsCommand = new SimpleCommand(() => IsDetailsExpanded = !IsDetailsExpanded);
         DefaultText = IsToggle
             ? (option.Default == PatchOption.On ? "On" : "Off")
             : option.Choices.FirstOrDefault(c => c.Id == option.Default)?.Name ?? option.Default;
@@ -90,9 +91,6 @@ public class PatchOptionViewModel : ViewModelBase
     /// <summary>The default, as the details panel words it.</summary>
     public string DefaultText { get; }
 
-    /// <summary>What kind of option this is, as the details panel words it.</summary>
-    public string TypeText => IsToggle ? "On or off" : "One of several";
-
     /// <summary>The value an install would use: "true"/"false" for a toggle, a choice id otherwise.</summary>
     public string Value
     {
@@ -103,7 +101,6 @@ public class PatchOptionViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(IsOn));
                 OnPropertyChanged(nameof(IsPending));
-                OnPropertyChanged(nameof(ValueText));
                 foreach (var choice in Choices)
                 {
                     choice.NotifySelectionChanged();
@@ -123,6 +120,7 @@ public class PatchOptionViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(IsPending));
                 OnPropertyChanged(nameof(InstalledText));
+                OnPropertyChanged(nameof(StatusText));
             }
         }
     }
@@ -140,10 +138,8 @@ public class PatchOptionViewModel : ViewModelBase
         ? (InstalledValue == PatchOption.On ? "On" : "Off")
         : Choices.FirstOrDefault(c => c.Id == InstalledValue)?.Name ?? InstalledValue;
 
-    /// <summary>The picked value, as the details panel words it.</summary>
-    public string ValueText => IsToggle
-        ? (IsOn ? "On" : "Off")
-        : Choices.FirstOrDefault(c => c.Id == Value)?.Name ?? Value;
+    /// <summary>The line under the option's description.</summary>
+    public string StatusText => $"Installed: {InstalledText}. Default: {DefaultText}.";
 
     /// <summary>A toggle's state, for its tick box.</summary>
     public bool IsOn
@@ -162,12 +158,26 @@ public class PatchOptionViewModel : ViewModelBase
         set => SetProperty(ref _isAvailable, value);
     }
 
-    /// <summary>Whether this is the option the details panel is describing.</summary>
-    public bool IsSelected
+    private bool _isDetailsExpanded;
+
+    /// <summary>
+    /// Whether the option's description is shown under it (the triangle before its name).
+    /// </summary>
+    public bool IsDetailsExpanded
     {
-        get => _isSelected;
-        set => SetProperty(ref _isSelected, value);
+        get => _isDetailsExpanded;
+        set
+        {
+            if (SetProperty(ref _isDetailsExpanded, value))
+            {
+                OnPropertyChanged(nameof(DetailsGlyph));
+            }
+        }
     }
+
+    public string DetailsGlyph => IsDetailsExpanded ? "\u25BE" : "\u25B8";
+
+    public System.Windows.Input.ICommand ToggleDetailsCommand { get; }
 
     public event EventHandler? ValueChanged;
 }

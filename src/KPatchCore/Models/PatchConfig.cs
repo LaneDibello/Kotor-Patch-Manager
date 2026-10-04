@@ -39,8 +39,9 @@ public sealed class PatchConfig
 
         /// <summary>
         /// The value each of the patch's options was installed with, by option id.
-        /// Written as [patches.options] so the patch's own code, and the launcher, can
-        /// read what was chosen. Empty for a patch without options.
+        /// Not part of patch_config.toml: recorded in patch-options.ini, where the patch's
+        /// own code, scripts and the launcher read what was chosen. Empty for a patch
+        /// without options.
         /// </summary>
         public Dictionary<string, string> Options { get; init; } = new();
     }

@@ -29,7 +29,9 @@ The library uses a **PatchResult** pattern instead of exceptions for expected fa
 
 **ElfInjector**: Adds the patcher module to a native Linux ELF's DT_NEEDED list so the dynamic loader maps it at startup, the counterpart to injection/KProxy on Windows. The edit is address-preserving, so hook addresses stay valid. Idempotent, and writes through a temp file so a failed write leaves no corrupt executable. See docs/NATIVE_LINUX.md.
 
-**ConfigGenerator**: Generates patch_config.toml for the runtime patcher. Converts PatchConfig objects to TOML format with patches array, hooks definitions, and target version SHA. Filters out STATIC hooks as they are already applied to the file. Writes each patch's chosen option values as a `[patches.options]` table under the patch.
+**ConfigGenerator**: Generates patch_config.toml for the runtime patcher. Converts PatchConfig objects to TOML format with patches array, hooks definitions, and target version SHA. Filters out STATIC hooks as they are already applied to the file.
+
+**PatchOptionsIni**: Writes and reads `patch-options.ini` in the game directory, the record of the option values the patches were applied with: a section per patch id, a key per option id, a toggle as `1` or `0` and a choice as its id. Rewritten on every apply, removed when no patch has options and on uninstall.
 
 **BackupManager**: Creates and restores backups of game directories. Stores backup metadata with game version and installed patches list. Automatically restores on installation failure (including STATIC hook failures).
 
@@ -128,7 +130,7 @@ Represents a detected game version:
 Configuration for patch_config.toml generation:
 
 - **TargetVersionSha**: Game version SHA-256 hash
-- **Patches**: List of patch entries with ID, DLL path, hooks, and the chosen option values
+- **Patches**: List of patch entries with ID, DLL path, hooks, and the chosen option values (the values go to patch-options.ini, not patch_config.toml)
 
 ### ParameterInfo / Parameter
 
@@ -151,7 +153,7 @@ Defines parameter extraction for DETOUR hooks:
 5. Apply STATIC hooks directly to executable file
 6. On a native Linux ELF, add KotorPatcher.so to the game's DT_NEEDED list (skipped on the PE paths, where injection or KProxy loads the patcher instead). This runs after the STATIC hooks and is address-preserving, so the patched bytes survive it
 7. Extract patch DLLs to patches/ directory
-8. Generate patch_config.toml with version-specific runtime hooks (DETOUR/SIMPLE/REPLACE). Hooks whose `when` does not hold for the chosen option values were dropped before validation (OptionValidator), so they are in neither the STATIC step nor this file
+8. Generate patch_config.toml with version-specific runtime hooks (DETOUR/SIMPLE/REPLACE). Hooks whose `when` does not hold for the chosen option values were dropped before validation (OptionValidator), so they are in neither the STATIC step nor this file. The chosen values are then written to patch-options.ini (PatchOptionsIni)
 9. Copy the address database for the detected version to the game directory
 10. Deploy the patcher module (KotorPatcher.dll or KotorPatcher.so) to the game directory
 

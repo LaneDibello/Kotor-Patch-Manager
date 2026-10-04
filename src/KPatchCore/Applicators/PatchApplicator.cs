@@ -631,6 +631,31 @@ public class PatchApplicator
 
             messages.Add($"  Config generated: patch_config.toml");
 
+            // The chosen option values, where a patch's code and scripts read settings.
+            var optionsResult = PatchOptionsIni.WriteFile(config, gameDir);
+            if (!optionsResult.Success)
+            {
+                // Cleanup on failure
+                if (backup != null)
+                {
+                    BackupManager.RestoreBackup(backup);
+                }
+
+                return new InstallResult
+                {
+                    Success = false,
+                    Error = optionsResult.Error,
+                    DetectedVersion = gameVersion,
+                    Backup = backup,
+                    Messages = messages
+                };
+            }
+
+            if (config.Patches.Any(p => p.Options.Count > 0))
+            {
+                messages.Add($"  Options recorded: {PatchOptionsIni.FileName}");
+            }
+
             // Step 6.5: Copy address database to game directory
             //
             // Only a patch DLL reads addresses.db, through its own sqlite build, to look up

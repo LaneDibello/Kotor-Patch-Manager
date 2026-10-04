@@ -41,7 +41,7 @@ The application uses the MVVM pattern with Avalonia's reactive UI framework. It 
 
 ### Views
 
-**MainWindow.axaml**: Main Avalonia window XAML defining the UI layout. Displays game path selector, patches directory selector, patch list with checkboxes and each patch's options beneath it, patch and option details panel, action buttons (Apply, Uninstall, Launch), status messages and progress indicators.
+**MainWindow.axaml**: Main Avalonia window XAML defining the UI layout. Displays game path selector, patches directory selector, patch list with checkboxes, patch details panel with the patch's options, action buttons (Apply, Uninstall, Launch), status messages and progress indicators.
 
 ### Themes
 

@@ -165,6 +165,7 @@ public static class PatchRemover
             var filesToRemove = new List<string>
             {
                 "patch_config.toml",
+                PatchOptionsIni.FileName,
 
                 // The module the game does not name in its own dependency list is safe to remove
                 // whatever happened to the executable. The linked ones are added further down,
@@ -358,52 +359,6 @@ public static class PatchRemover
             .SelectMany(extension => Directory.GetFiles(patchesDir, "*" + extension))
             .ToList();
 
-    /// <summary>
-    /// Reads every patch's [patches.options] table. A toggle comes back as "true" or
-    /// "false" and a choice as its id, the forms an option's value takes everywhere else.
-    /// </summary>
-    private static Dictionary<string, Dictionary<string, string>> ReadInstalledOptionsFromConfig(string configPath)
-    {
-        var result = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
-        try
-        {
-            var model = Toml.ToModel(File.ReadAllText(configPath));
-            if (model is not TomlTable table ||
-                !table.TryGetValue("patches", out var patchesValue) ||
-                patchesValue is not TomlTableArray patchesArray)
-            {
-                return result;
-            }
-
-            foreach (var patchTable in patchesArray.OfType<TomlTable>())
-            {
-                if (!patchTable.TryGetValue("id", out var idValue) || idValue is not string id ||
-                    !patchTable.TryGetValue("options", out var optionsValue) ||
-                    optionsValue is not TomlTable optionsTable)
-                {
-                    continue;
-                }
-
-                var values = new Dictionary<string, string>();
-                foreach (var (optionId, value) in optionsTable)
-                {
-                    values[optionId] = value switch
-                    {
-                        bool on => on ? PatchOption.On : PatchOption.Off,
-                        _ => value?.ToString() ?? string.Empty
-                    };
-                }
-                result[id] = values;
-            }
-        }
-        catch
-        {
-            // An unreadable config has no options to report, as it has no patch ids.
-        }
-
-        return result;
-    }
-
     private static List<string> ReadInstalledPatchIdsFromConfig(string configPath)
     {
         try
@@ -467,7 +422,7 @@ public static class PatchRemover
             {
                 info.ConfigPath = configPath;
                 info.InstalledPatches = ReadInstalledPatchIdsFromConfig(configPath);
-                info.InstalledOptions = ReadInstalledOptionsFromConfig(configPath);
+                info.InstalledOptions = PatchOptionsIni.ReadFile(gameDir);
             }
 
             if (!info.HasConfig)
@@ -548,7 +503,8 @@ public static class PatchRemover
 
         /// <summary>
         /// The option values each installed patch was installed with, by patch id then option
-        /// id, as patch_config.toml records them. A patch without options has no entry.
+        /// id, spelled as patch-options.ini records them (a toggle is "1" or "0", see
+        /// <see cref="PatchOptionsIni.FromIniValue"/>). A patch without options has no entry.
         /// </summary>
         public Dictionary<string, Dictionary<string, string>> InstalledOptions { get; set; } =
             new(StringComparer.OrdinalIgnoreCase);
