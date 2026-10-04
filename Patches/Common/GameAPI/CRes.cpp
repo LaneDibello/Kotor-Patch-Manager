@@ -109,8 +109,9 @@ CRes::~CRes() {
     if (shouldFree && objectPtr) {
         destructor(objectPtr);
         free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
     }
-    // Base class destructor handles setting objectPtr to nullptr
 }
 
 void* CRes::GetVTable() {
