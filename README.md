@@ -68,6 +68,7 @@ To also target KOTOR II's native Linux build, run `./build-linux.sh`, which comp
 CXX_MAC=clang++ make dylib
 dotnet run --project src/KPatchLauncher/KPatchLauncher.csproj
 ```
+Build a patch with `python3 ../create-patch.py` from within its directory (the equivalent of `..\create-patch.bat`).
 
 ## Usage
 Available patches will appear on the left-hand side, with descriptions on the right-hand side. Select the patches you want and select "Apply", to prepare the game for use with those patches. Select "Launch", to run the game with these patches applied.
