@@ -111,7 +111,8 @@ public static class GameVersionValidator
         // Extract platform info from version keys (e.g., "kotor1_gog_103" -> "gog")
         return manifest.SupportedVersions.Keys
             .Select(ExtractPlatformFromKey)
-            .Where(p => !string.IsNullOrEmpty(p))
+            .OfType<string>()
+            .Where(p => p.Length > 0)
             .Distinct()
             .ToList();
     }
@@ -126,7 +127,8 @@ public static class GameVersionValidator
         // Extract version info from version keys (e.g., "kotor1_gog_103" -> "1.03")
         return manifest.SupportedVersions.Keys
             .Select(ExtractVersionFromKey)
-            .Where(v => !string.IsNullOrEmpty(v))
+            .OfType<string>()
+            .Where(v => v.Length > 0)
             .Distinct()
             .ToList();
     }
