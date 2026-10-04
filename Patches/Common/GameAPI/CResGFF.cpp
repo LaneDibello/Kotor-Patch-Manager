@@ -421,8 +421,11 @@ CResGFF::~CResGFF() {
             destructor(objectPtr);
         }
         free(objectPtr);
+        // The game's ~CResGFF already ran ~CRes, so the CRes wrapper's destructor
+        // must find nothing left to destroy or free.
+        objectPtr = nullptr;
+        shouldFree = false;
     }
-    // Base class (CRes) destructor handles rest
 }
 
 // ===== OFFSET ACCESSORS =====
