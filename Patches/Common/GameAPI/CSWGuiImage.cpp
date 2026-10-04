@@ -1,4 +1,5 @@
 #include "CSWGuiImage.h"
+#include "GameMemory.h"
 #include "CSWGuiImageParams.h"
 #include "GameVersion.h"
 
@@ -82,7 +83,7 @@ CSWGuiImage::CSWGuiImage()
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -100,7 +101,7 @@ CSWGuiImage::~CSWGuiImage()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

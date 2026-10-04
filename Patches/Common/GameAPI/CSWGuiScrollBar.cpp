@@ -1,4 +1,5 @@
 #include "CSWGuiScrollBar.h"
+#include "GameMemory.h"
 #include "CSWGuiBorder.h"
 #include "CSWGuiImage.h"
 #include "GameVersion.h"
@@ -99,7 +100,7 @@ CSWGuiScrollBar::CSWGuiScrollBar()
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -117,7 +118,7 @@ CSWGuiScrollBar::~CSWGuiScrollBar()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

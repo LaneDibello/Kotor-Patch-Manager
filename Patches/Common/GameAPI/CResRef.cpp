@@ -1,4 +1,5 @@
 #include "CResRef.h"
+#include "GameMemory.h"
 #include <cstring>
 
 bool CResRef::functionsInitialized = false;
@@ -26,7 +27,7 @@ CResRef::CResRef(const char* src)
     // A CResRef is a fixed 16-byte field, zero-padded (and not necessarily
     // null-terminated when full). Allocate it locally, zero it, then copy at
     // most 16 characters from the source string.
-    objectPtr = malloc(sizeof(CResRef_struct));
+    objectPtr = GameMemory::Alloc(sizeof(CResRef_struct));
     if (objectPtr) {
         memset(objectPtr, 0, sizeof(CResRef_struct));
         if (src) {
@@ -41,7 +42,7 @@ CResRef::CResRef(const char* src)
 
 CResRef::~CResRef() {
     if (shouldFree && objectPtr) {
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
     }
 }

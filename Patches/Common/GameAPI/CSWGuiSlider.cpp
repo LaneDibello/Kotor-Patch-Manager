@@ -1,4 +1,5 @@
 #include "CSWGuiSlider.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 #include "CSWGuiBorder.h"
 #include "CSWGuiImage.h"
@@ -109,7 +110,7 @@ CSWGuiSlider::CSWGuiSlider()
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -127,7 +128,7 @@ CSWGuiSlider::~CSWGuiSlider()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

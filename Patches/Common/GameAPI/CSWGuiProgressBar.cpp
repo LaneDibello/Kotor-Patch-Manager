@@ -1,4 +1,5 @@
 #include "CSWGuiProgressBar.h"
+#include "GameMemory.h"
 #include "CSWGuiBorder.h"
 #include "GameVersion.h"
 
@@ -91,7 +92,7 @@ CSWGuiProgressBar::CSWGuiProgressBar()
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -109,7 +110,7 @@ CSWGuiProgressBar::~CSWGuiProgressBar()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

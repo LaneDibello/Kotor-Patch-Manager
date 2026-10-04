@@ -1,4 +1,5 @@
 #include "CSWGuiButton.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 #include "CSWGuiText.h"
 #include "CSWGuiBorder.h"
@@ -102,7 +103,7 @@ CSWGuiButton::CSWGuiButton()
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -120,7 +121,7 @@ CSWGuiButton::~CSWGuiButton()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

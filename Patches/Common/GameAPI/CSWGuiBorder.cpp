@@ -1,4 +1,5 @@
 #include "CSWGuiBorder.h"
+#include "GameMemory.h"
 #include "CSWGuiBorderParams.h"
 #include "GameVersion.h"
 #include "CResGFF.h"
@@ -94,7 +95,7 @@ CSWGuiBorder::CSWGuiBorder()
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -112,7 +113,7 @@ CSWGuiBorder::~CSWGuiBorder()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

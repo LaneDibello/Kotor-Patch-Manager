@@ -1,4 +1,5 @@
 #include "CSWGuiNavigable.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 
 bool CSWGuiNavigable::functionsInitialized = false;
@@ -89,7 +90,7 @@ CSWGuiNavigable::CSWGuiNavigable()
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -107,7 +108,7 @@ CSWGuiNavigable::~CSWGuiNavigable()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

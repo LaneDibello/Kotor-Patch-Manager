@@ -1,4 +1,5 @@
 #include "CSWGuiText.h"
+#include "GameMemory.h"
 #include "CSWGuiTextParams.h"
 #include "GameVersion.h"
 #include "CResGFF.h"
@@ -96,7 +97,7 @@ CSWGuiText::CSWGuiText()
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -114,7 +115,7 @@ CSWGuiText::~CSWGuiText()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }
