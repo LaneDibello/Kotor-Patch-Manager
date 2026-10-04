@@ -387,7 +387,7 @@ WINDOWS_TOOLCHAINS = (
 # Windows build, Aspyr's native Linux KOTOR II, and Aspyr's x86_64 macOS builds.
 #
 # Only the Windows module links Common/GameAPI and sqlite. A native module loads
-# into a process that has already resolved what it calls, so it links nothing.
+# into a process that has already resolved what it calls, so it links neither.
 TARGETS = {
     "windows_x86": Target(
         module="windows_x86.dll", platform="Windows",
@@ -397,8 +397,12 @@ TARGETS = {
         toolchains=(Toolchain(
             driver=UNIX, env="CXX_LINUX",
             compilers=("g++", "clang++"),
+            # KOTOR II brings its own libc++, so a module carries a private copy
+            # of libstdc++ and exports none of it.
             flags=("-std=c++17", "-m32", "-O2", "-fPIC", "-shared",
-                   "-fno-exceptions", "-fno-rtti", "-Wall", "-Wextra")),),
+                   "-fno-exceptions", "-fno-rtti", "-Wall", "-Wextra",
+                   "-s", "-static-libstdc++", "-static-libgcc",
+                   "-Wl,--exclude-libs,ALL")),),
         links_game_api=False),
     "macos_x86_64": Target(
         module="macos_x86_64.dylib", platform="macOS",
