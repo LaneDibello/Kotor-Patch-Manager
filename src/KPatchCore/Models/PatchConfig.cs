@@ -36,18 +36,27 @@ public sealed class PatchConfig
         /// List of hooks for this patch
         /// </summary>
         public List<Hook> Hooks { get; init; } = new();
+
+        /// <summary>
+        /// The value each of the patch's options was installed with, by option id.
+        /// Written as [patches.options] so the patch's own code, and the launcher, can
+        /// read what was chosen. Empty for a patch without options.
+        /// </summary>
+        public Dictionary<string, string> Options { get; init; } = new();
     }
 
     /// <summary>
     /// Adds a patch to the configuration
     /// </summary>
-    public void AddPatch(string id, string dllPath, IEnumerable<Hook> hooks)
+    public void AddPatch(string id, string dllPath, IEnumerable<Hook> hooks,
+        IReadOnlyDictionary<string, string>? options = null)
     {
         Patches.Add(new EnabledPatch
         {
             Id = id,
             Dll = dllPath,
-            Hooks = hooks.ToList()
+            Hooks = hooks.ToList(),
+            Options = options?.ToDictionary(kv => kv.Key, kv => kv.Value) ?? new()
         });
     }
 

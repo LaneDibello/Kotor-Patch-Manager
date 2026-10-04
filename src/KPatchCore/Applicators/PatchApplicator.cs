@@ -35,6 +35,12 @@ public class PatchApplicator
         public bool CreateBackup { get; init; } = true;
 
         /// <summary>
+        /// Values chosen for the patches' options: patch id, then option id, then value.
+        /// An option without an entry takes its manifest default.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, string>> OptionValues { get; init; } = new();
+
+        /// <summary>
         /// Directory holding the patcher modules and the proxy library, which is where the
         /// launcher itself runs from. Which of them gets staged is the deployment method's
         /// decision, so a new platform adds a file here rather than a field to this type.
@@ -263,6 +269,62 @@ public class PatchApplicator
                 foreach (var message in hooksResult.Messages)
                 {
                     messages.Add($"  {patchId}: {message}");
+                }
+            }
+
+            // Resolve patch options: check every hook's condition against the options its
+            // manifest declares, then keep only the hooks whose condition holds for the
+            // chosen values. Everything from here on, conflict checks included, sees the
+            // hooks that will actually be installed.
+            var optionsByPatch = new Dictionary<string, Dictionary<string, string>>();
+            var strayOptions = options.OptionValues.Keys.FirstOrDefault(id => !patchEntries.ContainsKey(id));
+            if (strayOptions != null)
+            {
+                return new InstallResult
+                {
+                    Success = false,
+                    Error = $"Options were given for {strayOptions}, which is not being installed",
+                    DetectedVersion = gameVersion,
+                    Messages = messages
+                };
+            }
+
+            foreach (var patchId in options.PatchIds)
+            {
+                var manifest = patchEntries[patchId].Manifest;
+                var conditionResult = OptionValidator.ValidateHookConditions(manifest, hooksByPatch[patchId]);
+                if (!conditionResult.Success)
+                {
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = conditionResult.Error,
+                        DetectedVersion = gameVersion,
+                        Messages = messages
+                    };
+                }
+
+                options.OptionValues.TryGetValue(patchId, out var chosen);
+                var valuesResult = OptionValidator.ResolveValues(manifest, chosen);
+                if (!valuesResult.Success || valuesResult.Data == null)
+                {
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = valuesResult.Error,
+                        DetectedVersion = gameVersion,
+                        Messages = messages
+                    };
+                }
+
+                optionsByPatch[patchId] = valuesResult.Data;
+                if (valuesResult.Data.Count > 0)
+                {
+                    var before = hooksByPatch[patchId].Count;
+                    hooksByPatch[patchId] = OptionValidator.SelectHooks(hooksByPatch[patchId], valuesResult.Data);
+                    messages.Add($"  {patchId}: options " +
+                                 string.Join(", ", valuesResult.Data.Select(kv => $"{kv.Key}={kv.Value}")) +
+                                 $" ({hooksByPatch[patchId].Count} of {before} hooks)");
                 }
             }
 
@@ -544,7 +606,7 @@ public class PatchApplicator
                     ? Path.GetRelativePath(gameDir, extractedDlls[patchId])
                     : string.Empty;
 
-                config.AddPatch(patchId, dllPath, hooks);
+                config.AddPatch(patchId, dllPath, hooks, optionsByPatch[patchId]);
             }
 
             var configPath = Path.Combine(gameDir, "patch_config.toml");

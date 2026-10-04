@@ -48,6 +48,12 @@
         </NativeMenu>
     </NativeMenu.Menu>
 
+    <Window.Resources>
+        <!-- The options gear on a patch row. The outline is the "cog" icon of Material Design
+             Icons (pictogrammers.com), Apache License 2.0. -->
+        <StreamGeometry x:Key="OptionsGearGeometry">M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z</StreamGeometry>
+    </Window.Resources>
+
     <Window.Styles>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
@@ -98,6 +104,24 @@
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
             <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        <!-- An option's name under its patch: plain text that can be clicked, in the accent
+             colour while it is the one the details panel describes, as a selected patch's is -->
+        <Style Selector="Button.optionName">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.optionName /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.optionName.chosen">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
         </Style>
         <Style Selector="Button:disabled">
             <Setter Property="Opacity" Value="0.4"/>
@@ -274,44 +298,120 @@
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid ColumnDefinitions="Auto,*,Auto"
-                                          ToolTip.Tip="{Binding CompatibilityStatus}">
-                                        <!-- Checkbox -->
-                                        <CheckBox Grid.Column="0"
-                                                  IsChecked="{Binding IsChecked}"
-                                                  VerticalAlignment="Center"
-                                                  Margin="0,0,8,0"/>
+                                    <StackPanel>
+                                        <Grid ColumnDefinitions="Auto,*,Auto"
+                                              ToolTip.Tip="{Binding CompatibilityStatus}">
+                                            <!-- Checkbox -->
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding IsChecked}"
+                                                      VerticalAlignment="Center"
+                                                      Margin="0,0,8,0"/>
 
-                                        <!-- Patch Name -->
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding DisplayText}"
-                                                   VerticalAlignment="Center"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis"/>
+                                            <!-- Patch Name -->
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding DisplayText}"
+                                                       VerticalAlignment="Center"
+                                                       TextWrapping="NoWrap"
+                                                       TextTrimming="CharacterEllipsis"/>
 
-                                        <!-- Up/Down Buttons -->
-                                        <StackPanel Grid.Column="2"
-                                                    Orientation="Horizontal"
-                                                    Spacing="2"
-                                                    Margin="8,0,0,0">
-                                            <Button Content="↑"
-                                                    Command="{Binding $parent[Window].DataContext.MoveUpCommand}"
-                                                    CommandParameter="{Binding}"
-                                                    Width="24"
-                                                    Height="24"
-                                                    Padding="0"
-                                                    FontSize="12"
-                                                    ToolTip.Tip="Move Up"/>
-                                            <Button Content="↓"
-                                                    Command="{Binding $parent[Window].DataContext.MoveDownCommand}"
-                                                    CommandParameter="{Binding}"
-                                                    Width="24"
-                                                    Height="24"
-                                                    Padding="0"
-                                                    FontSize="12"
-                                                    ToolTip.Tip="Move Down"/>
-                                        </StackPanel>
-                                    </Grid>
+                                            <!-- Options gear, then Up/Down: three buttons of one kind -->
+                                            <StackPanel Grid.Column="2"
+                                                        Orientation="Horizontal"
+                                                        Spacing="2"
+                                                        Margin="8,0,0,0">
+                                                <Button Command="{Binding $parent[Window].DataContext.ToggleOptionsCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        IsVisible="{Binding HasOptions}"
+                                                        Width="24"
+                                                        Height="24"
+                                                        Padding="0"
+                                                        ToolTip.Tip="Show or hide this patch's options">
+                                                    <!-- A gear drawn in outline, in the window's blue. Not the U+2699
+                                                         character: that one comes out of the platform's emoji font
+                                                         in its own colours. -->
+                                                    <Path Data="{StaticResource OptionsGearGeometry}"
+                                                          Stroke="{DynamicResource PrimaryBrush}"
+                                                          StrokeThickness="1.3"
+                                                          StrokeJoin="Round"
+                                                          Fill="Transparent"
+                                                          Stretch="Uniform"
+                                                          Width="15"
+                                                          Height="15"/>
+                                                </Button>
+                                                <Button Content="↑"
+                                                        Command="{Binding $parent[Window].DataContext.MoveUpCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Width="24"
+                                                        Height="24"
+                                                        Padding="0"
+                                                        FontSize="12"
+                                                        ToolTip.Tip="Move Up"/>
+                                                <Button Content="↓"
+                                                        Command="{Binding $parent[Window].DataContext.MoveDownCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Width="24"
+                                                        Height="24"
+                                                        Padding="0"
+                                                        FontSize="12"
+                                                        ToolTip.Tip="Move Down"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- The patch's options, as rows like its own, one step in. A tick is
+                                             usable only while the patch is ticked; a name can always be
+                                             clicked to read what the option does. -->
+                                        <ItemsControl ItemsSource="{Binding Options}"
+                                                      IsVisible="{Binding IsExpanded}"
+                                                      Margin="28,4,0,2">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:PatchOptionViewModel">
+                                                    <StackPanel>
+                                                        <!-- A toggle: a tick and its name -->
+                                                        <Grid ColumnDefinitions="Auto,*"
+                                                              IsVisible="{Binding IsToggle}"
+                                                              MinHeight="28">
+                                                            <CheckBox Grid.Column="0"
+                                                                      IsChecked="{Binding IsOn}"
+                                                                      IsEnabled="{Binding IsAvailable}"
+                                                                      Command="{Binding $parent[Window].DataContext.SelectOptionCommand}"
+                                                                      CommandParameter="{Binding}"
+                                                                      VerticalAlignment="Center"
+                                                                      Margin="0,0,8,0"/>
+                                                            <Button Grid.Column="1"
+                                                                    Classes="optionName"
+                                                                    Classes.chosen="{Binding IsSelected}"
+                                                                    Content="{Binding Name}"
+                                                                    Command="{Binding $parent[Window].DataContext.SelectOptionCommand}"
+                                                                    CommandParameter="{Binding}"/>
+                                                        </Grid>
+
+                                                        <!-- A choice: its name, then one tick per entry -->
+                                                        <StackPanel IsVisible="{Binding IsChoice}">
+                                                            <Button Classes="optionName"
+                                                                    Classes.chosen="{Binding IsSelected}"
+                                                                    Content="{Binding Name}"
+                                                                    Command="{Binding $parent[Window].DataContext.SelectOptionCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    MinHeight="28"/>
+                                                            <ItemsControl ItemsSource="{Binding Choices}" Margin="28,0,0,0">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate x:DataType="vm:PatchChoiceViewModel">
+                                                                        <RadioButton Content="{Binding Name}"
+                                                                                     IsChecked="{Binding IsSelected}"
+                                                                                     IsEnabled="{Binding Option.IsAvailable}"
+                                                                                     Command="{Binding $parent[Window].DataContext.SelectOptionCommand}"
+                                                                                     CommandParameter="{Binding}"
+                                                                                     Foreground="{DynamicResource PrimaryBrush}"
+                                                                                     MinHeight="28"/>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -322,71 +422,144 @@
                 <Border Grid.Column="1" BorderThickness="1" Padding="10" Margin="5,0,0,0">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <Grid>
-                            <!-- Patch Details (when selected) -->
-                            <StackPanel Spacing="10" IsVisible="{Binding SelectedPatch, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                <TextBlock Text="Patch Details"
-                                           FontWeight="Bold"
-                                           FontSize="14"
-                                           Margin="0,0,0,5"/>
+                            <!-- A selected patch's details, with the details of whichever of its options
+                                 is chosen in the list above them -->
+                            <StackPanel Spacing="18"
+                                        IsVisible="{Binding SelectedPatch, Converter={x:Static ObjectConverters.IsNotNull}}">
 
-                                <!-- Name -->
-                                <StackPanel>
-                                    <TextBlock Text="Name:"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,3"/>
-                                    <TextBlock Text="{Binding SelectedPatch.Name}"
-                                               TextWrapping="Wrap"/>
-                                </StackPanel>
+                                <!-- Option Details (when one of the patch's options is chosen in the list),
+                                     laid out as Patch Details is -->
+                                <StackPanel Spacing="10" IsVisible="{Binding ShowOptionDetails}">
+                                    <TextBlock Text="Option Details"
+                                               FontWeight="Bold"
+                                               FontSize="14"
+                                               Margin="0,0,0,5"/>
 
-                                <!-- Version -->
-                                <StackPanel>
-                                    <TextBlock Text="Version:"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,3"/>
-                                    <TextBlock Text="{Binding SelectedPatch.Version}"/>
-                                </StackPanel>
+                                    <!-- What it is set to, what the game has, what the patch ships with -->
+                                    <Grid ColumnDefinitions="*,*,*">
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Selected:"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,3"/>
+                                            <TextBlock Text="{Binding SelectedOption.ValueText}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="Installed:"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,3"/>
+                                            <TextBlock Text="{Binding SelectedOption.InstalledText}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Default:"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,3"/>
+                                            <TextBlock Text="{Binding SelectedOption.DefaultText}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Grid>
 
-                                <!-- Author -->
-                                <StackPanel>
-                                    <TextBlock Text="Author:"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,3"/>
-                                    <TextBlock Text="{Binding SelectedPatch.Author}"/>
-                                </StackPanel>
-
-                                <!-- Description -->
-                                <StackPanel>
-                                    <TextBlock Text="Description:"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,3"/>
-                                    <TextBlock Text="{Binding SelectedPatch.Description}"
-                                               TextWrapping="Wrap"/>
-                                </StackPanel>
-
-                                <!-- Compatibility Status -->
-                                <StackPanel>
-                                    <TextBlock Text="Compatibility:"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,3"/>
-                                    <TextBlock Text="{Binding SelectedPatch.CompatibilityStatus}"
-                                               TextWrapping="Wrap"/>
-                                </StackPanel>
-
-                                <!-- Orphaned Warning -->
-                                <Border Background="{DynamicResource ErrorBackgroundBrush}"
-                                        BorderBrush="{DynamicResource ErrorBrush}"
-                                        BorderThickness="1"
-                                        Padding="8"
-                                        IsVisible="{Binding SelectedPatch.IsOrphaned}">
-                                    <StackPanel Spacing="5">
-                                        <TextBlock Text="⚠️ Orphaned Patch"
-                                                   FontWeight="Bold"
-                                                   Foreground="{DynamicResource ErrorBrush}"/>
-                                        <TextBlock Text="This patch is installed in the game but not found in your patches directory. Unchecking it will uninstall it, but it will not appear in the list again."
-                                                   TextWrapping="Wrap"
-                                                   FontSize="12"/>
+                                    <!-- Name -->
+                                    <StackPanel>
+                                        <TextBlock Text="Name:"
+                                                   FontWeight="SemiBold"
+                                                   Margin="0,0,0,3"/>
+                                        <TextBlock Text="{Binding SelectedOption.Name}"
+                                                   TextWrapping="Wrap"/>
                                     </StackPanel>
-                                </Border>
+
+                                    <!-- Description -->
+                                    <StackPanel>
+                                        <TextBlock Text="Description:"
+                                                   FontWeight="SemiBold"
+                                                   Margin="0,0,0,3"/>
+                                        <TextBlock Text="{Binding SelectedOption.Description}"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- Patch Details: a heading with a triangle that folds the details away
+                                     or drops them down -->
+                                <StackPanel Spacing="10">
+                                    <Button Classes="optionName"
+                                            Command="{Binding TogglePatchDetailsCommand}"
+                                            Margin="0,0,0,5"
+                                            ToolTip.Tip="Show or hide the patch's details">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding PatchDetailsGlyph}"
+                                                       FontSize="14"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="Patch Details"
+                                                       FontWeight="Bold"
+                                                       FontSize="14"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+
+                                    <StackPanel Spacing="10" IsVisible="{Binding IsPatchDetailsExpanded}">
+
+                                        <!-- Name -->
+                                        <StackPanel>
+                                            <TextBlock Text="Name:"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,3"/>
+                                            <TextBlock Text="{Binding SelectedPatch.Name}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <!-- Version -->
+                                        <StackPanel>
+                                            <TextBlock Text="Version:"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,3"/>
+                                            <TextBlock Text="{Binding SelectedPatch.Version}"/>
+                                        </StackPanel>
+
+                                        <!-- Author -->
+                                        <StackPanel>
+                                            <TextBlock Text="Author:"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,3"/>
+                                            <TextBlock Text="{Binding SelectedPatch.Author}"/>
+                                        </StackPanel>
+
+                                        <!-- Description -->
+                                        <StackPanel>
+                                            <TextBlock Text="Description:"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,3"/>
+                                            <TextBlock Text="{Binding SelectedPatch.Description}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <!-- Compatibility Status -->
+                                        <StackPanel>
+                                            <TextBlock Text="Compatibility:"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,3"/>
+                                            <TextBlock Text="{Binding SelectedPatch.CompatibilityStatus}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <!-- Orphaned Warning -->
+                                        <Border Background="{DynamicResource ErrorBackgroundBrush}"
+                                                BorderBrush="{DynamicResource ErrorBrush}"
+                                                BorderThickness="1"
+                                                Padding="8"
+                                                IsVisible="{Binding SelectedPatch.IsOrphaned}">
+                                            <StackPanel Spacing="5">
+                                                <TextBlock Text="⚠️ Orphaned Patch"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource ErrorBrush}"/>
+                                                <TextBlock Text="This patch is installed in the game but not found in your patches directory. Unchecking it will uninstall it, but it will not appear in the list again."
+                                                           TextWrapping="Wrap"
+                                                           FontSize="12"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+
                             </StackPanel>
 
                             <!-- No Selection Message -->

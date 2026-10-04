@@ -1,0 +1,576 @@
+using Xunit;
+
+using KPatchCore.Applicators;
+using KPatchCore.Models;
+using KPatchCore.Parsers;
+using KPatchCore.Validators;
+
+namespace KPatchCore.Tests;
+
+/// <summary>
+/// Patch options: declared in the manifest, tested by a hook's <c>when</c>, resolved at
+/// install time into the hooks that reach patch_config.toml.
+/// </summary>
+public class PatchOptionTests
+{
+    private const string Manifest = """
+        [patch]
+        id = "sample"
+        name = "Sample"
+        version = "1.0.0"
+        author = "Tests"
+        description = "A patch with options."
+
+        [[patch.options]]
+        id = "map-notes"
+        name = "Map notes"
+        description = "Marker corrections."
+        type = "toggle"
+        default = false
+
+        [[patch.options]]
+        id = "hud-style"
+        name = "HUD style"
+        type = "choice"
+        choices = [
+            { id = "classic", name = "Classic" },
+            { id = "compact", name = "Compact" },
+        ]
+        default = "classic"
+
+        [patch.supported_versions]
+        kotor1_gog_103 = "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435"
+        """;
+
+    private const string Hooks = """
+        [[hooks]]
+        address = 0x00401000
+        type = "simple"
+        original_bytes = [0x90]
+        replacement_bytes = [0x91]
+
+        [[hooks]]
+        address = 0x00402000
+        type = "simple"
+        original_bytes = [0x90]
+        replacement_bytes = [0x92]
+        when = "map-notes"
+
+        [[hooks]]
+        address = 0x00403000
+        type = "simple"
+        original_bytes = [0x90]
+        replacement_bytes = [0xA1]
+        when = { option = "hud-style", is = "classic" }
+
+        [[hooks]]
+        address = 0x00403000
+        type = "simple"
+        original_bytes = [0x90]
+        replacement_bytes = [0xA2]
+        when = { option = "hud-style", is = "compact" }
+        """;
+
+    private static PatchManifest ParsedManifest(string toml = Manifest)
+    {
+        var result = ManifestParser.ParseString(toml);
+        Assert.True(result.Success, result.Error);
+        return result.Data!;
+    }
+
+    private static List<Hook> ParsedHooks(string toml = Hooks)
+    {
+        var result = HooksParser.ParseString(toml);
+        Assert.True(result.Success, result.Error);
+        return result.Data!;
+    }
+
+    private static string ManifestWith(string options) => $"""
+        [patch]
+        id = "sample"
+        name = "Sample"
+        version = "1.0.0"
+        author = "Tests"
+        description = "A patch with options."
+
+        {options}
+        """;
+
+    [Fact]
+    public void ManifestWithoutOptionsHasNone()
+    {
+        Assert.Empty(ParsedManifest(ManifestWith("")).Options);
+    }
+
+    [Fact]
+    public void ManifestDeclaresAToggleAndAChoice()
+    {
+        var options = ParsedManifest().Options;
+
+        Assert.Equal(new[] { "map-notes", "hud-style" }, options.Select(o => o.Id));
+
+        var toggle = options[0];
+        Assert.Equal(PatchOptionType.Toggle, toggle.Type);
+        Assert.Equal("Map notes", toggle.Name);
+        Assert.Equal("Marker corrections.", toggle.Description);
+        Assert.Equal(PatchOption.Off, toggle.Default);
+
+        var choice = options[1];
+        Assert.Equal(PatchOptionType.Choice, choice.Type);
+        Assert.Equal(new[] { "classic", "compact" }, choice.Choices.Select(c => c.Id));
+        Assert.Equal("Compact", choice.Choices[1].Name);
+        Assert.Equal("classic", choice.Default);
+    }
+
+    [Fact]
+    public void AToggleIsOffUnlessItSaysOtherwise()
+    {
+        var option = ParsedManifest(ManifestWith("""
+            [[patch.options]]
+            id = "extra"
+            name = "Extra"
+            """)).Options.Single();
+
+        Assert.Equal(PatchOptionType.Toggle, option.Type);
+        Assert.Equal(PatchOption.Off, option.Default);
+    }
+
+    [Theory]
+    // No id, no name.
+    [InlineData("[[patch.options]]\nname = \"X\"", "id")]
+    [InlineData("[[patch.options]]\nid = \"x\"", "name")]
+    // The id is what a hook and a command line name, so it keeps to the patch id's alphabet.
+    [InlineData("[[patch.options]]\nid = \"has space\"\nname = \"X\"", "[a-zA-Z0-9_-]")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\n[[patch.options]]\nid = \"x\"\nname = \"Y\"", "more than once")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = \"slider\"", "unknown type")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ndefault = \"yes\"", "true or false")]
+    // A choice needs something to choose between, and a default that is one of them.
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = \"choice\"\ndefault = \"a\"", "choices array")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = \"choice\"\nchoices = [{ id = \"a\" }]\ndefault = \"a\"", "at least two")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = \"choice\"\nchoices = [{ id = \"a\" }, { id = \"b\" }]", "default")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = \"choice\"\nchoices = [{ id = \"a\" }, { id = \"b\" }]\ndefault = \"c\"", "not one of its choices")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = \"choice\"\nchoices = [{ id = \"a\" }, { id = \"a\" }]\ndefault = \"a\"", "more than once")]
+    public void ManifestRefusesAMalformedOption(string options, string expected)
+    {
+        var result = ManifestParser.ParseString(ManifestWith(options));
+
+        Assert.False(result.Success);
+        Assert.Contains(expected, result.Error);
+    }
+
+    [Fact]
+    public void HookWithoutWhenIsUnconditional()
+    {
+        Assert.Null(ParsedHooks()[0].When);
+    }
+
+    [Fact]
+    public void WhenAsAStringIsAToggleThatIsOn()
+    {
+        var when = ParsedHooks()[1].When;
+
+        Assert.NotNull(when);
+        Assert.Equal("map-notes", when!.OptionId);
+        Assert.Equal(PatchOption.On, when.Value);
+    }
+
+    [Fact]
+    public void WhenAsATableNamesTheValue()
+    {
+        var when = ParsedHooks()[3].When;
+
+        Assert.NotNull(when);
+        Assert.Equal("hud-style", when!.OptionId);
+        Assert.Equal("compact", when.Value);
+    }
+
+    [Fact]
+    public void WhenCanTestAToggleForOff()
+    {
+        var hooks = ParsedHooks("""
+            [[hooks]]
+            address = 0x00401000
+            type = "simple"
+            original_bytes = [0x90]
+            replacement_bytes = [0x91]
+            when = { option = "map-notes", is = false }
+            """);
+
+        Assert.Equal(PatchOption.Off, hooks.Single().When!.Value);
+    }
+
+    [Theory]
+    [InlineData("when = 3")]
+    [InlineData("when = \"\"")]
+    [InlineData("when = { is = \"compact\" }")]
+    [InlineData("when = { option = \"hud-style\", is = 3 }")]
+    public void HooksRefuseAMalformedWhen(string when)
+    {
+        var result = HooksParser.ParseString($"""
+            [[hooks]]
+            address = 0x00401000
+            type = "simple"
+            original_bytes = [0x90]
+            replacement_bytes = [0x91]
+            {when}
+            """);
+
+        Assert.False(result.Success);
+        Assert.Contains("invalid when", result.Error);
+    }
+
+    [Fact]
+    public void ShippedShapeValidates()
+    {
+        var result = OptionValidator.ValidateHookConditions(ParsedManifest(), ParsedHooks());
+
+        Assert.True(result.Success, result.Error);
+    }
+
+    [Fact]
+    public void AConditionMustNameADeclaredOption()
+    {
+        var hooks = ParsedHooks(Hooks.Replace("when = \"map-notes\"", "when = \"map-markers\""));
+
+        var result = OptionValidator.ValidateHookConditions(ParsedManifest(), hooks);
+
+        Assert.False(result.Success);
+        Assert.Contains("'map-markers'", result.Error);
+        Assert.Contains("does not declare", result.Error);
+    }
+
+    [Fact]
+    public void AConditionMustNameAValueTheOptionCanHold()
+    {
+        var hooks = ParsedHooks(Hooks.Replace("is = \"compact\"", "is = \"tiny\""));
+
+        var result = OptionValidator.ValidateHookConditions(ParsedManifest(), hooks);
+
+        Assert.False(result.Success);
+        Assert.Contains("can never be 'tiny'", result.Error);
+    }
+
+    [Theory]
+    // Unconditional beside conditional: both installed whenever the condition holds.
+    [InlineData("", "when = \"map-notes\"")]
+    // The same condition twice.
+    [InlineData("when = \"map-notes\"", "when = \"map-notes\"")]
+    // Different options: nothing stops both being on.
+    [InlineData("when = \"map-notes\"", "when = { option = \"hud-style\", is = \"compact\" }")]
+    public void HooksSharingAnAddressMustExcludeEachOther(string first, string second)
+    {
+        var hooks = ParsedHooks($"""
+            [[hooks]]
+            address = 0x00405000
+            type = "simple"
+            original_bytes = [0x90]
+            replacement_bytes = [0x91]
+            {first}
+
+            [[hooks]]
+            address = 0x00405000
+            type = "simple"
+            original_bytes = [0x90]
+            replacement_bytes = [0x92]
+            {second}
+            """);
+
+        var result = OptionValidator.ValidateHookConditions(ParsedManifest(), hooks);
+
+        Assert.False(result.Success);
+        Assert.Contains("0x00405000", result.Error);
+    }
+
+    [Fact]
+    public void AToggleCanSplitOneAddressBetweenOnAndOff()
+    {
+        var hooks = ParsedHooks("""
+            [[hooks]]
+            address = 0x00405000
+            type = "simple"
+            original_bytes = [0x90]
+            replacement_bytes = [0x91]
+            when = { option = "map-notes", is = true }
+
+            [[hooks]]
+            address = 0x00405000
+            type = "simple"
+            original_bytes = [0x90]
+            replacement_bytes = [0x92]
+            when = { option = "map-notes", is = false }
+            """);
+
+        Assert.True(OptionValidator.ValidateHookConditions(ParsedManifest(), hooks).Success);
+    }
+
+    [Fact]
+    public void NothingChosenResolvesToTheDefaults()
+    {
+        var values = OptionValidator.ResolveValues(ParsedManifest(), null).Data!;
+
+        Assert.Equal(PatchOption.Off, values["map-notes"]);
+        Assert.Equal("classic", values["hud-style"]);
+    }
+
+    [Fact]
+    public void AChosenValueReplacesItsDefault()
+    {
+        var chosen = new Dictionary<string, string> { ["map-notes"] = "TRUE", ["hud-style"] = "compact" };
+
+        var values = OptionValidator.ResolveValues(ParsedManifest(), chosen).Data!;
+
+        Assert.Equal(PatchOption.On, values["map-notes"]);
+        Assert.Equal("compact", values["hud-style"]);
+    }
+
+    [Theory]
+    [InlineData("map-markers", "true", "has no option 'map-markers'")]
+    [InlineData("map-notes", "maybe", "cannot be 'maybe'")]
+    [InlineData("hud-style", "tiny", "cannot be 'tiny'")]
+    public void AChosenValueThatCannotApplyIsRefused(string option, string value, string expected)
+    {
+        var result = OptionValidator.ResolveValues(
+            ParsedManifest(), new Dictionary<string, string> { [option] = value });
+
+        Assert.False(result.Success);
+        Assert.Contains(expected, result.Error);
+    }
+
+    [Fact]
+    public void DefaultsInstallTheUnconditionalHookAndTheDefaultVariant()
+    {
+        var values = OptionValidator.ResolveValues(ParsedManifest(), null).Data!;
+
+        var installed = OptionValidator.SelectHooks(ParsedHooks(), values);
+
+        Assert.Equal(new ulong[] { 0x00401000, 0x00403000 }, installed.Select(h => h.Address));
+        Assert.Equal(0xA1, installed[1].ReplacementBytes![0]);
+    }
+
+    [Fact]
+    public void ChosenValuesInstallTheirHooksAndVariant()
+    {
+        var chosen = new Dictionary<string, string> { ["map-notes"] = "true", ["hud-style"] = "compact" };
+        var values = OptionValidator.ResolveValues(ParsedManifest(), chosen).Data!;
+
+        var installed = OptionValidator.SelectHooks(ParsedHooks(), values);
+
+        Assert.Equal(new ulong[] { 0x00401000, 0x00402000, 0x00403000 }, installed.Select(h => h.Address));
+        Assert.Equal(0xA2, installed[2].ReplacementBytes![0]);
+        // What is left is what today's one-hook-per-address rule accepts.
+        Assert.Empty(HookValidator.DetectOverlappingHooks(installed));
+    }
+
+    [Fact]
+    public void ConfigRecordsTheInstalledValuesUnderThePatch()
+    {
+        var chosen = new Dictionary<string, string> { ["map-notes"] = "true" };
+        var values = OptionValidator.ResolveValues(ParsedManifest(), chosen).Data!;
+        var config = new PatchConfig();
+        config.AddPatch("sample", "patches/sample.dll", OptionValidator.SelectHooks(ParsedHooks(), values), values);
+
+        var toml = ConfigGenerator.GenerateConfigString(config);
+        var model = Tomlyn.Toml.ToModel(toml);
+        var patch = ((Tomlyn.Model.TomlTableArray)model["patches"])[0];
+        var options = (Tomlyn.Model.TomlTable)patch["options"];
+
+        Assert.Equal(true, options["map-notes"]);
+        Assert.Equal("classic", options["hud-style"]);
+        // The condition itself never reaches the runtime's file.
+        Assert.DoesNotContain("when", toml);
+        Assert.Equal(3, ((Tomlyn.Model.TomlTableArray)patch["hooks"]).Count);
+    }
+
+    [Fact]
+    public void APatchWithoutOptionsWritesNoOptionsTable()
+    {
+        var config = new PatchConfig();
+        config.AddPatch("plain", string.Empty, new List<Hook>());
+
+        Assert.DoesNotContain("options", ConfigGenerator.GenerateConfigString(config));
+    }
+
+    [Theory]
+    // A choice id is what a hook and a command line name, like an option id.
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = \"choice\"\nchoices = [{ id = \"a b\" }, { id = \"c\" }]\ndefault = \"c\"", "[a-zA-Z0-9_-]")]
+    // "true" and "false" are a toggle's values, and the config writes them as booleans.
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = \"choice\"\nchoices = [{ id = \"true\" }, { id = \"false\" }]\ndefault = \"true\"", "cannot be called")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = \"choice\"\nchoices = [{ id = \"a\" }, \"b\"]\ndefault = \"a\"", "every choice needs an id")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\ntype = 3", "toggle")]
+    [InlineData("[[patch.options]]\nid = \"x\"\nname = \"X\"\nchoices = [{ id = \"a\" }, { id = \"b\" }]", "takes no choices")]
+    [InlineData("options = \"x\"", "array of tables")]
+    public void ManifestRefusesAMalformedChoiceOrType(string options, string expected)
+    {
+        var result = ManifestParser.ParseString(ManifestWith(options));
+
+        Assert.False(result.Success);
+        Assert.Contains(expected, result.Error);
+    }
+
+    [Fact]
+    public void ChoicesMayBeWrittenAsATableArray()
+    {
+        var manifest = ParsedManifest(ManifestWith(Q3Text(
+            "[[patch.options]]",
+            "id = \"hud-style\"",
+            "name = \"HUD style\"",
+            "type = \"choice\"",
+            "default = \"compact\"",
+            "[[patch.options.choices]]",
+            "id = \"classic\"",
+            "[[patch.options.choices]]",
+            "id = \"compact\"",
+            "name = \"Compact\"")));
+
+        var option = Assert.Single(manifest.Options);
+        Assert.Equal(new[] { "classic", "compact" }, option.Choices.Select(c => c.Id));
+        // A choice without a name is shown by its id.
+        Assert.Equal("classic", option.Choices[0].Name);
+        Assert.Equal("compact", option.Default);
+    }
+
+    [Fact]
+    public void WhenAsATableWithoutIsMeansOn()
+    {
+        var hooks = ParsedHooks(Q3Text(
+            "[[hooks]]",
+            "address = 0x00405000",
+            "type = \"simple\"",
+            "original_bytes = [0x90]",
+            "replacement_bytes = [0x91]",
+            "when = { option = \"map-notes\" }"));
+
+        Assert.Equal("map-notes", hooks[0].When!.OptionId);
+        Assert.Equal(PatchOption.On, hooks[0].When!.Value);
+    }
+
+    [Fact]
+    public void TheShorthandCannotNameAChoice()
+    {
+        var hooks = ParsedHooks(Q3Text(
+            "[[hooks]]",
+            "address = 0x00405000",
+            "type = \"simple\"",
+            "original_bytes = [0x90]",
+            "replacement_bytes = [0x91]",
+            "when = \"hud-style\""));
+
+        var result = OptionValidator.ValidateHookConditions(ParsedManifest(), hooks);
+
+        Assert.False(result.Success);
+        Assert.Contains("can never be 'true'", result.Error);
+    }
+
+    [Fact]
+    public void TwoPlainHooksAtOneAddressAreNotAnOptionsError()
+    {
+        var hooks = ParsedHooks(Q3Text(
+            "[[hooks]]",
+            "address = 0x00405000",
+            "type = \"simple\"",
+            "original_bytes = [0x90]",
+            "replacement_bytes = [0x91]",
+            "",
+            "[[hooks]]",
+            "address = 0x00405000",
+            "type = \"simple\"",
+            "original_bytes = [0x90]",
+            "replacement_bytes = [0x92]"));
+
+        var result = OptionValidator.ValidateHookConditions(ParsedManifest(), hooks);
+
+        Assert.False(result.Success);
+        Assert.Contains("Multiple hooks at address 0x00405000", result.Error);
+        Assert.DoesNotContain("when", result.Error);
+    }
+
+    [Fact]
+    public void AChoiceCanSplitOneAddressThreeWays()
+    {
+        var manifest = ParsedManifest(ManifestWith(Q3Text(
+            "[[patch.options]]",
+            "id = \"size\"",
+            "name = \"Size\"",
+            "type = \"choice\"",
+            "choices = [{ id = \"small\" }, { id = \"medium\" }, { id = \"large\" }]",
+            "default = \"medium\"")));
+        var hooks = ParsedHooks(string.Join("\n", new[] { "small", "medium", "large" }.Select((size, i) => Q3Text(
+            "[[hooks]]",
+            "address = 0x00405000",
+            "type = \"simple\"",
+            "original_bytes = [0x90]",
+            $"replacement_bytes = [0x9{i + 1}]",
+            $"when = {{ option = \"size\", is = \"{size}\" }}",
+            ""))));
+
+        Assert.True(OptionValidator.ValidateHookConditions(manifest, hooks).Success);
+
+        var values = OptionValidator.ResolveValues(manifest, new Dictionary<string, string> { ["size"] = "large" }).Data!;
+        var installed = Assert.Single(OptionValidator.SelectHooks(hooks, values));
+        Assert.Equal(new byte[] { 0x93 }, installed.ReplacementBytes);
+    }
+
+    [Fact]
+    public void AStaticHookWhoseOptionIsOffIsLeftOut()
+    {
+        var hooks = ParsedHooks(Q3Text(
+            "[[hooks]]",
+            "address = 0x00405000",
+            "type = \"static\"",
+            "original_bytes = [0x90]",
+            "replacement_bytes = [0x91]",
+            "when = \"map-notes\""));
+        var manifest = ParsedManifest();
+
+        // Selection runs before the static step, so a dropped static hook is never written.
+        Assert.Empty(OptionValidator.SelectHooks(hooks, OptionValidator.ResolveValues(manifest, null).Data!));
+        Assert.Single(OptionValidator.SelectHooks(hooks, OptionValidator.ResolveValues(
+            manifest, new Dictionary<string, string> { ["map-notes"] = "true" }).Data!));
+    }
+
+    [Fact]
+    public void AToggleValueIgnoresCaseAndAChoiceValueDoesNot()
+    {
+        var manifest = ParsedManifest();
+
+        var toggle = OptionValidator.ResolveValues(manifest, new Dictionary<string, string> { ["map-notes"] = "TRUE" });
+        Assert.True(toggle.Success, toggle.Error);
+        Assert.Equal(PatchOption.On, toggle.Data!["map-notes"]);
+
+        // A choice id is spelled as the manifest spells it, as it is in a hook's `is`.
+        var choice = OptionValidator.ResolveValues(manifest, new Dictionary<string, string> { ["hud-style"] = "Compact" });
+        Assert.False(choice.Success);
+        Assert.Contains("cannot be 'Compact'", choice.Error);
+    }
+
+    [Fact]
+    public void InstalledValuesReadBackAsTheyWereChosen()
+    {
+        var chosen = new Dictionary<string, string> { ["map-notes"] = "true", ["hud-style"] = "compact" };
+        var values = OptionValidator.ResolveValues(ParsedManifest(), chosen).Data!;
+        var config = new PatchConfig();
+        config.AddPatch("sample", "patches/sample.dll", OptionValidator.SelectHooks(ParsedHooks(), values), values);
+        config.AddPatch("plain", string.Empty, new List<Hook>());
+
+        var directory = Directory.CreateTempSubdirectory("kpatch-options-").FullName;
+        try
+        {
+            var game = Path.Combine(directory, "swkotor.exe");
+            File.WriteAllBytes(game, Array.Empty<byte>());
+            File.WriteAllText(Path.Combine(directory, "patch_config.toml"), ConfigGenerator.GenerateConfigString(config));
+
+            var info = PatchRemover.GetInstallationInfo(game);
+
+            Assert.True(info.Success, info.Error);
+            // A toggle comes back as "true", not as the boolean the file holds.
+            Assert.Equal(chosen, info.Data!.InstalledOptions["sample"]);
+            Assert.False(info.Data.InstalledOptions.ContainsKey("plain"));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static string Q3Text(params string[] lines) => string.Join("\n", lines);
+}

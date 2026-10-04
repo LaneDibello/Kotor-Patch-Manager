@@ -154,6 +154,24 @@ public static class ConfigGenerator
                 patchTable["hooks"] = hooksArray;
             }
 
+            // The values the patch's options were installed with. A toggle is written as
+            // a boolean and a choice as its id, the way a manifest spells its defaults.
+            // The runtime ignores the table; it is here for the patch and the launcher.
+            if (patch.Options.Count > 0)
+            {
+                var optionsTable = new TomlTable();
+                foreach (var (optionId, value) in patch.Options)
+                {
+                    optionsTable[optionId] = value switch
+                    {
+                        PatchOption.On => true,
+                        PatchOption.Off => false,
+                        _ => value
+                    };
+                }
+                patchTable["options"] = optionsTable;
+            }
+
             patchesArray.Add(patchTable);
         }
 
