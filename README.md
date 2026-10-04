@@ -216,7 +216,7 @@ Lane's [YouTube Channel](https://www.youtube.com/@lane_m)
 ## License
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for the full text.
 
-Third-party components keep their own licenses: `tomlplusplus` is MIT, and the bundled SQLite is public domain.
+Third-party components keep their own licenses: `tomlplusplus` is MIT, the bundled SQLite is public domain, and the outline of the launcher's options gear is the "cog" icon of [Material Design Icons](https://pictogrammers.com/library/mdi/) (Apache License 2.0).
 
 This project is an unofficial fan work. It is not affiliated with, authorized by, or endorsed by BioWare, Obsidian Entertainment, LucasArts, Aspyr, or Disney. Star Wars: Knights of the Old Republic and all related trademarks are the property of their respective owners. No original game assets or executables are distributed here; you must own a copy of the game.
 
