@@ -397,7 +397,7 @@ TARGETS = {
         toolchains=(Toolchain(
             driver=UNIX, env="CXX_LINUX",
             compilers=("g++", "clang++"),
-            flags=("-m32", "-O2", "-fPIC", "-shared",
+            flags=("-std=c++17", "-m32", "-O2", "-fPIC", "-shared",
                    "-fno-exceptions", "-fno-rtti", "-Wall", "-Wextra")),),
         links_game_api=False),
     "macos_x86_64": Target(
@@ -412,7 +412,7 @@ TARGETS = {
             # Unlike a Linux .so, a dylib resolves its symbols at link time, so a
             # module that draws needs the framework named here. dead_strip_dylibs
             # drops it again from the modules that reference nothing in it.
-            flags=("-arch", "x86_64", "-O2", "-fPIC", "-dynamiclib",
+            flags=("-std=c++17", "-arch", "x86_64", "-O2", "-fPIC", "-dynamiclib",
                    "-mmacosx-version-min=10.9", "-fno-exceptions", "-fno-rtti",
                    "-framework", "OpenGL", "-Wl,-dead_strip_dylibs",
                    "-install_name", "@executable_path/macos_x86_64.dylib")),),
