@@ -31,9 +31,11 @@ The library uses a **PatchResult** pattern instead of exceptions for expected fa
 
 **ConfigGenerator**: Generates patch_config.toml for the runtime patcher. Converts PatchConfig objects to TOML format with patches array, hooks definitions, and target version SHA. Filters out STATIC hooks as they are already applied to the file.
 
+**PatchOptionsIni**: Records the option values the patches were applied with in the `configs` folder in the game directory: a `[Patch Options]` section in `<patch id>.ini`, the file for all of that patch's settings, with a key per option id, a toggle as `1` or `0` and a choice as its id. The section is rewritten on every apply and taken out when the patch is no longer installed and on uninstall; the rest of the file is left alone.
+
 **BackupManager**: Creates and restores backups of game directories. Stores backup metadata with game version and installed patches list. Automatically restores on installation failure (including STATIC hook failures).
 
-**PatchRemover**: Removes installed patches from game directory. Deletes patch_config.toml, removes patches directory, restores from backup if available (reverting STATIC hook changes).
+**PatchRemover**: Removes installed patches from game directory. Deletes patch_config.toml, removes patches directory, takes the `[Patch Options]` sections out of the configs folder, restores from backup if available (reverting STATIC hook changes).
 
 ### Parsers
 
@@ -54,6 +56,8 @@ The library uses a **PatchResult** pattern instead of exceptions for expected fa
 **GameVersionValidator**: Verifies patches support detected game version. Checks that game SHA-256 matches patch's supported_versions dictionary.
 
 **HookValidator**: Validates hook configurations. Detects address conflicts between multiple patches, ensures hooks meet minimum byte requirements, validates parameter configurations.
+
+**OptionValidator**: Checks each hook's `when` against the options the manifest declares, allows hooks to share an address only when their conditions exclude each other, resolves the chosen option values (defaults for the rest) and selects the hooks those values install.
 
 **PatchValidator**: Orchestrates validation across multiple validators. Performs comprehensive pre-installation checks.
 
@@ -81,6 +85,7 @@ Represents metadata from a patch's manifest.toml:
 - **Requires**: List of dependency patch IDs
 - **Conflicts**: List of conflicting patch IDs
 - **SupportedVersions**: Dictionary mapping game version ID to expected SHA-256 hash
+- **Options**: List of PatchOption (a toggle or a choice, with its default) the player can set inside the patch
 
 ### Hook
 
@@ -95,6 +100,7 @@ Represents a single hook point in game code:
 - **PreserveRegisters/PreserveFlags**: State preservation options (DETOUR only)
 - **ExcludeFromRestore**: Registers to keep modified after hook (DETOUR only)
 - **SkipOriginalBytes**: Whether to skip re-executing stolen bytes (DETOUR only)
+- **When**: HookCondition naming an option and the value it must hold for the hook to be installed (optional)
 
 ### PatchResult / PatchResult&lt;T&gt;
 
@@ -124,7 +130,7 @@ Represents a detected game version:
 Configuration for patch_config.toml generation:
 
 - **TargetVersionSha**: Game version SHA-256 hash
-- **Patches**: List of patch entries with ID, DLL path, and hooks
+- **Patches**: List of patch entries with ID, DLL path, hooks, and the chosen option values (the values go to the configs folder, not patch_config.toml)
 
 ### ParameterInfo / Parameter
 
@@ -147,7 +153,7 @@ Defines parameter extraction for DETOUR hooks:
 5. Apply STATIC hooks directly to executable file
 6. On a native Linux ELF, add KotorPatcher.so to the game's DT_NEEDED list (skipped on the PE paths, where injection or KProxy loads the patcher instead). This runs after the STATIC hooks and is address-preserving, so the patched bytes survive it
 7. Extract patch DLLs to patches/ directory
-8. Generate patch_config.toml with version-specific runtime hooks (DETOUR/SIMPLE/REPLACE)
+8. Generate patch_config.toml with version-specific runtime hooks (DETOUR/SIMPLE/REPLACE). Hooks whose `when` does not hold for the chosen option values were dropped before validation (OptionValidator), so they are in neither the STATIC step nor this file. The chosen values are then written to the patches' files in the configs folder (PatchOptionsIni)
 9. Copy the address database for the detected version to the game directory
 10. Deploy the patcher module (KotorPatcher.dll or KotorPatcher.so) to the game directory
 
@@ -168,6 +174,10 @@ Defines parameter extraction for DETOUR hooks:
 **DependencyValidator.CalculateInstallOrder()**: Topological sort of patches based on dependencies. Ensures dependencies installed before dependents.
 
 **GameVersionValidator.ValidateAllPatchesSupported()**: Verifies game version SHA exists in each patch's supported_versions. Fails if any patch doesn't support detected version.
+
+**OptionValidator.ValidateHookConditions()**: Checks a patch's `when` conditions against its declared options, and that hooks sharing an address can never be installed together.
+
+**OptionValidator.ResolveValues()** / **SelectHooks()**: Turn the chosen option values into a value for every option, then into the hooks that are installed. Runs before the checks below, so they see only those hooks.
 
 **HookValidator.ValidateMultiPatchHooks()**: Detects address conflicts across multiple patches. Ensures no two patches hook same address.
 

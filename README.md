@@ -65,6 +65,8 @@ To also target KOTOR II's native Linux build, run `./build-linux.sh`, which comp
 ## Usage
 Available patches will appear on the left-hand side, with descriptions on the right-hand side. Select the patches you want and select "Apply", to prepare the game for use with those patches. Select "Launch", to run the game with these patches applied.
 
+Selecting a patch, by its name or its checkbox, shows its details on the right-hand side. A patch that has [options](#options) lists them there, under its description: tick the ones you want, or pick one of a set. The triangle before an option drops down what it does, what the game is installed with and the default. Options can be changed while the patch is checked, and count as changes like checking a patch does, so select "Apply" afterwards.
+
 Patches can be uninstalled by unchecking them and applying, or using the "Uninstall All" button.
 
 ## Patches
@@ -84,6 +86,50 @@ A patch typically contains 3 parts:
 - `requires`: List of requried patches (by `id`) for this patch to work
 - `conflicts`: List of patches (by `id`) that conflict with this patch's functionality
 - `supported_versions`: key/value pair of game versions and their SHA-256s
+- `options`: Choices the player can make inside the patch (optional, see [Options](#options))
+
+#### Options
+A patch can offer choices of its own, so that one patch can carry an optional extra or more than one variant instead of being split into several. Each is declared as a `[[patch.options]]` table:
+- `id`: A program-friendly identifier with `[a-zA-Z0-9_-]`, unique within the patch
+- `name`: The name shown in the launcher
+- `description`: What the option changes (optional)
+- `type`: `"toggle"` (on or off, the default) or `"choice"` (one of a list)
+- `choices`: For a choice, a list of `{ id = "...", name = "..." }`, at least two. An `id` uses `[a-zA-Z0-9_-]` and cannot be `true` or `false`; `name` is what the launcher shows, and is the `id` if omitted
+- `default`: `true` or `false` for a toggle (off if omitted); for a choice, the `id` of one of its choices
+
+```toml
+[[patch.options]]
+id = "map-notes"
+name = "Map notes"
+type = "toggle"
+default = false
+
+[[patch.options]]
+id = "hud-style"
+name = "HUD style"
+type = "choice"
+choices = [
+    { id = "classic", name = "Classic" },
+    { id = "compact", name = "Compact" },
+]
+default = "classic"
+```
+
+Options are resolved when patches are applied. The launcher lists a patch's options in its details (see [Usage](#usage)); on the command line they are set with `--option <patch_id>.<option_id>=<value>`, alongside `--patches` (a toggle takes `true` or `false`; a choice takes one of its ids, spelled as the manifest spells it). An option that is not set takes its default. Changing an option afterwards means applying again, like ticking a patch.
+
+A hook uses an option through its `when` field (see [Shared Fields](#shared-fields)): a hook whose condition does not hold is left out of the install. The chosen values are also written to the `configs` folder in the game directory, where each patch has one INI file named after its id for all of its settings. The manager writes a `[Patch Options]` section into it, which the patch's own code and scripts can read with the usual INI functions. A toggle is `1` or `0`; a choice is its id. For a patch with the id `my_patch` that is `configs/my_patch.ini`:
+
+```ini
+[Patch Options]
+map-notes=1
+hud-style=classic
+```
+
+That section is the manager's record of what was applied. It is rewritten on every apply, and changing it by hand or from the game does not change which hooks are installed: that takes applying again and restarting the game. The rest of the file is the patch's own and is never touched, so a patch can keep its run-time settings there too.
+
+**Managers without options.** A release from before this feature ignores `[[patch.options]]` and `when`: it installs every hook of the patch and writes no `[Patch Options]` section. So:
+- A patch whose hooks all have their own `address` still installs there, as if every toggle were on. Give such toggles `default = true`, and have the patch's code treat a missing file, section or entry as the default.
+- A patch with two hooks at one `address` (one per value of an option) is refused there with "Hook conflicts detected", as any two hooks at one address are. If the patch should still install on those releases, keep one hook at the address and choose between the variants in the patch's own code, from its file in `configs`.
 
 ### Hooks
 There are 4 different types of hooks currently, `simple`, `replace`, `detour`, and `static`. Though they all share certain fields.
@@ -91,6 +137,7 @@ There are 4 different types of hooks currently, `simple`, `replace`, `detour`, a
 #### Shared Fields
 - `address`: The hexadecimal (`0x########`) address where the hook will be applied
 - `type`: The type of hook, either `"simple"`, `"replace"`, `"detour"`, or `"static"`
+- `when`: The [option](#options) this hook depends on (optional). `when = "map-notes"` installs the hook only while that toggle is on; `when = { option = "hud-style", is = "compact" }` only while that option holds that value (`is` may also be `true` or `false`). Hooks may share an `address` only when their `when` tests the same option for different values, so that at most one of them is ever installed
 
 #### Simple Hooks
 Simple hooks are for when you just want to replace a finite set of bytes with a new set of bytes of the same length.

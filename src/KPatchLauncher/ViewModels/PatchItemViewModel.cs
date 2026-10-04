@@ -62,6 +62,10 @@ public class PatchItemViewModel : ViewModelBase
         {
             if (SetProperty(ref _isChecked, value))
             {
+                foreach (var option in Options)
+                {
+                    option.IsAvailable = value;
+                }
                 CheckedChanged?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -94,4 +98,34 @@ public class PatchItemViewModel : ViewModelBase
     }
 
     public string DisplayText => $"{Name} v{Version}";
+
+    /// <summary>
+    /// The patch's options, in the manifest's order. Empty for a patch without any.
+    /// </summary>
+    public List<PatchOptionViewModel> Options { get; } = new();
+
+    public bool HasOptions => Options.Count > 0;
+
+    /// <summary>
+    /// Gives the patch its options. They start usable exactly when the patch is ticked.
+    /// </summary>
+    public void SetOptions(IEnumerable<KPatchCore.Models.PatchOption> options)
+    {
+        Options.Clear();
+        foreach (var option in options)
+        {
+            Options.Add(new PatchOptionViewModel(this, option) { IsAvailable = IsChecked });
+        }
+        OnPropertyChanged(nameof(HasOptions));
+    }
+
+    /// <summary>
+    /// The values an install would use for this patch, by option id.
+    /// </summary>
+    public Dictionary<string, string> OptionValues() => Options.ToDictionary(o => o.Id, o => o.Value);
+
+    /// <summary>
+    /// Whether applying would change one of this patch's options.
+    /// </summary>
+    public bool HasPendingOptions => Options.Any(o => o.IsPending);
 }

@@ -41,19 +41,22 @@ public class PatchOrchestrator
     /// <param name="patchIds">Patch IDs to install</param>
     /// <param name="createBackup">Whether to create a backup before installation</param>
     /// <param name="patcherDirectory">Directory the patcher modules and proxy library ship in (optional)</param>
+    /// <param name="optionValues">Values chosen for the patches' options: patch id, option id, value (optional)</param>
     /// <returns>Installation result</returns>
     public PatchApplicator.InstallResult InstallPatches(
         string gameExePath,
         IEnumerable<string> patchIds,
         bool createBackup = true,
-        string? patcherDirectory = null)
+        string? patcherDirectory = null,
+        Dictionary<string, Dictionary<string, string>>? optionValues = null)
     {
         var options = new PatchApplicator.InstallOptions
         {
             GameExePath = gameExePath,
             PatchIds = patchIds.ToList(),
             CreateBackup = createBackup,
-            PatcherDirectory = patcherDirectory
+            PatcherDirectory = patcherDirectory,
+            OptionValues = optionValues ?? new()
         };
 
         return _applicator.InstallPatches(options);

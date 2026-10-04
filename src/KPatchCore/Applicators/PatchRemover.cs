@@ -228,6 +228,14 @@ public static class PatchRemover
                 SafeDeleteFile(gameDir, fileName, removedFiles, messages);
             }
 
+            // The option values the patches were applied with. The rest of a patch's
+            // settings file is the player's and stays.
+            foreach (var optionsFile in PatchOptionsIni.RemoveSections(gameDir))
+            {
+                removedFiles.Add(optionsFile);
+                messages.Add($"  Removed {optionsFile}");
+            }
+
             // Restore the original binkw32.dll if the KProxy was staged.
             // No-op when it wasn't.
             var proxyRestore = KProxyInstaller.Uninstall(gameDir);
@@ -421,6 +429,14 @@ public static class PatchRemover
             {
                 info.ConfigPath = configPath;
                 info.InstalledPatches = ReadInstalledPatchIdsFromConfig(configPath);
+                // Only an installed patch has applied values, whatever a file still says.
+                foreach (var (patchId, values) in PatchOptionsIni.ReadFiles(gameDir))
+                {
+                    if (info.InstalledPatches.Contains(patchId, StringComparer.OrdinalIgnoreCase))
+                    {
+                        info.InstalledOptions[patchId] = values;
+                    }
+                }
             }
 
             if (!info.HasConfig)
@@ -498,6 +514,14 @@ public static class PatchRemover
         /// List of installed patch IDs. Prefer patch_config.toml; fallback to managed state or backup metadata.
         /// </summary>
         public List<string> InstalledPatches { get; set; } = new();
+
+        /// <summary>
+        /// The option values each installed patch was installed with, by patch id then option
+        /// id, spelled as the patches' files in the configs folder record them (a toggle is "1" or "0", see
+        /// <see cref="PatchOptionsIni.FromIniValue"/>). A patch without options has no entry.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, string>> InstalledOptions { get; set; } =
+            new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// File names of the patch modules in the patches directory. The extension follows the

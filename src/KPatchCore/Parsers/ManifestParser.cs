@@ -82,6 +82,10 @@ public static class ManifestParser
                 }
             }
 
+            var optionsResult = ParseOptions(patchTable);
+            if (!optionsResult.Success || optionsResult.Data == null)
+                return PatchResult<PatchManifest>.Fail(optionsResult.Error ?? "Failed to parse patch.options");
+
             var manifest = new PatchManifest
             {
                 Id = id,
@@ -91,7 +95,8 @@ public static class ManifestParser
                 Description = description,
                 Requires = requires,
                 Conflicts = conflicts,
-                SupportedVersions = supportedVersions
+                SupportedVersions = supportedVersions,
+                Options = optionsResult.Data
             };
 
             return PatchResult<PatchManifest>.Ok(manifest, "Manifest parsed successfully");
@@ -100,6 +105,123 @@ public static class ManifestParser
         {
             return PatchResult<PatchManifest>.Fail($"Failed to parse manifest TOML: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Parses [[patch.options]]. A manifest without any has no options.
+    /// </summary>
+    private static PatchResult<List<PatchOption>> ParseOptions(TomlTable patchTable)
+    {
+        var options = new List<PatchOption>();
+        if (!patchTable.TryGetValue("options", out var optionsObj))
+            return PatchResult<List<PatchOption>>.Ok(options);
+
+        if (optionsObj is not TomlTableArray optionsArray)
+            return PatchResult<List<PatchOption>>.Fail("patch.options must be an array of tables ([[patch.options]])");
+
+        for (int i = 0; i < optionsArray.Count; i++)
+        {
+            var table = optionsArray[i];
+            var where = $"patch.options[{i}]";
+
+            if (!TryGetString(table, "id", out var id))
+                return PatchResult<List<PatchOption>>.Fail($"{where} missing required field: id");
+            where = $"patch.options '{id}'";
+
+            if (!id.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-'))
+                return PatchResult<List<PatchOption>>.Fail($"{where}: id may only use [a-zA-Z0-9_-]");
+
+            if (options.Any(o => o.Id == id))
+                return PatchResult<List<PatchOption>>.Fail($"{where}: declared more than once");
+
+            if (!TryGetString(table, "name", out var name))
+                return PatchResult<List<PatchOption>>.Fail($"{where} missing required field: name");
+
+            TryGetString(table, "description", out var description);
+
+            if (table.ContainsKey("type") && !TryGetString(table, "type", out _))
+                return PatchResult<List<PatchOption>>.Fail($"{where}: type must be \"toggle\" or \"choice\"");
+
+            var typeText = TryGetString(table, "type", out var t) ? t.ToLowerInvariant() : "toggle";
+            PatchOptionType type;
+            if (typeText == "toggle") type = PatchOptionType.Toggle;
+            else if (typeText == "choice") type = PatchOptionType.Choice;
+            else return PatchResult<List<PatchOption>>.Fail($"{where}: unknown type '{typeText}' (expected toggle or choice)");
+
+            var choices = new List<PatchOptionChoice>();
+            string defaultValue;
+
+            if (type == PatchOptionType.Toggle)
+            {
+                if (table.ContainsKey("choices"))
+                    return PatchResult<List<PatchOption>>.Fail($"{where}: a toggle takes no choices");
+
+                // Off unless the manifest says otherwise.
+                if (!table.TryGetValue("default", out var defaultObj))
+                    defaultValue = PatchOption.Off;
+                else if (defaultObj is bool on)
+                    defaultValue = on ? PatchOption.On : PatchOption.Off;
+                else
+                    return PatchResult<List<PatchOption>>.Fail($"{where}: a toggle's default must be true or false");
+            }
+            else
+            {
+                // Inline tables (choices = [{ ... }]) and [[patch.options.choices]] both work.
+                table.TryGetValue("choices", out var choicesObj);
+                IEnumerable<object?>? choiceItems = choicesObj switch
+                {
+                    TomlTableArray tables => tables,
+                    TomlArray array => array,
+                    _ => null
+                };
+                if (choiceItems == null)
+                    return PatchResult<List<PatchOption>>.Fail($"{where}: a choice needs a choices array");
+
+                foreach (var item in choiceItems)
+                {
+                    if (item is not TomlTable choiceTable || !TryGetString(choiceTable, "id", out var choiceId))
+                        return PatchResult<List<PatchOption>>.Fail($"{where}: every choice needs an id");
+
+                    if (!choiceId.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-'))
+                        return PatchResult<List<PatchOption>>.Fail($"{where}: choice id '{choiceId}' may only use [a-zA-Z0-9_-]");
+
+                    // A toggle's values. A hook's `is = true` means the toggle, and so does
+                    // `--option x=true`, so a choice may not be named either.
+                    if (choiceId is PatchOption.On or PatchOption.Off)
+                        return PatchResult<List<PatchOption>>.Fail($"{where}: a choice cannot be called '{choiceId}'");
+
+                    if (choices.Any(c => c.Id == choiceId))
+                        return PatchResult<List<PatchOption>>.Fail($"{where}: choice '{choiceId}' listed more than once");
+
+                    choices.Add(new PatchOptionChoice
+                    {
+                        Id = choiceId,
+                        Name = TryGetString(choiceTable, "name", out var choiceName) ? choiceName : choiceId
+                    });
+                }
+
+                if (choices.Count < 2)
+                    return PatchResult<List<PatchOption>>.Fail($"{where}: a choice needs at least two choices");
+
+                if (!TryGetString(table, "default", out defaultValue))
+                    return PatchResult<List<PatchOption>>.Fail($"{where} missing required field: default");
+
+                if (choices.All(c => c.Id != defaultValue))
+                    return PatchResult<List<PatchOption>>.Fail($"{where}: default '{defaultValue}' is not one of its choices");
+            }
+
+            options.Add(new PatchOption
+            {
+                Id = id,
+                Name = name,
+                Description = description,
+                Type = type,
+                Choices = choices,
+                Default = defaultValue
+            });
+        }
+
+        return PatchResult<List<PatchOption>>.Ok(options);
     }
 
     private static bool TryGetString(TomlTable table, string key, out string value)
