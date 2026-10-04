@@ -17,19 +17,18 @@ See road map [here](docs/Roadmap2026.md)
 *NOTE: The patch manager is still in Beta, there are likely going to be various issues within the current release. Please feel free to create GitHub Issues or contact Lane if anything strange comes up*
 
 ### Using the Release
-If you're just interested in experimenting with the existing patches, then you can just download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases). Windows users want `KotorPatchManager-v*.zip`; Linux users want the `KotorPatchManager-linux-v*.tar.gz`. Mac users with Apple Silicon chips will want the arm64 release (`KotorPatchManager-macos-arm64-v*.tar.gz`); those with Intel chips will want the x64 release (`KotorPatchManager-macos-arm64-v*.tar.gz`).
+If you're just interested in experimenting with the existing patches, then you can just download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases). Windows users want `KotorPatchManager-v*.zip`; Linux users want the `KotorPatchManager-linux-v*.tar.gz`. Mac users with Apple Silicon chips will want `KotorPatchManager-macos-arm64-v*.tar.gz`; those with Intel chips will want `KotorPatchManager-macos-arm64-v*.tar.gz`.
 
-This downloads will contain the following:
+The release will contain the following:
 - bin/
 	- AddressDatabases: SQLite DB files containing address information for various kotor versions
-	- KotorPatcher.dll and, in the Mac and Linux archives only, KotorPatcher.so and KotorPatcher.dylib: dynamic libraries for PC (.dll), Linux (.so), and Mac (.dylib) that are compiled at runtime/injected.
-	- **The zip file only**: KPatchLauncher.exe: The main launcher program on Windows (must be in the same directory as KotorPatcher.dll and AddressDatabases to function correctly)
-   	- **The .tar.gz files**: KPatchLauncher: Can be double clicked in MacOS or, in Linux and MacOS, run via the terminal with `./KPatchLauncher`.
+	- KotorPatcher.dll and, in the Mac and Linux archives only, KotorPatcher.so and KotorPatcher.dylib: Dynamic libraries for PC (.dll), Linux (.so), and Mac (.dylib) that are compiled at runtime/injected
+	- **KPatchLauncher.exe** (Windows) or **KPatchLauncher** (Linux and MacOS): The main launcher programs (must be in the same directory as the dynamic library and AddressDatabases/ to function correctly). For Linux and MacOS users, double click or run via the terminal: `./KPatchLauncher`.
 - patches/
-	- `.kpatch` files: These are the patch files that the framework can read in and apply to the game
-	- "additional files": These are resources associated with certain patches that may be necessary to make use of them (i.e. modified nwscript.nss for the script extender)
+	- `.kpatch` files: The patch files that the framework can read in and apply to the game
+	- "additional files": Resources associated with certain patches that may be necessary to make use of them (i.e. modified nwscript.nss for the script extender)
 - tools/
-	- create-patch.bat and create-patch.py: Files that are alternative means for building `.kpatch` files (Linux and MacOS users must use the python script). The .bat file isn't too useful in its current iteration without the added GameAPI source and examples, but it's included nonetheless.
+	- create-patch.bat and create-patch.py: Alternative means for building `.kpatch` files (Linux and MacOS users must use the python script). The .bat file isn't too useful in its current iteration without the added GameAPI source and examples, but it's included nonetheless.
 - README.txt: A brief contents and quick-start guide
 
 To use, just run the launcher. Set the "Game" path to target your game executable (i.e. `swkotor.exe`). Set the "Patches" path to target the directory with your `.kpatch` files (i.e. `<release>/patches`).
