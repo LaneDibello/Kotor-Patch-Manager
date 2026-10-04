@@ -33,8 +33,8 @@ public sealed class PatchOptionChoice
 /// </summary>
 /// <remarks>
 /// Options are resolved when patches are installed. A hook whose <see cref="Hook.When"/>
-/// does not hold for the chosen values is left out, and the values are written under the
-/// patch's id in patch-options.ini, where the patch's own code and scripts can read them.
+/// does not hold for the chosen values is left out, and the values are written to the
+/// patch's INI file in the configs folder, where its own code and scripts can read them.
 /// The runtime never sees an unresolved option.
 /// </remarks>
 public sealed class PatchOption

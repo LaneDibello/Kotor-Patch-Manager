@@ -165,7 +165,6 @@ public static class PatchRemover
             var filesToRemove = new List<string>
             {
                 "patch_config.toml",
-                PatchOptionsIni.FileName,
 
                 // The module the game does not name in its own dependency list is safe to remove
                 // whatever happened to the executable. The linked ones are added further down,
@@ -227,6 +226,14 @@ public static class PatchRemover
                 }
 
                 SafeDeleteFile(gameDir, fileName, removedFiles, messages);
+            }
+
+            // The option values the patches were applied with. The rest of a patch's
+            // settings file is the player's and stays.
+            foreach (var optionsFile in PatchOptionsIni.RemoveSections(gameDir))
+            {
+                removedFiles.Add(optionsFile);
+                messages.Add($"  Removed {optionsFile}");
             }
 
             // Restore the original binkw32.dll if the KProxy was staged.
@@ -422,7 +429,14 @@ public static class PatchRemover
             {
                 info.ConfigPath = configPath;
                 info.InstalledPatches = ReadInstalledPatchIdsFromConfig(configPath);
-                info.InstalledOptions = PatchOptionsIni.ReadFile(gameDir);
+                // Only an installed patch has applied values, whatever a file still says.
+                foreach (var (patchId, values) in PatchOptionsIni.ReadFiles(gameDir))
+                {
+                    if (info.InstalledPatches.Contains(patchId, StringComparer.OrdinalIgnoreCase))
+                    {
+                        info.InstalledOptions[patchId] = values;
+                    }
+                }
             }
 
             if (!info.HasConfig)
@@ -503,7 +517,7 @@ public static class PatchRemover
 
         /// <summary>
         /// The option values each installed patch was installed with, by patch id then option
-        /// id, spelled as patch-options.ini records them (a toggle is "1" or "0", see
+        /// id, spelled as the patches' files in the configs folder record them (a toggle is "1" or "0", see
         /// <see cref="PatchOptionsIni.FromIniValue"/>). A patch without options has no entry.
         /// </summary>
         public Dictionary<string, Dictionary<string, string>> InstalledOptions { get; set; } =

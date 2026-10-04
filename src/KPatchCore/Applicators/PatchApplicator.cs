@@ -632,7 +632,7 @@ public class PatchApplicator
             messages.Add($"  Config generated: patch_config.toml");
 
             // The chosen option values, where a patch's code and scripts read settings.
-            var optionsResult = PatchOptionsIni.WriteFile(config, gameDir);
+            var optionsResult = PatchOptionsIni.WriteFiles(config, gameDir);
             if (!optionsResult.Success)
             {
                 // Cleanup on failure
@@ -653,7 +653,7 @@ public class PatchApplicator
 
             if (config.Patches.Any(p => p.Options.Count > 0))
             {
-                messages.Add($"  Options recorded: {PatchOptionsIni.FileName}");
+                messages.Add($"  Options recorded: {PatchOptionsIni.DirectoryName}");
             }
 
             // Step 6.5: Copy address database to game directory

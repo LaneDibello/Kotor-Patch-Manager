@@ -362,16 +362,17 @@ public class PatchOptionTests
     }
 
     [Fact]
-    public void TheOptionsFileRecordsTheInstalledValuesUnderThePatch()
+    public void APatchsSectionRecordsTheInstalledValues()
     {
         var chosen = new Dictionary<string, string> { ["map-notes"] = "true" };
         var values = OptionValidator.ResolveValues(ParsedManifest(), chosen).Data!;
         var config = new PatchConfig();
         config.AddPatch("sample", "patches/sample.dll", OptionValidator.SelectHooks(ParsedHooks(), values), values);
 
-        // A section per patch and a key per option; a toggle is 1 or 0, as the game's
-        // own INI settings are.
-        Assert.Equal("[sample]\r\nmap-notes=1\r\nhud-style=classic\r\n", PatchOptionsIni.Generate(config));
+        // One section and a key per option; a toggle is 1 or 0, as the game's own INI
+        // settings are.
+        Assert.Equal("sample.ini", PatchOptionsIni.FileNameFor("sample"));
+        Assert.Equal("[Patch Options]\r\nmap-notes=1\r\nhud-style=classic\r\n", PatchOptionsIni.Generate(config.Patches[0]));
 
         var toml = ConfigGenerator.GenerateConfigString(config);
         var model = Tomlyn.Toml.ToModel(toml);
@@ -389,17 +390,69 @@ public class PatchOptionTests
         var config = new PatchConfig();
         config.AddPatch("plain", string.Empty, new List<Hook>());
 
-        Assert.Equal(string.Empty, PatchOptionsIni.Generate(config));
+        Assert.Equal(string.Empty, PatchOptionsIni.Generate(config.Patches[0]));
 
-        // An apply without options also clears the file an earlier apply left behind.
+        // An apply without options also clears what an earlier apply left behind.
         var directory = Directory.CreateTempSubdirectory("kpatch-options-").FullName;
         try
         {
-            var file = Path.Combine(directory, PatchOptionsIni.FileName);
-            File.WriteAllText(file, "[gone]\r\nx=1\r\n");
+            var folder = Path.Combine(directory, PatchOptionsIni.DirectoryName);
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, "gone.ini"), "[Patch Options]\r\nx=1\r\n");
 
-            Assert.True(PatchOptionsIni.WriteFile(config, directory).Success);
-            Assert.False(File.Exists(file));
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
+            Assert.False(Directory.Exists(folder));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EachPatchWithOptionsGetsItsOwnFileAndKeepsItsOtherSettings()
+    {
+        var values = OptionValidator.ResolveValues(ParsedManifest(), null).Data!;
+        var config = new PatchConfig();
+        config.AddPatch("sample", string.Empty, new List<Hook>(), values);
+        config.AddPatch("other", string.Empty, new List<Hook>(), new Dictionary<string, string> { ["x"] = "true" });
+        config.AddPatch("plain", string.Empty, new List<Hook>());
+
+        var directory = Directory.CreateTempSubdirectory("kpatch-options-").FullName;
+        try
+        {
+            var folder = Path.Combine(directory, PatchOptionsIni.DirectoryName);
+            Directory.CreateDirectory(folder);
+            // The patch's own settings, with values from an earlier apply among them. One
+            // is a byte that is not valid UTF-8, as a game writing its own code page leaves.
+            var own = System.Text.Encoding.Latin1;
+            File.WriteAllText(Path.Combine(folder, "other.ini"),
+                "[Display]\r\nscale=2\r\n\r\n[Patch Options]\r\nx=0\r\nold=1\r\n\r\n[Sound]\r\nvolume=7\u00E9\r\n", own);
+            // A patch that is no longer installed: one file with nothing but the section,
+            // one with settings of its own.
+            File.WriteAllText(Path.Combine(folder, "uninstalled.ini"), "[Patch Options]\r\nx=1\r\n");
+            File.WriteAllText(Path.Combine(folder, "kept.ini"), "[Patch Options]\r\nx=1\r\n[Mine]\r\na=b\r\n");
+
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
+
+            Assert.Equal(
+                new[] { "kept.ini", "other.ini", "sample.ini" },
+                Directory.GetFiles(folder).Select(Path.GetFileName).OrderBy(n => n, StringComparer.Ordinal));
+            Assert.Equal("[Patch Options]\r\nx=1\r\n\r\n[Display]\r\nscale=2\r\n\r\n[Sound]\r\nvolume=7\u00E9\r\n",
+                File.ReadAllText(Path.Combine(folder, "other.ini"), own));
+            Assert.Equal("[Mine]\r\na=b\r\n", File.ReadAllText(Path.Combine(folder, "kept.ini")));
+
+            var read = PatchOptionsIni.ReadFiles(directory);
+            Assert.Equal(new Dictionary<string, string> { ["x"] = "1" }, read["other"]);
+            Assert.False(read.ContainsKey("kept"));
+
+            // Uninstalling takes the sections out and leaves the patches' own settings.
+            Assert.Equal(new[] { Path.Combine(PatchOptionsIni.DirectoryName, "sample.ini") },
+                PatchOptionsIni.RemoveSections(directory));
+            Assert.Equal("[Display]\r\nscale=2\r\n\r\n[Sound]\r\nvolume=7\u00E9\r\n",
+                File.ReadAllText(Path.Combine(folder, "other.ini"), own));
+            Assert.Equal(0xE9, File.ReadAllBytes(Path.Combine(folder, "other.ini"))[^3]);
+            Assert.Empty(PatchOptionsIni.ReadFiles(directory));
         }
         finally
         {
@@ -584,13 +637,13 @@ public class PatchOptionTests
             var game = Path.Combine(directory, "swkotor.exe");
             File.WriteAllBytes(game, Array.Empty<byte>());
             File.WriteAllText(Path.Combine(directory, "patch_config.toml"), ConfigGenerator.GenerateConfigString(config));
-            Assert.True(PatchOptionsIni.WriteFile(config, directory).Success);
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
 
             var info = PatchRemover.GetInstallationInfo(game);
 
             Assert.True(info.Success, info.Error);
             var installed = info.Data!.InstalledOptions["sample"];
-            // The file's spelling comes back; a toggle is translated by whoever knows it is one.
+            // The files' spelling comes back; a toggle is translated by whoever knows it is one.
             Assert.Equal("1", installed["map-notes"]);
             Assert.Equal(PatchOption.On, PatchOptionsIni.FromIniValue(isToggle: true, installed["map-notes"]));
             Assert.Equal("compact", installed["hud-style"]);

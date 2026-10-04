@@ -31,11 +31,11 @@ The library uses a **PatchResult** pattern instead of exceptions for expected fa
 
 **ConfigGenerator**: Generates patch_config.toml for the runtime patcher. Converts PatchConfig objects to TOML format with patches array, hooks definitions, and target version SHA. Filters out STATIC hooks as they are already applied to the file.
 
-**PatchOptionsIni**: Writes and reads `patch-options.ini` in the game directory, the record of the option values the patches were applied with: a section per patch id, a key per option id, a toggle as `1` or `0` and a choice as its id. Rewritten on every apply, removed when no patch has options and on uninstall.
+**PatchOptionsIni**: Records the option values the patches were applied with in the `configs` folder in the game directory: a `[Patch Options]` section in `<patch id>.ini`, the file for all of that patch's settings, with a key per option id, a toggle as `1` or `0` and a choice as its id. The section is rewritten on every apply and taken out when the patch is no longer installed and on uninstall; the rest of the file is left alone.
 
 **BackupManager**: Creates and restores backups of game directories. Stores backup metadata with game version and installed patches list. Automatically restores on installation failure (including STATIC hook failures).
 
-**PatchRemover**: Removes installed patches from game directory. Deletes patch_config.toml, removes patches directory, restores from backup if available (reverting STATIC hook changes).
+**PatchRemover**: Removes installed patches from game directory. Deletes patch_config.toml, removes patches directory, takes the `[Patch Options]` sections out of the configs folder, restores from backup if available (reverting STATIC hook changes).
 
 ### Parsers
 
@@ -130,7 +130,7 @@ Represents a detected game version:
 Configuration for patch_config.toml generation:
 
 - **TargetVersionSha**: Game version SHA-256 hash
-- **Patches**: List of patch entries with ID, DLL path, hooks, and the chosen option values (the values go to patch-options.ini, not patch_config.toml)
+- **Patches**: List of patch entries with ID, DLL path, hooks, and the chosen option values (the values go to the configs folder, not patch_config.toml)
 
 ### ParameterInfo / Parameter
 
@@ -153,7 +153,7 @@ Defines parameter extraction for DETOUR hooks:
 5. Apply STATIC hooks directly to executable file
 6. On a native Linux ELF, add KotorPatcher.so to the game's DT_NEEDED list (skipped on the PE paths, where injection or KProxy loads the patcher instead). This runs after the STATIC hooks and is address-preserving, so the patched bytes survive it
 7. Extract patch DLLs to patches/ directory
-8. Generate patch_config.toml with version-specific runtime hooks (DETOUR/SIMPLE/REPLACE). Hooks whose `when` does not hold for the chosen option values were dropped before validation (OptionValidator), so they are in neither the STATIC step nor this file. The chosen values are then written to patch-options.ini (PatchOptionsIni)
+8. Generate patch_config.toml with version-specific runtime hooks (DETOUR/SIMPLE/REPLACE). Hooks whose `when` does not hold for the chosen option values were dropped before validation (OptionValidator), so they are in neither the STATIC step nor this file. The chosen values are then written to the patches' files in the configs folder (PatchOptionsIni)
 9. Copy the address database for the detected version to the game directory
 10. Deploy the patcher module (KotorPatcher.dll or KotorPatcher.so) to the game directory
 
