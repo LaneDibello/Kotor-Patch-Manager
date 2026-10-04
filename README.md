@@ -123,7 +123,7 @@ Detour hooks are our most advanced option. They replace the code at address with
 - `skip_original_bytes`: If `false`, the `original_bytes` will be re-run after the function finishes execution, making it a true detour. If `true`, the `original_bytes` will never be run.
 - `exclude_from_restore`: List of registers to keep modified after hook execution completes.
 - `parameters`: Parameters to be passed in (cdecl/stack style) to your `function`:
-	- `source`: the register from which the parameter will be sourced.
+	- `source`: The register from which the parameter will be sourced.
 	- `type`: The type of the parameter. Currently we support: `Int`, `Uint`, `Pointer`, `Float`, `Byte`, and `Short`.
 
 #### Static Hooks
@@ -149,14 +149,14 @@ This C++ project builds the actual DLLs that get injected into the game.
 
 The main entry point is in `dllmain.cpp`, which handles initialization and teardown of the patcher.
 
-The bulk of the business logic lives within `patcher.cpp`, which initializes the version-specific wrapper and parses the patch_config.toml that is generated when patches are applied.
+The bulk of the business logic lives within `patcher.cpp`, which initializes the version-specific wrapper and parses the `patch_config.toml` that is generated when patches are applied.
 
 For more details about how this system works, see the [KotorPatcher README](src/KotorPatcher/README.md).
 
 
 ## KPatchCore (C# Class Library)
 This C# Class Library includes all the necessary functionality to apply patches to the game.
-This basically boils down to parsing the patch hooks and manifests, checking compatibility, and building a patch_config.toml.
+This basically boils down to parsing the patch hooks and manifests, checking compatibility, and building a `patch_config.toml` file.
 
 For more details on this system, see the [KPatchCore README](src/KPatchCore/README.md).
 
