@@ -41,11 +41,11 @@ jobs:
     name: Windows
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
-      - uses: microsoft/setup-msbuild@v2
+      - uses: microsoft/setup-msbuild@v3
 
       # The Windows release ships the MSVC build of KotorPatcher.dll, as publish.bat
       # does. The Linux and macOS releases ship the MinGW one from the linux job.
@@ -58,7 +58,7 @@ jobs:
           Copy-Item bin\Release\KotorPatcher.dll modules\
           Copy-Item lib\sqlite3.dll modules\
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: modules-msvc
           path: modules/
@@ -69,7 +69,7 @@ jobs:
         run: |
           dotnet publish src\KPatchLauncher\KPatchLauncher.csproj -c Release -r win-x86 --self-contained -p:PublishSingleFile=true -o manager
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: manager-win-x86
           path: manager/
@@ -80,8 +80,8 @@ jobs:
     name: Linux
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
 
@@ -103,7 +103,7 @@ jobs:
           cp lib/sqlite3.dll modules/sqlite3.dll
           ls -l modules/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: modules-mingw
           path: modules/
@@ -116,7 +116,7 @@ jobs:
             -c Release -r linux-x64 --self-contained \
             -p:PublishSingleFile=false -o manager
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: manager-linux-x64
           path: manager/
@@ -127,11 +127,11 @@ jobs:
     name: macOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           
@@ -143,7 +143,7 @@ jobs:
           dotnet run --project tools/MachOAdHocSign/MachOAdHocSign.csproj \
             -c Release --verbosity quiet -- modules/KotorPatcher.dylib KotorPatcher
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: modules-macos
           path: modules/
@@ -174,7 +174,7 @@ jobs:
             ls -laR build/patches || true
             exit 1; }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: patch-modules-macos
           path: patch-modules/
@@ -192,14 +192,14 @@ jobs:
               -p:PublishSingleFile=false -o "manager-$rid"
           done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: manager-osx-x64
           path: manager-osx-x64/
           retention-days: 7
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: manager-osx-arm64
           path: manager-osx-arm64/
@@ -211,8 +211,8 @@ jobs:
     needs: macos
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
@@ -227,7 +227,7 @@ jobs:
       - name: Validate every patch manifest and hook
         run: python3 tools/validate-patches.py
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: patch-modules-macos
           path: patch-modules
@@ -250,7 +250,7 @@ jobs:
       - name: Build every patch
         run: python3 publish-patches.py --strict -o build/patches
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: patches
           path: build/patches/
@@ -266,9 +266,9 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: incoming
 
@@ -306,7 +306,7 @@ jobs:
 
           ls -lh releases/*.zip releases/*.tar.gz
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-archives
           path: |
