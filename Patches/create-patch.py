@@ -398,11 +398,13 @@ TARGETS = {
             driver=UNIX, env="CXX_LINUX",
             compilers=("g++", "clang++"),
             # KOTOR II brings its own libc++, so a module carries a private copy
-            # of libstdc++ and exports none of it.
+            # of libstdc++ and exports none of it. Some distributions default to
+            # --as-needed and some do not, so naming it makes every host link the
+            # same libraries.
             flags=("-std=c++17", "-m32", "-O2", "-fPIC", "-shared",
                    "-fno-exceptions", "-fno-rtti", "-Wall", "-Wextra",
                    "-s", "-static-libstdc++", "-static-libgcc",
-                   "-Wl,--exclude-libs,ALL")),),
+                   "-Wl,--exclude-libs,ALL", "-Wl,--as-needed")),),
         links_game_api=False),
     "macos_x86_64": Target(
         module="macos_x86_64.dylib", platform="macOS",
