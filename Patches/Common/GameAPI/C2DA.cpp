@@ -1,4 +1,5 @@
 #include "C2DA.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 #include "../Common.h"
 #include <cstring>
@@ -78,7 +79,7 @@ C2DA::C2DA(const char* name)
     }
 
     // Allocate memory for the C2DA object
-    objectPtr = malloc(objectSize);
+    objectPtr = GameMemory::Alloc(objectSize);
     if (!objectPtr) {
         debugLog("[C2DA] ERROR: Failed to allocate memory for C2DA object\n");
         shouldFree = false;
@@ -102,7 +103,7 @@ C2DA::C2DA(const char* name)
         constructor(objectPtr, resRef, 0);
     } else {
         debugLog("[C2DA] ERROR: Constructor function not initialized\n");
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
         return;
@@ -116,7 +117,7 @@ C2DA::~C2DA() {
     if (shouldFree && objectPtr) {
         // Unload the 2DA data before freeing
         Unload2DArray();
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
     }
     // Base class destructor handles setting objectPtr to nullptr
 }

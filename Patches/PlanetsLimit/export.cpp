@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "GameAPI/CResGFF.h"
+#include "GameAPI/GameMemory.h"
 
 #define MAX_PLANETS 0x7f
 #define OFFSET_AVAILABLE_PLANETS 0x60
@@ -12,9 +13,9 @@
 extern "C" void __cdecl InitializePartyTablePlanets(void* partyTable) {
     debugLog("[PlanetsLimits] Running InitializePartyTablePlanets");
 
-    int* availablePlanets = new int[MAX_PLANETS];
+    int* availablePlanets = static_cast<int*>(GameMemory::Alloc(sizeof(int) * MAX_PLANETS));
     memset((void*)availablePlanets, 0, sizeof(int) * MAX_PLANETS);
-    int* selectablePlanets = new int[MAX_PLANETS];
+    int* selectablePlanets = static_cast<int*>(GameMemory::Alloc(sizeof(int) * MAX_PLANETS));
     memset((void*)selectablePlanets, 0, sizeof(int) * MAX_PLANETS);
 
     setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, availablePlanets);
@@ -30,9 +31,9 @@ extern "C" void __cdecl DisposePlanets(void* partyTable) {
     int* selectablePlanets = getObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS);
 
     if (availablePlanets)
-        delete[] availablePlanets;
+        GameMemory::Free(availablePlanets);
     if (selectablePlanets)
-        delete[] selectablePlanets;
+        GameMemory::Free(selectablePlanets);
 
     setObjectProperty<int*>(partyTable, OFFSET_AVAILABLE_PLANETS, nullptr);
     setObjectProperty<int*>(partyTable, OFFSET_SELECTABLE_PLANETS, nullptr);
@@ -96,7 +97,7 @@ extern "C" void __cdecl ReadPlanetMask(void* gff, CResStruct* strct, void* party
 }
 
 extern "C" void __cdecl AllocatePlanetButtons(void* inGameGalaxyMap) {
-    void * planetButtonsPtr = malloc(SIZE_OF_GUI_BUTTON * MAX_PLANETS);
+    void * planetButtonsPtr = GameMemory::Alloc(SIZE_OF_GUI_BUTTON * MAX_PLANETS);
 
     setObjectProperty<void*>(inGameGalaxyMap, OFFSET_PLANET_BUTTONS, planetButtonsPtr);
 }
@@ -104,11 +105,11 @@ extern "C" void __cdecl AllocatePlanetButtons(void* inGameGalaxyMap) {
 extern "C" void __cdecl DisposePlanetButtons(void* inGameGalaxyMap) {
     void* planetButtonsPtr = getObjectProperty<void*>(inGameGalaxyMap, OFFSET_PLANET_BUTTONS);
     if (planetButtonsPtr)
-        free(planetButtonsPtr);
+        GameMemory::Free(planetButtonsPtr);
 }
 
 extern "C" void __cdecl AllocateGuiPlanets(void* inGameGalaxyMap) {
-    void* guiPlanets = malloc(SIZE_OF_GUI_PLANET * MAX_PLANETS);
+    void* guiPlanets = GameMemory::Alloc(SIZE_OF_GUI_PLANET * MAX_PLANETS);
 
     setObjectProperty<void*>(inGameGalaxyMap, OFFSET_GUI_PLANETS, guiPlanets);
 }
@@ -116,7 +117,7 @@ extern "C" void __cdecl AllocateGuiPlanets(void* inGameGalaxyMap) {
 extern "C" void __cdecl DisposeGuiPlanets(void* inGameGalaxyMap) {
     void* guiPlanets = getObjectProperty<void*>(inGameGalaxyMap, OFFSET_GUI_PLANETS);
     if (guiPlanets)
-        free(guiPlanets);
+        GameMemory::Free(guiPlanets);
 }
 
 // DLL Entry Point
