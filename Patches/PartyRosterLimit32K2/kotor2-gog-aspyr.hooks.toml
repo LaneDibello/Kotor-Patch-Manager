@@ -634,11 +634,15 @@ address = 0x0058D650
 type = "detour"
 original_bytes = [0x55, 0x8B, 0xEC, 0x51, 0x89, 0x4D, 0xFC]
 function = "PrepareSetForcedNPC32"
-parameters = [
-    { source = "ecx", type = "pointer" },
-    { source = "esp+4", type = "pointer" },
-    { source = "esp+8", type = "pointer" },
-]
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+[[hooks.parameters]]
+source = "esp+4"
+type = "pointer"
+[[hooks.parameters]]
+source = "esp+8"
+type = "pointer"
 
 [[hooks]]
 address = 0x0058C8A0

@@ -1,3 +1,7 @@
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include "Common.h"
 #include "GameAPI/CResRef.h"
 
