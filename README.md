@@ -23,7 +23,7 @@ The release will contain the following:
 - bin/
 	- AddressDatabases: SQLite DB files containing address information for various kotor versions
 	- KotorPatcher.dll and, in the Mac and Linux archives only, KotorPatcher.so and KotorPatcher.dylib: Dynamic libraries for PC (.dll), Linux (.so), and Mac (.dylib) that are compiled at runtime/injected
-	- **KPatchLauncher.exe** (Windows) or **KPatchLauncher** (Linux and MacOS): The main launcher programs (must be in the same directory as the dynamic library and AddressDatabases/ to function correctly). For Linux and MacOS users, double click or run via the terminal: `./KPatchLauncher`.
+	- **KPatchLauncher.exe** (Windows) or **KPatchLauncher** (Linux and MacOS): The main launcher program (must be in the same directory as the dynamic library and AddressDatabases/ to function correctly). For Linux and MacOS users, double click or run via the terminal: `./KPatchLauncher`.
 - patches/
 	- `.kpatch` files: The patch files that the framework can read in and apply to the game
 	- "additional files": Resources associated with certain patches that may be necessary to make use of them (i.e. modified nwscript.nss for the script extender)
