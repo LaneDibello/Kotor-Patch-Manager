@@ -17,7 +17,7 @@ See road map [here](docs/Roadmap2026.md)
 *NOTE: The patch manager is still in Beta, there are likely going to be various issues within the current release. Please feel free to create GitHub Issues or contact Lane if anything strange comes up*
 
 ### Using the Release
-If you're just interested in experimenting with the existing patches, then you can just download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases). Windows users want `KotorPatchManager-v*.zip`; Linux users want the `KotorPatchManager-linux-v*.tar.gz`. Mac users with Apple Silicon chips will want `KotorPatchManager-macos-arm64-v*.tar.gz`; those with Intel chips will want `KotorPatchManager-macos-arm64-v*.tar.gz`.
+If you're just interested in experimenting with the existing patches, then you can just download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases). Windows users want `KotorPatchManager-v*.zip`; Linux users want the `KotorPatchManager-linux-v*.tar.gz`. Mac users with Apple Silicon chips will want `KotorPatchManager-macos-arm64-v*.tar.gz`; those with Intel chips will want `KotorPatchManager-macos-x64-v*.tar.gz`.
 
 The release will contain the following:
 - bin/
