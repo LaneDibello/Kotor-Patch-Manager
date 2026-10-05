@@ -1,6 +1,7 @@
 ---
 
-title: "**The KPM Mods**"
+Welcome to ...
+**The KPM Mods**
 
 ---
 
