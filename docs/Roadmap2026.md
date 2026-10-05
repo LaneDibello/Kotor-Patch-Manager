@@ -1,5 +1,7 @@
 ﻿# KotOR Patch Manager 2026 Road-Map
 
+**This document is archived, see [Roadmap1.0.md](./Roadmap1.0.md) for up to date infomration!**
+
 This intention of this document is to track planned work and goals for this project as of the start of 2026. These plans are not comprehensive, and can (and likely will) change as time goes on.
 
 ## Goals
@@ -90,8 +92,6 @@ There have been a variety of patches requested by various modders. users, and co
 - Start Making Patches 😈 
 
 ## Notes & Acknowledgements
-I'd like to acknowledge Wizard, for PyKotor, but also for being some I can talk to about this nonsense.
-
 I'd like to acknowledge the Kotor Modding community for being so enthusiastic about the work I've done so far.
 
 And I'd like to thank my fiance for being far too patient with me

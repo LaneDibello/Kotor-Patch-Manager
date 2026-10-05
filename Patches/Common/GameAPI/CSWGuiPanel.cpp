@@ -1,4 +1,5 @@
 #include "CSWGuiPanel.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 #include "CSWGuiControl.h"
 #include "CSWGuiBorder.h"
@@ -274,7 +275,7 @@ CSWGuiPanel::CSWGuiPanel(CSWGuiManager* manager)
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr, manager ? manager->GetPtr() : nullptr);
             shouldFree = true;
@@ -292,7 +293,7 @@ CSWGuiPanel::~CSWGuiPanel()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

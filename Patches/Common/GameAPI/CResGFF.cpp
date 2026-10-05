@@ -1,4 +1,5 @@
 #include "CResGFF.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 
 // ===== STATIC MEMBER INITIALIZATION =====
@@ -369,7 +370,7 @@ CResGFF::CResGFF()
         InitializeOffsets();
     }
 
-    objectPtr = malloc(OBJECT_SIZE);  // 0xa0, not 0x28!
+    objectPtr = GameMemory::Alloc(OBJECT_SIZE);
     if (!objectPtr) {
         debugLog("[CResGFF] ERROR: Failed to allocate memory\n");
         shouldFree = false;
@@ -380,7 +381,7 @@ CResGFF::CResGFF()
         constructor(objectPtr);
     } else {
         debugLog("[CResGFF] ERROR: Constructor not initialized\n");
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }
@@ -398,7 +399,7 @@ CResGFF::CResGFF(ResourceType resourceType, char* GFFtype, CResRef* templateResR
         InitializeOffsets();
     }
 
-    objectPtr = malloc(OBJECT_SIZE);
+    objectPtr = GameMemory::Alloc(OBJECT_SIZE);
     if (!objectPtr) {
         debugLog("[CResGFF] ERROR: Failed to allocate memory\n");
         shouldFree = false;
@@ -409,7 +410,7 @@ CResGFF::CResGFF(ResourceType resourceType, char* GFFtype, CResRef* templateResR
         constructor2(objectPtr, resourceType, GFFtype, templateResRef ? templateResRef->GetPtr() : nullptr);
     } else {
         debugLog("[CResGFF] ERROR: Constructor_2 not initialized\n");
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }
@@ -420,9 +421,12 @@ CResGFF::~CResGFF() {
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
+        // The game's ~CResGFF already ran ~CRes, so the CRes wrapper's destructor
+        // must find nothing left to destroy or free.
+        objectPtr = nullptr;
+        shouldFree = false;
     }
-    // Base class (CRes) destructor handles rest
 }
 
 // ===== OFFSET ACCESSORS =====

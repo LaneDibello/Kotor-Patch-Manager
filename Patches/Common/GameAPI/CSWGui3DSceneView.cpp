@@ -1,4 +1,5 @@
 #include "CSWGui3DSceneView.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 #include "CSWGuiScene.h"
 
@@ -84,7 +85,7 @@ CSWGui3DSceneView::CSWGui3DSceneView()
     // The 3D scene view has no constructor of its own; the game builds one by
     // calling the CSWGuiControl constructor over a larger (classSize) allocation.
     if (classSize > 0 && CSWGuiControl::constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             CSWGuiControl::constructor(objectPtr);
             shouldFree = true;
@@ -119,7 +120,7 @@ CSWGui3DSceneView::~CSWGui3DSceneView()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }
