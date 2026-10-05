@@ -3733,28 +3733,63 @@ extern "C" void scaleLoadedTextureMetadata(void* texture) {
 }
 
 /*
-  DylibInit:
-  Invoked automatically when the dynamic library is loaded by dyld at game launch.
-  Initializes display resolution from swkotor.ini and immediately installs baseline
-  menu centering displacements and scaled row geometry into game memory.
+  The layout mode, applied once
+  ----------------------------------------------------------------------------------------------
+  What the patch writes into the game for its own layout, or for layouts from .gui files
+  (UseGuiFileLayouts). Until 2026-10-04 this ran in DylibInit, when the library loads. It runs
+  when the engine first sets its video mode instead (KMRP_UseTargetVideoMode, K4), which is
+  still before any panel exists, so that a patch loaded after this one can ask for the .gui
+  mode first (K1Widescreen_UseGuiFileLayouts): KotOR Patch Manager loads a patch that
+  `requires` this one after it, and a mode written at load could not be taken back (the list
+  constants of the patch's own layout have no record of what they replaced).
 */
-__attribute__((constructor))
-static void DylibInit() {
+static bool s_layoutModeApplied = false;
+
+static void WriteGuiFileHudTemplate() {
+    // The HUD file the .gui sets are laid out for: mipc28x6, or mipc210x7 at 3440x1440,
+    // on every branch of the CSWGuiMainInterface constructor's height test (the five
+    // lea rsi, [rip + string] below; strings at 0x10052ac32 ... 0x10052ac5c).
+    const uintptr_t sites[5] = { 0x100233429, 0x10023345e, 0x100233489, 0x1002334b4, 0x1002334d8 };
+    const uintptr_t hudString = (g_targetWidth == 3440 && g_targetHeight == 1440)
+                                    ? 0x10052ac52 : 0x10052ac5c;
+    for (uintptr_t site : sites) {
+        uint8_t lea[7] = { 0x48, 0x8d, 0x35, 0, 0, 0, 0 };
+        int32_t disp = (int32_t)(hudString - (site + 7));
+        memcpy(lea + 3, &disp, 4);
+        writeMemBytes(site, lea, 7);
+    }
+}
+
+// The parts of the mode that depend on the target resolution. Each keeps what it last applied,
+// so this costs nothing when the size has not changed.
+static void ApplyLayoutForTarget() {
+    if (GuiFileLayouts()) {
+        WriteGuiFileHudTemplate();
+        patchMenuCenteringConstants(g_targetWidth, g_targetHeight);
+        InstallListboxPaddingFix();
+        InstallAreaMapLayout();
+        InstallMessageBoxLayout();
+        InstallCheckboxScaling();
+        return;
+    }
+    int targetH = g_targetHeight;
+    int targetW = (g_targetHeight * 4) / 3;
+    float menuScale = ReadIniMenuScale();
+    if (menuScale > 0.0f) {
+        targetH = (int)(960 * menuScale);
+        targetW = (int)(1280 * menuScale);
+    }
+    patchMenuCenteringConstants(targetW, targetH);
+    refreshPatchedListConstants();
+}
+
+// Not static: kmrp_engine_fixes.cpp calls it from the video-mode detour.
+void ApplyLayoutMode() {
+    if (s_layoutModeApplied) return;
+    s_layoutModeApplied = true;
     InitTargetResolution();
 
     if (GuiFileLayouts()) {
-        // The HUD file the .gui sets are laid out for: mipc28x6, or mipc210x7 at 3440x1440,
-        // on every branch of the CSWGuiMainInterface constructor's height test (the five
-        // lea rsi, [rip + string] below; strings at 0x10052ac32 ... 0x10052ac5c).
-        const uintptr_t sites[5] = { 0x100233429, 0x10023345e, 0x100233489, 0x1002334b4, 0x1002334d8 };
-        const uintptr_t hudString = (g_targetWidth == 3440 && g_targetHeight == 1440)
-                                        ? 0x10052ac52 : 0x10052ac5c;
-        for (uintptr_t site : sites) {
-            uint8_t lea[7] = { 0x48, 0x8d, 0x35, 0, 0, 0, 0 };
-            int32_t disp = (int32_t)(hudString - (site + 7));
-            memcpy(lea + 3, &disp, 4);
-            writeMemBytes(site, lea, 7);
-        }
         // The class-selection screen's own update loop, which the hooks file bypasses.
         const uint8_t vanillaClassLoop[5] = { 0xf3, 0x0f, 0x11, 0x45, 0xd4 };
         writeMemBytes(0x100337897, vanillaClassLoop, 5);
@@ -3763,12 +3798,8 @@ static void DylibInit() {
         const uint8_t vanillaBadgeX[5] = { 0xb8, 0x38, 0x00, 0x00, 0x00 };
         writeMemBytes(0x1002bfbbf, vanillaBadgeX, 5);
         writeMemBytes(0x10021c0e2, vanillaBadgeX, 5);
-        patchMenuCenteringConstants(g_targetWidth, g_targetHeight);
-        InstallListboxPaddingFix();
-        InstallAreaMapLayout();
-        InstallMessageBoxLayout();
+        ApplyLayoutForTarget();
         InstallDialogueReplyStretch();
-        InstallCheckboxScaling();
         InstallGrantedPopupLayout();
         return;
     }
@@ -3781,14 +3812,61 @@ static void DylibInit() {
     writeMemBytes(0x10023345e, (const uint8_t*)"\x48\x8d\x35\xe3\x77\x2f\x00", 7);
     writeMemBytes(0x1002334b4, (const uint8_t*)"\x48\x8d\x35\x8d\x77\x2f\x00", 7);
     writeMemBytes(0x1002334d8, (const uint8_t*)"\x48\x8d\x35\x69\x77\x2f\x00", 7);
-    
-    int targetH = g_targetHeight;
-    int targetW = (g_targetHeight * 4) / 3;
-    float menuScale = ReadIniMenuScale();
-    if (menuScale > 0.0f) {
-        targetH = (int)(960 * menuScale);
-        targetW = (int)(1280 * menuScale);
-    }
-    patchMenuCenteringConstants(targetW, targetH);
-    refreshPatchedListConstants();
+    ApplyLayoutForTarget();
+}
+
+/*
+  For a patch that brings its own .gui sets
+  ----------------------------------------------------------------------------------------------
+  A patch that `requires` this one and carries menus laid out for the screen's resolution (KMRP
+  does) can ask for what the player otherwise sets in swkotor.ini, from its own code:
+
+    K1Widescreen_UseGuiFileLayouts(1)        as UseGuiFileLayouts=1, whatever the file says.
+                                             From the patch's constructor: it has to come before
+                                             the engine first sets its video mode, when the layout
+                                             mode is written (ApplyLayoutMode). Later it does
+                                             nothing, and returns 0.
+    K1Widescreen_SetTargetResolution(w, h)   the resolution the layout is for, changed while the
+                                             game runs: for a patch that follows the game's own
+                                             mode switch (Options, Graphics, Screen Resolution).
+                                             Everything here that depends on the size is applied
+                                             again; the caller re-initialises the renderer.
+    K1Widescreen_GetTargetResolution(&w, &h) the resolution in force.
+
+  All three are found by name in this library (dlsym), so a patch built without it still loads.
+*/
+extern "C" __attribute__((visibility("default"))) int K1Widescreen_UseGuiFileLayouts(int enabled) {
+    InitTargetResolution();
+    if (s_layoutModeApplied) return (s_graphicsIni.guiFileLayouts != 0) == (enabled != 0);
+    s_graphicsIni.guiFileLayouts = enabled ? 1 : 0;
+    return 1;
+}
+
+void ResizeDialogueLetterbox(int width, int height);   // kmrp_engine_fixes.cpp
+
+extern "C" __attribute__((visibility("default"))) void K1Widescreen_SetTargetResolution(int width, int height) {
+    InitTargetResolution();
+    if (width < 640 || height < 480 || (width == g_targetWidth && height == g_targetHeight)) return;
+    g_targetWidth = width;
+    g_targetHeight = height;
+    if (!s_layoutModeApplied) return;   // the mode is still to be written, for this size
+    ApplyLayoutForTarget();
+    ResizeDialogueLetterbox(width, height);
+}
+
+extern "C" __attribute__((visibility("default"))) void K1Widescreen_GetTargetResolution(int* width, int* height) {
+    InitTargetResolution();
+    if (width) *width = g_targetWidth;
+    if (height) *height = g_targetHeight;
+}
+
+/*
+  DylibInit:
+  Invoked automatically when the dynamic library is loaded by dyld at game launch.
+  Initializes display resolution from swkotor.ini. The layout mode itself is written when the
+  engine first sets its video mode (ApplyLayoutMode above).
+*/
+__attribute__((constructor))
+static void DylibInit() {
+    InitTargetResolution();
 }

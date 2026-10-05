@@ -374,6 +374,54 @@ area map (with clicks on its notes), options, a confirmation popup and a convers
 click landed. With the setting off, none of this code runs: the patch lays out the menus
 itself, as it always has, with the engine fixes above.
 
+## Entry points for a patch that brings its own menus
+
+Added 2026-10-04, so that KMRP for macOS can be a patch of its own that `requires` this one
+instead of carrying a copy of it. Nothing changes for the patch used alone.
+
+| Entry point | What it does |
+| --- | --- |
+| `K1Widescreen_UseGuiFileLayouts(1)` | the same as `UseGuiFileLayouts=1` in `swkotor.ini`, asked for from code. To be called from the other patch's constructor: it has to come before the engine first sets its video mode. Returns 1 when the mode is, or will be, the one asked for |
+| `K1Widescreen_SetTargetResolution(w, h)` | the resolution the layout is for, changed while the game runs. Everything in this patch that depends on the size is applied again: the HUD template, the recentring constants, the list, map, popup and checkbox sizes, the dialogue letterbox (K7) |
+| `K1Widescreen_GetTargetResolution(&w, &h)` | the resolution in force |
+
+KotorPatcher loads each patch's module privately, so the other patch finds these in this
+patch's own module (`dlopen` of `patches/k1widescreenpatch.dylib` beside its own, with
+`RTLD_NOLOAD`, then `dlsym`); `dlsym(RTLD_DEFAULT, ...)` does not find them.
+
+What had to change for them:
+
+- **The layout mode is written at the first video mode, not at load.** `DylibInit` only reads
+  the resolution now. What it used to write (the HUD template, the class-selection loop, the
+  stack badge, the recentring and list constants, the `.gui` mode's stubs) is written by
+  `ApplyLayoutMode`, from the video-mode detour (K4, `KMRP_UseTargetVideoMode`), which the
+  engine reaches before any panel exists. KotOR Patch Manager loads a patch that requires this
+  one after it, so a mode written at load could not be chosen by that patch, and the patch's
+  own layout cannot be taken back once written (its list constants keep no record of what they
+  replaced).
+- **K7's letterbox can be sized again.** It remembered only that it had run; it now replaces
+  what it last wrote.
+- **K9 gives the display's pixel/point ratio always**, not only for a start above the point
+  size. Aspyr's mode list is built once, so a game started at 1512x982 had no 3024x1964 to
+  switch to. On a display with as many points as pixels the ratio is 1.0 and the list is
+  vanilla, as before.
+- **The 11 engine-fix hooks this patch shared with the Stray Bug Fixes patch are declared
+  there only.** With both built from master, KotOR Patch Manager refused them together
+  ("Hook conflicts detected: Address 0x1001BC7EC used by multiple patches", 2026-10-04), and
+  this patch requires that one.
+
+Measured 2026-10-04 on a 14" MacBook Pro (1512x982 points, 3024x1964 pixels), Steam build,
+fullscreen:
+
+| Check | Result |
+| --- | --- |
+| This patch with the Stray Bug Fixes, its own layout, the Options screen: before these changes against after | 211 of 1,484,784 pixels differ by more than 8 of 255, at most by 10 |
+| With a KMRP patch on top that requires this one and calls `K1Widescreen_UseGuiFileLayouts(1)`, no `UseGuiFileLayouts` in `swkotor.ini` | KMRP's menus at 1512x982 |
+| Options, Graphics, Screen Resolution, 1512x982 to 3024x1964, that KMRP calling `K1Widescreen_SetTargetResolution` | viewport and surface 3024x1964; the Graphics screen, Options and the main menu laid out for it |
+
+Not tested: `K1Widescreen_SetTargetResolution` with the patch's own layout (no `.gui` sets),
+where the fonts are scaled once when they load; a switch while a game is loaded.
+
 ## Changes to the widescreen code
 
 Besides the setting above, five changes inside `mac_widescreen.cpp`, each commented in place:
