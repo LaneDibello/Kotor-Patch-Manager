@@ -1,6 +1,6 @@
 ---
 
-**The KPM Mods**
+title: "**The KPM Mods**"
 
 ---
 
