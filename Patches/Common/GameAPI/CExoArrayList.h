@@ -1,6 +1,7 @@
 #pragma once
 #include "../Common.h"
 #include "GameAPIObject.h"
+#include "GameMemory.h"
 #include <cstring>
 #include <type_traits>
 #include <vector>
@@ -263,7 +264,7 @@ CExoArrayList<T>::CExoArrayList()
     }
 
     // Allocate the 0xC byte structure
-    objectPtr = malloc(0xC);
+    objectPtr = GameMemory::Alloc(0xC);
     if (objectPtr) {
         SetData(nullptr);
         SetSizeInternal(0);
@@ -284,7 +285,7 @@ CExoArrayList<T>::CExoArrayList(int capacity)
     }
 
     // Allocate the 0xC byte structure
-    objectPtr = malloc(0xC);
+    objectPtr = GameMemory::Alloc(0xC);
     if (objectPtr) {
         SetData(nullptr);
         SetSizeInternal(0);
@@ -306,7 +307,7 @@ CExoArrayList<T>::CExoArrayList(const CExoArrayList<T>& copy)
     }
 
     // Allocate the 0xC byte structure
-    objectPtr = malloc(0xC);
+    objectPtr = GameMemory::Alloc(0xC);
     if (objectPtr) {
         SetData(nullptr);
         SetSizeInternal(0);
@@ -321,7 +322,7 @@ template<typename T>
 CExoArrayList<T>::~CExoArrayList() {
     if (shouldFree && objectPtr) {
         Clear();
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
     }
 }
@@ -356,7 +357,7 @@ void CExoArrayList<T>::Allocate(int newCapacity) {
     // Allocate new array
     T* newData = nullptr;
     if (newCapacity > 0) {
-        newData = static_cast<T*>(malloc(sizeof(T) * newCapacity));
+        newData = static_cast<T*>(GameMemory::Alloc(sizeof(T) * newCapacity));
 
         // Copy existing elements
         if (newData && oldData) {
@@ -367,7 +368,7 @@ void CExoArrayList<T>::Allocate(int newCapacity) {
 
     // Free old data
     if (oldData) {
-        free(oldData);
+        GameMemory::Free(oldData);
     }
 
     // Update structure
@@ -396,7 +397,7 @@ void CExoArrayList<T>::Clear() {
 
     // Free memory
     if (data) {
-        free(data);
+        GameMemory::Free(data);
     }
 
     // Reset structure

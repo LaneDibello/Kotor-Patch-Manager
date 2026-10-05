@@ -1,6 +1,7 @@
 #pragma once
 #include "../Common.h"
 #include "GameAPIObject.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 #include <type_traits>
 
@@ -290,7 +291,7 @@ CExoLinkedList<T>::CExoLinkedList()
     }
 
     // Allocate the 0x4 byte structure (just a pointer to CExoLinkedListInternal)
-    objectPtr = malloc(0x4);
+    objectPtr = GameMemory::Alloc(0x4);
     if (objectPtr) {
         AllocateInternal();
     }
@@ -309,7 +310,7 @@ CExoLinkedList<T>::CExoLinkedList(const CExoLinkedList<T>& copy)
     }
 
     // Allocate the 0x4 byte structure
-    objectPtr = malloc(0x4);
+    objectPtr = GameMemory::Alloc(0x4);
     if (objectPtr) {
         AllocateInternal();
 
@@ -326,10 +327,10 @@ CExoLinkedList<T>::~CExoLinkedList() {
         // Free the CExoLinkedListInternal
         CExoLinkedListInternal* internal = GetInternal();
         if (internal) {
-            free(internal);
+            GameMemory::Free(internal);
         }
 
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
     }
 }
@@ -340,7 +341,7 @@ void CExoLinkedList<T>::AddHead(const T& value) {
     if (!internal || !internalAddHead) return;
 
     // Allocate memory for the value and copy it
-    T* valueCopy = static_cast<T*>(malloc(sizeof(T)));
+    T* valueCopy = static_cast<T*>(GameMemory::Alloc(sizeof(T)));
     if (valueCopy) {
         new (valueCopy) T(value);  // Placement new for copy construction
         internalAddHead(internal, valueCopy);
@@ -353,7 +354,7 @@ void CExoLinkedList<T>::AddTail(const T& value) {
     if (!internal || !internalAddTail) return;
 
     // Allocate memory for the value and copy it
-    T* valueCopy = static_cast<T*>(malloc(sizeof(T)));
+    T* valueCopy = static_cast<T*>(GameMemory::Alloc(sizeof(T)));
     if (valueCopy) {
         new (valueCopy) T(value);  // Placement new for copy construction
         internalAddTail(internal, valueCopy);
@@ -366,7 +367,7 @@ void CExoLinkedList<T>::AddBefore(const T& value, CExoLinkedListNode* position) 
     if (!internal || !internalAddBefore || !position) return;
 
     // Allocate memory for the value and copy it
-    T* valueCopy = static_cast<T*>(malloc(sizeof(T)));
+    T* valueCopy = static_cast<T*>(GameMemory::Alloc(sizeof(T)));
     if (valueCopy) {
         new (valueCopy) T(value);  // Placement new for copy construction
         internalAddBefore(internal, valueCopy, position);
@@ -634,7 +635,7 @@ void CExoLinkedList<T>::AllocateInternal() {
     if (!objectPtr || !internalConstructor) return;
 
     // Allocate the 0xC byte CExoLinkedListInternal structure
-    CExoLinkedListInternal* internal = static_cast<CExoLinkedListInternal*>(malloc(0xC));
+    CExoLinkedListInternal* internal = static_cast<CExoLinkedListInternal*>(GameMemory::Alloc(0xC));
     if (internal) {
         // Call the game's constructor to initialize it
         internalConstructor(internal);
@@ -654,5 +655,5 @@ void CExoLinkedList<T>::DestroyNodeData(void* data) {
     }
 
     // Free the memory
-    free(typedData);
+    GameMemory::Free(typedData);
 }
