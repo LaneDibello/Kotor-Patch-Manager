@@ -29,6 +29,8 @@ Set the "Game" path to target your game (i.e., `swkotor.exe`), and set the "Patc
 
 Patches can be uninstalled by unchecking them and clicking "Apply" or using the "Uninstall All" button.
 
+***Important:*** Please read each patch description carefully—some patches require additional files to be installed. You can find these additional-file folders in the patches folder, under \[Name of Patch\] additional files. You can also install these additional files by pointing HoloPatcher (presently not included) at The KPM Mods/ directory.
+
 **Linux and Mac users**: There are two kinds of Linux and Mac installs, and the manager picks the right one from the executable you point it at:
 
 - **The Windows game under Wine/Proton.** Because a native app can't inject into a Wine/Proton process, `bin` additionally contains `binkw32.dll` (a small proxy) and `sqlite3.dll`, which the manager stages into the game folder so the patches load when the game starts. Point the "Game" path at the game executable inside your Wine/Proton install (`swkotor.exe`).
@@ -49,6 +51,8 @@ The release contains:
 - tools/
 	- `create-patch.bat` and `create-patch.py`: Alternative means for building `.kpatch` files (Linux and macOS users must use the Python script). The .bat file isn't too useful in its current iteration without the added GameAPI source and examples, but it's included nonetheless.
 - `README.txt`: A brief contents and quick-start guide.
+- The KPM Mods/
+  	- A traditional mod allowing for the install (via HoloPatcher, presently not included) of various additional files associated with certain patches.
 
 
 ### Building from Source
