@@ -38,7 +38,7 @@ Patches can be uninstalled by unchecking them and clicking "Apply" or using the 
 ## Release Contents / Advanced Usage
 The release contains:
 - `bin/
- 	- The OS-specific launcher: KPatchLauncher.exe (Windows) or KPatchLauncher (Linux and macOS).
+ 	- The OS-specific launcher: `KPatchLauncher.exe` (Windows) or `KPatchLauncher` (Linux and macOS).
 	- AddressDatabases/: SQLite DB files containing address information for various KotOR versions.
 	- `KotorPatcher.dll`, `KotorPatcher.so` (Linux only), and `KotorPatcher.dylib` (macOS only): Dynamic libraries for PC (`.dll`), Linux (`.so`), and Mac (`.dylib`) that are compiled at runtime/injected.
 - patches/
@@ -50,7 +50,7 @@ The release contains:
 
 
 ### Building from Source
-If you're interested in contributing or making your own patches, you're going to want to clone this repository and build from source.
+If you're interested in contributing or making your own patches, you're going to want to clone this repository (`git clone https://github.com/FTD516/Kotor-Patch-Manager`) and build from source.
 
 This project has been built and configured with Visual Studio 2022. While there are likely alternatives that would function here, I have not tested nor validated any of them.
 
@@ -84,7 +84,7 @@ dotnet run --project src/KPatchLauncher/KPatchLauncher.csproj
 Build a patch with `python3 ../create-patch.py` from within the patch's directory.
 
 ### Patch Creation
-This repository's "Patches" directory contains several example patches, such as the ScriptExtender, AdditionalConsoleCommands, Level-Cap extension, and more. In addition to this, it also contains a directory titled "Common", which has a variety of utilities and classes to aid in creation of patches.
+This repository's "Patches" directory contains several example patches, such as the ScriptExtender, AdditionalConsoleCommands, Level-Cap extension, and more. In addition, it also contains a directory titled "Common", which has a variety of utilities and classes to aid in creation of patches.
 
 A patch typically contains 2 to 3 parts:
 - a `manifest.toml` file that specifies various patch and compatibility info;
@@ -102,7 +102,7 @@ A patch typically contains 2 to 3 parts:
 - `supported_versions`: key/value pair of game versions and their SHA-256s.
 
 #### Hooks
-There are 4 different types of hooks currently, `simple`, `replace`, `detour`, and `static`. They all share certain fields.
+There are currently 4 different types of hooks, `simple`, `replace`, `detour`, and `static`. They all share certain fields.
 
 ##### Shared Fields
 - `address`: The hexadecimal (`0x########`) address where the hook will be applied.
