@@ -1,0 +1,150 @@
+[metadata]
+target_versions = ["C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"]
+
+# ==============================================================================
+# 1. MDL INVALID NODE TYPE 0x0000 TOLERANCE (CRASH FIX)
+# ==============================================================================
+# In 64-bit macOS KotOR 1, AllocateMdlNode (0x1001ff0ae) translates 32-bit disk nodes
+# into 64-bit in-memory heap structures based on node_type (diskNode + 0x00).
+# Flawed mod tools sometimes export dummy/transform root nodes with node_type 0x0000
+# instead of 0x0001 (dummy). When node_type is 0x0000, AllocateMdlNode returns NULL,
+# causing InputBinary::Reset (0x1001beffb) to pass NULL into ResetMdlNode, which
+# immediately dereferences address 0x00 and crashes (EXC_BAD_ACCESS / SIGSEGV).
+#
+# Fix: At the entry of AllocateMdlNode (0x1001ff0bd), if the disk node has type
+# 0x0000, coerce it in memory to 0x0001 (dummy node). The engine then allocates
+# a valid dummy node (0x68 bytes), initializes it properly, and successfully loads.
+[[hooks]]
+address = 0x1001ff0bd
+type = "replace"
+original_bytes = [0x49, 0x89, 0xF6, 0x49, 0x89, 0xFC]
+replacement_bytes = [0x48, 0x85, 0xF6, 0x74, 0x0B, 0x66, 0x83, 0x3E, 0x00, 0x75, 0x05, 0x66, 0xC7, 0x06, 0x01, 0x00, 0x49, 0x89, 0xF6, 0x49, 0x89, 0xFC]
+
+# ==============================================================================
+# 2. MDL SELF-PARENTED ROOT CYCLE PREVENTION (HANG FIX)
+# ==============================================================================
+# In 64-bit macOS KotOR 1, SynchronizeNodes (0x1001c07cc) links parent and child nodes
+# using disk offsets. Flawed mod tools sometimes export a root node where parent_offset
+# points to the root node itself (parent_offset == root_offset). This causes the engine
+# at 0x1001c081f to store the node's own address into node->parent (0x10(node)).
+# Later, during model instantiation, ComputeNodeBounds (0x1001c0f56) traverses up
+# the parent tree in a loop (0x1001c105e: movq 0x10(r15), r15; test r15, r15; jne ...).
+# Because node->parent == node, the pointer never becomes NULL, causing an infinite loop
+# and locking the game at 100% CPU.
+#
+# Fix: In SynchronizeNodes at 0x1001c081f, before storing node->parent, check if the
+# resolved parent pointer (rax) equals the node itself (r12). If rax == r12, set
+# rax = NULL. This turns the cyclic self-reference into a clean root node (parent = NULL),
+# allowing ComputeNodeBounds and all hierarchy traversals to terminate normally.
+[[hooks]]
+address = 0x1001c081f
+type = "replace"
+original_bytes = [0x49, 0x89, 0x44, 0x24, 0x10]
+replacement_bytes = [0x4C, 0x39, 0xE0, 0x75, 0x02, 0x31, 0xC0, 0x49, 0x89, 0x44, 0x24, 0x10]
+
+# ==============================================================================
+# 3. ROOT AABB NODE OFFSET VALIDATION IN ResetMdlNode (CRASH FIX)
+# ==============================================================================
+# Function: ResetMdlNode (0x1001bf162)
+# Call site: 0x1001bf24f
+# When loading a walkmesh trimesh node (type 0x0221), ResetMdlNode reads the disk
+# offset of the root AABB node from 0x1e0(%rbx). In flawed models (such as m99ac_01a.mdl
+# in module liv_m99ac), this offset is set to 0xFFFFFFFF (-1).
+# Without a check, the engine adds mdlBase + 0xFFFFFFFF and calls CreateAABB with an
+# address ~4 GB out-of-bounds, crashing immediately at 0x1001ff6fa.
+#
+# Fix: At 0x1001bf24f, test disk offset in %esi. If %esi <= 0 (including 0xFFFFFFFF / -1),
+# skip CreateAABB and ResetAABBTree entirely, set node->root_aabb (0x1e0(%rbx)) to NULL (0),
+# and continue cleanly. If %esi > 0, execute normal AABB creation and traversal.
+[[hooks]]
+address = 0x1001bf24f
+type = "replace"
+original_bytes = [0x8B, 0xB3, 0xE0, 0x01, 0x00, 0x00, 0x4C, 0x01, 0xF6, 0x48, 0x8D, 0x3D, 0xE9, 0x69, 0x4B, 0x00, 0xE8, 0x2C, 0x04, 0x04, 0x00, 0x48, 0x89, 0x83, 0xE0, 0x01, 0x00, 0x00, 0x48, 0x89, 0xC7, 0x4C, 0x89, 0xF6, 0xE8, 0xAE, 0x0C, 0x00, 0x00]
+replacement_bytes = [0x8B, 0xB3, 0xE0, 0x01, 0x00, 0x00, 0x85, 0xF6, 0x7E, 0x34, 0x4C, 0x01, 0xF6, 0x48, 0xBF, 0x48, 0x5C, 0x67, 0x00, 0x01, 0x00, 0x00, 0x00, 0x48, 0xB8, 0x90, 0xF6, 0x1F, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xD0, 0x48, 0x89, 0x83, 0xE0, 0x01, 0x00, 0x00, 0x48, 0x89, 0xC7, 0x4C, 0x89, 0xF6, 0x48, 0xB8, 0x24, 0xFF, 0x1B, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xD0, 0xEB, 0x0B, 0x48, 0xC7, 0x83, 0xE0, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+
+# ==============================================================================
+# 4. AABB TREE INVALID LEAF CHILD OFFSET SANITIZATION (CRASH FIX)
+# ==============================================================================
+# Function: PointerMap::CreateAABB (0x1001ff690)
+# Call site / instruction: 0x1001ff716
+# In 64-bit macOS KotOR 1, PointerMap::CreateAABB translates 32-bit disk AABB32 records
+# into 64-bit in-memory AABB structs. In clean models, internal nodes have positive
+# child offsets, while leaf nodes have child offsets equal to 0.
+# However, certain models (such as module room models) contain leaf AABB records where
+# left_child and right_child are set to 0xFFFFFFFF (-1) instead of 0.
+# The original code sign-extends 0xFFFFFFFF to 0xFFFFFFFFFFFFFFFF (-1) and stores it
+# into node->left (0x18(%rbx)) and node->right (0x20(%rbx)). Later, InputBinary::ResetAABBTree
+# (0x1001bff24) checks `if (node->left != 0)`. Because -1 != 0, it adds mdl_data_base
+# to 0xFFFFFFFF and attempts to allocate an AABB 4 GB past the buffer, causing an instant
+# EXC_BAD_ACCESS (SIGSEGV) crash at 0x1001ff6fa.
+#
+# Fix: In PointerMap::CreateAABB at 0x1001ff716, inspect disk node child offsets.
+# If disk->left <= 0 (including 0xFFFFFFFF / -1), store 0 (NULL) into node->left.
+# If disk->right <= 0 (including 0xFFFFFFFF / -1), store 0 (NULL) into node->right.
+# This ensures that leaf nodes are represented with NULL child pointers in memory,
+# exactly like clean vanilla models.
+[[hooks]]
+address = 0x1001ff716
+type = "replace"
+original_bytes = [0x49, 0x63, 0x47, 0x18, 0x48, 0x89, 0x43, 0x18, 0x49, 0x63, 0x47, 0x1C, 0x48, 0x89, 0x43, 0x20]
+replacement_bytes = [0x49, 0x63, 0x47, 0x18, 0x48, 0x85, 0xC0, 0x7F, 0x02, 0x31, 0xC0, 0x48, 0x89, 0x43, 0x18, 0x49, 0x63, 0x47, 0x1C, 0x48, 0x85, 0xC0, 0x7F, 0x02, 0x31, 0xC0, 0x48, 0x89, 0x43, 0x20]
+
+# ==============================================================================
+# 4. DEFENSE-IN-DEPTH: ResetAABBTree LEFT CHILD NON-POSITIVE GUARD
+# ==============================================================================
+# Function: InputBinary::ResetAABBTree (0x1001bff24)
+# At 0x1001bffb8, replaces `testq %rax, %rax; je 0x1001bffd9` (74 1C) with
+# `testq %rax, %rax; jle 0x1001bffd9` (7E 1C).
+# Ensures traversal is skipped if the left child pointer is 0 or negative.
+[[hooks]]
+address = 0x1001bffb8
+type = "simple"
+original_bytes = [0x48, 0x85, 0xC0, 0x74, 0x1C]
+replacement_bytes = [0x48, 0x85, 0xC0, 0x7E, 0x1C]
+
+# ==============================================================================
+# 5. DEFENSE-IN-DEPTH: ResetAABBTree RIGHT CHILD NON-POSITIVE GUARD
+# ==============================================================================
+# Function: InputBinary::ResetAABBTree (0x1001bff24)
+# At 0x1001bffdd, replaces `testq %rax, %rax; jne 0x1001bff41` (0F 85) with
+# `testq %rax, %rax; jg 0x1001bff41` (0F 8F).
+# Ensures the right child tail-call loop only executes if the offset is strictly positive (> 0).
+[[hooks]]
+address = 0x1001bffdd
+type = "simple"
+original_bytes = [0x48, 0x85, 0xC0, 0x0F, 0x85, 0x5B, 0xFF, 0xFF, 0xFF]
+replacement_bytes = [0x48, 0x85, 0xC0, 0x0F, 0x8F, 0x5B, 0xFF, 0xFF, 0xFF]
+
+# ==============================================================================
+# 6. DEFENSE-IN-DEPTH: NULL NODE CHECK IN ResetMdlNode
+# ==============================================================================
+# Function: ResetMdlNode (0x1001bf162)
+# If a model ever supplies a NULL node pointer to ResetMdlNode, return immediately
+# instead of dereferencing NULL at 0x1001bf17e (movzwl (%rbx), %r15d).
+[[hooks]]
+address = 0x1001bf162
+type = "replace"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+replacement_bytes = [0x48, 0x85, 0xFF, 0x75, 0x01, 0xC3, 0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+
+# ==============================================================================
+# 7. NULL NODE GUARD IN AABB::IntersectRay / AABB::Traverse (CRASH FIX)
+# ==============================================================================
+# Function: AABB::Traverse / AABB::IntersectRay (0x1001daffb)
+# When performing ray intersection, collision, or camera line-of-sight checks against
+# area geometry, the engine recursively traverses the AABB tree starting from the
+# node's root_aabb (0x1e0(%node)). If a node has no AABB tree (root_aabb == NULL), or
+# when traversal reaches a leaf node (child->left == NULL or child->right == NULL),
+# 0x1001daffb is called with %rdi == NULL.
+# Because 0x1001daffb lacks a NULL check, it immediately uses %rdi as %rbx and passes
+# it to sub-functions (0x1003717db), which attempt to dereference (%rdx) / (%rbx),
+# causing an instant EXC_BAD_ACCESS (SIGSEGV) crash at address 0x0.
+#
+# Fix: At the entry of 0x1001daffb, test %rdi. If %rdi == NULL, return 0 (no hit)
+# immediately (%eax = 0, retq).
+[[hooks]]
+address = 0x1001daffb
+type = "replace"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x57, 0x41, 0x56]
+replacement_bytes = [0x48, 0x85, 0xFF, 0x75, 0x03, 0x31, 0xC0, 0xC3, 0x55, 0x48, 0x89, 0xE5, 0x41, 0x57, 0x41, 0x56]
+
