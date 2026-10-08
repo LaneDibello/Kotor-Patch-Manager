@@ -19,11 +19,12 @@ See roadmap [here](docs/Roadmap2026.md).
 ### Using the Release
 If you're just interested in experimenting with existing patches, you can simply download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases). Windows users want `KotorPatchManager-v*.zip`; Linux users want the `KotorPatchManager-linux-v*.tar.gz`. Mac users with Apple Silicon chips will want `KotorPatchManager-macos-arm64-v*.tar.gz`; those with Intel chips will want `KotorPatchManager-macos-x64-v*.tar.gz`.
 
-The release contains the following:
+**The release contains the main launcher in the bin/ folder**: For Windows users, **KPatchLauncher.exe**, for Linux and macOS users, **KPatchLauncher**. The main launcher program (must be in the same directory as the dynamic library and AddressDatabases/ to function correctly. For Linux and macOS users, double-click or run via the terminal: `./KPatchLauncher`.
+
+The release also contains:
 - bin/
 	- AddressDatabases: SQLite DB files containing address information for various KotOR versions.
 	- `KotorPatcher.dll`, `KotorPatcher.so` (Linux only), and `KotorPatcher.dylib` (macOS only): Dynamic libraries for PC (`.dll`), Linux (`.so`), and Mac (`.dylib`) that are compiled at runtime/injected.
-	- **KPatchLauncher.exe** (Windows) or **KPatchLauncher** (Linux and macOS): The main launcher program (must be in the same directory as the dynamic library and AddressDatabases/ to function correctly). For Linux and macOS users, double-click or run via the terminal: `./KPatchLauncher`.
 - patches/
 	- `.kpatch` files: The patch files that the framework can read in and apply to the game.
 	- Additional files associated with certain patches that may be necessary to make use of them (e.g., a modified `nwscript.nss` for the script extender).
