@@ -23,19 +23,24 @@ If you're interested in contributing or making your own patches, you're going to
 ## Quick Start / Basic Usage
 **The launcher is in the bin/ folder**—for Windows users, **KPatchLauncher.exe**, for Linux and macOS users, **KPatchLauncher**. Do not move the main launcher outlier of the bin/ folder: it must be in the same directory as the dynamic library and AddressDatabases folder to function correctly. 
 
-To use KPM, just run the launcher. For Linux and macOS users, double-click or run via the terminal: `./KPatchLauncher`. 
+To use KPM, run the launcher. For Linux and macOS users, double-click or run via the terminal: `./KPatchLauncher`. 
 
-Set the "Game" path to target your game (i.e., `swkotor.exe`), and set the "Patches" path to target the directory with your `.kpatch` files (e.g., `<release>/patches`). Available patches will appear on the left-hand side, with descriptions on the right-hand side. Select the patches you want and click "Apply" to prepare the game for use with those patches. Select "Launch" to run the game with these patches applied.
+Once KPM is open, set the "Game" path to target your game (i.e., `swkotor.exe` or, if you cannot select your game directly, the folder containing your game), and set the "Patches" path to target the directory with your `.kpatch` files (e.g., `<release>/patches`). 
 
-Patches can be uninstalled by unchecking them and clicking "Apply" or using the "Uninstall All" button.
+Available patches will appear on the left-hand side, with descriptions on the right-hand side. Select the patches you want and click "Apply" to prepare the game for use with those patches. Patches can be uninstalled by unchecking them and clicking "Apply" or using the "Uninstall All" button.
+
+Select "Launch" to run the game with these patches applied.
 
 ***Important:*** Please read each patch description carefully—some patches require additional files to be installed. You can find these additional files in the patches folder, under \[Name of Patch\] additional files/. You can also install these additional files by pointing HoloPatcher (presently not included) at The KPM Mods/ directory.
 
-**Linux and Mac users**: There are two kinds of Linux and Mac installs, and the manager picks the right one from the executable you point it at:
+### Proxy Mode
+Several Linux and Mac users run a version of KotOR 1 or 2 that is not native to their OS—choosing, instead, the Windows version of a game via Wine or Proton. KPM allows Linux and Mac users to patch these non-native versions;a the manager picks the right install method based on the version of the game it is pointed at.
 
-- **The Windows game under Wine/Proton.** Because a native app can't inject into a Wine/Proton process, `bin` additionally contains `binkw32.dll` (a small proxy) and `sqlite3.dll`, which the manager stages into the game folder so the patches load when the game starts. Point the "Game" path at the game executable inside your Wine/Proton install (`swkotor.exe`).
-- **KOTOR II's native Linux build (Aspyr).** To modify the Linux-native version of the game, the "Game" path should be pointed at the native Linux build, which has no extension (`KOTOR2`). The manager stages `KotorPatcher.so` and adds it to the game's library dependencies, so the game loads the patcher itself with no proxy and nothing to inject. See [docs/NATIVE_LINUX.md](docs/NATIVE_LINUX.md) for the details and current limitations. KOTOR I has no native Linux port, so this only applies to KOTOR II.
-- **KOTOR's native Mac build (Aspyr).** The Mac-native game is a `.app`, which will appear extension-less in the Finder, and the "Game" path should be pointed at the folder containing it. 
+The details, for those who want them:
+- Patching **KOTOR II's native Linux build (Aspyr):** To modify the Linux-native version of the game, the "Game" path should be pointed at the native Linux build, which has no extension (`KOTOR2`). The manager stages `KotorPatcher.so` and adds it to the game's library dependencies, so the game loads the patcher itself with no proxy and nothing to inject. See [docs/NATIVE_LINUX.md](docs/NATIVE_LINUX.md) for the details and current limitations. KOTOR I has no native Linux port, so this only applies to KOTOR II.
+- Patching **KOTOR's native Mac build (Aspyr):** The Mac-native game is a `.app`, which will appear extension-less in the Finder, and the "Game" path should be pointed at the folder containing it. Again, no proxy is needed for macOS users to patch their native versions of the games.
+
+Conversely, for patching **the Windows game under Wine/Proton:** Because a native app can't inject into a Wine/Proton process, bin/ additionally contains `binkw32.dll` (a small proxy) and `sqlite3.dll`, which the manager stages into the game folder, so the patches load when the game starts. Simply point the "Game" path at the game executable inside your Wine/Proton install (`swkotor.exe`).
 
 **Windows users** can also select the proxy mode by utilizing the "Options" menu.
 
@@ -53,7 +58,6 @@ The release contains:
 - `README.txt`: A brief contents and quick-start guide.
 - The KPM Mods/
   	- A traditional mod allowing for the install (via HoloPatcher, presently not included) of various additional files associated with certain patches.
-
 
 ### Building from Source
 This project has been built and configured with Visual Studio 2022. While there are likely alternatives that would function here, I have not tested nor validated any of them.
