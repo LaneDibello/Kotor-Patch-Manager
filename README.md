@@ -29,7 +29,7 @@ Set the "Game" path to target your game (i.e., `swkotor.exe`), and set the "Patc
 
 Patches can be uninstalled by unchecking them and clicking "Apply" or using the "Uninstall All" button.
 
-***Important:*** Please read each patch description carefully—some patches require additional files to be installed. You can find these additional-file folders in the patches folder, under \[Name of Patch\] additional files. You can also install these additional files by pointing HoloPatcher (presently not included) at The KPM Mods/ directory.
+***Important:*** Please read each patch description carefully—some patches require additional files to be installed. You can find these additional files in the patches folder, under \[Name of Patch\] additional files/. You can also install these additional files by pointing HoloPatcher (presently not included) at The KPM Mods/ directory.
 
 **Linux and Mac users**: There are two kinds of Linux and Mac installs, and the manager picks the right one from the executable you point it at:
 
@@ -59,7 +59,6 @@ The release contains:
 This project has been built and configured with Visual Studio 2022. While there are likely alternatives that would function here, I have not tested nor validated any of them.
 
 #### On Windows
-
 - Open the solution file (`KotorPatchManager.sln`) in Visual Studio.
 - Ensure that the Startup project is `KPatchLauncher`.
 - The Build Configuration should have `KotorPatcher` set to `Win32` (KotOR is a 32-bit game). The other projects can be `Any CPU`. This should be the default setting.
