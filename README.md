@@ -18,7 +18,7 @@ See roadmap [here](docs/Roadmap2026.md).
 
 If you're just interested in using the current offering of patches, you can simply download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases). Windows users want `KotorPatchManager-v*.zip`; Linux users want the `KotorPatchManager-linux-v*.tar.gz`. Mac users with Apple Silicon chips will want `KotorPatchManager-macos-arm64-v*.tar.gz`; those with Intel chips will want `KotorPatchManager-macos-x64-v*.tar.gz`.
 
-If you're interested in contributing or making your own patches, you're going to want to clone this repository (`git clone https://github.com/FTD516/Kotor-Patch-Manager`) and build from source.
+If you're interested in contributing or making your own patches, you're going to want to clone this repository (`git clone https://github.com/FTD516/Kotor-Patch-Manager`) and build from source. Note that you will have to create `.kpatch` files for every patch you wish to use (see ["Building from Source"](#building-from-source)).
 
 ## Quick Start / Basic Usage
 **The launcher is in the bin/ folder**—for Windows users, **KPatchLauncher.exe**, for Linux and macOS users, **KPatchLauncher**. Do not move the main launcher outlier of the bin/ folder: it must be in the same directory as the dynamic library and AddressDatabases folder to function correctly. 
