@@ -39,7 +39,7 @@ Patches can be uninstalled by unchecking them and clicking "Apply" or using the 
 
 ## Release Contents / Advanced Usage
 The release contains:
-- `bin/
+- bin/
  	- The OS-specific launcher: `KPatchLauncher.exe` (Windows) or `KPatchLauncher` (Linux and macOS).
 	- AddressDatabases/: SQLite DB files containing address information for various KotOR versions.
 	- `KotorPatcher.dll`, `KotorPatcher.so` (Linux only), and `KotorPatcher.dylib` (macOS only): Dynamic libraries for PC (`.dll`), Linux (`.so`), and Mac (`.dylib`) that are compiled at runtime/injected.
