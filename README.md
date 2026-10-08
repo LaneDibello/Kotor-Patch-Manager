@@ -2,26 +2,19 @@
 
 The KotOR Patch Manager (KPM) is a dynamic patching framework for Star Wars: Knights of the Old Republic 1 and 2.
 
-It operates off of a runtime DLL/SO/DYLIB-injection scheme, which installs the applied patches live, meaning that the user's executable does not get modified and users can easily "cherry-pick" certain patches they want to use. This also has added benefits for compatibility, version management, and distribution.
-
-The repository contains:
-- a selection of pre-made patches,
-- a GameAPI and creation script to aid in creation of custom patches,
-- C++ source for KotorPatcher.dll, the library that is injected at runtime,
-- C# source for KPatchCore, the framework for parsing and applying these patches, and
-- C# source for KPatchLauncher, a basic UI for using this patching framework (will likely be replaced in the future).
+It operates via a runtime DLL/SO/DYLIB-injection scheme, which installs the applied patches live, meaning that the user's executable does not get modified and users can easily "cherry-pick" certain patches they want to use. This also has added benefits for compatibility, version management, and distribution.
 
 See roadmap [here](docs/Roadmap2026.md).
 
 ## Install
 *NOTE: The patch manager is still in beta; there are likely going to be various issues within the current release. Please feel free to create GitHub Issues or contact Lane if anything strange comes up.*
 
-If you're just interested in using the current offering of patches, you can simply download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases). Windows users want `KotorPatchManager-v*.zip`; Linux users want the `KotorPatchManager-linux-v*.tar.gz`. Mac users with Apple Silicon chips will want `KotorPatchManager-macos-arm64-v*.tar.gz`; those with Intel chips will want `KotorPatchManager-macos-x64-v*.tar.gz`.
+If you're just interested in using the current offering of patches, you can simply download the [most recent release](https://github.com/LaneDibello/Kotor-Patch-Manager/releases). Windows users want `KotorPatchManager-v*.zip`; Linux users want `KotorPatchManager-linux-v*.tar.gz`. Mac users with Apple Silicon chips will want `KotorPatchManager-macos-arm64-v*.tar.gz`; those with Intel chips will want `KotorPatchManager-macos-x64-v*.tar.gz`.
 
 If you're interested in contributing or making your own patches, you're going to want to clone this repository (`git clone https://github.com/FTD516/Kotor-Patch-Manager`) and build from source. Note that you will have to create `.kpatch` files for every patch you wish to use (see ["Building from Source"](#building-from-source)).
 
 ## Quick Start / Basic Usage
-**The launcher is in the bin/ folder**—for Windows users, **KPatchLauncher.exe**, for Linux and macOS users, **KPatchLauncher**. Do not move the main launcher outlier of the bin/ folder: it must be in the same directory as the dynamic library and AddressDatabases folder to function correctly. 
+**The launcher is in the bin/ folder**—for Windows users, **KPatchLauncher.exe**, for Linux and macOS users, **KPatchLauncher**. Do not move the main launcher out of the bin/ folder: it must be in the same directory as the dynamic library and AddressDatabases folder to function correctly. 
 
 To use KPM, run the launcher. For Linux and macOS users, double-click or run via the terminal: `./KPatchLauncher`. 
 
@@ -34,7 +27,7 @@ Select "Launch" to run the game with these patches applied.
 ***Important:*** Please read each patch description carefully—some patches require additional files to be installed. You can find these additional files in the patches folder, under \[Name of Patch\] additional files/. You can also install these additional files by pointing HoloPatcher (presently not included) at The KPM Mods/ directory.
 
 ### Proxy Mode
-Several Linux and Mac users run a version of KotOR 1 or 2 that is not native to their OS—choosing, instead, the Windows version of a game via Wine or Proton. KPM allows Linux and Mac users to patch these non-native versions;a the manager picks the right install method based on the version of the game it is pointed at.
+Several Linux and Mac users run a version of KotOR 1 or 2 that is not native to their OS—choosing, instead, to run a Windows version via Wine or Proton. KPM allows Linux and Mac users to patch these non-native versions; the manager picks the right install method based on the version of the game it is pointed at.
 
 The details, for those who want them:
 - Patching **KOTOR II's native Linux build (Aspyr):** To modify the Linux-native version of the game, the "Game" path should be pointed at the native Linux build, which has no extension (`KOTOR2`). The manager stages `KotorPatcher.so` and adds it to the game's library dependencies, so the game loads the patcher itself with no proxy and nothing to inject. See [docs/NATIVE_LINUX.md](docs/NATIVE_LINUX.md) for the details and current limitations. KOTOR I has no native Linux port, so this only applies to KOTOR II.
@@ -49,7 +42,7 @@ The release contains:
 - bin/
  	- The OS-specific launcher: `KPatchLauncher.exe` (Windows) or `KPatchLauncher` (Linux and macOS).
 	- AddressDatabases/: SQLite DB files containing address information for various KotOR versions.
-	- `KotorPatcher.dll`, `KotorPatcher.so` (Linux only), and `KotorPatcher.dylib` (macOS only): Dynamic libraries for PC (`.dll`), Linux (`.so`), and Mac (`.dylib`) that are compiled at runtime/injected.
+	- `KotorPatcher.dll`, `KotorPatcher.so` (Linux only), and `KotorPatcher.dylib` (macOS only): Dynamic libraries for PC (`.dll`), Linux (`.so`), and Mac (`.dylib`) that are injected at runtime.
 - patches/
 	- `.kpatch` files: The patch files that the framework can read in and apply to the game.
 	- Additional files associated with certain patches that may be necessary to make use of them (e.g., a modified `nwscript.nss` for the script extender).
@@ -60,7 +53,7 @@ The release contains:
   	- A traditional mod allowing for the install (via HoloPatcher, presently not included) of various additional files associated with certain patches.
 
 ### Building from Source
-This project has been built and configured with Visual Studio 2022. While there are likely alternatives that would function here, I have not tested nor validated any of them.
+This project has been built and configured with Visual Studio 2022. While there are likely alternatives that would function here, I have not tested or validated any of them.
 
 #### On Windows
 - Open the solution file (`KotorPatchManager.sln`) in Visual Studio.
@@ -78,7 +71,7 @@ To build the `.kpatch` file for any patch, simply open the directory (e.g., `cd 
 This will build and package the patch into a `.kpatch` file.
 
 #### On Linux
-There's no Visual Studio; instead you'll need the .NET 8 SDK, MinGW-w64 (`i686-w64-mingw32-g++`, for the 32-bit DLLs the game loads under Wine), and `python3`. The manager builds natively with `dotnet`, and the `build-mingw.sh` scripts cross-compile `KotorPatcher.dll` and the `binkw32.dll` proxy. Build a patch with `python3 ../create-patch.py` (the equivalent of `..\create-patch.bat`) from within the patch's directory.
+There's no Visual Studio; instead you'll need the .NET 8 SDK, MinGW-w64 (`i686-w64-mingw32-g++`, for the 32-bit DLLs the game loads under Wine), and `python3`. The manager builds natively with `dotnet`, and the `build-mingw.sh` script cross-compiles `KotorPatcher.dll` and the `binkw32.dll` proxy. Build a patch with `python3 ../create-patch.py` (the equivalent of `..\create-patch.bat`) from within the patch's directory.
 
 To also target KOTOR II's native Linux build, run `./build-linux.sh`, which compiles `KotorPatcher.so` and stages it beside the launcher. That one needs 32-bit development libraries (`glibc-devel.i686` and `libstdc++-devel.i686` on Fedora, or your distro's equivalents).
 
@@ -91,11 +84,11 @@ dotnet run --project src/KPatchLauncher/KPatchLauncher.csproj
 Build a patch with `python3 ../create-patch.py` from within the patch's directory.
 
 ### Patch Creation
-This repository's "Patches" directory contains several example patches, such as the ScriptExtender, AdditionalConsoleCommands, Level-Cap extension, and more. In addition, it also contains a directory titled "Common", which has a variety of utilities and classes to aid in creation of patches.
+This repository's "Patches" directory contains several example patches, such as the ScriptExtender, AdditionalConsoleCommands, Level-Cap extension, and more. It also contains a directory titled "Common", which has a variety of utilities and classes to aid in the creation of patches.
 
 A patch typically contains 2 to 3 parts:
 - a `manifest.toml` file that specifies various patch and compatibility info;
-- a `hooks.toml` file (or files) that contain the meat and potatoes of the actual patches; and, optionally,
+- version-specific `hooks.toml` files that contain the meat and potatoes of the actual patch; and, optionally,
 - additional C++ code that gets compiled into the patch and injected, as specified by the hooks.
 
 #### Manifest
@@ -128,7 +121,7 @@ Replace hooks allow for more advanced instruction replacement. They will allocat
 - `replacement_bytes`: Any number of bytes that will be jumped to by the above instruction and executed as x86, after which logic will jump back to `address+original_bytes.length`.
 
 ##### Detour Hooks
-Detour hooks are our most advanced option. They replace the code at address with a JUMP to a wrapper that (1) stores register values, (2) prepares parameters, and (3) calls an external function defined and compiled within your patch. Use these for very complex patches, especially those that need to call an existing in-game function, output debug strings, or reference specific addresses. Specify:
+Detour hooks are our most advanced option. They replace the code at `address` with a JUMP to a wrapper that (1) stores register values, (2) prepares parameters, and (3) calls an external function defined and compiled within your patch. Use these for very complex patches, especially those that need to call an existing in-game function, output debug strings, or reference specific addresses. Specify:
 
 - `original_bytes`: 5 or more bytes starting from `address` that will be replaced with a JUMP instruction and NOPs.
 - `function`: The name of an exported `extern "C"`/`__cdecl` function that will be compiled and run from your additional C++ code.
@@ -145,7 +138,7 @@ Static hooks are applied directly to the executable file at install-time, before
 - `replacement_bytes`: Bytes equal in length to `original_bytes` that will overwrite the original bytes in the file.
  
 #### Building Patches
-To build a patch, use the `create-patch.bat` batch file or `create-patch.py` Python script from within the Patches/ directory. Usually this will look like:
+To build a patch, use the `create-patch.bat` batch file or `create-patch.py` Python script in the Patches/ directory. Usually, from within a patch's specific folder, this will look like:
 ```
 ..\create-patch.bat
 ```
