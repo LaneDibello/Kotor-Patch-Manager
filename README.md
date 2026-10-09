@@ -18,7 +18,7 @@ If you're interested in contributing or making your own patches, you're going to
 
 To use KPM, run the launcher. For Linux and macOS users, double-click or run via the terminal: `./KPatchLauncher`. 
 
-Once KPM is open, set the "Game" path to target your game (i.e., `swkotor.exe` or, if you cannot select your game directly, the folder containing your game), and set the "Patches" path to target the directory with your `.kpatch` files (e.g., `<release>/patches`). 
+Once KPM is open, set the "Game" path to target your game (either the game itself—e.g., `swkotor.exe`—or the folder containing your game), and set the "Patches" path to target the directory with your `.kpatch` files (e.g., `<release>/patches`). 
 
 Available patches will appear on the left-hand side, with descriptions on the right-hand side. Select the patches you want and click "Apply" to prepare the game for use with those patches. Patches can be uninstalled by unchecking them and clicking "Apply" or using the "Uninstall All" button.
 
