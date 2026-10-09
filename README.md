@@ -14,7 +14,7 @@ If you're just interested in using the current offering of patches, you can simp
 If you're interested in contributing or making your own patches, you're going to want to clone this repository (`git clone https://github.com/FTD516/Kotor-Patch-Manager`) and build from source. Note that you will have to create `.kpatch` files for every patch you wish to use (see ["Building from Source"](#building-from-source)).
 
 ## Quick Start / Basic Usage
-**The launcher is in the bin/ folder**—for Windows users, **KPatchLauncher.exe**, for Linux and macOS users, **KPatchLauncher**. Do not move the main launcher out of the bin/ folder: it must be in the same directory as the dynamic library and AddressDatabases folder to function correctly. 
+**The launcher is in the `bin/` folder**—for Windows users, **KPatchLauncher.exe**, for Linux and macOS users, **KPatchLauncher**. Do not move the main launcher out of the `bin/` folder: it must be in the same directory as the dynamic library and the `AddressDatabases/` folder to function correctly. 
 
 To use KPM, run the launcher. For Linux and macOS users, double-click or run via the terminal: `./KPatchLauncher`. 
 
@@ -24,7 +24,7 @@ Available patches will appear on the left-hand side, with descriptions on the ri
 
 Select "Launch" to run the game with these patches applied.
 
-***Important:*** Please read each patch description carefully—some patches require additional files to be installed. You can find these additional files in the patches folder, under \[Name of Patch\] additional files/. You can also install these additional files by pointing HoloPatcher (presently not included) at The KPM Mods/ directory.
+***Important:*** Please read each patch description carefully—some patches require additional files to be installed. You can find these additional files in the patches folder, under `\[Name of Patch\] additional files/`. You can also install these additional files by pointing HoloPatcher (presently not included) at `The KPM Mods/` directory.
 
 ### Proxy Mode
 Several Linux and Mac users run a version of KotOR 1 or 2 that is not native to their OS—choosing, instead, to run a Windows version via Wine or Proton. KPM allows Linux and Mac users to patch these non-native versions; the manager picks the right install method based on the version of the game it is pointed at.
@@ -39,17 +39,17 @@ Conversely, for patching **the Windows game under Wine/Proton:** Because a nativ
 
 ## Release Contents / Advanced Usage
 The release contains:
-- bin/
+- `bin/`
  	- The OS-specific launcher: `KPatchLauncher.exe` (Windows) or `KPatchLauncher` (Linux and macOS).
-	- AddressDatabases/: SQLite DB files containing address information for various KotOR versions.
+	- `AddressDatabases/`: SQLite DB files containing address information for various KotOR versions.
 	- `KotorPatcher.dll`, `KotorPatcher.so` (Linux only), and `KotorPatcher.dylib` (macOS only): Dynamic libraries for PC (`.dll`), Linux (`.so`), and Mac (`.dylib`) that are injected at runtime.
-- patches/
+- `patches/`
 	- `.kpatch` files: The patch files that the framework can read in and apply to the game.
 	- Additional files associated with certain patches that may be necessary to make use of them (e.g., a modified `nwscript.nss` for the script extender).
-- tools/
+- `tools/`
 	- `create-patch.bat` and `create-patch.py`: Alternative means for building `.kpatch` files (Linux and macOS users must use the Python script). The .bat file isn't too useful in its current iteration without the added GameAPI source and examples, but it's included nonetheless.
 - `README.txt`: A brief contents and quick-start guide.
-- The KPM Mods/
+- `The KPM Mods/`
   	- A traditional mod allowing for the install (via HoloPatcher, presently not included) of various additional files associated with certain patches.
 
 ### Building from Source
