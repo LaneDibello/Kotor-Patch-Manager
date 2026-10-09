@@ -1,9 +1,5 @@
 ---
-
-Welcome to ...
-**The KPM Mods**
-
----
+## The KPM Mods
 
 KotOR Patch Manager patches target KOTOR executables. But some patches require modifications to other game files in order to be used (or fully enjoyed). This mod collection allows you to make those modifications.   *Note: An attendant modification does not obviate the need to use KPM to install the patch itself.*
 
