@@ -24,7 +24,7 @@ Available patches will appear on the left-hand side, with descriptions on the ri
 
 Select "Launch" to run the game with these patches applied.
 
-***Important:*** Please read each patch description carefully—some patches require additional files to be installed. You can find these additional files in the patches folder, under `\[Name of Patch\] additional files/`. You can also install these additional files by pointing HoloPatcher (presently not included) at `The KPM Mods/` directory.
+***Important:*** Please read each patch description carefully—some patches require additional files to be installed. You can find these additional files in the patches folder, under `[Name of Patch] additional files/`. You can also install these additional files by pointing HoloPatcher (presently not included) at `The KPM Mods/` directory.
 
 ### Proxy Mode
 Several Linux and Mac users run a version of KotOR 1 or 2 that is not native to their OS—choosing, instead, to run a Windows version via Wine or Proton. KPM allows Linux and Mac users to patch these non-native versions; the manager picks the right install method based on the version of the game it is pointed at.
