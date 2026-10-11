@@ -1,6 +1,10 @@
 * text=auto
 
 *db -text merge=binary
+# The address databases merge row by row and diff as text, through tools/merge-address-db.py.
+# Each clone opts in once (see docs/AddressDatabaseSystem.md, "Merging and diffing"); without that
+# a .db still merges as a binary, as above.
+AddressDatabases/*.db merge=addressdb diff=addressdb
 
 # Files executed by a Unix shell must keep LF endings even on a Windows
 # checkout. With only "* text=auto", these get CRLF on Windows, and the CR
