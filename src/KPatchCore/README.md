@@ -31,7 +31,7 @@ The library uses a **PatchResult** pattern instead of exceptions for expected fa
 
 **ConfigGenerator**: Generates patch_config.toml for the runtime patcher. Converts PatchConfig objects to TOML format with patches array, hooks definitions, and target version SHA. Filters out STATIC hooks as they are already applied to the file.
 
-**PatchOptionsIni**: Records the option values the patches were applied with in the `configs` folder in the game directory: a `[Patch Options]` section in `<patch id>.ini`, the file for all of that patch's settings, with a key per option id, a toggle as `1` or `0` and a choice as its id. The section is rewritten on every apply and taken out when the patch is no longer installed and on uninstall; the rest of the file is left alone.
+**PatchOptionsIni**: Records the option values the patches were applied with in the `configs` folder in the game directory: a `[Patch Options]` section in `<patch id>.ini`, the file for all of that patch's settings, with a key per option id, a toggle as `1` or `0` and a choice as its id. The section is rewritten on every apply, at the end of the file, and taken out when the patch is no longer installed and on uninstall; the rest of the file is kept byte for byte, whatever its encoding and line ends.
 
 **BackupManager**: Creates and restores backups of game directories. Stores backup metadata with game version and installed patches list. Automatically restores on installation failure (including STATIC hook failures).
 

@@ -438,7 +438,8 @@ public class PatchOptionTests
             Assert.Equal(
                 new[] { "kept.ini", "other.ini", "sample.ini" },
                 Directory.GetFiles(folder).Select(Path.GetFileName).OrderBy(n => n, StringComparer.Ordinal));
-            Assert.Equal("[Patch Options]\r\nx=1\r\n\r\n[Display]\r\nscale=2\r\n\r\n[Sound]\r\nvolume=7\u00E9\r\n",
+            // The section goes at the end, after a blank line.
+            Assert.Equal("[Display]\r\nscale=2\r\n\r\n[Sound]\r\nvolume=7\u00E9\r\n\r\n[Patch Options]\r\nx=1\r\n",
                 File.ReadAllText(Path.Combine(folder, "other.ini"), own));
             Assert.Equal("[Mine]\r\na=b\r\n", File.ReadAllText(Path.Combine(folder, "kept.ini")));
 
@@ -653,6 +654,147 @@ public class PatchOptionTests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    /// <summary>
+    /// Runs <paramref name="test"/> with a game directory holding configs/sample.ini as
+    /// <paramref name="bytes"/>, and a config that records sample's options.
+    /// </summary>
+    private static void WithSampleFile(byte[] bytes, Action<string, string, PatchConfig> test)
+    {
+        var values = OptionValidator.ResolveValues(ParsedManifest(), null).Data!;
+        var config = new PatchConfig();
+        config.AddPatch("sample", string.Empty, new List<Hook>(), values);
+
+        var directory = Directory.CreateTempSubdirectory("kpatch-options-").FullName;
+        try
+        {
+            var folder = Path.Combine(directory, PatchOptionsIni.DirectoryName);
+            Directory.CreateDirectory(folder);
+            var file = Path.Combine(folder, "sample.ini");
+            File.WriteAllBytes(file, bytes);
+            test(directory, file, config);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WhatStandsAboveTheFirstSectionSurvivesTwoApplies()
+    {
+        var original = "; my notes\r\nvolume=7\r\n[Mine]\r\nx=1\r\n";
+        WithSampleFile(System.Text.Encoding.ASCII.GetBytes(original), (directory, file, config) =>
+        {
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
+            var once = File.ReadAllText(file);
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
+
+            Assert.Equal(original + "\r\n[Patch Options]\r\nmap-notes=0\r\nhud-style=classic\r\n", File.ReadAllText(file));
+            Assert.Equal(once, File.ReadAllText(file));
+            // Only the section is read as the patch's options.
+            Assert.Equal(new[] { "hud-style", "map-notes" },
+                PatchOptionsIni.ReadFiles(directory)["sample"].Keys.OrderBy(k => k, StringComparer.Ordinal));
+
+            PatchOptionsIni.RemoveSections(directory);
+            Assert.Equal(original, File.ReadAllText(file));
+        });
+    }
+
+    [Fact]
+    public void AFileSavedAsUtf8ComesBackUnchanged()
+    {
+        // With the byte order mark an editor adds, and characters outside Latin-1.
+        var original = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true)
+            .GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes("[Mine]\r\nname=Café — Ω\r\n")).ToArray();
+        WithSampleFile(original, (directory, file, config) =>
+        {
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
+
+            var applied = File.ReadAllBytes(file);
+            Assert.Equal(original, applied[..original.Length]);
+            Assert.Equal("\r\n[Patch Options]\r\nmap-notes=0\r\nhud-style=classic\r\n",
+                System.Text.Encoding.ASCII.GetString(applied[original.Length..]));
+
+            PatchOptionsIni.RemoveSections(directory);
+            Assert.Equal(original, File.ReadAllBytes(file));
+        });
+    }
+
+    [Fact]
+    public void ASectionRightAfterAByteOrderMarkIsStillFound()
+    {
+        var mark = new byte[] { 0xEF, 0xBB, 0xBF };
+        var original = mark.Concat(System.Text.Encoding.ASCII.GetBytes("[Patch Options]\r\nmap-notes=1\r\n[Mine]\r\nx=1\r\n")).ToArray();
+        WithSampleFile(original, (directory, file, config) =>
+        {
+            Assert.Equal("1", PatchOptionsIni.ReadFiles(directory)["sample"]["map-notes"]);
+
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
+
+            // One section, at the end, and the mark still in front.
+            Assert.Equal(mark.Concat(System.Text.Encoding.ASCII.GetBytes(
+                "[Mine]\r\nx=1\r\n\r\n[Patch Options]\r\nmap-notes=0\r\nhud-style=classic\r\n")), File.ReadAllBytes(file));
+        });
+    }
+
+    [Theory]
+    // The section last: what is left keeps its own line ends.
+    [InlineData("; my notes\r\n[Patch Options]\r\na=1\r\n", "; my notes\r\n")]
+    [InlineData("; my notes\n[Patch Options]\na=1\n", "; my notes\n")]
+    [InlineData("; my notes\n[Patch Options]\na=1", "; my notes\n")]
+    // The section in the middle, as an older apply left it.
+    [InlineData("[A]\r\nx=1\r\n\r\n[Patch Options]\r\na=1\r\n\r\n[B]\r\ny=2", "[A]\r\nx=1\r\n\r\n[B]\r\ny=2")]
+    public void TakingTheSectionOutKeepsTheLineEnds(string before, string after)
+    {
+        WithSampleFile(System.Text.Encoding.ASCII.GetBytes(before), (directory, file, _) =>
+        {
+            PatchOptionsIni.RemoveSections(directory);
+
+            Assert.Equal(after, File.ReadAllText(file));
+        });
+    }
+
+    [Fact]
+    public void AFileWithLfLineEndsGetsASectionWithThemToo()
+    {
+        WithSampleFile(System.Text.Encoding.ASCII.GetBytes("[Mine]\nx=1"), (directory, file, config) =>
+        {
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
+            Assert.True(PatchOptionsIni.WriteFiles(config, directory).Success);
+
+            Assert.Equal("[Mine]\nx=1\n\n[Patch Options]\nmap-notes=0\nhud-style=classic\n", File.ReadAllText(file));
+        });
+    }
+
+    [Fact]
+    public void APatchWithEveryHookTurnedOffLoadsNoModule()
+    {
+        var hooks = ParsedHooks(Q3Text(
+            "[[hooks]]",
+            "address = 0x00405000",
+            "type = \"detour\"",
+            "function = \"MapNotes\"",
+            "original_bytes = [0x90, 0x90, 0x90, 0x90, 0x90]",
+            "when = \"map-notes\""));
+        var values = OptionValidator.ResolveValues(ParsedManifest(), null).Data!;
+        var installed = OptionValidator.SelectHooks(hooks, values);
+
+        Assert.Empty(installed);
+        // Every hook off: not DLL-only, so no module, as with one SIMPLE hook left on.
+        Assert.False(PatchApplicator.InstallsModule(hooks.Count, installed));
+        Assert.True(PatchApplicator.InstallsModule(hooks.Count, hooks));
+        // A hooks file that declares none is DLL-only, as before options.
+        Assert.True(PatchApplicator.InstallsModule(0, new List<Hook>()));
+
+        // Without a module the runtime's file names no DLL, which KotorPatcher skips.
+        var config = new PatchConfig();
+        config.AddPatch("sample", string.Empty, installed, values);
+        var patch = ((Tomlyn.Model.TomlTableArray)Tomlyn.Toml.ToModel(ConfigGenerator.GenerateConfigString(config))["patches"])[0];
+        Assert.Equal(string.Empty, patch["dll"]);
+        Assert.False(patch.ContainsKey("hooks"));
     }
 
     private static string Q3Text(params string[] lines) => string.Join("\n", lines);

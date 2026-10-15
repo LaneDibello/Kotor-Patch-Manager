@@ -25,7 +25,14 @@ public static class PatchOptionsIni
     // A patch's file is the patch's: its other sections may hold text in whatever code
     // page the game or the patch wrote. Latin-1 maps every byte to one character and
     // back, so that text comes through a rewrite unchanged. The section itself is ASCII.
+    // The file is read as bytes and decoded here, never with File.ReadAllText: that
+    // honours a byte order mark over the encoding it is given, and a UTF-8 file would
+    // then be written back as Latin-1, its other characters as '?'.
     private static readonly Encoding FileEncoding = Encoding.Latin1;
+
+    // A UTF-8 byte order mark, as Latin-1 reads it. It belongs to the file, not to its
+    // first line: it stays in front, and a header after it is still a header.
+    private const string Utf8Mark = "ï»¿";
 
     /// <summary>The file that holds a patch's settings, inside the folder.</summary>
     public static string FileNameFor(string patchId) => patchId + ".ini";
@@ -52,9 +59,10 @@ public static class PatchOptionsIni
         : value;
 
     /// <summary>
-    /// A patch's section, or an empty string for a patch without options.
+    /// A patch's section, or an empty string for a patch without options. Its lines end
+    /// with <paramref name="lineEnd"/>, so that it matches the file it goes into.
     /// </summary>
-    public static string Generate(PatchConfig.EnabledPatch patch)
+    public static string Generate(PatchConfig.EnabledPatch patch, string lineEnd = "\r\n")
     {
         if (patch.Options.Count == 0)
         {
@@ -62,14 +70,47 @@ public static class PatchOptionsIni
         }
 
         var text = new StringBuilder();
-        text.Append('[').Append(Section).Append("]\r\n");
+        text.Append('[').Append(Section).Append(']').Append(lineEnd);
         foreach (var (optionId, value) in patch.Options)
         {
-            text.Append(optionId).Append('=').Append(ToIniValue(value)).Append("\r\n");
+            text.Append(optionId).Append('=').Append(ToIniValue(value)).Append(lineEnd);
         }
 
         return text.ToString();
     }
+
+    /// <summary>
+    /// The file with the section in it: the rest of the file as it was, then a blank line
+    /// and the section. At the end, because whatever stands above a file's first header
+    /// belongs to no section, and with the section in front it would belong to this one
+    /// and be dropped on the next apply.
+    /// </summary>
+    private static string WithSection(string text, PatchConfig.EnabledPatch patch)
+    {
+        var lineEnd = LineEndOf(text);
+        var rest = WithoutSection(text);
+        var mark = rest.StartsWith(Utf8Mark, StringComparison.Ordinal) ? Utf8Mark : string.Empty;
+        var body = rest[mark.Length..];
+        if (body.Trim().Length == 0)
+        {
+            return mark + Generate(patch, lineEnd);
+        }
+
+        if (!body.EndsWith('\n'))
+        {
+            body += lineEnd;
+        }
+
+        return mark + body + lineEnd + Generate(patch, lineEnd);
+    }
+
+    /// <summary>The line end a file uses: CRLF unless it has only LF ones.</summary>
+    private static string LineEndOf(string text) =>
+        !text.Contains("\r\n", StringComparison.Ordinal) && text.Contains('\n') ? "\n" : "\r\n";
+
+    private static string ReadText(string path) => FileEncoding.GetString(File.ReadAllBytes(path));
+
+    private static void WriteText(string path, string text) => File.WriteAllBytes(path, FileEncoding.GetBytes(text));
 
     /// <summary>
     /// Writes the section into the file of each patch that has options, and takes it out
@@ -103,8 +144,7 @@ public static class PatchOptionsIni
             foreach (var patch in withOptions)
             {
                 var path = Path.Combine(directory, FileNameFor(patch.Id));
-                var rest = File.Exists(path) ? WithoutSection(File.ReadAllText(path, FileEncoding)) : string.Empty;
-                File.WriteAllText(path, Generate(patch) + (rest.Length > 0 ? "\r\n" + rest : string.Empty), FileEncoding);
+                WriteText(path, WithSection(File.Exists(path) ? ReadText(path) : string.Empty, patch));
             }
 
             return PatchResult.Ok($"Options recorded: {directory}");
@@ -136,21 +176,21 @@ public static class PatchOptionsIni
                 continue;
             }
 
-            var text = File.ReadAllText(file, FileEncoding);
+            var text = ReadText(file);
             var rest = WithoutSection(text);
-            if (rest.Length == text.Length)
+            if (ReferenceEquals(rest, text))
             {
                 continue;
             }
 
-            if (rest.Trim().Length == 0)
+            if (rest.Replace(Utf8Mark, string.Empty).Trim().Length == 0)
             {
                 File.Delete(file);
                 removed.Add(Path.Combine(DirectoryName, Path.GetFileName(file)));
             }
             else
             {
-                File.WriteAllText(file, rest, FileEncoding);
+                WriteText(file, rest);
             }
         }
 
@@ -197,6 +237,10 @@ public static class PatchOptionsIni
     private static bool IsHeader(string line, out string name)
     {
         var trimmed = line.Trim();
+        if (trimmed.StartsWith(Utf8Mark, StringComparison.Ordinal))
+        {
+            trimmed = trimmed[Utf8Mark.Length..].Trim();
+        }
         if (trimmed.Length >= 2 && trimmed[0] == '[' && trimmed[^1] == ']')
         {
             name = trimmed[1..^1].Trim();
@@ -207,23 +251,56 @@ public static class PatchOptionsIni
         return false;
     }
 
-    /// <summary>The file's text with this manager's section taken out.</summary>
+    /// <summary>
+    /// The file's lines, each with its own line end, so that lines can be taken out and
+    /// the ones left joined back exactly as they were, CRLF, LF or none at the end.
+    /// </summary>
+    private static List<string> LinesOf(string text)
+    {
+        var lines = new List<string>();
+        var start = 0;
+        while (start < text.Length)
+        {
+            var end = text.IndexOf('\n', start);
+            end = end < 0 ? text.Length : end + 1;
+            lines.Add(text[start..end]);
+            start = end;
+        }
+
+        return lines;
+    }
+
+    /// <summary>
+    /// The file's text with this manager's section taken out, or the very same string when
+    /// it has none. A section that runs to the end of the file takes the blank line in
+    /// front of it too, which is the one <see cref="WithSection"/> writes there.
+    /// </summary>
     private static string WithoutSection(string text)
     {
-        var kept = new StringBuilder();
+        var kept = new List<string>();
         var inSection = false;
         var dropped = false;
-        foreach (var line in text.Split('\n'))
+        var blankBefore = false;
+        foreach (var line in LinesOf(text))
         {
             if (IsHeader(line, out var name))
             {
                 inSection = string.Equals(name, Section, StringComparison.OrdinalIgnoreCase);
-                dropped |= inSection;
+                if (inSection)
+                {
+                    dropped = true;
+                    blankBefore = kept.Count > 0 && kept[^1].Trim().Length == 0;
+                    // A mark in front of the header is the file's, and stays.
+                    if (line.TrimStart().StartsWith(Utf8Mark, StringComparison.Ordinal))
+                    {
+                        kept.Add(Utf8Mark);
+                    }
+                }
             }
 
             if (!inSection)
             {
-                kept.Append(line).Append('\n');
+                kept.Add(line);
             }
         }
 
@@ -232,19 +309,19 @@ public static class PatchOptionsIni
             return text;
         }
 
-        // Split leaves one piece more than there were line ends.
-        if (kept.Length > 0)
+        if (inSection && blankBefore)
         {
-            kept.Length -= 1;
+            kept.RemoveAt(kept.Count - 1);
         }
-        return kept.ToString().TrimStart('\r', '\n');
+
+        return string.Concat(kept);
     }
 
     private static Dictionary<string, string> ReadSection(string path)
     {
         var values = new Dictionary<string, string>();
         var inSection = false;
-        foreach (var raw in File.ReadAllLines(path, FileEncoding))
+        foreach (var raw in ReadText(path).Split('\n'))
         {
             var line = raw.Trim();
             if (line.Length == 0 || line[0] == ';' || line[0] == '#')

@@ -95,6 +95,20 @@ public class PatchApplicator
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
     }
 
+    /// <summary>
+    /// Whether a patch's module is extracted and named in patch_config.toml, given how
+    /// many hooks its hooks file declares and the hooks its options left installed.
+    /// </summary>
+    /// <remarks>
+    /// A patch whose hooks file declares no hooks is DLL-only: KotorPatcher loads its
+    /// module for its own sake, and its code runs. A patch whose options turned off every
+    /// one of its hooks is not; it is decided from the hooks before selection, so turning
+    /// options off never starts loading a module that the same patch with one SIMPLE hook
+    /// left on would not load. Its options are still recorded in the configs folder.
+    /// </remarks>
+    public static bool InstallsModule(int declaredHookCount, IReadOnlyCollection<Hook> installedHooks) =>
+        declaredHookCount == 0 || installedHooks.Count > 0;
+
     /// <summary>The patcher runtime module to stage for a deployment method.</summary>
     private readonly record struct PatcherModule(string FileName, string? SourcePath, bool NeedsSqlite);
 
@@ -277,6 +291,9 @@ public class PatchApplicator
             // chosen values. Everything from here on, conflict checks included, sees the
             // hooks that will actually be installed.
             var optionsByPatch = new Dictionary<string, Dictionary<string, string>>();
+            // How many hooks each patch's hooks file declares, before options select any:
+            // what makes a patch DLL-only (see InstallsModule).
+            var declaredHookCounts = hooksByPatch.ToDictionary(p => p.Key, p => p.Value.Count);
             var strayOptions = options.OptionValues.Keys.FirstOrDefault(id => !patchEntries.ContainsKey(id));
             if (strayOptions != null)
             {
@@ -533,8 +550,14 @@ public class PatchApplicator
             foreach (var patchId in installOrder)
             {
                 var hooks = hooksByPatch[patchId];
+                if (!InstallsModule(declaredHookCounts[patchId], hooks))
+                {
+                    messages.Add($"  Skipped: {patchId} (its options leave none of its hooks installed)");
+                    continue;
+                }
+
                 var hasDetourHooks = hooks.Any(h => h.Type == HookType.Detour);
-                var hasDllOnlyPatch = hooks.Count == 0; // DLL-only patch (no hooks)
+                var hasDllOnlyPatch = declaredHookCounts[patchId] == 0; // DLL-only patch (no hooks)
 
                 // Try to extract DLL if it exists (supports DETOUR hooks and DLL-only patches)
                 var extractResult = _repository.ExtractPatchDll(patchId, patchesDir, gameVersion);

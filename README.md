@@ -125,7 +125,9 @@ map-notes=1
 hud-style=classic
 ```
 
-That section is the manager's record of what was applied. It is rewritten on every apply, and changing it by hand or from the game does not change which hooks are installed: that takes applying again and restarting the game. The rest of the file is the patch's own and is never touched, so a patch can keep its run-time settings there too.
+That section is the manager's record of what was applied. It is rewritten on every apply, at the end of the file, and changing it by hand or from the game does not change which hooks are installed: that takes applying again and restarting the game. The rest of the file is the patch's own and is kept as it is, byte for byte, so a patch can keep its run-time settings there too.
+
+A patch whose options leave none of its hooks installed has nothing installed but that section: its module is not loaded. Only a patch whose hooks file declares no hooks at all is DLL-only (see [DLL_ONLY](src/KotorPatcher/README.md#dll_only)).
 
 **Managers without options.** A release from before this feature ignores `[[patch.options]]` and `when`: it installs every hook of the patch and writes no `[Patch Options]` section. So:
 - A patch whose hooks all have their own `address` still installs there, as if every toggle were on. Give such toggles `default = true`, and have the patch's code treat a missing file, section or entry as the default.
