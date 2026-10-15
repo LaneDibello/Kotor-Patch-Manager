@@ -1,4 +1,5 @@
 #include "CExoString.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 
 CExoString::DefaultConstructor CExoString::defaultConstructor = nullptr;
@@ -90,7 +91,7 @@ CExoString::CExoString()
         InitializeOffsets();
     }
 
-    objectPtr = (classSize > 0) ? malloc(classSize) : nullptr;
+    objectPtr = (classSize > 0) ? GameMemory::Alloc(classSize) : nullptr;
 
     if (objectPtr) {
         defaultConstructor(static_cast<CExoString*>(objectPtr));
@@ -108,7 +109,7 @@ CExoString::CExoString(char* src, int length)
         InitializeOffsets();
     }
 
-    objectPtr = (classSize > 0) ? malloc(classSize) : nullptr;
+    objectPtr = (classSize > 0) ? GameMemory::Alloc(classSize) : nullptr;
 
     if (objectPtr) {
         cStrLenConstructor(static_cast<CExoString*>(objectPtr), src, length);
@@ -126,7 +127,7 @@ CExoString::CExoString(char* src)
         InitializeOffsets();
     }
 
-    objectPtr = (classSize > 0) ? malloc(classSize) : nullptr;
+    objectPtr = (classSize > 0) ? GameMemory::Alloc(classSize) : nullptr;
 
     if (objectPtr) {
         cStrConstructor(static_cast<CExoString*>(objectPtr), src);
@@ -136,7 +137,7 @@ CExoString::CExoString(char* src)
 CExoString::~CExoString() {
     if (shouldFree && objectPtr) {
         destructor(static_cast<CExoString*>(objectPtr));
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
     }
     // Base class destructor handles setting objectPtr to nullptr
 }

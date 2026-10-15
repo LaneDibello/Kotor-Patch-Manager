@@ -193,6 +193,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GameAPI", "GameAPI", "{D9D8
 		Patches\Common\GameAPI\CVirtualMachine.h = Patches\Common\GameAPI\CVirtualMachine.h
 		Patches\Common\GameAPI\GameAPIObject.cpp = Patches\Common\GameAPI\GameAPIObject.cpp
 		Patches\Common\GameAPI\GameAPIObject.h = Patches\Common\GameAPI\GameAPIObject.h
+		Patches\Common\GameAPI\GameMemory.cpp = Patches\Common\GameAPI\GameMemory.cpp
+		Patches\Common\GameAPI\GameMemory.h = Patches\Common\GameAPI\GameMemory.h
 		Patches\Common\GameAPI\GameVersion.cpp = Patches\Common\GameAPI\GameVersion.cpp
 		Patches\Common\GameAPI\GameVersion.h = Patches\Common\GameAPI\GameVersion.h
 	

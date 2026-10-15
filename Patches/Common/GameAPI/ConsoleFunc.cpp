@@ -1,4 +1,5 @@
 #include "ConsoleFunc.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 
 ConsoleFunc::Constructor ConsoleFunc::noParamConstructor = nullptr;
@@ -108,7 +109,7 @@ ConsoleFunc::ConsoleFunc(const char* name, void* function, funcTypes type)
         return;
     }
 
-    objectPtr = malloc(sizeof(ConsoleFunc_struct));
+    objectPtr = GameMemory::Alloc(sizeof(ConsoleFunc_struct));
     if (!objectPtr) {
         return;
     }
@@ -123,7 +124,7 @@ ConsoleFunc::~ConsoleFunc() {
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
     }
     // Base class destructor handles setting objectPtr to nullptr
 }

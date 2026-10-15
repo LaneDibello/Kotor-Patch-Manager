@@ -1,4 +1,5 @@
 #include "CRes.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 
 // Initialize static members
@@ -101,16 +102,17 @@ CRes::CRes()
         InitializeOffsets();
     }
 
-    objectPtr = malloc(OBJECT_SIZE);
+    objectPtr = GameMemory::Alloc(OBJECT_SIZE);
     constructor(objectPtr);
 }
 
 CRes::~CRes() {
     if (shouldFree && objectPtr) {
         destructor(objectPtr);
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
+        objectPtr = nullptr;
+        shouldFree = false;
     }
-    // Base class destructor handles setting objectPtr to nullptr
 }
 
 void* CRes::GetVTable() {

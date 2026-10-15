@@ -1,4 +1,5 @@
 #include "CSWGuiTextParams.h"
+#include "GameMemory.h"
 #include "CResRef.h"
 #include "CExoString.h"
 #include "CSWGuiText.h"
@@ -103,7 +104,7 @@ CSWGuiTextParams::CSWGuiTextParams()
     InitializeOffsets();
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -115,7 +116,7 @@ CSWGuiTextParams::~CSWGuiTextParams()
 {
     // CSWGuiTextParams has no game destructor; just free if we own the memory.
     if (shouldFree && objectPtr) {
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

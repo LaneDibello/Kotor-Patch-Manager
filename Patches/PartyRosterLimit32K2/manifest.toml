@@ -1,7 +1,7 @@
 [patch]
 id = "party-roster-limit-32-K2"
 name = "Party Roster Limit 32 K2 Beta"
-version = "0.0.1b"
+version = "0.0.2b"
 author = "Vriff"
 description = "Expands the Party roster to 32 slots. The included .gui file must be installed in override to function"
 

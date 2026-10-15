@@ -346,11 +346,6 @@ Identical to the Linux release, including `--patches-from`. The patches are buil
 once and copied into both architectures' archives, since a `.kpatch` is
 platform-independent.
 
-Note that no `.kpatch` currently carries a macOS DETOUR module: `create-patch.py`
-does not cross-compile one, and every patch with macOS hooks today is
-SIMPLE/REPLACEMENT, which needs no module at all. A DETOUR patch for a macOS game
-would build its `macos_x86_64.dylib` by hand and drop it in `binaries/`.
-
 ## Gotcha: the shared `obj/` directory
 
 `KPatchLauncher.csproj` sets `AppendRuntimeIdentifierToOutputPath=false`, so every
