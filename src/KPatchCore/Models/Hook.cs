@@ -108,6 +108,14 @@ public sealed class Hook
     public ulong? ConsumedExitAddress { get; init; }
 
     /// <summary>
+    /// When set, the hook is installed only while the named patch option holds the
+    /// named value (the hook's <c>when</c> key). Resolved at install time: a hook whose
+    /// condition does not hold never reaches patch_config.toml or the executable.
+    /// Default: null (always installed).
+    /// </summary>
+    public HookCondition? When { get; init; }
+
+    /// <summary>
     /// Validates that the hook configuration is valid
     /// </summary>
     public bool IsValid(out string? error)

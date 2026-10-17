@@ -102,6 +102,19 @@
         <Style Selector="Button:disabled">
             <Setter Property="Opacity" Value="0.4"/>
         </Style>
+        <!-- The triangle before an option: a button without a frame -->
+        <Style Selector="Button.disclosure">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+        </Style>
+        <Style Selector="Button.disclosure /template/ ContentPresenter">
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
 
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
@@ -361,6 +374,84 @@
                                                Margin="0,0,0,3"/>
                                     <TextBlock Text="{Binding SelectedPatch.Description}"
                                                TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- Options (a patch that has any): a tick box for a toggle, one radio button
+                                     per entry for a choice. The triangle before an option drops down what it
+                                     does. They can be read at any time and changed while the patch is checked. -->
+                                <StackPanel IsVisible="{Binding SelectedPatch.HasOptions}">
+                                    <TextBlock Text="Options:"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,3"/>
+                                    <TextBlock Text="Check this patch in the list to change its options."
+                                               FontStyle="Italic"
+                                               Opacity="0.6"
+                                               TextWrapping="Wrap"
+                                               IsVisible="{Binding !SelectedPatch.IsChecked}"/>
+                                    <ItemsControl ItemsSource="{Binding SelectedPatch.Options}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:PatchOptionViewModel">
+                                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,2">
+                                                    <Button Grid.Row="0" Grid.Column="0"
+                                                            Classes="disclosure"
+                                                            Content="{Binding DetailsGlyph}"
+                                                            Command="{Binding ToggleDetailsCommand}"
+                                                            ToolTip.Tip="Show or hide what this option does"/>
+
+                                                    <!-- A toggle -->
+                                                    <CheckBox Grid.Row="0" Grid.Column="1"
+                                                              IsVisible="{Binding IsToggle}"
+                                                              IsChecked="{Binding IsOn}"
+                                                              IsEnabled="{Binding IsAvailable}">
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   TextWrapping="Wrap"/>
+                                                    </CheckBox>
+
+                                                    <!-- A choice: its name, then its entries side by side (wrapping when
+                                                         they do not fit), under the details when those are dropped down -->
+                                                    <TextBlock Grid.Row="0" Grid.Column="1"
+                                                               IsVisible="{Binding IsChoice}"
+                                                               Text="{Binding Name}"
+                                                               TextWrapping="Wrap"
+                                                               VerticalAlignment="Center"/>
+                                                    <ItemsControl Grid.Row="2" Grid.Column="1"
+                                                                  IsVisible="{Binding IsChoice}"
+                                                                  ItemsSource="{Binding Choices}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel Orientation="Horizontal"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:PatchChoiceViewModel">
+                                                                <RadioButton IsChecked="{Binding IsSelected}"
+                                                                             IsEnabled="{Binding Option.IsAvailable}"
+                                                                             Foreground="{DynamicResource PrimaryBrush}"
+                                                                             Margin="0,0,20,0">
+                                                                    <TextBlock Text="{Binding Name}"
+                                                                               TextWrapping="Wrap"/>
+                                                                </RadioButton>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+
+                                                    <!-- What it does, then what the game has and what the patch ships with -->
+                                                    <StackPanel Grid.Row="1" Grid.Column="1"
+                                                                IsVisible="{Binding IsDetailsExpanded}"
+                                                                Margin="0,0,0,4">
+                                                        <TextBlock Text="{Binding Description}"
+                                                                   TextWrapping="Wrap"
+                                                                   FontSize="12"/>
+                                                        <TextBlock Text="{Binding StatusText}"
+                                                                   TextWrapping="Wrap"
+                                                                   FontSize="12"
+                                                                   Opacity="0.6"
+                                                                   Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </StackPanel>
 
                                 <!-- Compatibility Status -->

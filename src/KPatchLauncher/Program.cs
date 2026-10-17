@@ -6,6 +6,7 @@ using KPatchCore.Detectors;
 using KPatchCore.Launcher;
 using KPatchCore.Managers;
 using KPatchCore.Models;
+using KPatchCore.Validators;
 using KPatchLauncher.Models;
 
 namespace KPatchLauncher;
@@ -44,6 +45,18 @@ class Program
             }
 
             TakeHashBypassOption(ref args);
+
+            if (!TryTakeOptionValues(ref args, out var optionError))
+            {
+                Console.WriteLine($"ERROR: {optionError}");
+                return 1;
+            }
+
+            if (CliOptionValues.Count > 0 && !args.Contains("--patches", StringComparer.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("ERROR: --option sets what --patches installs; it does nothing on a launch alone.");
+                return 1;
+            }
 
             // CLI mode - launch game with patches
             return RunCli(args);
@@ -110,6 +123,62 @@ class Program
     }
 
     /// <summary>
+    /// Patch option values given on the command line, by patch id then option id.
+    /// </summary>
+    private static readonly Dictionary<string, Dictionary<string, string>> CliOptionValues = new();
+
+    /// <summary>
+    /// Consumes every "--option &lt;patch-id&gt;.&lt;option-id&gt;=&lt;value&gt;" from
+    /// <paramref name="args"/>, leaving the positional arguments where the rest of the CLI
+    /// expects them.
+    /// </summary>
+    /// <remarks>
+    /// Only the shape is checked here. Whether the patch has that option, and whether the
+    /// option can hold that value, is the installer's to say: it has the manifest.
+    /// </remarks>
+    /// <returns>False when an --option is present but unusable, with the reason in
+    /// <paramref name="error"/>.</returns>
+    private static bool TryTakeOptionValues(ref string[] args, out string? error)
+    {
+        error = null;
+        var kept = new List<string>();
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (!args[i].Equals("--option", StringComparison.OrdinalIgnoreCase))
+            {
+                kept.Add(args[i]);
+                continue;
+            }
+
+            if (i + 1 >= args.Length)
+            {
+                error = "--option needs a value: <patch-id>.<option-id>=<value>.";
+                return false;
+            }
+
+            var text = args[++i];
+            var dot = text.IndexOf('.');
+            var equals = text.IndexOf('=');
+            if (dot <= 0 || equals <= dot + 1 || equals == text.Length - 1)
+            {
+                error = $"Cannot read --option \"{text}\". Use <patch-id>.<option-id>=<value>.";
+                return false;
+            }
+
+            var patchId = text[..dot];
+            if (!CliOptionValues.TryGetValue(patchId, out var values))
+            {
+                CliOptionValues[patchId] = values = new Dictionary<string, string>();
+            }
+            values[text[(dot + 1)..equals]] = text[(equals + 1)..];
+        }
+
+        args = kept.ToArray();
+        return true;
+    }
+
+    /// <summary>
     /// Consumes "--bypass-hash" from <paramref name="args"/> and applies it for this run, leaving
     /// what remains positional for the callers that index into it.
     /// </summary>
@@ -164,6 +233,7 @@ class Program
             Console.WriteLine("Usage: KPatchLauncher.exe <game_executable.exe> --patches <patches_directory> [patch_id]...");
             Console.WriteLine("       [--deployment proxy|injection]  how the patcher gets into the game");
             Console.WriteLine("       [--bypass-hash]                 patch a game whose hash is not recognised");
+            Console.WriteLine("       [--option <patch_id>.<option_id>=<value>]...  set a patch option (default otherwise)");
             return 1;
         }
 
@@ -187,6 +257,27 @@ class Program
             return 1;
         }
 
+        // Checked before anything is removed, like the patch ids above: a mistyped option
+        // must not cost the install that is already there.
+        var strayOptions = CliOptionValues.Keys.FirstOrDefault(id => !patchIds.Contains(id));
+        if (strayOptions != null)
+        {
+            Console.WriteLine($"ERROR: Options were given for {strayOptions}, which is not being installed");
+            return 1;
+        }
+
+        foreach (var patchId in patchIds)
+        {
+            var values = OptionValidator.ResolveValues(
+                availablePatches[patchId].Manifest,
+                CliOptionValues.GetValueOrDefault(patchId));
+            if (!values.Success)
+            {
+                Console.WriteLine($"ERROR: {values.Error}");
+                return 1;
+            }
+        }
+
         var removalResult = PatchRemover.RemoveAllPatches(gameExePath, removeManagedState: false);
         if (!removalResult.Success)
         {
@@ -197,7 +288,8 @@ class Program
         var result = orchestrator.InstallPatches(
             gameExePath,
             patchIds,
-            patcherDirectory: AppContext.BaseDirectory);
+            patcherDirectory: AppContext.BaseDirectory,
+            optionValues: CliOptionValues);
         if (!result.Success)
         {
             Console.WriteLine($"ERROR: {result.Error}");

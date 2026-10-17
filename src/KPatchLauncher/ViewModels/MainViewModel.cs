@@ -416,10 +416,16 @@ public class MainViewModel : ViewModelBase
                 .OrderBy(x => x)
                 .ToList();
 
-            if (checkedPatches.SequenceEqual(installedPatches))
-                return 0;
+            // A changed option on a patch that stays installed is a change too: applying
+            // reinstalls it with the new value.
+            var optionChanges = AllPatches
+                .Count(p => p.IsChecked && !p.IsOrphaned && IsInstalled(p.Id) && p.HasPendingOptions);
 
-            return checkedPatches.Union(installedPatches).Except(checkedPatches.Intersect(installedPatches)).Count();
+            if (checkedPatches.SequenceEqual(installedPatches))
+                return optionChanges;
+
+            return optionChanges +
+                checkedPatches.Union(installedPatches).Except(checkedPatches.Intersect(installedPatches)).Count();
         }
     }
 
@@ -691,6 +697,9 @@ public class MainViewModel : ViewModelBase
 
             if (!_isBulkUpdatingPatchChecks)
             {
+                // Checking a patch is also choosing it: its description and its options
+                // come up beside the list, as they do when its name is clicked.
+                SelectedPatch = patch;
                 SaveCheckedPatches();
                 UpdatePendingChanges();
                 UpdateSelectAllState();
@@ -847,6 +856,45 @@ public class MainViewModel : ViewModelBase
 
         ClearPersistedPatchSelection();
         UpdateSelectAllState();
+        UpdatePendingChanges();
+    }
+
+    /// <summary>
+    /// Records the option values the game is installed with, and shows them when the installed
+    /// state is being adopted as the selection (after an apply, or on a first look at a game).
+    /// A plain status check leaves the player's unapplied picks alone, as it leaves their ticks.
+    /// </summary>
+    private void SyncOptionsWithInstalledValues(
+        IReadOnlyDictionary<string, Dictionary<string, string>> installedOptions,
+        bool adoptInstalledAsSelection)
+    {
+        foreach (var patch in AllPatches)
+        {
+            installedOptions.TryGetValue(patch.Id, out var installed);
+            foreach (var option in patch.Options)
+            {
+                // A patch installed before it had options, or not installed at all, is on
+                // defaults. So is a recorded value the patch no longer offers: an update can
+                // drop a choice, and applying that value again would be refused.
+                string? recorded = null;
+                if (installed != null && installed.TryGetValue(option.Id, out var entry))
+                {
+                    recorded = PatchOptionsIni.FromIniValue(option.IsToggle, entry);
+                }
+                var value = recorded != null && option.Accepts(recorded)
+                    ? recorded
+                    : option.Default;
+                // An option the player has not touched follows the install; one they have
+                // changed and not yet applied is theirs to keep.
+                var untouched = !option.IsPending;
+                option.InstalledValue = value;
+                if (adoptInstalledAsSelection || untouched)
+                {
+                    option.Value = value;
+                }
+            }
+        }
+
         UpdatePendingChanges();
     }
 
@@ -1052,6 +1100,7 @@ public class MainViewModel : ViewModelBase
                     if (uninstallResult.Success)
                     {
                         SyncPatchSelectionWithInstalledPatches(Array.Empty<string>(), adoptInstalledAsSelection: true);
+                        SyncOptionsWithInstalledValues(new Dictionary<string, Dictionary<string, string>>(), adoptInstalledAsSelection: true);
                         SetOperationInProgress(false, "All patches uninstalled successfully");
                     }
                     else
@@ -1079,7 +1128,10 @@ public class MainViewModel : ViewModelBase
                 GameExePath = GamePath,
                 PatchIds = checkedPatches.Select(p => p.Id).ToList(),
                 CreateBackup = true,
-                PatcherDirectory = AppContext.BaseDirectory
+                PatcherDirectory = AppContext.BaseDirectory,
+                OptionValues = checkedPatches
+                    .Where(p => p.HasOptions)
+                    .ToDictionary(p => p.Id, p => p.OptionValues())
             };
 
             // Run on background thread
@@ -1263,6 +1315,15 @@ public class MainViewModel : ViewModelBase
                     Description = entry.Manifest.Description
                 }).ToList();
 
+                foreach (var patch in patchViewModels)
+                {
+                    patch.SetOptions(allPatches[patch.Id].Manifest.Options);
+                    foreach (var option in patch.Options)
+                    {
+                        option.ValueChanged += (_, _) => UpdatePendingChanges();
+                    }
+                }
+
                 // Restore checked state from settings
                 var checkedIds = _settings.CheckedPatchIds.ToHashSet();
 
@@ -1349,12 +1410,14 @@ public class MainViewModel : ViewModelBase
                 if (!installInfo.Success || installInfo.Data == null)
                 {
                     SyncPatchSelectionWithInstalledPatches(Array.Empty<string>(), adoptInstalledAsSelection);
+                    SyncOptionsWithInstalledValues(new Dictionary<string, Dictionary<string, string>>(), adoptInstalledAsSelection);
                     SetOperationInProgress(false, isAutoRefresh ? null : "No patches detected", isAutoRefresh);
                     return;
                 }
 
                 var info = installInfo.Data;
                 SyncPatchSelectionWithInstalledPatches(info.InstalledPatches, adoptInstalledAsSelection);
+                SyncOptionsWithInstalledValues(info.InstalledOptions, adoptInstalledAsSelection);
 
                 var installedCount = _installedPatchIds.Count;
                 SetOperationInProgress(
@@ -1378,6 +1441,7 @@ public class MainViewModel : ViewModelBase
                 // Failing to read the status says nothing about what the user selected, so the
                 // caller's authority still decides whether the ticks are rewritten.
                 SyncPatchSelectionWithInstalledPatches(Array.Empty<string>(), adoptInstalledAsSelection);
+                SyncOptionsWithInstalledValues(new Dictionary<string, Dictionary<string, string>>(), adoptInstalledAsSelection);
                 SetOperationInProgress(false, isAutoRefresh ? null : $"Could not check patch status: {ex.Message}", isAutoRefresh);
             });
         }
