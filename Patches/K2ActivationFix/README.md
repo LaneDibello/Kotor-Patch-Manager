@@ -24,6 +24,10 @@ When the window stays in front, no `WM_ACTIVATEAPP(TRUE)` ever arrives, so the m
 hides the load screen and the game stays stuck there. The process is alive, the UI thread still
 pumps messages, and the load never finishes.
 
+The load screen the game stays on during the hang (captured under Proton before the fix):
+
+<img width="2087" height="1259" alt="Load screen the game stays on during the hang" src="https://github.com/user-attachments/assets/9cfaf5ce-a6d2-4276-b05f-eeef46c5a0f1" />
+
 ## Fix
 
 One detour at `0x0040D69E`, run just before that `CALL [PostMessageA]`. It receives a pointer to the
