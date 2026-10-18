@@ -1,6 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#pragma comment(lib, "user32.lib")
+
 namespace {
 
 // The four stdcall arguments the game pushed for PostMessageA, in stack order.
