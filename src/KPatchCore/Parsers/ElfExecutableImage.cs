@@ -105,9 +105,12 @@ internal sealed class ElfExecutableImage : IExecutableImage
     {
         foreach (var note in elf.Sections.OfType<ElfNoteTable>().SelectMany(t => t.Entries).OfType<ElfGnuNoteBuildId>())
         {
+            if (note.BuildId is not { } buildId)
+                continue;
+
             using var bytes = new MemoryStream();
-            note.BuildId.Position = 0;
-            note.BuildId.CopyTo(bytes);
+            buildId.Position = 0;
+            buildId.CopyTo(bytes);
             return $"elf:{Convert.ToHexString(bytes.ToArray()).ToLowerInvariant()}";
         }
 

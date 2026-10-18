@@ -1,4 +1,5 @@
 #include "CExoIni.h"
+#include "GameMemory.h"
 #include "CExoString.h"
 
 CExoIni::ConstructorFn CExoIni::constructor = nullptr;
@@ -65,7 +66,7 @@ CExoIni::CExoIni() : GameAPIObject(nullptr, true) {
     InitializeFunctions();
     InitializeOffsets();
 
-    objectPtr = (classSize > 0) ? malloc(classSize) : nullptr;
+    objectPtr = (classSize > 0) ? GameMemory::Alloc(classSize) : nullptr;
 
     if (objectPtr && constructor) {
         constructor(objectPtr);
@@ -77,7 +78,7 @@ CExoIni::~CExoIni() {
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

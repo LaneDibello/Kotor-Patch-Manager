@@ -1,22 +1,26 @@
-// Implements Vriff's 32-slot roster patch for KOTOR I GOG 1.03.
-// Pairs with kotor1-gog-103.hooks.toml.
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 
 #include "Common.h"
 #include "GameAPI/GameVersion.h"
 #include "GameAPI/CAppManager.h"
 #include "GameAPI/CClientExoApp.h"
 #include "GameAPI/CServerExoApp.h"
-#include "GameAPI/CGuiInGame.h"
 #include "GameAPI/CGameObject.h"
 #include "GameAPI/CResGFF.h"
 #include "GameAPI/CResRef.h"
 #include "GameAPI/CSWSCreature.h"
 #include "GameAPI/CSWCCreature.h"
+#include "GameAPI/CSWGuiBorderParams.h"
 #include "GameAPI/CSWGuiButton.h"
+#include "GameAPI/CSWGuiControl.h"
 #include "GameAPI/CSWGuiPanel.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -27,9 +31,6 @@ namespace
     constexpr int MAX_NPC_SLOTS = 32;
     constexpr int EXTRA_NPC_SLOTS = MAX_NPC_SLOTS - STOCK_NPC_SLOTS;
     constexpr int PRIMARY_MEMBER_CAPACITY = 2;
-
-    constexpr const char* EXPECTED_K1_SHA =
-        "9C10E0450A6EECA417E036E3CDE7474FED1F0A92AAB018446D156944DEA91435";
 
     // Loads stock layouts from the selected KPM address database.
     int OFFSET_PARTY_MEMBER_COUNT = -1;
@@ -54,41 +55,48 @@ namespace
     constexpr int CLIENT_CREATURE_DEFERRED_DELETE_OFFSET = 0xE4;
     int GAME_EFFECT_TYPE_OFFSET = -1;
     int GAME_EFFECT_SUBTYPE_FLAGS_OFFSET = -1;
+    int OBJECT_POSITION_OFFSET = -1;
+    int OBJECT_ORIENTATION_OFFSET = -1;
+    int CREATURE_PATHFIND_INFO_OFFSET = -1;
     constexpr WORD GAME_EFFECT_SUBTYPE_MASK = 0x7u;
-
-    constexpr DWORD PARTY_EXTENSION_MAGIC = 0x314B5250u;  // Encodes "PRK1".
-    constexpr DWORD PARTY_EXTENSION_VERSION = 1u;
 
     constexpr int PARTY_SELECT_PAGE_SLOTS = 16;
     constexpr int LAST_PARTY_SELECT_PAGE_BASE =
         MAX_NPC_SLOTS - PARTY_SELECT_PAGE_SLOTS;
-    constexpr int PARTY_SELECTION_RECORD_COUNT = MAX_NPC_SLOTS;
+    constexpr int PARTY_SELECTION_VIEW_RECORD_COUNT = PARTY_SELECT_PAGE_SLOTS;
+    constexpr int PARTY_SELECTION_PAGE_CONTROL_COUNT = 2;
+    constexpr int PARTY_SELECTION_STATE_CAPACITY = 2;
     int PARTY_SELECT_SLOT_STRIDE = -1;
     int PANEL_PARTY_SELECTION_DATA_BASE_OFFSET = -1;
-    unsigned int STOCK_PARTY_SELECTION_PANEL_SIZE = 0;
-    int PANEL_TAIL_SHIFT = 0;
     int GUI_BUTTON_OBJECT_SIZE = -1;
-    constexpr int PARTY_SELECTION_PAGE_CONTROL_COUNT = 2;
-    int PANEL_PAGE_CONTROLS_BASE_OFFSET = -1;
-    unsigned int EXTENDED_PARTY_SELECTION_PANEL_SIZE = 0;
 
     int DATA_BUTTON_OFFSET = -1;
     int DATA_NOT_AVAILABLE_LABEL_OFFSET = -1;
     int DATA_CHARACTER_LABEL_OFFSET = -1;
+    constexpr int DATA_BUTTON_BACK_POINTER_OFFSET = 0x58;
+    constexpr int DATA_BUTTON_SELECTED_OFFSET = 0x1C4;
+    constexpr int DATA_BUTTON_INIT_PARAMS_OFFSET = 0xF4;
+    constexpr int DATA_DEFAULT_COLOR_OFFSET = 0x104;
+    constexpr int DATA_CHARACTER_TEXTURE_PARAMS_OFFSET = 0x378;
+    constexpr int DATA_ALPHA_OFFSET = 0x8C;
+    constexpr int DATA_SELECTION_ALPHA_OFFSET = 0x384;
     constexpr int DATA_FLAGS_OFFSET = 0x448;
     constexpr int DATA_OBJECT_INDEX_OFFSET = 0x44C;
+    constexpr int DATA_LOGICAL_SLOT_OFFSET = 0x450;
     constexpr DWORD PANEL_SLOT_ENABLED_FLAG = 0x1u;
+    constexpr DWORD PANEL_SLOT_HAS_OBJECT_FLAG = 0x2u;
     constexpr DWORD PANEL_SLOT_FORCED_FLAG = 0x4u;
+    constexpr int PANEL_SELECTED_COUNT_OFFSET = 0x68;
     constexpr int PANEL_FORCED_MODE_OFFSET = 0x6C;
     constexpr int PANEL_MODE_OFFSET = 0x70;
-    int PANEL_ACCEPT_BUTTON_OFFSET = -1;
+    int PANEL_DONE_BUTTON_OFFSET = -1;
     int PANEL_CURRENT_PORTRAIT_OFFSET = -1;
     constexpr int GUI_NAVIGATION_UP = 0;
     constexpr int GUI_NAVIGATION_DOWN = 2;
-    constexpr int GUI_CONTROL_EVENT_OWNER_OFFSET = 0x4C;
     constexpr int GUI_CONTROL_PRIMARY_EVENT = 0x27;
     constexpr int GUI_CONTROL_CLICK_EVENT = 0x2D;
-    constexpr int IN_GAME_GUI_PARTY_SELECTION_STATE_OFFSET = 0x30;
+    constexpr DWORD ADDRESS_PARTY_SELECTION_HOVER_HANDLER = 0x0060E760u;
+    constexpr int GUI_CONTROL_EVENT_OWNER_OFFSET = 0x4C;
 
     int PARTY_SELECTION_RECORD_CONTROL_OFFSETS[3] = {};
 
@@ -99,22 +107,22 @@ namespace
         BYTE selectable;
     };
 
-#pragma pack(push, 1)
-    struct PersistedPartySlot
-    {
-        DWORD available;
-        BYTE selectable;
-        BYTE reserved;
-    };
 
-    struct PersistedPartyExtension
+    struct PartySelectionViewState
     {
-        DWORD magic;
-        PersistedPartySlot slots[EXTRA_NPC_SLOTS];
+        void* owner;
+        BYTE* records;
+        BYTE* pageButtons;
+        unsigned int constructedRecords;
+        unsigned int constructedButtons;
+        int pageBase;
+        bool ready;
+        bool selected[MAX_NPC_SLOTS];
+        bool forced[MAX_NPC_SLOTS];
     };
-#pragma pack(pop)
 
     PartySlotSnapshot gExtendedPartySlots[EXTRA_NPC_SLOTS];
+    PartySelectionViewState gPartySelectionViews[PARTY_SELECTION_STATE_CAPACITY] = {};
 
     typedef DWORD RawCExoString[2];
 
@@ -146,8 +154,32 @@ namespace
     using GuiButtonDtorFn = void(__thiscall*)(void*);
     using GuiPartySelectionButtonSetSelectedFn =
         void(__thiscall*)(void*, int);
-    using PartySelectionAcceptFn = void(__thiscall*)(void*);
+    using PartySelectionRecordCtorFn = void* (__thiscall*)(void*);
+    using PartySelectionRecordDtorFn = void(__thiscall*)(void*);
+    using GuiBorderSetPulsingAlphaFn = void(__thiscall*)(void*, int, int, int);
+    using ServerGetPartyTableFn = void* (__thiscall*)(void*);
+    using ObjectGetPortraitFn = void* (__thiscall*)(void*, void*);
+    using GuiBorderSetFillImageFn = void(__thiscall*)(void*, const void*, int);
+    using PartySelectionUpdateCountFn = void(__thiscall*)(void*);
+    using ClientGetPartyFn = void* (__thiscall*)(void*);
+    using PartyGetCharacterFn = void* (__thiscall*)(void*, int);
+    using PartyGetIndexFn = int(__thiscall*)(void*, DWORD);
+    using ServerToClientObjectIdFn = DWORD(__thiscall*)(void*, DWORD);
+    using ClientCreatureSetInPartyFn = void(__thiscall*)(void*, int);
+    using ClientCreatureGetServerCreatureFn = void* (__thiscall*)(void*);
+    using ServerCreatureSetInPartyFn = void(__thiscall*)(void*, int, int);
+    using PartyTableRemoveMemberFn = int(__thiscall*)(void*, int);
+    using PartyTableSpawnNpcFn = DWORD(__thiscall*)(
+        void*, int, int, const void*, const void*, int);
+    using PartyTableAddMemberFn = int(__thiscall*)(void*, int, DWORD);
+    using ObjectClearAllActionsFn = void(__thiscall*)(void*, int);
+    using PathfindResetWaypointDataFn = void(__thiscall*)(void*);
+    using CreatureGetVisibleListElementFn = int(__thiscall*)(void*, DWORD);
+    using CreatureAddToVisibleListFn = void(__thiscall*)(
+        void*, DWORD, int, int, int, int);
+    using PartyRecalculateFollowPointFn = void(__thiscall*)(void*);
 
+    // Uses raw GameAPI bindings when wrappers cannot preserve engine semantics.
     GetCreatureByObjectIdFn nativeServerGetCreatureByObjectId;
     OperatorNewFn nativeOperatorNew;
     CreatureCtorFn nativeCreatureCtor;
@@ -168,7 +200,30 @@ namespace
     GuiSetMoveToControlFn nativeGuiSetMoveToControl;
     GuiButtonCtorFn nativeGuiButtonCtor;
     GuiButtonDtorFn nativeGuiButtonDtor;
-    PartySelectionAcceptFn nativePartySelectionAccept;
+    PartySelectionRecordCtorFn nativePartySelectionRecordCtor;
+    PartySelectionRecordDtorFn nativePartySelectionRecordDtor;
+    GuiBorderSetPulsingAlphaFn nativeGuiBorderSetPulsingAlpha;
+    ServerGetPartyTableFn nativeServerGetPartyTable;
+    ObjectGetPortraitFn nativeObjectGetPortrait;
+    GuiBorderSetFillImageFn nativeGuiBorderSetFillImage;
+    PartySelectionUpdateCountFn nativePartySelectionUpdateCount;
+    ClientGetPartyFn nativeClientGetParty;
+    PartyGetCharacterFn nativePartyGetCharacter;
+    PartyGetIndexFn nativePartyGetIndex;
+    ServerToClientObjectIdFn nativeServerToClientObjectId;
+    ClientCreatureSetInPartyFn nativeClientCreatureSetInParty;
+    ClientCreatureGetServerCreatureFn nativeClientCreatureGetServerCreature;
+    ServerCreatureSetInPartyFn nativeServerCreatureSetInParty;
+    PartyTableRemoveMemberFn nativePartyTableRemoveMember;
+    PartyTableSpawnNpcFn nativePartyTableSpawnNpc;
+    PartyTableAddMemberFn nativePartyTableAddMember;
+    ObjectClearAllActionsFn nativeObjectClearAllActions;
+    PathfindResetWaypointDataFn nativePathfindResetWaypointData;
+    CreatureGetVisibleListElementFn nativeCreatureGetVisibleListElement;
+    CreatureAddToVisibleListFn nativeCreatureAddToVisibleList;
+    PartyRecalculateFollowPointFn nativePartyRecalculateFollowPoint;
+    void* nativePartySelectionOnToggled;
+    void* nativePartySelectionOnEnter;
     TransferInventoryFn nativeTransferInventory;
     CreatureForceEquipClothingFn nativeCreatureForceEquipClothing;
     ScalarDeletingDestructorFn nativeCreatureDeletingDestructor;
@@ -179,8 +234,7 @@ namespace
     Fn RequireFunctionAddress(const char* className, const char* functionName)
     {
         void* address = GameVersion::GetFunctionAddress(className, functionName);
-        const uintptr_t raw = reinterpret_cast<uintptr_t>(address);
-        if (!address || raw > 0x7FFFFFFFu) {
+        if (!address) {
             throw GameVersionException(
                 std::string("Invalid function: ") + className + "::" + functionName);
         }
@@ -189,10 +243,6 @@ namespace
 
     int RequireOffset(const char* className, const char* memberName)
     {
-        if (!GameVersion::HasOffset(className, memberName)) {
-            throw GameVersionException(
-                std::string("Missing offset: ") + className + "::" + memberName);
-        }
         const int offset = GameVersion::GetOffset(className, memberName);
         if (offset < 0) {
             throw GameVersionException(
@@ -203,9 +253,6 @@ namespace
 
     unsigned int RequireClassSize(const char* className)
     {
-        if (!GameVersion::HasClass(className)) {
-            throw GameVersionException(std::string("Missing class size: ") + className);
-        }
         const int size = GameVersion::GetClassSize(className);
         if (size <= 0) {
             throw GameVersionException(std::string("Invalid class size: ") + className);
@@ -218,12 +265,6 @@ namespace
         if (!GameVersion::Initialize()) {
             return false;
         }
-        if (GameVersion::GetTitle() != GameTitle::KOTOR1 ||
-            GameVersion::GetVersionSha() != EXPECTED_K1_SHA) {
-            OutputDebugStringA("[K1 Party Roster Limit 32] Unsupported GameAPI version\n");
-            return false;
-        }
-
         OFFSET_PARTY_MEMBER_COUNT = RequireOffset("CSWPartyTable", "pt_num_members");
         OFFSET_PARTY_MEMBER_SLOTS = RequireOffset("CSWPartyTable", "pt_member_ids");
         OFFSET_NPC_OBJECT_IDS = OFFSET_PARTY_MEMBER_SLOTS +
@@ -239,28 +280,26 @@ namespace
         CREATURE_POST_LOAD_STATE_OFFSET = RequireOffset("CSWSObject", "is_raiseable");
         GAME_EFFECT_TYPE_OFFSET = RequireOffset("CGameEffect", "type");
         GAME_EFFECT_SUBTYPE_FLAGS_OFFSET = RequireOffset("CGameEffect", "subtype");
+        OBJECT_POSITION_OFFSET = RequireOffset("CSWSObject", "position");
+        OBJECT_ORIENTATION_OFFSET = RequireOffset("CSWSObject", "orientation");
+        CREATURE_PATHFIND_INFO_OFFSET =
+            RequireOffset("CSWSCreature", "path_find_info");
 
         PARTY_SELECT_SLOT_STRIDE = static_cast<int>(RequireClassSize("CSWGuiPartySelectionData"));
         PANEL_PARTY_SELECTION_DATA_BASE_OFFSET =
             RequireOffset("CSWGuiPartySelection", "party_data");
-        STOCK_PARTY_SELECTION_PANEL_SIZE = RequireClassSize("CSWGuiPartySelection");
         GUI_BUTTON_OBJECT_SIZE = static_cast<int>(RequireClassSize("CSWGuiButton"));
         DATA_BUTTON_OFFSET = RequireOffset("CSWGuiPartySelectionData", "npc_button");
         DATA_NOT_AVAILABLE_LABEL_OFFSET =
             RequireOffset("CSWGuiPartySelectionData", "portrait_label");
         DATA_CHARACTER_LABEL_OFFSET =
             RequireOffset("CSWGuiPartySelectionData", "character_label");
-        PANEL_TAIL_SHIFT = EXTRA_NPC_SLOTS * PARTY_SELECT_SLOT_STRIDE;
-        PANEL_PAGE_CONTROLS_BASE_OFFSET =
-            static_cast<int>(STOCK_PARTY_SELECTION_PANEL_SIZE) + PANEL_TAIL_SHIFT;
-        EXTENDED_PARTY_SELECTION_PANEL_SIZE = static_cast<unsigned int>(
-            PANEL_PAGE_CONTROLS_BASE_OFFSET +
-            PARTY_SELECTION_PAGE_CONTROL_COUNT * GUI_BUTTON_OBJECT_SIZE);
-        PANEL_ACCEPT_BUTTON_OFFSET =
-            RequireOffset("CSWGuiPartySelection", "accept_button") + PANEL_TAIL_SHIFT;
+        PANEL_DONE_BUTTON_OFFSET =
+            RequireOffset("CSWGuiPartySelection", "done_button");
+        const int acceptButtonOffset =
+            RequireOffset("CSWGuiPartySelection", "accept_button");
         PANEL_CURRENT_PORTRAIT_OFFSET =
-            RequireOffset("CSWGuiPartySelection", "accept_button") +
-            GUI_BUTTON_OBJECT_SIZE + PANEL_TAIL_SHIFT;
+            acceptButtonOffset + GUI_BUTTON_OBJECT_SIZE;
         PARTY_SELECTION_RECORD_CONTROL_OFFSETS[0] = DATA_CHARACTER_LABEL_OFFSET;
         PARTY_SELECTION_RECORD_CONTROL_OFFSETS[1] = DATA_BUTTON_OFFSET;
         PARTY_SELECTION_RECORD_CONTROL_OFFSETS[2] = DATA_NOT_AVAILABLE_LABEL_OFFSET;
@@ -285,7 +324,57 @@ namespace
         nativeGuiSetMoveToControl = RequireFunctionAddress<GuiSetMoveToControlFn>("CSWGuiNavigable", "SetMoveToControl");
         nativeGuiButtonCtor = RequireFunctionAddress<GuiButtonCtorFn>("CSWGuiButton", "Constructor");
         nativeGuiButtonDtor = RequireFunctionAddress<GuiButtonDtorFn>("CSWGuiButton", "Destructor");
-        nativePartySelectionAccept = RequireFunctionAddress<PartySelectionAcceptFn>("CSWGuiPartySelection", "AcceptParty");
+        nativePartySelectionRecordCtor = RequireFunctionAddress<PartySelectionRecordCtorFn>("CSWGuiPartySelectionData", "Constructor");
+        nativePartySelectionRecordDtor = RequireFunctionAddress<PartySelectionRecordDtorFn>("CSWGuiPartySelectionData", "Destructor");
+        nativeGuiBorderSetPulsingAlpha = RequireFunctionAddress<GuiBorderSetPulsingAlphaFn>("CSWGuiBorderParams", "SetPulsingAlpha");
+        nativeServerGetPartyTable = RequireFunctionAddress<ServerGetPartyTableFn>("CServerExoApp", "GetPartyTable");
+        nativeObjectGetPortrait = RequireFunctionAddress<ObjectGetPortraitFn>("CSWSObject", "GetPortrait");
+        nativeGuiBorderSetFillImage = RequireFunctionAddress<GuiBorderSetFillImageFn>("CSWGuiBorderParams", "SetFillImage");
+        nativePartySelectionUpdateCount = RequireFunctionAddress<PartySelectionUpdateCountFn>("CSWGuiPartySelection", "UpdateCount");
+        nativeClientGetParty = RequireFunctionAddress<ClientGetPartyFn>(
+            "CClientExoApp", "GetSWParty");
+        nativePartyGetCharacter = RequireFunctionAddress<PartyGetCharacterFn>(
+            "CSWParty", "GetCharacter");
+        nativePartyGetIndex = RequireFunctionAddress<PartyGetIndexFn>(
+            "CSWParty", "GetIndex");
+        nativeServerToClientObjectId =
+            RequireFunctionAddress<ServerToClientObjectIdFn>(
+                "CClientExoAppInternal", "ServerToClientObjectId");
+        nativeClientCreatureSetInParty =
+            RequireFunctionAddress<ClientCreatureSetInPartyFn>(
+                "CSWCCreature", "SetInParty");
+        nativeClientCreatureGetServerCreature =
+            RequireFunctionAddress<ClientCreatureGetServerCreatureFn>(
+                "CSWCCreature", "GetServerCreature");
+        nativeServerCreatureSetInParty =
+            RequireFunctionAddress<ServerCreatureSetInPartyFn>(
+                "CSWSCreature", "SetInParty");
+        nativePartyTableRemoveMember =
+            RequireFunctionAddress<PartyTableRemoveMemberFn>(
+                "CSWPartyTable", "RemoveMember");
+        nativePartyTableSpawnNpc = RequireFunctionAddress<PartyTableSpawnNpcFn>(
+            "CSWPartyTable", "SpawnNPC");
+        nativePartyTableAddMember = RequireFunctionAddress<PartyTableAddMemberFn>(
+            "CSWPartyTable", "AddMember");
+        nativeObjectClearAllActions = RequireFunctionAddress<ObjectClearAllActionsFn>(
+            "CSWSObject", "ClearAllActions");
+        nativePathfindResetWaypointData =
+            RequireFunctionAddress<PathfindResetWaypointDataFn>(
+                "CPathfindInformation", "ResetWayPointData");
+        nativeCreatureGetVisibleListElement =
+            RequireFunctionAddress<CreatureGetVisibleListElementFn>(
+                "CSWSCreature", "GetVisibleListElement");
+        nativeCreatureAddToVisibleList =
+            RequireFunctionAddress<CreatureAddToVisibleListFn>(
+                "CSWSCreature", "AddToVisibleList");
+        nativePartyRecalculateFollowPoint =
+            RequireFunctionAddress<PartyRecalculateFollowPointFn>(
+                "CSWParty", "RecaulateFollowPoint");
+        nativePartySelectionOnToggled = GameVersion::GetFunctionAddress("CSWGuiPartySelection", "OnToggled");
+        nativePartySelectionOnEnter = GameVersion::GetFunctionAddress("CSWGuiPartySelection", "OnEnter");
+        if (!nativePartySelectionOnToggled || !nativePartySelectionOnEnter) {
+            throw GameVersionException("Missing party-selection event handlers");
+        }
         nativeTransferInventory = RequireFunctionAddress<TransferInventoryFn>("CSWPartyTable", "TransferInventory");
         nativeCreatureForceEquipClothing = RequireFunctionAddress<CreatureForceEquipClothingFn>("CSWSCreature", "ForceEquipClothing");
         nativeCreatureDeletingDestructor = RequireFunctionAddress<ScalarDeletingDestructorFn>("CSWSCreature", "Destructor_2");
@@ -296,7 +385,7 @@ namespace
 
     bool IsStockSlot(int slot)
     {
-        return slot < STOCK_NPC_SLOTS;
+        return slot >= 0 && slot < STOCK_NPC_SLOTS;
     }
 
     bool IsValidLogicalSlot(int slot)
@@ -316,19 +405,42 @@ namespace
         }
     }
 
-    void* GetInGameGui()
-    {
-        CAppManager manager;
-        std::unique_ptr<CClientExoApp> client(manager.GetClient());
-        std::unique_ptr<CGuiInGame> gui(client->GetInGameGui());
-        return gui->GetPtr();
-    }
-
     void* GetServerApplication()
     {
         CAppManager manager;
         std::unique_ptr<CServerExoApp> server(manager.GetServer());
         return server->GetPtr();
+    }
+
+    void* GetClientApplication()
+    {
+        CAppManager manager;
+        std::unique_ptr<CClientExoApp> client(manager.GetClient());
+        return client->GetPtr();
+    }
+
+    int GetClientPartyIndexForServerObject(DWORD serverObjectId)
+    {
+        if (serverObjectId == NPC_OBJECT_SENTINEL) {
+            return -1;
+        }
+        void* client = GetClientApplication();
+        if (!client) {
+            return -1;
+        }
+        void* clientParty = nativeClientGetParty(client);
+        if (!clientParty) {
+            return -1;
+        }
+        const DWORD clientObjectId = nativeServerToClientObjectId(
+            client,
+            serverObjectId);
+        return nativePartyGetIndex(clientParty, clientObjectId);
+    }
+
+    void* GetCurrentPartyTable()
+    {
+        return nativeServerGetPartyTable(GetServerApplication());
     }
 
     void* GetServerCreatureByObjectId(void* server, DWORD objectId)
@@ -388,6 +500,9 @@ namespace
         int logicalSlot,
         DWORD available)
     {
+        if (!IsValidLogicalSlot(logicalSlot)) {
+            return;
+        }
         if (IsStockSlot(logicalSlot)) {
             setObjectProperty<DWORD>(
                 partyTable,
@@ -493,8 +608,18 @@ namespace
         // Builds lowercase, zero-padded CResRef identifiers.
         std::snprintf(identity, sizeof(identity), "availnpc%d", logicalSlot);
         nativeAddGameInProgress(partyTable);
-        CResRef identityRef(identity);
-        nativeCreatureLoadFromTemplate(creature, identityRef.GetPtr(), 0);
+        int loadResult = 0;
+        {
+            CResRef identityRef(identity);
+            loadResult = nativeCreatureLoadFromTemplate(
+                creature,
+                identityRef.GetPtr(),
+                0);
+        }
+        if (loadResult == 0) {
+            DeleteEngineObject(creature, nativeCreatureDeletingDestructor);
+            return nullptr;
+        }
         nativeRemoveGameInProgress(partyTable);
         return creature;
     }
@@ -534,6 +659,9 @@ namespace
         }
 
         void* creature = LoadSavedCreatureResource(partyTable, logicalSlot);
+        if (!creature) {
+            return NPC_OBJECT_SENTINEL;
+        }
         ApplyPostLoadCreatureRecovery(creature, applyRecovery);
         const DWORD objectId = CGameObject(creature).GetId();
         SetLogicalNPCObjectId(partyTable, logicalSlot, objectId);
@@ -586,127 +714,546 @@ namespace
         return 1;
     }
 
-    BYTE* GetPartySelectionDataAt(void* panel, int logicalSlot)
+    BYTE* GetStockPartySelectionDataAt(void* panel, int recordIndex)
     {
         return reinterpret_cast<BYTE*>(panel) +
             PANEL_PARTY_SELECTION_DATA_BASE_OFFSET +
-            logicalSlot * PARTY_SELECT_SLOT_STRIDE;
+            recordIndex * PARTY_SELECT_SLOT_STRIDE;
     }
 
-    BYTE* GetPartySelectionPageControlAt(void* panel, int controlIndex)
+    void* AllocateAligned(std::size_t size, std::size_t alignment)
     {
-        return reinterpret_cast<BYTE*>(panel) +
-            PANEL_PAGE_CONTROLS_BASE_OFFSET +
-            controlIndex * GUI_BUTTON_OBJECT_SIZE;
+        const std::size_t total = size + alignment - 1 + sizeof(void*);
+        void* raw = std::malloc(total);
+        if (!raw) {
+            return nullptr;
+        }
+        const uintptr_t start = reinterpret_cast<uintptr_t>(raw) + sizeof(void*);
+        const uintptr_t aligned = (start + alignment - 1) & ~(alignment - 1);
+        reinterpret_cast<void**>(aligned)[-1] = raw;
+        return reinterpret_cast<void*>(aligned);
     }
 
-    void DetachAllPartySelectionRecordControls(CSWGuiPanel& panelView)
+    void FreeAligned(void* memory)
     {
-        void* panel = panelView.GetPtr();
-        std::unique_ptr<CExoArrayList<CSWGuiControl*>> controls(panelView.GetControls());
-        for (int slot = 0; slot < PARTY_SELECTION_RECORD_COUNT; ++slot) {
-            BYTE* data = GetPartySelectionDataAt(panel, slot);
-            for (int controlOffset : PARTY_SELECTION_RECORD_CONTROL_OFFSETS) {
-                CSWGuiControl control(data + controlOffset);
-                controls->DeleteAt(controls->IndexOf(&control));
+        if (memory) {
+            std::free(reinterpret_cast<void**>(memory)[-1]);
+        }
+    }
+
+    PartySelectionViewState* FindPartySelectionView(void* panel)
+    {
+        for (PartySelectionViewState& state : gPartySelectionViews) {
+            if (state.owner == panel) {
+                return &state;
+            }
+        }
+        return nullptr;
+    }
+
+    PartySelectionViewState* ReservePartySelectionView(void* panel)
+    {
+        if (PartySelectionViewState* state = FindPartySelectionView(panel)) {
+            return state;
+        }
+        for (PartySelectionViewState& state : gPartySelectionViews) {
+            if (!state.owner) {
+                std::memset(&state, 0, sizeof(state));
+                state.owner = panel;
+                state.pageBase = -1;
+                return &state;
+            }
+        }
+        return nullptr;
+    }
+
+    BYTE* GetViewRecord(PartySelectionViewState* state, int physicalIndex)
+    {
+        return state->records + physicalIndex * PARTY_SELECT_SLOT_STRIDE;
+    }
+
+    BYTE* GetPageButton(PartySelectionViewState* state, int controlIndex)
+    {
+        return state->pageButtons + controlIndex * GUI_BUTTON_OBJECT_SIZE;
+    }
+
+    void BindNamedControl(void* panel, void* destination, const char* tag)
+    {
+        RawCExoString tagString;
+        nativeCexostringCtorCstr(&tagString, tag);
+        CExoString tagView(static_cast<void*>(&tagString));
+        CSWGuiControl controlView(destination);
+        CSWGuiPanel(panel).InitControl(&controlView, &tagView, 1);
+        nativeCexostringDtor(&tagString);
+    }
+
+    void SetUnavailableViewRecord(BYTE* record, int logicalSlot)
+    {
+        nativePartySelectionButtonSetSelected(record + DATA_BUTTON_OFFSET, 0);
+        setObjectProperty<DWORD>(
+            record,
+            DATA_FLAGS_OFFSET,
+            PANEL_SLOT_HAS_OBJECT_FLAG);
+        setObjectProperty<int>(record, DATA_OBJECT_INDEX_OFFSET, -1);
+        setObjectProperty<int>(record, DATA_LOGICAL_SLOT_OFFSET, logicalSlot);
+        setObjectProperty<float>(record, DATA_ALPHA_OFFSET, 1.0f);
+        setObjectProperty<float>(record, DATA_SELECTION_ALPHA_OFFSET, 0.25f);
+
+        CSWGuiButton button(record + DATA_BUTTON_OFFSET);
+        CSWGuiControl unavailable(record + DATA_NOT_AVAILABLE_LABEL_OFFSET);
+        CSWGuiControl character(record + DATA_CHARACTER_LABEL_OFFSET);
+        button.SetControlBitFlag(1, true);
+        button.SetControlBitFlag(5, true);
+        button.SetEnabled(0);
+        unavailable.SetControlBitFlag(1, logicalSlot < STOCK_NPC_SLOTS);
+        unavailable.SetControlBitFlag(5, true);
+        character.SetControlBitFlag(1, false);
+        character.SetControlBitFlag(5, true);
+    }
+
+    bool GetLogicalNPCSelectability(void* partyTable, int logicalSlot)
+    {
+        if (!IsValidLogicalSlot(logicalSlot) ||
+            GetLogicalNPCAvailability(partyTable, logicalSlot) == 0) {
+            return false;
+        }
+        return IsStockSlot(logicalSlot)
+            ? getObjectProperty<BYTE>(partyTable, OFFSET_NPC_SELECTABLE + logicalSlot) != 0
+            : GetExtendedSlotState(logicalSlot).selectable != 0;
+    }
+
+    int FindActivePartySlot(void* partyTable, int logicalSlot)
+    {
+        int count = getObjectProperty<int>(partyTable, OFFSET_PARTY_MEMBER_COUNT);
+        count = std::max(0, std::min(count, PRIMARY_MEMBER_CAPACITY));
+        for (int index = 0; index < count; ++index) {
+            if (getObjectProperty<int>(
+                    partyTable,
+                    OFFSET_PARTY_MEMBER_SLOTS + index * 4) == logicalSlot) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    bool SetAvailableViewRecord(
+        BYTE* record,
+        PartySelectionViewState* state,
+        void* partyTable,
+        int logicalSlot)
+    {
+        const DWORD objectId = ResolveLogicalNPCObject(
+            partyTable, logicalSlot, 1, 1);
+        void* creature = GetServerCreatureByObjectId(
+            GetServerApplication(), objectId);
+        if (!creature) {
+            SetUnavailableViewRecord(record, logicalSlot);
+            return false;
+        }
+
+        CResRef_struct portrait = {};
+        nativeObjectGetPortrait(creature, &portrait);
+        nativeGuiBorderSetFillImage(
+            record + DATA_CHARACTER_TEXTURE_PARAMS_OFFSET,
+            &portrait,
+            0);
+
+        const int activeSlot = FindActivePartySlot(partyTable, logicalSlot);
+        const bool forced = state->forced[logicalSlot];
+        const bool selected = state->selected[logicalSlot] || forced;
+        const bool interactive =
+            GetLogicalNPCSelectability(partyTable, logicalSlot) && !forced;
+        DWORD flags = PANEL_SLOT_ENABLED_FLAG | PANEL_SLOT_HAS_OBJECT_FLAG;
+        if (forced) {
+            flags |= PANEL_SLOT_FORCED_FLAG;
+        }
+        setObjectProperty<DWORD>(record, DATA_FLAGS_OFFSET, flags);
+        const int clientPartyIndex = activeSlot >= 0
+            ? GetClientPartyIndexForServerObject(objectId)
+            : -1;
+        setObjectProperty<int>(record, DATA_OBJECT_INDEX_OFFSET,
+            clientPartyIndex);
+        setObjectProperty<int>(record, DATA_LOGICAL_SLOT_OFFSET, logicalSlot);
+        setObjectProperty<float>(record, DATA_ALPHA_OFFSET, 1.0f);
+        setObjectProperty<float>(record, DATA_SELECTION_ALPHA_OFFSET,
+            selected ? 1.0f : 0.25f);
+        nativePartySelectionButtonSetSelected(
+            record + DATA_BUTTON_OFFSET, selected ? 1 : 0);
+
+        CSWGuiButton button(record + DATA_BUTTON_OFFSET);
+        CSWGuiControl unavailable(record + DATA_NOT_AVAILABLE_LABEL_OFFSET);
+        CSWGuiControl character(record + DATA_CHARACTER_LABEL_OFFSET);
+        button.SetControlBitFlag(1, true);
+        button.SetControlBitFlag(5, !interactive);
+        button.SetEnabled(interactive ? 1 : 0);
+        unavailable.SetControlBitFlag(1, false);
+        unavailable.SetControlBitFlag(5, true);
+        character.SetControlBitFlag(1, true);
+        character.SetControlBitFlag(5, true);
+        return true;
+    }
+
+    void InitializeViewRecord(
+        void* panel,
+        PartySelectionViewState* state,
+        int physicalIndex)
+    {
+        BYTE* record = GetViewRecord(state, physicalIndex);
+        std::memset(record, 0, PARTY_SELECT_SLOT_STRIDE);
+        nativePartySelectionRecordCtor(record);
+        ++state->constructedRecords;
+
+        char tag[32];
+        std::snprintf(tag, sizeof(tag), "LBL_NA%d", physicalIndex);
+        BindNamedControl(panel, record + DATA_NOT_AVAILABLE_LABEL_OFFSET, tag);
+        std::snprintf(tag, sizeof(tag), "LBL_CHAR%d", physicalIndex);
+        BindNamedControl(panel, record + DATA_CHARACTER_LABEL_OFFSET, tag);
+        std::snprintf(tag, sizeof(tag), "BTN_NPC%d", physicalIndex);
+        BindNamedControl(panel, record + DATA_BUTTON_OFFSET, tag);
+
+        CSWGuiButton button(record + DATA_BUTTON_OFFSET);
+        CSWGuiPanel panelView(panel);
+        button.AddEvent(
+            GUI_CONTROL_PRIMARY_EVENT,
+            &panelView,
+            nativePartySelectionOnToggled);
+        button.AddEvent(
+            GUI_CONTROL_CLICK_EVENT,
+            &panelView,
+            nativePartySelectionOnToggled);
+        button.AddEvent(0, &panelView, nativePartySelectionOnEnter);
+        button.AddEvent(
+            1,
+            &panelView,
+            reinterpret_cast<void*>(ADDRESS_PARTY_SELECTION_HOVER_HANDLER));
+
+        setObjectProperty<void*>(
+            record,
+            DATA_BUTTON_BACK_POINTER_OFFSET,
+            record);
+        std::memcpy(
+            record + DATA_DEFAULT_COLOR_OFFSET,
+            GetStockPartySelectionDataAt(panel, 0) + DATA_DEFAULT_COLOR_OFFSET,
+            sizeof(float) * 3);
+        nativeGuiBorderSetPulsingAlpha(
+            record + DATA_BUTTON_INIT_PARAMS_OFFSET,
+            1,
+            1,
+            0);
+        setObjectProperty<DWORD>(record, DATA_FLAGS_OFFSET, 0u);
+        setObjectProperty<int>(record, DATA_LOGICAL_SLOT_OFFSET, physicalIndex);
+        SetUnavailableViewRecord(record, physicalIndex);
+    }
+
+    void __fastcall PartySelectionPrevButtonCallback(void* self, void*, void*);
+    void __fastcall PartySelectionNextButtonCallback(void* self, void*, void*);
+
+    void InitializePageButton(
+        void* panel,
+        PartySelectionViewState* state,
+        int index,
+        const char* tag,
+        void* callback)
+    {
+        BYTE* button = GetPageButton(state, index);
+        std::memset(button, 0, GUI_BUTTON_OBJECT_SIZE);
+        nativeGuiButtonCtor(button);
+        ++state->constructedButtons;
+        BindNamedControl(panel, button, tag);
+        CSWGuiButton buttonView(button);
+        CSWGuiPanel panelView(panel);
+        buttonView.AddEvent(
+            GUI_CONTROL_PRIMARY_EVENT,
+            &panelView,
+            callback);
+        buttonView.AddEvent(
+            GUI_CONTROL_CLICK_EVENT,
+            &panelView,
+            callback);
+    }
+
+    bool CreatePartySelectionView(void* panel)
+    {
+        PartySelectionViewState* state = ReservePartySelectionView(panel);
+        if (!state || state->ready) {
+            return state && state->ready;
+        }
+        state->records = static_cast<BYTE*>(AllocateAligned(
+            PARTY_SELECTION_VIEW_RECORD_COUNT * PARTY_SELECT_SLOT_STRIDE,
+            16));
+        state->pageButtons = static_cast<BYTE*>(AllocateAligned(
+            PARTY_SELECTION_PAGE_CONTROL_COUNT * GUI_BUTTON_OBJECT_SIZE,
+            16));
+        if (!state->records || !state->pageButtons) {
+            FreeAligned(state->records);
+            FreeAligned(state->pageButtons);
+            std::memset(state, 0, sizeof(*state));
+            return false;
+        }
+
+        for (int index = 0; index < PARTY_SELECTION_VIEW_RECORD_COUNT; ++index) {
+            InitializeViewRecord(panel, state, index);
+        }
+        InitializePageButton(
+            panel,
+            state,
+            0,
+            "BTN_PAGE_PREV",
+            funcAddr(PartySelectionPrevButtonCallback));
+        InitializePageButton(
+            panel,
+            state,
+            1,
+            "BTN_PAGE_NEXT",
+            funcAddr(PartySelectionNextButtonCallback));
+        state->ready = true;
+        return true;
+    }
+
+    void DetachControl(
+        CExoArrayList<CSWGuiControl*>* controls,
+        void* control)
+    {
+        CSWGuiControl controlView(control);
+        const int index = controls->IndexOf(&controlView);
+        if (index >= 0) {
+            controls->DeleteAt(index);
+        }
+    }
+
+    void DetachPartySelectionControls(
+        void* panel,
+        PartySelectionViewState* state,
+        bool includePageButtons)
+    {
+        CSWGuiPanel panelView(panel);
+        std::unique_ptr<CExoArrayList<CSWGuiControl*>> controls(
+            panelView.GetControls());
+        for (int index = 0; index < STOCK_NPC_SLOTS; ++index) {
+            BYTE* record = GetStockPartySelectionDataAt(panel, index);
+            for (int offset : PARTY_SELECTION_RECORD_CONTROL_OFFSETS) {
+                DetachControl(controls.get(), record + offset);
+            }
+        }
+        if (state && state->records) {
+            for (int index = 0;
+                 index < PARTY_SELECTION_VIEW_RECORD_COUNT;
+                 ++index) {
+                BYTE* record = GetViewRecord(state, index);
+                for (int offset : PARTY_SELECTION_RECORD_CONTROL_OFFSETS) {
+                    DetachControl(controls.get(), record + offset);
+                }
+            }
+        }
+        if (includePageButtons && state && state->pageButtons) {
+            for (int index = 0;
+                 index < PARTY_SELECTION_PAGE_CONTROL_COUNT;
+                 ++index) {
+                DetachControl(controls.get(), GetPageButton(state, index));
             }
         }
     }
 
-    void AttachAllPartySelectionControlsForStockLifecycle(CSWGuiPanel& panelView)
+    void AttachStockPartySelectionControls(void* panel)
     {
-        void* panel = panelView.GetPtr();
-        DetachAllPartySelectionRecordControls(panelView);
-        for (int controlOffset : PARTY_SELECTION_RECORD_CONTROL_OFFSETS) {
-            for (int slot = 0; slot < PARTY_SELECTION_RECORD_COUNT; ++slot) {
-                CSWGuiControl control(GetPartySelectionDataAt(panel, slot) + controlOffset);
+        PartySelectionViewState* state = FindPartySelectionView(panel);
+        DetachPartySelectionControls(panel, state, false);
+        CSWGuiPanel panelView(panel);
+        for (int offset : PARTY_SELECTION_RECORD_CONTROL_OFFSETS) {
+            for (int index = 0; index < STOCK_NPC_SLOTS; ++index) {
+                CSWGuiControl control(
+                    GetStockPartySelectionDataAt(panel, index) + offset);
                 panelView.AddControl(&control);
             }
         }
     }
 
-    void RebindPartySelectionPageNavigation(void* panel, void* target)
+    int CountSelectedSlots(const PartySelectionViewState* state)
     {
-        BYTE* accept = reinterpret_cast<BYTE*>(panel) + PANEL_ACCEPT_BUTTON_OFFSET;
-        nativeGuiSetMoveToControl(GetPartySelectionPageControlAt(panel, 0), GUI_NAVIGATION_UP, target);
-        nativeGuiSetMoveToControl(GetPartySelectionPageControlAt(panel, 1), GUI_NAVIGATION_UP, target);
-        nativeGuiSetMoveToControl(accept, GUI_NAVIGATION_UP, target);
-        nativeGuiSetMoveToControl(accept, GUI_NAVIGATION_DOWN, target);
+        int count = 0;
+        for (int slot = 0; slot < MAX_NPC_SLOTS; ++slot) {
+            count += state->selected[slot] || state->forced[slot];
+        }
+        return count;
+    }
+
+    void CapturePartySelectionPage(PartySelectionViewState* state)
+    {
+        if (!state || !state->ready || state->pageBase < 0) {
+            return;
+        }
+        for (int physicalIndex = 0;
+             physicalIndex < PARTY_SELECTION_VIEW_RECORD_COUNT;
+             ++physicalIndex) {
+            const int logicalSlot = state->pageBase + physicalIndex;
+            BYTE* record = GetViewRecord(state, physicalIndex);
+            const bool selected = getObjectProperty<int>(
+                record,
+                DATA_BUTTON_SELECTED_OFFSET) != 0;
+            state->selected[logicalSlot] =
+                selected || state->forced[logicalSlot];
+        }
+        setObjectProperty<int>(
+            state->owner,
+            PANEL_SELECTED_COUNT_OFFSET,
+            CountSelectedSlots(state));
+    }
+
+    void InitializePartySelectionModel(
+        void* panel,
+        PartySelectionViewState* state,
+        void* partyTable)
+    {
+        std::memset(state->selected, 0, sizeof(state->selected));
+        int activeCount = getObjectProperty<int>(
+            partyTable,
+            OFFSET_PARTY_MEMBER_COUNT);
+        activeCount = std::max(0, std::min(activeCount, PRIMARY_MEMBER_CAPACITY));
+        for (int index = 0; index < activeCount; ++index) {
+            const int logicalSlot = getObjectProperty<int>(
+                partyTable,
+                OFFSET_PARTY_MEMBER_SLOTS + index * 4);
+            if (IsValidLogicalSlot(logicalSlot)) {
+                state->selected[logicalSlot] = true;
+            }
+        }
+        for (int slot = 0; slot < MAX_NPC_SLOTS; ++slot) {
+            if (state->forced[slot]) {
+                state->selected[slot] = true;
+            }
+        }
+        state->pageBase = -1;
+        setObjectProperty<int>(
+            panel,
+            PANEL_SELECTED_COUNT_OFFSET,
+            CountSelectedSlots(state));
     }
 
     void ClearPartySelectionPortraitContext(void* panel)
     {
-        // Clears portrait state without changing selected companions.
-        void* previous = getObjectProperty<void*>(panel, PANEL_CURRENT_PORTRAIT_OFFSET);
+        void* previous = getObjectProperty<void*>(
+            panel,
+            PANEL_CURRENT_PORTRAIT_OFFSET);
         if (previous) {
-            // Calls the native portrait-button SetActive method.
             CSWGuiButton(previous).SetActive(0);
         }
-        setObjectProperty<void*>(panel, PANEL_CURRENT_PORTRAIT_OFFSET, nullptr);
+        setObjectProperty<void*>(
+            panel,
+            PANEL_CURRENT_PORTRAIT_OFFSET,
+            nullptr);
     }
 
     void ShowPartySelectionPage(void* panel, int pageBase)
     {
-        // Enables the destination page before restoring focus.
-        CSWGuiButton(GetPartySelectionPageControlAt(panel, 0)).SetEnabled(
-            pageBase != 0);
-        CSWGuiButton(GetPartySelectionPageControlAt(panel, 1)).SetEnabled(
-            pageBase != LAST_PARTY_SELECT_PAGE_BASE);
+        PartySelectionViewState* state = FindPartySelectionView(panel);
+        if (!state || !state->ready) {
+            return;
+        }
+        CapturePartySelectionPage(state);
+        void* partyTable = GetCurrentPartyTable();
+        if (!partyTable) {
+            return;
+        }
+        state->pageBase = pageBase;
 
         CSWGuiPanel panelView(panel);
         panelView.SetActiveControl(nullptr, 0);
         ClearPartySelectionPortraitContext(panel);
-        DetachAllPartySelectionRecordControls(panelView);
-        const int pageEnd = pageBase + PARTY_SELECT_PAGE_SLOTS;
+        DetachPartySelectionControls(panel, state, false);
 
-        for (int slot = pageBase; slot < pageEnd; ++slot) {
-            CSWGuiControl character(GetPartySelectionDataAt(panel, slot) +
+        for (int physicalIndex = 0;
+             physicalIndex < PARTY_SELECTION_VIEW_RECORD_COUNT;
+             ++physicalIndex) {
+            const int logicalSlot = pageBase + physicalIndex;
+            BYTE* record = GetViewRecord(state, physicalIndex);
+            if (GetLogicalNPCAvailability(partyTable, logicalSlot) != 0) {
+                SetAvailableViewRecord(
+                    record,
+                    state,
+                    partyTable,
+                    logicalSlot);
+            } else {
+                SetUnavailableViewRecord(record, logicalSlot);
+            }
+        }
+
+        for (int physicalIndex = 0;
+             physicalIndex < PARTY_SELECTION_VIEW_RECORD_COUNT;
+             ++physicalIndex) {
+            CSWGuiControl character(
+                GetViewRecord(state, physicalIndex) +
                 DATA_CHARACTER_LABEL_OFFSET);
-            character.SetControlBitFlag(5, true);
             panelView.AddControl(&character);
         }
 
         void* firstInteractive = nullptr;
-        for (int slot = pageBase; slot < pageEnd; ++slot) {
-            BYTE* data = GetPartySelectionDataAt(panel, slot);
-            BYTE* button = data + DATA_BUTTON_OFFSET;
+        for (int physicalIndex = 0;
+             physicalIndex < PARTY_SELECTION_VIEW_RECORD_COUNT;
+             ++physicalIndex) {
+            BYTE* record = GetViewRecord(state, physicalIndex);
+            BYTE* button = record + DATA_BUTTON_OFFSET;
             const DWORD flags = getObjectProperty<DWORD>(
-                data,
+                record,
                 DATA_FLAGS_OFFSET);
+            const int logicalSlot = getObjectProperty<int>(
+                record,
+                DATA_LOGICAL_SLOT_OFFSET);
             const bool interactive =
                 (flags & PANEL_SLOT_ENABLED_FLAG) != 0 &&
-                (flags & PANEL_SLOT_FORCED_FLAG) == 0;
-            CSWGuiButton buttonView(button);
-            buttonView.SetEnabled(interactive);
-            buttonView.SetControlBitFlag(5, !interactive);
-            panelView.AddControl(&buttonView);
+                (flags & PANEL_SLOT_FORCED_FLAG) == 0 &&
+                GetLogicalNPCSelectability(partyTable, logicalSlot);
+            CSWGuiControl buttonControl(button);
+            panelView.AddControl(&buttonControl);
             if (!firstInteractive && interactive) {
                 firstInteractive = button;
             }
         }
 
-        for (int slot = pageBase; slot < pageEnd; ++slot) {
-            CSWGuiControl unavailable(GetPartySelectionDataAt(panel, slot) +
-                DATA_NOT_AVAILABLE_LABEL_OFFSET);
-            const bool unavailableSlot = unavailable.GetControlBitFlag(1);
-            if (slot >= STOCK_NPC_SLOTS && unavailableSlot) {
-                continue;
+        for (int physicalIndex = 0;
+             physicalIndex < PARTY_SELECTION_VIEW_RECORD_COUNT;
+             ++physicalIndex) {
+            BYTE* record = GetViewRecord(state, physicalIndex);
+            CSWGuiControl unavailable(
+                record + DATA_NOT_AVAILABLE_LABEL_OFFSET);
+            if (unavailable.GetControlBitFlag(1)) {
+                panelView.AddControl(&unavailable);
             }
-            unavailable.SetControlBitFlag(5, !unavailableSlot);
-            panelView.AddControl(&unavailable);
         }
 
-        RebindPartySelectionPageNavigation(panel, firstInteractive);
-        BYTE* accept = reinterpret_cast<BYTE*>(panel) + PANEL_ACCEPT_BUTTON_OFFSET;
-        // Sets button eligibility before restoring portrait focus.
-        CSWGuiButton(accept).SetEnabled(firstInteractive != nullptr);
+        CSWGuiButton(GetPageButton(state, 0)).SetEnabled(pageBase != 0);
+        CSWGuiButton(GetPageButton(state, 1)).SetEnabled(
+            pageBase != LAST_PARTY_SELECT_PAGE_BASE);
+        BYTE* done = reinterpret_cast<BYTE*>(panel) +
+            PANEL_DONE_BUTTON_OFFSET;
+        nativeGuiSetMoveToControl(
+            GetPageButton(state, 0),
+            GUI_NAVIGATION_UP,
+            firstInteractive);
+        nativeGuiSetMoveToControl(
+            GetPageButton(state, 1),
+            GUI_NAVIGATION_UP,
+            firstInteractive);
+        nativeGuiSetMoveToControl(
+            done,
+            GUI_NAVIGATION_UP,
+            firstInteractive);
+        nativeGuiSetMoveToControl(
+            done,
+            GUI_NAVIGATION_DOWN,
+            firstInteractive);
+
+        setObjectProperty<int>(
+            panel,
+            PANEL_SELECTED_COUNT_OFFSET,
+            CountSelectedSlots(state));
+        nativePartySelectionUpdateCount(panel);
         if (!firstInteractive) {
-            // Uses the page control when no portrait is selectable.
-            firstInteractive = GetPartySelectionPageControlAt(
-                panel, pageBase == 0 ? 1 : 0);
+            firstInteractive = GetPageButton(
+                state,
+                pageBase == 0 ? 1 : 0);
         }
-        CSWGuiControl focusView(firstInteractive);
-        panelView.SetActiveControl(&focusView, 1);
+        CSWGuiControl focus(firstInteractive);
+        panelView.SetActiveControl(&focus, 1);
     }
 
     void __fastcall PartySelectionPrevButtonCallback(void* self, void*, void*)
@@ -719,23 +1266,258 @@ namespace
         ShowPartySelectionPage(self, LAST_PARTY_SELECT_PAGE_BASE);
     }
 
-    void ResetPartySelectionControlState(CSWGuiPanel& panelView)
+    bool RemoveExtendedPartyMember(
+        void* partyTable,
+        int logicalSlot)
     {
-        panelView.SetActiveControl(nullptr, 0);
-        for (int slot = 0; slot < PARTY_SELECTION_RECORD_COUNT; ++slot) {
-            BYTE* data = GetPartySelectionDataAt(panelView.GetPtr(), slot);
-            CSWGuiButton button(data + DATA_BUTTON_OFFSET);
-            CSWGuiControl character(data + DATA_CHARACTER_LABEL_OFFSET);
-            CSWGuiControl unavailable(data + DATA_NOT_AVAILABLE_LABEL_OFFSET);
-            button.SetControlBitFlag(1, true);
-            button.SetControlBitFlag(5, false);
-            button.SetEnabled(1);
-            character.SetControlBitFlag(1, false);
-            unavailable.SetControlBitFlag(1, false);
-            character.SetControlBitFlag(5, true);
-            unavailable.SetControlBitFlag(5, true);
-            nativePartySelectionButtonSetSelected(data + DATA_BUTTON_OFFSET, 0);
+        const int activeIndex = FindActivePartySlot(partyTable, logicalSlot);
+        if (activeIndex < 0) {
+            return true;
         }
+        const DWORD objectId = GetLogicalNPCObjectId(
+            partyTable,
+            logicalSlot);
+        const int clientPartyIndex = GetClientPartyIndexForServerObject(
+            objectId);
+        if (clientPartyIndex < 0) {
+            return false;
+        }
+        void* clientParty = nativeClientGetParty(GetClientApplication());
+        void* clientMember = clientParty
+            ? nativePartyGetCharacter(clientParty, clientPartyIndex)
+            : nullptr;
+        if (!clientMember) {
+            return false;
+        }
+        nativeClientCreatureSetInParty(clientMember, 0);
+        if (void* creature = nativeClientCreatureGetServerCreature(clientMember)) {
+            nativeServerCreatureSetInParty(creature, 0, 1);
+        }
+        return nativePartyTableRemoveMember(partyTable, logicalSlot) != 0;
+    }
+
+    bool AddExtendedPartyMember(
+        void* partyTable,
+        int logicalSlot)
+    {
+        int activeCount = getObjectProperty<int>(
+            partyTable,
+            OFFSET_PARTY_MEMBER_COUNT);
+        if (activeCount < 0 || activeCount >= PRIMARY_MEMBER_CAPACITY) {
+            return false;
+        }
+
+        CServerExoApp server;
+        std::unique_ptr<CSWSCreature> player(server.GetPlayerCreature());
+        void* playerCreature = player ? player->GetPtr() : nullptr;
+        if (!playerCreature) {
+            return false;
+        }
+        BYTE* playerBytes = static_cast<BYTE*>(playerCreature);
+        const DWORD objectId = nativePartyTableSpawnNpc(
+            partyTable,
+            logicalSlot,
+            1,
+            playerBytes + OBJECT_POSITION_OFFSET,
+            playerBytes + OBJECT_ORIENTATION_OFFSET,
+            1);
+        if (objectId == NPC_OBJECT_SENTINEL ||
+            nativePartyTableAddMember(partyTable, logicalSlot, objectId) == 0) {
+            return false;
+        }
+
+        void* creature = GetServerCreatureByObjectId(
+            GetServerApplication(),
+            objectId);
+        if (!creature) {
+            return false;
+        }
+        nativeObjectClearAllActions(creature, 1);
+        if (void* path = getObjectProperty<void*>(
+                creature,
+                CREATURE_PATHFIND_INFO_OFFSET)) {
+            nativePathfindResetWaypointData(path);
+        }
+        nativeServerCreatureSetInParty(creature, 1, 1);
+        void** vtable = *reinterpret_cast<void***>(creature);
+        if (vtable && vtable[0x70 / sizeof(void*)]) {
+            reinterpret_cast<void(__thiscall*)(void*)>(
+                vtable[0x70 / sizeof(void*)])(creature);
+        }
+        if (nativeCreatureGetVisibleListElement(playerCreature, objectId) == 0) {
+            nativeCreatureAddToVisibleList(
+                playerCreature,
+                objectId,
+                1,
+                1,
+                0,
+                0);
+        }
+        void* clientParty = nativeClientGetParty(GetClientApplication());
+        if (clientParty) {
+            activeCount = getObjectProperty<int>(
+                partyTable,
+                OFFSET_PARTY_MEMBER_COUNT);
+            void* clientMember = nativePartyGetCharacter(clientParty, activeCount);
+            if (clientMember) {
+                nativeClientCreatureSetInParty(clientMember, 1);
+            }
+        }
+        return true;
+    }
+
+    void StageStockPartySelectionRecords(
+        void* panel,
+        PartySelectionViewState* state,
+        void* partyTable)
+    {
+        for (int logicalSlot = 0;
+             logicalSlot < STOCK_NPC_SLOTS;
+             ++logicalSlot) {
+            BYTE* record = GetStockPartySelectionDataAt(panel, logicalSlot);
+            const bool available =
+                GetLogicalNPCAvailability(partyTable, logicalSlot) != 0;
+            const bool selected = available &&
+                (state->selected[logicalSlot] || state->forced[logicalSlot]);
+            const int activeIndex = FindActivePartySlot(
+                partyTable,
+                logicalSlot);
+            const int clientPartyIndex = activeIndex >= 0
+                ? GetClientPartyIndexForServerObject(
+                      GetLogicalNPCObjectId(partyTable, logicalSlot))
+                : -1;
+            DWORD flags = PANEL_SLOT_HAS_OBJECT_FLAG;
+            if (available) {
+                flags |= PANEL_SLOT_ENABLED_FLAG;
+            }
+            if (state->forced[logicalSlot]) {
+                flags |= PANEL_SLOT_FORCED_FLAG;
+            }
+            setObjectProperty<DWORD>(record, DATA_FLAGS_OFFSET, flags);
+            setObjectProperty<int>(
+                record,
+                DATA_OBJECT_INDEX_OFFSET,
+                clientPartyIndex);
+            setObjectProperty<int>(
+                record,
+                DATA_LOGICAL_SLOT_OFFSET,
+                logicalSlot);
+            nativePartySelectionButtonSetSelected(
+                record + DATA_BUTTON_OFFSET,
+                selected ? 1 : 0);
+        }
+    }
+
+    void StagePartySelectionDecisionRecords(
+        void* panel,
+        PartySelectionViewState* state,
+        void* partyTable)
+    {
+        int enabledCount = 0;
+        int forcedCount = 0;
+        int selectedCount = 0;
+        for (int logicalSlot = 0;
+             logicalSlot < MAX_NPC_SLOTS;
+             ++logicalSlot) {
+            const bool available =
+                GetLogicalNPCAvailability(partyTable, logicalSlot) != 0;
+            enabledCount += available;
+            forcedCount += available && state->forced[logicalSlot];
+            selectedCount += available &&
+                (state->selected[logicalSlot] || state->forced[logicalSlot]);
+        }
+
+        for (int index = 0; index < STOCK_NPC_SLOTS; ++index) {
+            BYTE* record = GetStockPartySelectionDataAt(panel, index);
+            DWORD flags = PANEL_SLOT_HAS_OBJECT_FLAG;
+            if (index < enabledCount) {
+                flags |= PANEL_SLOT_ENABLED_FLAG;
+            }
+            if (index < forcedCount) {
+                flags |= PANEL_SLOT_FORCED_FLAG;
+            }
+            setObjectProperty<DWORD>(record, DATA_FLAGS_OFFSET, flags);
+            nativePartySelectionButtonSetSelected(
+                record + DATA_BUTTON_OFFSET,
+                index < selectedCount ? 1 : 0);
+        }
+    }
+
+    void PreparePartySelectionModelForAccept(void* panel)
+    {
+        PartySelectionViewState* state = FindPartySelectionView(panel);
+        void* partyTable = GetCurrentPartyTable();
+        if (!state || !state->ready || !partyTable) {
+            return;
+        }
+        CapturePartySelectionPage(state);
+
+        bool removedExtendedMember = false;
+        for (int logicalSlot = STOCK_NPC_SLOTS;
+             logicalSlot < MAX_NPC_SLOTS;
+             ++logicalSlot) {
+            if (FindActivePartySlot(partyTable, logicalSlot) < 0 ||
+                state->selected[logicalSlot] ||
+                state->forced[logicalSlot]) {
+                continue;
+            }
+            removedExtendedMember |= RemoveExtendedPartyMember(
+                partyTable,
+                logicalSlot);
+        }
+        if (removedExtendedMember) {
+            if (void* clientParty = nativeClientGetParty(GetClientApplication())) {
+                nativePartyRecalculateFollowPoint(clientParty);
+            }
+        }
+        StageStockPartySelectionRecords(panel, state, partyTable);
+    }
+
+    void FinishPartySelectionModelAccept(void* panel)
+    {
+        PartySelectionViewState* state = FindPartySelectionView(panel);
+        void* partyTable = GetCurrentPartyTable();
+        if (!state || !state->ready || !partyTable) {
+            return;
+        }
+        for (int logicalSlot = STOCK_NPC_SLOTS;
+             logicalSlot < MAX_NPC_SLOTS;
+             ++logicalSlot) {
+            if (!(state->selected[logicalSlot] || state->forced[logicalSlot]) ||
+                GetLogicalNPCAvailability(partyTable, logicalSlot) == 0 ||
+                FindActivePartySlot(partyTable, logicalSlot) >= 0) {
+                continue;
+            }
+            if (!AddExtendedPartyMember(partyTable, logicalSlot)) {
+                state->selected[logicalSlot] = false;
+            }
+        }
+        std::memset(state->forced, 0, sizeof(state->forced));
+    }
+
+    void DestroyPartySelectionView(void* panel)
+    {
+        PartySelectionViewState* state = FindPartySelectionView(panel);
+        if (!state) {
+            return;
+        }
+        DetachPartySelectionControls(panel, state, true);
+        while (state->constructedButtons > 0) {
+            --state->constructedButtons;
+            nativeGuiButtonDtor(GetPageButton(
+                state,
+                static_cast<int>(state->constructedButtons)));
+        }
+        while (state->constructedRecords > 0) {
+            --state->constructedRecords;
+            nativePartySelectionRecordDtor(GetViewRecord(
+                state,
+                static_cast<int>(state->constructedRecords)));
+        }
+        FreeAligned(state->pageButtons);
+        FreeAligned(state->records);
+        std::memset(state, 0, sizeof(*state));
+        AttachStockPartySelectionControls(panel);
     }
 
 }  // namespace
@@ -940,20 +1722,50 @@ extern "C" void __cdecl WriteExtendedPartyPersistence(
     void* gff,
     void* parentStruct)
 {
-    PersistedPartyExtension blob;
-    blob.magic = PARTY_EXTENSION_MAGIC;
-    for (int index = 0; index < EXTRA_NPC_SLOTS; ++index) {
-        const PartySlotSnapshot& slot = gExtendedPartySlots[index];
-        blob.slots[index].available = slot.available;
-        blob.slots[index].selectable = slot.selectable;
-        blob.slots[index].reserved = 1;  // Keeps the schema 1 reserved byte.
-    }
-    char versionLabel[] = "PRK1_VER";
-    char dataLabel[] = "PRK1_DATA";
     CResGFF resource(gff);
     auto* parent = static_cast<CResStruct*>(parentStruct);
-    resource.WriteFieldDWORD(parent, PARTY_EXTENSION_VERSION, versionLabel);
-    resource.WriteFieldVOID(parent, &blob, sizeof(blob), dataLabel);
+    CResList availabilityList{};
+    char listLabel[] = "PT_AVAIL_NPCS";
+    if (!resource.GetList(&availabilityList, parent, listLabel)) {
+        return;
+    }
+
+    int listCount = std::max(0, resource.GetListCount(&availabilityList));
+    char availabilityLabel[] = "PT_NPC_AVAIL";
+    char selectabilityLabel[] = "PT_NPC_SELECT";
+    for (int logicalSlot = STOCK_NPC_SLOTS;
+         logicalSlot < MAX_NPC_SLOTS;
+         ++logicalSlot) {
+        CResStruct element{};
+        if (logicalSlot < listCount) {
+            if (!resource.GetListElement(
+                    &element, &availabilityList, logicalSlot)) {
+                continue;
+            }
+        } else {
+            while (listCount <= logicalSlot) {
+                CResStruct appended{};
+                if (!resource.AddListElement(
+                        &appended, &availabilityList, 0)) {
+                    return;
+                }
+                if (listCount == logicalSlot) {
+                    element = appended;
+                }
+                ++listCount;
+            }
+        }
+
+        const PartySlotSnapshot& slot = GetExtendedSlotState(logicalSlot);
+        resource.WriteFieldBYTE(
+            &element,
+            slot.available != 0 ? 1u : 0u,
+            availabilityLabel);
+        resource.WriteFieldBYTE(
+            &element,
+            slot.selectable != 0 ? 1u : 0u,
+            selectabilityLabel);
+    }
 }
 
 extern "C" void __cdecl ReadExtendedPartyPersistence(
@@ -961,19 +1773,35 @@ extern "C" void __cdecl ReadExtendedPartyPersistence(
     void* parentStruct)
 {
     ResetExtendedPartyState();
-    char dataLabel[] = "PRK1_DATA";
     CResGFF resource(gff);
     auto* parent = static_cast<CResStruct*>(parentStruct);
-    PersistedPartyExtension blob;
-    int success;
-    resource.ReadFieldVOID(parent, &blob, sizeof(blob), dataLabel, &success, nullptr);
-    if (!success) {
-        return;  // Keeps reset state for saves without extension data.
+    CResList availabilityList{};
+    char listLabel[] = "PT_AVAIL_NPCS";
+    if (!resource.GetList(&availabilityList, parent, listLabel)) {
+        return;
     }
-    for (int index = 0; index < EXTRA_NPC_SLOTS; ++index) {
-        PartySlotSnapshot& slot = gExtendedPartySlots[index];
-        slot.available = blob.slots[index].available;
-        slot.selectable = blob.slots[index].selectable;
+
+    const int listCount = std::max(
+        0,
+        std::min(resource.GetListCount(&availabilityList), MAX_NPC_SLOTS));
+    char availabilityLabel[] = "PT_NPC_AVAIL";
+    char selectabilityLabel[] = "PT_NPC_SELECT";
+    for (int logicalSlot = STOCK_NPC_SLOTS;
+         logicalSlot < listCount;
+         ++logicalSlot) {
+        CResStruct element{};
+        if (!resource.GetListElement(
+                &element, &availabilityList, logicalSlot)) {
+            continue;
+        }
+
+        int success = 0;
+        PartySlotSnapshot& slot = GetExtendedSlotState(logicalSlot);
+        slot.available = resource.ReadFieldBYTE(
+            &element, availabilityLabel, &success, 0) != 0;
+        success = 0;
+        slot.selectable = resource.ReadFieldBYTE(
+            &element, selectabilityLabel, &success, 1) != 0;
     }
 }
 
@@ -994,123 +1822,166 @@ extern "C" void __cdecl SetAddNpcAvailable(
 
 extern "C" void __cdecl FinishPartySelectionLayout(void* panel)
 {
-    std::memset(reinterpret_cast<BYTE*>(panel) + PANEL_PAGE_CONTROLS_BASE_OFFSET,
-        0, EXTENDED_PARTY_SELECTION_PANEL_SIZE - PANEL_PAGE_CONTROLS_BASE_OFFSET);
-
-    using PagingCallback = void(__fastcall*)(void*, void*, void*);
-    struct PagingButtonSpec
-    {
-        const char* tag;
-        PagingCallback callback;
-    };
-    const PagingButtonSpec buttonSpecs[
-        PARTY_SELECTION_PAGE_CONTROL_COUNT] = {
-        {"BTN_PAGE_PREV", &PartySelectionPrevButtonCallback},
-        {"BTN_PAGE_NEXT", &PartySelectionNextButtonCallback},
-    };
-
-    CSWGuiPanel panelView(panel);
-
-    for (int index = 0;
-         index < PARTY_SELECTION_PAGE_CONTROL_COUNT;
-         ++index) {
-        BYTE* button = GetPartySelectionPageControlAt(panel, index);
-        RawCExoString tagString;
-        nativeGuiButtonCtor(button);
-        nativeCexostringCtorCstr(&tagString, buttonSpecs[index].tag);
-        CSWGuiButton buttonView(button);
-        CExoString tagView(static_cast<void*>(&tagString));
-        panelView.InitControl(&buttonView, &tagView, 1);
-        nativeCexostringDtor(&tagString);
-        void* const callbackAddress = funcAddr(buttonSpecs[index].callback);
-        buttonView.AddEvent(GUI_CONTROL_PRIMARY_EVENT, &panelView, callbackAddress);
-        buttonView.AddEvent(GUI_CONTROL_CLICK_EVENT, &panelView, callbackAddress);
-    }
-    panelView.StopLoadFromLayout();
+    CreatePartySelectionView(panel);
+    CSWGuiPanel(panel).StopLoadFromLayout();
 }
 
 extern "C" void __cdecl PreparePartySelectionDestructor(void* panel)
 {
-    CSWGuiPanel panelView(panel);
-    AttachAllPartySelectionControlsForStockLifecycle(panelView);
-    for (int index = PARTY_SELECTION_PAGE_CONTROL_COUNT - 1; index >= 0; --index) {
-        nativeGuiButtonDtor(GetPartySelectionPageControlAt(panel, index));
-    }
+    DestroyPartySelectionView(panel);
 }
 
 extern "C" void __cdecl PreparePartySelectionOnPanelAdded(void* panel)
 {
-    CSWGuiPanel panelView(panel);
-    ResetPartySelectionControlState(panelView);
-    AttachAllPartySelectionControlsForStockLifecycle(panelView);
+    PartySelectionViewState* state = FindPartySelectionView(panel);
+    if (state) {
+        state->pageBase = -1;
+    }
+    AttachStockPartySelectionControls(panel);
 }
 
 extern "C" void __cdecl FinishPartySelectionOnPanelAdded(void* panel)
 {
+    PartySelectionViewState* state = FindPartySelectionView(panel);
+    void* partyTable = GetCurrentPartyTable();
+    if (!state || !state->ready || !partyTable) {
+        return;
+    }
+    InitializePartySelectionModel(panel, state, partyTable);
     ShowPartySelectionPage(panel, 0);
 }
 
 extern "C" void __cdecl PreparePartySelectionOnPanelRemoved(void* panel)
 {
-    CSWGuiPanel panelView(panel);
-    AttachAllPartySelectionControlsForStockLifecycle(panelView);
+    if (PartySelectionViewState* state = FindPartySelectionView(panel)) {
+        CapturePartySelectionPage(state);
+    }
+    AttachStockPartySelectionControls(panel);
 }
 
 extern "C" void __cdecl FinishPartySelectionOnPanelRemoved(void* panel)
 {
-    CSWGuiPanel panelView(panel);
-    DetachAllPartySelectionRecordControls(panelView);
-    ResetPartySelectionControlState(panelView);
+    PartySelectionViewState* state = FindPartySelectionView(panel);
+    if (!state) {
+        return;
+    }
+    state->pageBase = -1;
+    std::memset(state->selected, 0, sizeof(state->selected));
+    std::memset(state->forced, 0, sizeof(state->forced));
+    setObjectProperty<DWORD>(panel, PANEL_FORCED_MODE_OFFSET, 0u);
+}
+
+extern "C" void __cdecl PreparePartySelectionOnDone(
+    void* panel,
+    void* const* control)
+{
+    if (!control || !*control ||
+        getObjectProperty<void*>(
+            *control,
+            GUI_CONTROL_EVENT_OWNER_OFFSET) == nullptr) {
+        return;
+    }
+
+    PartySelectionViewState* state = FindPartySelectionView(panel);
+    void* partyTable = GetCurrentPartyTable();
+    if (!state || !state->ready || !partyTable) {
+        return;
+    }
+    CapturePartySelectionPage(state);
+    if (getObjectProperty<int>(panel, PANEL_MODE_OFFSET) != 0) {
+        StagePartySelectionDecisionRecords(panel, state, partyTable);
+    }
+}
+
+extern "C" void __cdecl PreparePartySelectionAccept(void* panel)
+{
+    PreparePartySelectionModelForAccept(panel);
+}
+
+extern "C" void __cdecl FinishPartySelectionAccept(void* panel)
+{
+    FinishPartySelectionModelAccept(panel);
+}
+
+extern "C" void __cdecl PrepareSetForcedNPC32(
+    void* panel,
+    const int* firstLogicalSlot,
+    const int* secondLogicalSlot)
+{
+    PartySelectionViewState* state = FindPartySelectionView(panel);
+    if (!state) {
+        return;
+    }
+    const int slots[2] = {*firstLogicalSlot, *secondLogicalSlot};
+    bool hasForcedSlot = false;
+    for (int logicalSlot : slots) {
+        if (!IsValidLogicalSlot(logicalSlot)) {
+            continue;
+        }
+        state->forced[logicalSlot] = true;
+        state->selected[logicalSlot] = true;
+        hasForcedSlot = true;
+    }
+    if (hasForcedSlot) {
+        setObjectProperty<DWORD>(panel, PANEL_FORCED_MODE_OFFSET, 1u);
+    }
 }
 
 extern "C" void __cdecl AdjustPartySelectionAfterObjectRemoval(
     void* panel,
     const int* removedIndex)
 {
-    for (int slot = 0; slot < PARTY_SELECTION_RECORD_COUNT; ++slot) {
-        BYTE* data = GetPartySelectionDataAt(panel, slot);
-        const int objectIndex = getObjectProperty<int>(data, DATA_OBJECT_INDEX_OFFSET);
+    for (int recordIndex = 0;
+         recordIndex < STOCK_NPC_SLOTS;
+         ++recordIndex) {
+        BYTE* record = GetStockPartySelectionDataAt(panel, recordIndex);
+        const int objectIndex = getObjectProperty<int>(
+            record,
+            DATA_OBJECT_INDEX_OFFSET);
         if (objectIndex > *removedIndex) {
-            setObjectProperty<int>(data, DATA_OBJECT_INDEX_OFFSET, objectIndex - 1);
+            setObjectProperty<int>(
+                record,
+                DATA_OBJECT_INDEX_OFFSET,
+                objectIndex - 1);
+        }
+    }
+    PartySelectionViewState* state = FindPartySelectionView(panel);
+    if (!state || !state->ready) {
+        return;
+    }
+    for (int physicalIndex = 0;
+         physicalIndex < PARTY_SELECTION_VIEW_RECORD_COUNT;
+         ++physicalIndex) {
+        BYTE* record = GetViewRecord(state, physicalIndex);
+        const int objectIndex = getObjectProperty<int>(
+            record,
+            DATA_OBJECT_INDEX_OFFSET);
+        if (objectIndex > *removedIndex) {
+            setObjectProperty<int>(
+                record,
+                DATA_OBJECT_INDEX_OFFSET,
+                objectIndex - 1);
         }
     }
 }
 
 extern "C" void __cdecl ClearPartySelectionForcedFlags(void* panel)
 {
-    // Clears extended slots before resuming native stock-slot cleanup.
-    for (int slot = STOCK_NPC_SLOTS; slot < PARTY_SELECTION_RECORD_COUNT; ++slot) {
-        BYTE* data = GetPartySelectionDataAt(panel, slot);
-        setObjectProperty<DWORD>(data, DATA_FLAGS_OFFSET,
-            getObjectProperty<DWORD>(data, DATA_FLAGS_OFFSET) & ~PANEL_SLOT_FORCED_FLAG);
+    PartySelectionViewState* state = FindPartySelectionView(panel);
+    if (state) {
+        std::memset(state->forced, 0, sizeof(state->forced));
+        for (int index = 0;
+             index < PARTY_SELECTION_VIEW_RECORD_COUNT;
+             ++index) {
+            BYTE* record = GetViewRecord(state, index);
+            setObjectProperty<DWORD>(
+                record,
+                DATA_FLAGS_OFFSET,
+                getObjectProperty<DWORD>(record, DATA_FLAGS_OFFSET) &
+                    ~PANEL_SLOT_FORCED_FLAG);
+        }
     }
     setObjectProperty<DWORD>(panel, PANEL_FORCED_MODE_OFFSET, 0u);
-}
-
-extern "C" void __cdecl PartySelectionOnDone32(
-    void* panel,
-    void* const* control)
-{
-    if (getObjectProperty<void*>(*control, GUI_CONTROL_EVENT_OWNER_OFFSET) == nullptr) {
-        return;
-    }
-    bool clearGuiState = false;
-    if (getObjectProperty<int>(panel, PANEL_MODE_OFFSET) != 0) {
-        int enabledCount = 0;
-        int forcedCount = 0;
-        for (int slot = 0; slot < PARTY_SELECTION_RECORD_COUNT; ++slot) {
-            const DWORD flags = getObjectProperty<DWORD>(
-                GetPartySelectionDataAt(panel, slot), DATA_FLAGS_OFFSET);
-            enabledCount += (flags & PANEL_SLOT_ENABLED_FLAG) != 0;
-            forcedCount += (flags & PANEL_SLOT_FORCED_FLAG) != 0;
-        }
-        clearGuiState = enabledCount == 0 || forcedCount == PRIMARY_MEMBER_CAPACITY;
-    }
-    // Accepts the selection without opening the native confirmation prompt.
-    nativePartySelectionAccept(panel);
-    if (clearGuiState) {
-        setObjectProperty<DWORD>(GetInGameGui(), IN_GAME_GUI_PARTY_SELECTION_STATE_OFFSET, 0u);
-    }
 }
 
 extern "C" void* __cdecl ResolveActiveMemberCreature(
@@ -1197,7 +2068,6 @@ extern "C" void __cdecl DestroyDetachedSwitchNpc(
     DestroyLogicalNPCObject(partyTable, logicalSlot, 1);
 }
 
-// Initializes after KPM supplies the version hash and address database.
 extern "C" int __stdcall DllMain(void*, DWORD reason, void*)
 {
     if (reason == DLL_PROCESS_ATTACH) {
@@ -1205,10 +2075,7 @@ extern "C" int __stdcall DllMain(void*, DWORD reason, void*)
             if (InitializePatchApi()) {
                 return 1;
             }
-        } catch (const std::exception& error) {
-            debugLog("[K1 Party Roster Limit 32] GameAPI initialization failed: %s\n", error.what());
         } catch (...) {
-            OutputDebugStringA("[K1 Party Roster Limit 32] GameAPI initialization failed\n");
         }
         GameVersion::Reset(true);
         return 0;

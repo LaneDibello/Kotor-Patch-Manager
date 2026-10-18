@@ -41,7 +41,7 @@ The application uses the MVVM pattern with Avalonia's reactive UI framework. It 
 
 ### Views
 
-**MainWindow.axaml**: Main Avalonia window XAML defining the UI layout. Displays game path selector, patches directory selector, patch list with checkboxes, patch details panel, action buttons (Apply, Uninstall, Launch), status messages and progress indicators.
+**MainWindow.axaml**: Main Avalonia window XAML defining the UI layout. Displays game path selector, patches directory selector, patch list with checkboxes, patch details panel with the patch's options, action buttons (Apply, Uninstall, Launch), status messages and progress indicators.
 
 ### Themes
 
@@ -57,7 +57,7 @@ Themes are dynamically loaded when game version is detected via App.LoadTheme().
 
 **GUI Mode**: Launches when executed without arguments. Presents Avalonia UI for patch management. Allows browsing for game executable and patches directory. Displays available patches with compatibility indicators. Supports patch installation, uninstallation, and game launching.
 
-**CLI Mode**: Launches when executed with arguments (e.g., "KPatchLauncher.exe swkotor.exe"). Automatically detects game executable in launcher directory or from first argument. Checks for patch_config.toml to determine patched vs vanilla launch. Injects KotorPatcher.dll if patches detected. Exits after launching game (or waits with --monitor flag).
+**CLI Mode**: Launches when executed with arguments (e.g., "KPatchLauncher.exe swkotor.exe"). Automatically detects game executable in launcher directory or from first argument. Checks for patch_config.toml to determine patched vs vanilla launch. Injects KotorPatcher.dll if patches detected. Exits after launching game (or waits with --monitor flag). When installing with `--patches`, `--option <patch_id>.<option_id>=<value>` sets a patch option and may be repeated; an option that is not given takes its default. A bad `--option` is reported before anything installed is removed, and `--option` without `--patches` is an error.
 
 ### DLL Injection Strategies
 

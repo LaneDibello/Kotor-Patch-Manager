@@ -55,9 +55,13 @@ void InitTargetResolution();
 */
 extern "C" uint64_t KMRP_DisplayModeScale() {
     InitTargetResolution();
+    // Whatever size the game starts at, since 2026-10-04: the list is built once, and the size
+    // can now be changed while the game runs (K1Widescreen_SetTargetResolution), so a game
+    // started at the point size has to find the pixel modes there when the player picks one.
+    // Until then the ratio was given only for a target above the display's point size. On a
+    // display with as many points as pixels it is 1.0 and the list stays vanilla.
     double scale = 1.0;
-    if (g_displayPointWidth > 0 && g_displayPointHeight > 0 &&
-        (g_targetWidth > g_displayPointWidth || g_targetHeight > g_displayPointHeight)) {
+    if (g_displayPointWidth > 0 && g_displayPointHeight > 0) {
         const double ratio = static_cast<double>(g_displayPixelWidth) / g_displayPointWidth;
         if (ratio > 1.0) scale = ratio;
     }
@@ -67,14 +71,23 @@ extern "C" uint64_t KMRP_DisplayModeScale() {
 }
 
 static void SizeDialogueLetterbox(int width, int height);
+void ApplyLayoutMode();   // mac_widescreen.cpp
 
 extern "C" void KMRP_UseTargetVideoMode(int* width, int* height) {
+    // The layout mode is written here, once, rather than when the library loads: no panel exists
+    // yet, and a patch loaded after this one has had its say (K1Widescreen_UseGuiFileLayouts).
+    ApplyLayoutMode();
     if (!width || !height || g_targetWidth <= 0 || g_targetHeight <= 0) return;
     *width = g_targetWidth;
     *height = g_targetHeight;
-    // The resolution is final from here on, and no dialogue exists yet.
+    // No dialogue exists yet. The size can change later (K1Widescreen_SetTargetResolution),
+    // which sizes the letterbox again.
     SizeDialogueLetterbox(g_targetWidth, g_targetHeight);
 }
+
+// The letterbox for a resolution changed while the game runs. Not static: mac_widescreen.cpp
+// calls it from K1Widescreen_SetTargetResolution.
+void ResizeDialogueLetterbox(int width, int height) { SizeDialogueLetterbox(width, height); }
 
 /*
   Dialogue letterbox sized from the screen height
@@ -120,22 +133,27 @@ bool ReplaceImageBytes(uintptr_t addr, const void* expected, const void* value, 
 }  // namespace
 
 static void SizeDialogueLetterbox(int width, int height) {
-    static bool done = false;
-    if (done || width <= 0 || height <= 0) return;
-    done = true;
+    // What the last call wrote, which the next one replaces: the vanilla values the first time.
+    // A site that held anything else the first time is another patch's and stays so.
+    static unsigned char writtenAspect[4] = {0x54, 0x55, 0x15, 0x40};  // 2.333333f, one ulp under 7/3
+    static int writtenPanel = 100;
+    static int lastWidth = 0, lastHeight = 0;
+    if (width <= 0 || height <= 0 || (width == lastWidth && height == lastHeight)) return;
+    lastWidth = width;
+    lastHeight = height;
 
-    const unsigned char vanillaAspect[4] = {0x54, 0x55, 0x15, 0x40};  // 2.333333f, one ulp under 7/3
     const float aspect = 1.5f * static_cast<float>(width) / static_cast<float>(height);
-    ReplaceImageBytes(kLetterboxAspect, vanillaAspect, &aspect, sizeof aspect);
+    if (ReplaceImageBytes(kLetterboxAspect, writtenAspect, &aspect, sizeof aspect))
+        memcpy(writtenAspect, &aspect, sizeof aspect);
 
     // The bar exactly as the engine will compute it from that float.
     const float live = *reinterpret_cast<const float*>(kLetterboxAspect);
     const int bar = (height - static_cast<int>(static_cast<float>(width) / live)) / 2;
     int panel = bar - kSafeMarginY;
     if (panel < 100) panel = 100;
-    const int vanillaPanel = 100;
-    ReplaceImageBytes(kReplyPanelHeightCtor, &vanillaPanel, &panel, sizeof panel);
-    ReplaceImageBytes(kReplyPanelHeightReset, &vanillaPanel, &panel, sizeof panel);
+    const bool ctor = ReplaceImageBytes(kReplyPanelHeightCtor, &writtenPanel, &panel, sizeof panel);
+    const bool reset = ReplaceImageBytes(kReplyPanelHeightReset, &writtenPanel, &panel, sizeof panel);
+    if (ctor || reset) writtenPanel = panel;
 }
 
 /*

@@ -1,0 +1,25 @@
+# Same cancellation state machine as the Windows build, in CClientExoAppInternal::ProcessInput
+# (0x1002B5950). The two masked movement inputs are spilled to RBP-based locals before this call.
+# Non-negative floats order the same as their bit patterns, so integer compares pick the max.
+[metadata]
+target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77"]
+
+[[hooks]]
+address = 0x1002B7F22
+type = "replace"
+original_bytes = [
+    0x48, 0x8B, 0x83, 0xF0, 0x03, 0x00, 0x00,
+    0x48, 0x8B, 0x08,
+    0x48, 0x8B, 0x49, 0x38,
+    0x48, 0x89, 0xC7,
+    0xFF, 0xD1
+]
+replacement_bytes = [
+    0x8B, 0x85, 0xE0, 0xFD, 0xFF, 0xFF, # mov eax, [rbp-220h] - raw forward/backward input
+    0x25, 0xFF, 0xFF, 0xFF, 0x7F,       # and eax, 7FFFFFFFh - fabs
+    0x8B, 0x8D, 0xF0, 0xFD, 0xFF, 0xFF, # mov ecx, [rbp-210h] - the opposite direction
+    0x81, 0xE1, 0xFF, 0xFF, 0xFF, 0x7F, # and ecx, 7FFFFFFFh - fabs
+    0x39, 0xC8,                         # cmp eax, ecx
+    0x0F, 0x42, 0xC1,                   # cmovb eax, ecx - keep the larger magnitude
+    0x66, 0x0F, 0x6E, 0xC0              # movd xmm0, eax - return it where the call did
+]

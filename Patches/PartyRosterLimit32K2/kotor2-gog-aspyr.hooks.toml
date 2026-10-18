@@ -1,831 +1,12 @@
 [metadata]
 target_versions = ["777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"]
 
-# Hooks KOTOR II GOG Aspyr for Vriff's 32-slot roster patch.
-# Pairs with PartyRosterLimit32.cpp; simple layout edits precede detours.
-
-# Disables native paired-portrait collapsing.
 [[hooks]]
 address = 0x0058BE29
 type = "simple"
 original_bytes = [0xE8, 0x42, 0x26, 0x00, 0x00]
 replacement_bytes = [0x90, 0x90, 0x90, 0x90, 0x90]
 
-# Omits BTN_DONE relocations while UpdateVisibleCharacters is disabled.
-
-# Expands three party-selection allocations to 32 records.
-[[hooks]]
-address = 0x004CFEA4
-type = "simple"
-original_bytes = [0xB4, 0x50, 0x00, 0x00]
-replacement_bytes = [0xB4, 0xAD, 0x00, 0x00]
-
-[[hooks]]
-address = 0x004DC16E
-type = "simple"
-original_bytes = [0xB4, 0x50, 0x00, 0x00]
-replacement_bytes = [0xB4, 0xAD, 0x00, 0x00]
-
-[[hooks]]
-address = 0x004E106C
-type = "simple"
-original_bytes = [0xB4, 0x50, 0x00, 0x00]
-replacement_bytes = [0xB4, 0xAD, 0x00, 0x00]
-
-# Relocates live panel-tail operands for the larger record array.
-[[hooks]]
-address = 0x0058AAD1
-type = "simple"
-original_bytes = [0x24, 0x36, 0x00, 0x00]
-replacement_bytes = [0x84, 0x8F, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AAE6
-type = "simple"
-original_bytes = [0x6C, 0x37, 0x00, 0x00]
-replacement_bytes = [0xCC, 0x90, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AAFB
-type = "simple"
-original_bytes = [0x3C, 0x39, 0x00, 0x00]
-replacement_bytes = [0x9C, 0x92, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AB10
-type = "simple"
-original_bytes = [0x84, 0x3A, 0x00, 0x00]
-replacement_bytes = [0xE4, 0x93, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AB24
-type = "simple"
-original_bytes = [0xCC, 0x3B, 0x00, 0x00]
-replacement_bytes = [0x2C, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AB74
-type = "simple"
-original_bytes = [0x60, 0x3C, 0x00, 0x00]
-replacement_bytes = [0xC0, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AB8A
-type = "simple"
-original_bytes = [0x58, 0x45, 0x00, 0x00]
-replacement_bytes = [0xB8, 0x9E, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AB9F
-type = "simple"
-original_bytes = [0x28, 0x47, 0x00, 0x00]
-replacement_bytes = [0x88, 0xA0, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058ABC4
-type = "simple"
-original_bytes = [0xFC, 0x48, 0x00, 0x00]
-replacement_bytes = [0x5C, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058ABDA
-type = "simple"
-original_bytes = [0x64, 0x4F, 0x00, 0x00]
-replacement_bytes = [0xC4, 0xA8, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AE93
-type = "simple"
-original_bytes = [0x24, 0x36, 0x00, 0x00]
-replacement_bytes = [0x84, 0x8F, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AED0
-type = "simple"
-original_bytes = [0x3C, 0x39, 0x00, 0x00]
-replacement_bytes = [0x9C, 0x92, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AF0C
-type = "simple"
-original_bytes = [0x84, 0x3A, 0x00, 0x00]
-replacement_bytes = [0xE4, 0x93, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AF49
-type = "simple"
-original_bytes = [0xCC, 0x3B, 0x00, 0x00]
-replacement_bytes = [0x2C, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AF86
-type = "simple"
-original_bytes = [0x60, 0x3C, 0x00, 0x00]
-replacement_bytes = [0xC0, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AFC2
-type = "simple"
-original_bytes = [0x38, 0x40, 0x00, 0x00]
-replacement_bytes = [0x98, 0x99, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AFFF
-type = "simple"
-original_bytes = [0x80, 0x41, 0x00, 0x00]
-replacement_bytes = [0xE0, 0x9A, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B03C
-type = "simple"
-original_bytes = [0x10, 0x44, 0x00, 0x00]
-replacement_bytes = [0x70, 0x9D, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B078
-type = "simple"
-original_bytes = [0x6C, 0x37, 0x00, 0x00]
-replacement_bytes = [0xCC, 0x90, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B0BB
-type = "simple"
-original_bytes = [0x58, 0x45, 0x00, 0x00]
-replacement_bytes = [0xB8, 0x9E, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B101
-type = "simple"
-original_bytes = [0x28, 0x47, 0x00, 0x00]
-replacement_bytes = [0x88, 0xA0, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B146
-type = "simple"
-original_bytes = [0xFC, 0x48, 0x00, 0x00]
-replacement_bytes = [0x5C, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B18C
-type = "simple"
-original_bytes = [0x44, 0x4A, 0x00, 0x00]
-replacement_bytes = [0xA4, 0xA3, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B1D2
-type = "simple"
-original_bytes = [0x8C, 0x4B, 0x00, 0x00]
-replacement_bytes = [0xEC, 0xA4, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B217
-type = "simple"
-original_bytes = [0xD4, 0x4C, 0x00, 0x00]
-replacement_bytes = [0x34, 0xA6, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B25D
-type = "simple"
-original_bytes = [0x1C, 0x4E, 0x00, 0x00]
-replacement_bytes = [0x7C, 0xA7, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B2A3
-type = "simple"
-original_bytes = [0x64, 0x4F, 0x00, 0x00]
-replacement_bytes = [0xC4, 0xA8, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B2CA
-type = "simple"
-original_bytes = [0x44, 0x3C, 0x00, 0x00]
-replacement_bytes = [0xA4, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B2D9
-type = "simple"
-original_bytes = [0x40, 0x3C, 0x00, 0x00]
-replacement_bytes = [0xA0, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B36A
-type = "simple"
-original_bytes = [0x2C, 0x3C, 0x00, 0x00]
-replacement_bytes = [0x8C, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B3C2
-type = "simple"
-original_bytes = [0xCC, 0x3B, 0x00, 0x00]
-replacement_bytes = [0x2C, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B403
-type = "simple"
-original_bytes = [0x48, 0x43, 0x00, 0x00]
-replacement_bytes = [0xA8, 0x9C, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B41D
-type = "simple"
-original_bytes = [0x6C, 0x37, 0x00, 0x00]
-replacement_bytes = [0xCC, 0x90, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B430
-type = "simple"
-original_bytes = [0x6C, 0x37, 0x00, 0x00]
-replacement_bytes = [0xCC, 0x90, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B446
-type = "simple"
-original_bytes = [0x58, 0x45, 0x00, 0x00]
-replacement_bytes = [0xB8, 0x9E, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B45B
-type = "simple"
-original_bytes = [0x58, 0x45, 0x00, 0x00]
-replacement_bytes = [0xB8, 0x9E, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B49A
-type = "simple"
-original_bytes = [0x58, 0x45, 0x00, 0x00]
-replacement_bytes = [0xB8, 0x9E, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B4AB
-type = "simple"
-original_bytes = [0x28, 0x47, 0x00, 0x00]
-replacement_bytes = [0x88, 0xA0, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B4EA
-type = "simple"
-original_bytes = [0x28, 0x47, 0x00, 0x00]
-replacement_bytes = [0x88, 0xA0, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B4FB
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B50B
-type = "simple"
-original_bytes = [0x6C, 0x37, 0x00, 0x00]
-replacement_bytes = [0xCC, 0x90, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B53C
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B566
-type = "simple"
-original_bytes = [0xB0, 0x50, 0x00, 0x00]
-replacement_bytes = [0x10, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B773
-type = "simple"
-original_bytes = [0x64, 0x4F, 0x00, 0x00]
-replacement_bytes = [0xC4, 0xA8, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B7C5
-type = "simple"
-original_bytes = [0xFC, 0x48, 0x00, 0x00]
-replacement_bytes = [0x5C, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B7D8
-type = "simple"
-original_bytes = [0x28, 0x47, 0x00, 0x00]
-replacement_bytes = [0x88, 0xA0, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B7EA
-type = "simple"
-original_bytes = [0x58, 0x45, 0x00, 0x00]
-replacement_bytes = [0xB8, 0x9E, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B807
-type = "simple"
-original_bytes = [0x60, 0x3C, 0x00, 0x00]
-replacement_bytes = [0xC0, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B81A
-type = "simple"
-original_bytes = [0xCC, 0x3B, 0x00, 0x00]
-replacement_bytes = [0x2C, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B84D
-type = "simple"
-original_bytes = [0x84, 0x3A, 0x00, 0x00]
-replacement_bytes = [0xE4, 0x93, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B893
-type = "simple"
-original_bytes = [0x3C, 0x39, 0x00, 0x00]
-replacement_bytes = [0x9C, 0x92, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B8D9
-type = "simple"
-original_bytes = [0x6C, 0x37, 0x00, 0x00]
-replacement_bytes = [0xCC, 0x90, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058B8EB
-type = "simple"
-original_bytes = [0x24, 0x36, 0x00, 0x00]
-replacement_bytes = [0x84, 0x8F, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BBE8
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BBF4
-type = "simple"
-original_bytes = [0xB0, 0x50, 0x00, 0x00]
-replacement_bytes = [0x10, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BC5F
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BC6F
-type = "simple"
-original_bytes = [0xB0, 0x50, 0x00, 0x00]
-replacement_bytes = [0x10, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BC7F
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BCB3
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BCC3
-type = "simple"
-original_bytes = [0xB0, 0x50, 0x00, 0x00]
-replacement_bytes = [0x10, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BCD3
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BD07
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BD17
-type = "simple"
-original_bytes = [0xB0, 0x50, 0x00, 0x00]
-replacement_bytes = [0x10, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BD33
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BD43
-type = "simple"
-original_bytes = [0xB0, 0x50, 0x00, 0x00]
-replacement_bytes = [0x10, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BD7C
-type = "simple"
-original_bytes = [0xD0, 0x46, 0x00, 0x00]
-replacement_bytes = [0x30, 0xA0, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BD8D
-type = "simple"
-original_bytes = [0xF0, 0x45, 0x00, 0x00]
-replacement_bytes = [0x50, 0x9F, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BDB8
-type = "simple"
-original_bytes = [0xD0, 0x46, 0x00, 0x00]
-replacement_bytes = [0x30, 0xA0, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058BDC9
-type = "simple"
-original_bytes = [0xF0, 0x45, 0x00, 0x00]
-replacement_bytes = [0x50, 0x9F, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058C459
-type = "simple"
-original_bytes = [0x58, 0x45, 0x00, 0x00]
-replacement_bytes = [0xB8, 0x9E, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058C487
-type = "simple"
-original_bytes = [0x58, 0x45, 0x00, 0x00]
-replacement_bytes = [0xB8, 0x9E, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058C681
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058C6C7
-type = "simple"
-original_bytes = [0xB0, 0x50, 0x00, 0x00]
-replacement_bytes = [0x10, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058C72A
-type = "simple"
-original_bytes = [0x28, 0x47, 0x00, 0x00]
-replacement_bytes = [0x88, 0xA0, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058C738
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058C74F
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058CA97
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058CEAA
-type = "simple"
-original_bytes = [0x40, 0x3C, 0x00, 0x00]
-replacement_bytes = [0xA0, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058CEE1
-type = "simple"
-original_bytes = [0xCC, 0x3B, 0x00, 0x00]
-replacement_bytes = [0x2C, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D03C
-type = "simple"
-original_bytes = [0x2C, 0x3A, 0x00, 0x00]
-replacement_bytes = [0x8C, 0x93, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D060
-type = "simple"
-original_bytes = [0x74, 0x3B, 0x00, 0x00]
-replacement_bytes = [0xD4, 0x94, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D071
-type = "simple"
-original_bytes = [0xCC, 0x3B, 0x00, 0x00]
-replacement_bytes = [0x2C, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D0A3
-type = "simple"
-original_bytes = [0x3C, 0x39, 0x00, 0x00]
-replacement_bytes = [0x9C, 0x92, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D0D6
-type = "simple"
-original_bytes = [0x84, 0x3A, 0x00, 0x00]
-replacement_bytes = [0xE4, 0x93, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D128
-type = "simple"
-original_bytes = [0xE0, 0x3F, 0x00, 0x00]
-replacement_bytes = [0x40, 0x99, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D140
-type = "simple"
-original_bytes = [0xE0, 0x3F, 0x00, 0x00]
-replacement_bytes = [0x40, 0x99, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D19E
-type = "simple"
-original_bytes = [0x2C, 0x3A, 0x00, 0x00]
-replacement_bytes = [0x8C, 0x93, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D1DF
-type = "simple"
-original_bytes = [0x74, 0x3B, 0x00, 0x00]
-replacement_bytes = [0xD4, 0x94, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D201
-type = "simple"
-original_bytes = [0x3C, 0x39, 0x00, 0x00]
-replacement_bytes = [0x9C, 0x92, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D234
-type = "simple"
-original_bytes = [0x84, 0x3A, 0x00, 0x00]
-replacement_bytes = [0xE4, 0x93, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D267
-type = "simple"
-original_bytes = [0xCC, 0x3B, 0x00, 0x00]
-replacement_bytes = [0x2C, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D29C
-type = "simple"
-original_bytes = [0xE0, 0x3F, 0x00, 0x00]
-replacement_bytes = [0x40, 0x99, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D2BA
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D2C9
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D2DA
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D2ED
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D2FB
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D317
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D323
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D33F
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D34D
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D359
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D377
-type = "simple"
-original_bytes = [0xCC, 0x3B, 0x00, 0x00]
-replacement_bytes = [0x2C, 0x95, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D3A6
-type = "simple"
-original_bytes = [0x3C, 0x39, 0x00, 0x00]
-replacement_bytes = [0x9C, 0x92, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D3D6
-type = "simple"
-original_bytes = [0x84, 0x3A, 0x00, 0x00]
-replacement_bytes = [0xE4, 0x93, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D40B
-type = "simple"
-original_bytes = [0xE0, 0x3F, 0x00, 0x00]
-replacement_bytes = [0x40, 0x99, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D429
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D438
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D44B
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D459
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D473
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D47F
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D498
-type = "simple"
-original_bytes = [0xF8, 0x48, 0x00, 0x00]
-replacement_bytes = [0x58, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058D628
-type = "simple"
-original_bytes = [0x14, 0x37, 0x00, 0x00]
-replacement_bytes = [0x74, 0x90, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E387
-type = "simple"
-original_bytes = [0xE0, 0x3F, 0x00, 0x00]
-replacement_bytes = [0x40, 0x99, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E39A
-type = "simple"
-original_bytes = [0xA0, 0x48, 0x00, 0x00]
-replacement_bytes = [0x00, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E3AF
-type = "simple"
-original_bytes = [0xE0, 0x3F, 0x00, 0x00]
-replacement_bytes = [0x40, 0x99, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E3C2
-type = "simple"
-original_bytes = [0xA0, 0x48, 0x00, 0x00]
-replacement_bytes = [0x00, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E3DF
-type = "simple"
-original_bytes = [0xAC, 0x50, 0x00, 0x00]
-replacement_bytes = [0x0C, 0xAA, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E3F0
-type = "simple"
-original_bytes = [0xA0, 0x48, 0x00, 0x00]
-replacement_bytes = [0x00, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E3FE
-type = "simple"
-original_bytes = [0xC0, 0x47, 0x00, 0x00]
-replacement_bytes = [0x20, 0xA1, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E426
-type = "simple"
-original_bytes = [0xA0, 0x48, 0x00, 0x00]
-replacement_bytes = [0x00, 0xA2, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E434
-type = "simple"
-original_bytes = [0xC0, 0x47, 0x00, 0x00]
-replacement_bytes = [0x20, 0xA1, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058E457
-type = "simple"
-original_bytes = [0x28, 0x47, 0x00, 0x00]
-replacement_bytes = [0x88, 0xA0, 0x00, 0x00]
-
-[[hooks]]
-address = 0x0058AAAD
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058AC35
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058B932
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058BE89
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058C57B
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058C927
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058CAB3
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058BA1F
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-# Widens remaining roster loops from 12 to 32 slots.
 [[hooks]]
 address = 0x006E7600
 type = "simple"
@@ -868,7 +49,6 @@ type = "simple"
 original_bytes = [0x0C]
 replacement_bytes = [0x20]
 
-# Widens native bounds while extension hooks handle direct array access.
 [[hooks]]
 address = 0x006FDA4E
 type = "simple"
@@ -881,20 +61,18 @@ type = "simple"
 original_bytes = [0x0C]
 replacement_bytes = [0x20]
 
-# Keeps SetForcedNPC native with the expanded record array.
 [[hooks]]
-address = 0x0058D660
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
+address = 0x007005A6
+type = "detour"
+original_bytes = [0x89, 0x4D, 0xF8, 0xC6, 0x45, 0xFF, 0x00]
+function = "GetNumLogicalNpcAvailable32"
+skip_original_bytes = true
+exclude_from_restore = ["eax"]
+consumed_exit_address = 0x007005E0
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
 
-[[hooks]]
-address = 0x0058D69F
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-# Extends traversal bounds and object-ID access without replacing native bodies.
 [[hooks]]
 address = 0x0059ED68
 type = "simple"
@@ -925,7 +103,6 @@ type = "simple"
 original_bytes = [0x0C]
 replacement_bytes = [0x20]
 
-# Uses resolver results for XP and unstealth object IDs.
 [[hooks]]
 address = 0x00703AFD
 type = "simple"
@@ -944,38 +121,6 @@ type = "simple"
 original_bytes = [0x51]
 replacement_bytes = [0x50]
 
-# Widens all AcceptParty record loops to 32 records.
-[[hooks]]
-address = 0x0058D763
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058D7FD
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058D8B0
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058D9CB
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-[[hooks]]
-address = 0x0058E0CF
-type = "simple"
-original_bytes = [0x0C]
-replacement_bytes = [0x20]
-
-# Widens final CreateParty loops and resolves logical object IDs.
 [[hooks]]
 address = 0x006FF4C5
 type = "simple"
@@ -1000,7 +145,6 @@ type = "simple"
 original_bytes = [0x51]
 replacement_bytes = [0x50]
 
-# Opens slots 12 through 31 to extended getters and resolvers.
 [[hooks]]
 address = 0x006FE97D
 type = "simple"
@@ -1025,7 +169,6 @@ type = "simple"
 original_bytes = [0x0C]
 replacement_bytes = [0x20]
 
-# Stores player object IDs through unified storage.
 [[hooks]]
 address = 0x006FEE42
 type = "detour"
@@ -1039,7 +182,6 @@ type = "pointer"
 source = "eax"
 type = "int"
 
-# Resolves object IDs for both final CreateParty passes.
 [[hooks]]
 address = 0x006FF4C8
 type = "detour"
@@ -1062,7 +204,6 @@ exclude_from_restore = ["eax"]
 source = "ebp"
 type = "pointer"
 
-# Creates page buttons before the GUI layout is finalized.
 [[hooks]]
 address = 0x0058B3F0
 type = "detour"
@@ -1073,7 +214,6 @@ skip_original_bytes = true
 source = "ecx"
 type = "pointer"
 
-# Destroys only patch-owned page buttons before native record cleanup.
 [[hooks]]
 address = 0x0058B740
 type = "detour"
@@ -1083,14 +223,12 @@ function = "PreparePartySelectionDestructor"
 source = "ecx"
 type = "pointer"
 
-# Clears extension IDs before native ClearMembers.
 [[hooks]]
 address = 0x00703770
 type = "detour"
 original_bytes = [0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x08, 0x89, 0x4D, 0xF8]
 function = "ClearExtendedPartyMembers"
 
-# Clears an extended ID before native ClearMember rejects the index.
 [[hooks]]
 address = 0x00703820
 type = "detour"
@@ -1100,7 +238,6 @@ function = "PrepareClearPartyMember"
 source = "esp+4"
 type = "pointer"
 
-# Saves extended companions before native SaveMember rejects the index.
 [[hooks]]
 address = 0x006FDAA0
 type = "detour"
@@ -1125,20 +262,15 @@ type = "pointer"
 source = "esp+8"
 type = "pointer"
 
-# Synchronizes the extended leader before native SetLeader scans.
 [[hooks]]
-address = 0x00703DC0
+address = 0x00703E16
 type = "detour"
-original_bytes = [0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x08]
-function = "PrepareSetPartyLeader"
+original_bytes = [0x8B, 0xE5, 0x5D, 0xC2, 0x04, 0x00]
+function = "FinalizeSetPartyLeader"
 [[hooks.parameters]]
-source = "ecx"
-type = "pointer"
-[[hooks.parameters]]
-source = "esp+4"
+source = "ebp"
 type = "pointer"
 
-# Applies extended influence before the native bounded setter resumes.
 [[hooks]]
 address = 0x00700560
 type = "detour"
@@ -1151,7 +283,6 @@ type = "pointer"
 source = "esp+8"
 type = "pointer"
 
-# Redirects final AddNPC field writes to unified storage.
 [[hooks]]
 address = 0x00700607
 type = "detour"
@@ -1172,14 +303,12 @@ skip_original_bytes = true
 source = "ebp"
 type = "pointer"
 
-# Resets extension state when the native party table clears.
 [[hooks]]
 address = 0x006FD210
 type = "detour"
 original_bytes = [0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x20, 0x89, 0x4D, 0xE8]
 function = "ResetExtendedPartySidecar"
 
-# Persists extension state with native party-table fields.
 [[hooks]]
 address = 0x00701336
 type = "detour"
@@ -1198,7 +327,6 @@ function = "ReadExtendedPartyPersistenceFromFrame"
 source = "ebp"
 type = "pointer"
 
-# Resolves extended equipment candidates around the fixed native switch.
 [[hooks]]
 address = 0x0059EFB1
 type = "detour"
@@ -1222,7 +350,6 @@ consumed_exit_address = 0x0059EF4A
 source = "ebp"
 type = "pointer"
 
-# Replaces only XP distribution's two fixed object-ID loads.
 [[hooks]]
 address = 0x00703AEC
 type = "detour"
@@ -1245,7 +372,6 @@ exclude_from_restore = ["eax"]
 source = "ebp"
 type = "pointer"
 
-# Resolves unstealth and auto-level IDs across all 32 slots.
 [[hooks]]
 address = 0x00704969
 type = "detour"
@@ -1268,9 +394,6 @@ exclude_from_restore = ["eax"]
 source = "ebp"
 type = "pointer"
 
-# Reuses downstream extension hooks for RemoveMember.
-
-# Extends AddMember duplicate checks and object-ID storage.
 [[hooks]]
 address = 0x006FE988
 type = "detour"
@@ -1292,7 +415,6 @@ skip_original_bytes = true
 source = "ebp"
 type = "pointer"
 
-# Handles extended AddNPC calls.
 [[hooks]]
 address = 0x006FFB60
 type = "detour"
@@ -1310,9 +432,6 @@ type = "pointer"
 source = "esp+8"
 type = "pointer"
 
-# Routes widened AddNPCByTemplate calls through the AddNPC pre-hook.
-
-# Redirects RemoveNPC availability writes to logical storage.
 [[hooks]]
 address = 0x007004AB
 type = "detour"
@@ -1323,7 +442,6 @@ skip_original_bytes = true
 source = "ebp"
 type = "pointer"
 
-# Resolves and clears KillNPCObject IDs through unified storage.
 [[hooks]]
 address = 0x00703383
 type = "detour"
@@ -1345,7 +463,6 @@ skip_original_bytes = true
 source = "ebp"
 type = "pointer"
 
-# Resolves GetNPCID through unified storage.
 [[hooks]]
 address = 0x007035E8
 type = "detour"
@@ -1359,7 +476,6 @@ type = "pointer"
 source = "eax"
 type = "int"
 
-# Resolves active-member identity through unified storage.
 [[hooks]]
 address = 0x00700C4C
 type = "detour"
@@ -1373,7 +489,6 @@ type = "pointer"
 source = "eax"
 type = "int"
 
-# Resolves roster identity through unified storage.
 [[hooks]]
 address = 0x00700C9B
 type = "detour"
@@ -1387,7 +502,6 @@ type = "pointer"
 source = "eax"
 type = "int"
 
-# Resolves leader queries through unified storage.
 [[hooks]]
 address = 0x00703DB4
 type = "detour"
@@ -1401,7 +515,6 @@ type = "pointer"
 source = "eax"
 type = "int"
 
-# Resolves availability through unified storage.
 [[hooks]]
 address = 0x007004F1
 type = "detour"
@@ -1415,7 +528,6 @@ type = "pointer"
 source = "eax"
 type = "int"
 
-# Resolves influence through unified storage.
 [[hooks]]
 address = 0x00700554
 type = "detour"
@@ -1429,7 +541,6 @@ type = "pointer"
 source = "eax"
 type = "int"
 
-# Widens GetNextPC and resolves logical member IDs.
 [[hooks]]
 address = 0x00704DAC
 type = "detour"
@@ -1441,7 +552,6 @@ exclude_from_restore = ["eax"]
 source = "ebp"
 type = "pointer"
 
-# Resolves or materializes extended NPCs.
 [[hooks]]
 address = 0x0070069C
 type = "detour"
@@ -1453,7 +563,6 @@ consumed_exit_address = 0x007008BB
 source = "ebp"
 type = "pointer"
 
-# Returns extended selectability.
 [[hooks]]
 address = 0x00700CC7
 type = "detour"
@@ -1465,7 +574,6 @@ consumed_exit_address = 0x00700CD4
 source = "ebp"
 type = "pointer"
 
-# Preserves switch-back behavior while resolving player IDs logically.
 [[hooks]]
 address = 0x00703F70
 type = "detour"
@@ -1477,7 +585,6 @@ exclude_from_restore = ["eax"]
 source = "ebp"
 type = "pointer"
 
-# Prepares all 32 records before native OnPanelAdded.
 [[hooks]]
 address = 0x0058BB10
 type = "detour"
@@ -1487,7 +594,6 @@ function = "PreparePartySelectionOnPanelAdded"
 source = "ecx"
 type = "pointer"
 
-# Refreshes the selected page after native OnPanelAdded.
 [[hooks]]
 address = 0x0058C516
 type = "detour"
@@ -1497,14 +603,12 @@ function = "FinishPartySelectionOnPanelAdded"
 source = "ebp"
 type = "pointer"
 
-# Rebuilds extension slots after the command.
 [[hooks]]
 address = 0x007B1F4F
 type = "detour"
 original_bytes = [0x8B, 0x4D, 0xF4, 0x64, 0x89, 0x0D, 0x00, 0x00, 0x00, 0x00]
 function = "FinishRebuildLogicalPartyTable"
 
-# Attaches all records before native OnPanelRemoved.
 [[hooks]]
 address = 0x0058C530
 type = "detour"
@@ -1514,12 +618,55 @@ function = "PreparePartySelectionOnPanelRemoved"
 source = "ecx"
 type = "pointer"
 
-# Resets extension state after native OnPanelRemoved.
 [[hooks]]
 address = 0x0058C650
 type = "detour"
 original_bytes = [0x8B, 0xE5, 0x5D, 0xC3, 0xCC]
 function = "FinishPartySelectionOnPanelRemoved"
+[[hooks.parameters]]
+source = "ebp"
+type = "pointer"
+
+# Routes forced selection and confirmation through the page model.
+
+[[hooks]]
+address = 0x0058D650
+type = "detour"
+original_bytes = [0x55, 0x8B, 0xEC, 0x51, 0x89, 0x4D, 0xFC]
+function = "PrepareSetForcedNPC32"
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+[[hooks.parameters]]
+source = "esp+4"
+type = "pointer"
+[[hooks.parameters]]
+source = "esp+8"
+type = "pointer"
+
+[[hooks]]
+address = 0x0058C8A0
+type = "detour"
+original_bytes = [0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x38]
+function = "PreparePartySelectionOnDone"
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+[[hooks]]
+address = 0x0058D6E0
+type = "detour"
+original_bytes = [0x55, 0x8B, 0xEC, 0x81, 0xEC, 0x94, 0x01, 0x00, 0x00]
+function = "PreparePartySelectionAccept"
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+[[hooks]]
+address = 0x0058E0BA
+type = "detour"
+original_bytes = [0xC7, 0x45, 0xF0, 0x00, 0x00, 0x00, 0x00]
+function = "FinishPartySelectionAccept"
 [[hooks.parameters]]
 source = "ebp"
 type = "pointer"

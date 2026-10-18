@@ -35,6 +35,12 @@ public class PatchApplicator
         public bool CreateBackup { get; init; } = true;
 
         /// <summary>
+        /// Values chosen for the patches' options: patch id, then option id, then value.
+        /// An option without an entry takes its manifest default.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, string>> OptionValues { get; init; } = new();
+
+        /// <summary>
         /// Directory holding the patcher modules and the proxy library, which is where the
         /// launcher itself runs from. Which of them gets staged is the deployment method's
         /// decision, so a new platform adds a file here rather than a field to this type.
@@ -88,6 +94,20 @@ public class PatchApplicator
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
     }
+
+    /// <summary>
+    /// Whether a patch's module is extracted and named in patch_config.toml, given how
+    /// many hooks its hooks file declares and the hooks its options left installed.
+    /// </summary>
+    /// <remarks>
+    /// A patch whose hooks file declares no hooks is DLL-only: KotorPatcher loads its
+    /// module for its own sake, and its code runs. A patch whose options turned off every
+    /// one of its hooks is not; it is decided from the hooks before selection, so turning
+    /// options off never starts loading a module that the same patch with one SIMPLE hook
+    /// left on would not load. Its options are still recorded in the configs folder.
+    /// </remarks>
+    public static bool InstallsModule(int declaredHookCount, IReadOnlyCollection<Hook> installedHooks) =>
+        declaredHookCount == 0 || installedHooks.Count > 0;
 
     /// <summary>The patcher runtime module to stage for a deployment method.</summary>
     private readonly record struct PatcherModule(string FileName, string? SourcePath, bool NeedsSqlite);
@@ -263,6 +283,65 @@ public class PatchApplicator
                 foreach (var message in hooksResult.Messages)
                 {
                     messages.Add($"  {patchId}: {message}");
+                }
+            }
+
+            // Resolve patch options: check every hook's condition against the options its
+            // manifest declares, then keep only the hooks whose condition holds for the
+            // chosen values. Everything from here on, conflict checks included, sees the
+            // hooks that will actually be installed.
+            var optionsByPatch = new Dictionary<string, Dictionary<string, string>>();
+            // How many hooks each patch's hooks file declares, before options select any:
+            // what makes a patch DLL-only (see InstallsModule).
+            var declaredHookCounts = hooksByPatch.ToDictionary(p => p.Key, p => p.Value.Count);
+            var strayOptions = options.OptionValues.Keys.FirstOrDefault(id => !patchEntries.ContainsKey(id));
+            if (strayOptions != null)
+            {
+                return new InstallResult
+                {
+                    Success = false,
+                    Error = $"Options were given for {strayOptions}, which is not being installed",
+                    DetectedVersion = gameVersion,
+                    Messages = messages
+                };
+            }
+
+            foreach (var patchId in options.PatchIds)
+            {
+                var manifest = patchEntries[patchId].Manifest;
+                var conditionResult = OptionValidator.ValidateHookConditions(manifest, hooksByPatch[patchId]);
+                if (!conditionResult.Success)
+                {
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = conditionResult.Error,
+                        DetectedVersion = gameVersion,
+                        Messages = messages
+                    };
+                }
+
+                options.OptionValues.TryGetValue(patchId, out var chosen);
+                var valuesResult = OptionValidator.ResolveValues(manifest, chosen);
+                if (!valuesResult.Success || valuesResult.Data == null)
+                {
+                    return new InstallResult
+                    {
+                        Success = false,
+                        Error = valuesResult.Error,
+                        DetectedVersion = gameVersion,
+                        Messages = messages
+                    };
+                }
+
+                optionsByPatch[patchId] = valuesResult.Data;
+                if (valuesResult.Data.Count > 0)
+                {
+                    var before = hooksByPatch[patchId].Count;
+                    hooksByPatch[patchId] = OptionValidator.SelectHooks(hooksByPatch[patchId], valuesResult.Data);
+                    messages.Add($"  {patchId}: options " +
+                                 string.Join(", ", valuesResult.Data.Select(kv => $"{kv.Key}={kv.Value}")) +
+                                 $" ({hooksByPatch[patchId].Count} of {before} hooks)");
                 }
             }
 
@@ -471,8 +550,14 @@ public class PatchApplicator
             foreach (var patchId in installOrder)
             {
                 var hooks = hooksByPatch[patchId];
+                if (!InstallsModule(declaredHookCounts[patchId], hooks))
+                {
+                    messages.Add($"  Skipped: {patchId} (its options leave none of its hooks installed)");
+                    continue;
+                }
+
                 var hasDetourHooks = hooks.Any(h => h.Type == HookType.Detour);
-                var hasDllOnlyPatch = hooks.Count == 0; // DLL-only patch (no hooks)
+                var hasDllOnlyPatch = declaredHookCounts[patchId] == 0; // DLL-only patch (no hooks)
 
                 // Try to extract DLL if it exists (supports DETOUR hooks and DLL-only patches)
                 var extractResult = _repository.ExtractPatchDll(patchId, patchesDir, gameVersion);
@@ -544,7 +629,7 @@ public class PatchApplicator
                     ? Path.GetRelativePath(gameDir, extractedDlls[patchId])
                     : string.Empty;
 
-                config.AddPatch(patchId, dllPath, hooks);
+                config.AddPatch(patchId, dllPath, hooks, optionsByPatch[patchId]);
             }
 
             var configPath = Path.Combine(gameDir, "patch_config.toml");
@@ -568,6 +653,31 @@ public class PatchApplicator
             }
 
             messages.Add($"  Config generated: patch_config.toml");
+
+            // The chosen option values, where a patch's code and scripts read settings.
+            var optionsResult = PatchOptionsIni.WriteFiles(config, gameDir);
+            if (!optionsResult.Success)
+            {
+                // Cleanup on failure
+                if (backup != null)
+                {
+                    BackupManager.RestoreBackup(backup);
+                }
+
+                return new InstallResult
+                {
+                    Success = false,
+                    Error = optionsResult.Error,
+                    DetectedVersion = gameVersion,
+                    Backup = backup,
+                    Messages = messages
+                };
+            }
+
+            if (config.Patches.Any(p => p.Options.Count > 0))
+            {
+                messages.Add($"  Options recorded: {PatchOptionsIni.DirectoryName}");
+            }
 
             // Step 6.5: Copy address database to game directory
             //

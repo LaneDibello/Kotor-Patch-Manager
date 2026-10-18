@@ -1,52 +1,106 @@
-// Inherit the parent model's special-texture flag across Odyssey reference nodes.
+// Track referenced-model attachments as the game creates and destroys them,
+// then propagate the parent's distortion state through those known links.
 
 #include <cstddef>
 #include <cstdint>
 
 namespace {
 
-constexpr std::ptrdiff_t DependencyControllerOffset = 0x188;
-constexpr std::ptrdiff_t ControllerParentModelOffset = 0x14;
-constexpr std::ptrdiff_t ControllerTargetNodeOffset = 0x18;
-constexpr std::ptrdiff_t NodeSourceOffset = 0x04;
-constexpr std::uint8_t ReferenceNodeFlags = 0x11u;
+constexpr std::size_t MaxAttachments = 1024;
+constexpr unsigned MaxAttachmentDepth = 32;
 
-constexpr std::ptrdiff_t SpecialTextureEnabledOffset = 0x17C;
+struct Attachment {
+    void* parent;
+    void* child;
+};
 
-void* ReadPointer(void* object, std::ptrdiff_t offset)
+Attachment attachments[MaxAttachments] = {};
+
+void RegisterAttachment(void* parent, void* child)
 {
-    return object
-        ? *reinterpret_cast<void**>(reinterpret_cast<std::uint8_t*>(object) + offset)
-        : nullptr;
-}
-
-bool IsReferenceNode(void* runtimeNode)
-{
-    void* sourceNode = ReadPointer(runtimeNode, NodeSourceOffset);
-    if (!sourceNode) {
-        return false;
+    Attachment* empty = nullptr;
+    for (Attachment& attachment : attachments) {
+        if (attachment.parent == parent && attachment.child == child) {
+            return;
+        }
+        if (!empty && !attachment.parent) {
+            empty = &attachment;
+        }
     }
 
-    std::uint8_t flags = *reinterpret_cast<std::uint8_t*>(sourceNode);
-    return (flags & ReferenceNodeFlags) == ReferenceNodeFlags;
+    if (empty) {
+        empty->parent = parent;
+        empty->child = child;
+    }
+}
+
+void RemoveGobAttachments(void* gob)
+{
+    for (Attachment& attachment : attachments) {
+        if (attachment.parent == gob || attachment.child == gob) {
+            attachment = {};
+        }
+    }
+}
+
+void PropagateDistortion(
+    void* parent,
+    std::uint8_t enabled,
+    unsigned depth,
+    std::uintptr_t distortionOffset)
+{
+    if (!parent || depth >= MaxAttachmentDepth) {
+        return;
+    }
+
+    for (const Attachment& attachment : attachments) {
+        if (attachment.parent == parent && attachment.child) {
+            auto* child = reinterpret_cast<std::uint8_t*>(attachment.child);
+            child[distortionOffset] = enabled;
+            PropagateDistortion(attachment.child, enabled, depth + 1, distortionOffset);
+        }
+    }
 }
 
 } // namespace
 
-extern "C" void __cdecl InheritReferencedModelStealthTexture(void* model)
+extern "C" void __cdecl InitializeReferencedModelStealth(
+    void* childGob,
+    void* parentGob,
+    void* returnAddress,
+    std::uintptr_t distortionOffset,
+    std::uintptr_t loaderStart,
+    std::uintptr_t loaderEnd)
 {
-    void* controller = ReadPointer(model, DependencyControllerOffset);
-    if (!controller) {
+    std::uintptr_t caller = reinterpret_cast<std::uintptr_t>(returnAddress);
+    if (!childGob || !parentGob || caller < loaderStart || caller >= loaderEnd) {
         return;
     }
 
-    void* parentModel = ReadPointer(controller, ControllerParentModelOffset);
-    void* targetNode = ReadPointer(controller, ControllerTargetNodeOffset);
-    if (!parentModel || !IsReferenceNode(targetNode)) {
-        return;
-    }
+    RegisterAttachment(parentGob, childGob);
 
-    auto* childBytes = reinterpret_cast<std::uint8_t*>(model);
-    auto* parentBytes = reinterpret_cast<std::uint8_t*>(parentModel);
-    childBytes[SpecialTextureEnabledOffset] = parentBytes[SpecialTextureEnabledOffset];
+    auto* child = reinterpret_cast<std::uint8_t*>(childGob);
+    auto* parent = reinterpret_cast<std::uint8_t*>(parentGob);
+    std::uint8_t enabled = parent[distortionOffset];
+    child[distortionOffset] = enabled;
+    PropagateDistortion(childGob, enabled, 0, distortionOffset);
+}
+
+extern "C" void __cdecl EnableReferencedModelStealth(
+    void* gob,
+    std::uintptr_t distortionOffset)
+{
+    PropagateDistortion(gob, 1u, 0, distortionOffset);
+}
+
+extern "C" void __cdecl DisableReferencedModelStealth(
+    void* gob,
+    std::uintptr_t distortionOffset)
+{
+    PropagateDistortion(gob, 0u, 0, distortionOffset);
+}
+
+extern "C" void __cdecl CleanupReferencedModelStealth(void* gob)
+{
+    RemoveGobAttachments(gob);
 }

@@ -1,0 +1,61 @@
+# Ordinary playback: replace K2's selected animation only when a listed stunt model
+# directly contains the requested animation.
+[[hooks]]
+address = 0x008FD7BA
+type = "detour"
+function = "KAB_PlaybackSelect"
+original_bytes = [0xD9,0x45,0x14,0xDC,0x1D,0x00,0x5B,0x98,0x00]
+[[hooks.parameters]]
+source = "[ebp-0x1A4]"
+type = "pointer"
+[[hooks.parameters]]
+source = "[ebp+0x08]"
+type = "pointer"
+[[hooks.parameters]]
+source = "ebp-0x1C"
+type = "pointer"
+[[hooks.parameters]]
+source = "ebp-0x18"
+type = "pointer"
+[[hooks.parameters]]
+source = "[ebp-0x10]"
+type = "pointer"
+
+# Inactive-query path after K2 has searched its native add-in.
+[[hooks]]
+address = 0x008FDC1E
+type = "detour"
+function = "KAB_QuerySelect"
+original_bytes = [0x83,0x7D,0xF4,0x00,0x75,0x19]
+skip_original_bytes = true
+exclude_from_restore = ["eax"]
+consumed_exit_address = 0x008FDC3D
+[[hooks.parameters]]
+source = "[ebp-0x14]"
+type = "pointer"
+[[hooks.parameters]]
+source = "[ebp+0x08]"
+type = "pointer"
+[[hooks.parameters]]
+source = "[ebp-0x0C]"
+type = "pointer"
+[[hooks.parameters]]
+source = "ebp-0x0C"
+type = "pointer"
+
+# Out-of-order playback after K2's primary lookup.
+[[hooks]]
+address = 0x008F6AEE
+type = "detour"
+function = "KAB_OutOfOrderSelect"
+original_bytes = [0x89,0x45,0xF0,0x83,0x7D,0xF0,0x00]
+exclude_from_restore = ["eax"]
+[[hooks.parameters]]
+source = "[ebp-0x20]"
+type = "pointer"
+[[hooks.parameters]]
+source = "[ebp+0x08]"
+type = "pointer"
+[[hooks.parameters]]
+source = "eax"
+type = "pointer"

@@ -46,6 +46,11 @@ public sealed class PatchManifest
     public Dictionary<string, string> SupportedVersions { get; init; } = new();
 
     /// <summary>
+    /// Choices the player can make inside this patch ([[patch.options]]), in display order
+    /// </summary>
+    public List<PatchOption> Options { get; init; } = new();
+
+    /// <summary>
     /// Optional URL to patch homepage/documentation
     /// </summary>
     public string? Url { get; init; }

@@ -1,4 +1,5 @@
 #include "CSWGuiListBox.h"
+#include "GameMemory.h"
 #include "GameVersion.h"
 #include "CSWGuiBorder.h"
 #include "CSWGuiScrollBar.h"
@@ -152,7 +153,7 @@ CSWGuiListBox::CSWGuiListBox()
     }
 
     if (classSize > 0 && constructor) {
-        objectPtr = malloc(classSize);
+        objectPtr = GameMemory::Alloc(classSize);
         if (objectPtr) {
             constructor(objectPtr);
             shouldFree = true;
@@ -170,7 +171,7 @@ CSWGuiListBox::~CSWGuiListBox()
         if (destructor) {
             destructor(objectPtr);
         }
-        free(objectPtr);
+        GameMemory::Free(objectPtr);
         objectPtr = nullptr;
         shouldFree = false;
     }

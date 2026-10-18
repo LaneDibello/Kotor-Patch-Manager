@@ -1,0 +1,80 @@
+[metadata]
+target_versions = [
+    "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914",
+]
+
+[[hooks]]
+address = 0x00853C00
+type = "detour"
+function = "InitializeReferencedModelStealth"
+original_bytes = [0x55, 0x8B, 0xEC, 0x6A, 0xFF]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "[esp+4]"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "[esp+0]"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0x1A8"
+type = "uint"
+
+[[hooks.parameters]]
+source = "const:0x00854480"
+type = "uint"
+
+[[hooks.parameters]]
+source = "const:0x008545A5"
+type = "uint"
+
+[[hooks]]
+address = 0x0084BFD0
+type = "detour"
+function = "EnableReferencedModelStealth"
+original_bytes = [0x55, 0x8B, 0xEC, 0x51, 0x89, 0x4D, 0xFC]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0x1A8"
+type = "uint"
+
+[[hooks]]
+address = 0x0084C2E0
+type = "detour"
+function = "CleanupReferencedModelStealth"
+original_bytes = [0x55, 0x8B, 0xEC, 0x51, 0x89, 0x4D, 0xFC]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+[[hooks]]
+address = 0x0084BFF0
+type = "detour"
+function = "DisableReferencedModelStealth"
+original_bytes = [0x55, 0x8B, 0xEC, 0x51, 0x89, 0x4D, 0xFC]
+skip_original_bytes = false
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "ecx"
+type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0x1A8"
+type = "uint"

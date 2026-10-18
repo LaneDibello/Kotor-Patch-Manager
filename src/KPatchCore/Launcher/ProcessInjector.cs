@@ -105,6 +105,7 @@ internal static class ProcessInjector
                 }
 
                 // Debug mode: Set to 'true' if you want to hook a debugger to the process
+#pragma warning disable CS0162
                 if (false)
                 {
                     Console.WriteLine("========================================");
@@ -120,6 +121,7 @@ internal static class ProcessInjector
                     Console.ReadLine();
                     Console.WriteLine("[DEBUG] Resuming game process...");
                 }
+#pragma warning restore CS0162
 
                 // Resume the main thread
                 var resumeResult = Win32.ResumeThread(pi.hThread);
