@@ -328,7 +328,9 @@ namespace
         nativePartySelectionRecordDtor = RequireFunctionAddress<PartySelectionRecordDtorFn>("CSWGuiPartySelectionData", "Destructor");
         nativeGuiBorderSetPulsingAlpha = RequireFunctionAddress<GuiBorderSetPulsingAlphaFn>("CSWGuiBorderParams", "SetPulsingAlpha");
         nativeServerGetPartyTable = RequireFunctionAddress<ServerGetPartyTableFn>("CServerExoApp", "GetPartyTable");
-        nativeObjectGetPortrait = RequireFunctionAddress<ObjectGetPortraitFn>("CSWSObject", "GetPortrait");
+        // The creature's override (the game's party screen calls it through the vtable): the base
+        // CSWSObject::GetPortrait reads the object's own resref, which party creatures leave empty.
+        nativeObjectGetPortrait = RequireFunctionAddress<ObjectGetPortraitFn>("CSWSCreature", "GetPortrait");
         nativeGuiBorderSetFillImage = RequireFunctionAddress<GuiBorderSetFillImageFn>("CSWGuiBorderParams", "SetFillImage");
         nativePartySelectionUpdateCount = RequireFunctionAddress<PartySelectionUpdateCountFn>("CSWGuiPartySelection", "UpdateCount");
         nativeClientGetParty = RequireFunctionAddress<ClientGetPartyFn>(
