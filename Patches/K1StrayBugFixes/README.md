@@ -45,15 +45,15 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 - **Issue**: The line-breaker truncates every glyph advance to whole pixels after adding `0.25f` (`0x10056eca0`), under-measuring line widths by ~0.25px per character relative to `Draw`. Long wrapped lines often exceeded their container box and collided with scrollbars.
 - **Fix**: Repoints the displacement to the engine's existing `0.5f` constant (`0x100537dc4`), restoring unbiased half-up rounding.
 
-### 6. K7. Scripts Menu Enter Key Bug
+### 6. K7. Scripts Menu Enter Key Bug & Double-Click Selection
 - **Target**:
-  - **macOS**: Enter-key button callback for script list rows (`0x1002d3e34`)
+  - **macOS**: Script list row activation/double-click callback (`0x1002d3e34`)
   - **Windows (v1.03 PE32)**: `CSWGuiScriptSelect::OnScriptSelected` (`0x006E9E70`)
 - **Hooks**:
-  - **macOS**: Simple hook at `0x1002d3e34` (`55 -> c3`, 1 byte `retq`)
+  - **macOS**: Replace hook at `0x1002d3e34` (verifies double-click call chain origin, jumps to `0x1002d3e3e`)
   - **Windows**: Simple hook at `0x006E9E70` (`56 8b f1 -> c2 04 00`, 3 bytes `ret $4`)
-- **Issue**: Opening the AI Scripts selection menu from the Character Sheet displays Tutorial Box 10 ("Combat Scripts"). Pressing Enter to dismiss the tutorial immediately closed both the popup and the Scripts menu, whereas clicking "OK" with the mouse kept the menu open. Each script row control in the list registered an Enter (`0x27`) button callback (`0x1002d3e34` on macOS, `0x006E9E70` on Windows) that hijacked Enter keypresses intended for the tutorial popup, popping the modal panel and setting the `0x200` closing flag on `CSWGuiScriptSelect`.
-- **Fix**: Replaces the function's entry with an immediate return (`retq` on macOS, `ret $4` on Windows). This neutralizes the premature row callback, allowing Enter to dismiss the tutorial popup cleanly on the first press. Once dismissed, native Enter handling in `CSWGuiScriptSelect::HandleInputEvent` and the Select button confirm scripts normally.
+- **Issue**: Opening the AI Scripts selection menu from the Character Sheet displays Tutorial Box 10 ("Combat Scripts"). In vanilla, each script entry row in the listbox registers a button callback (`0x1002d3e34` on macOS) for event `0x27` (shared by the Enter key and listbox row double-clicks). When Enter was pressed to dismiss the tutorial popup, this row callback hijacked the Enter key, popping the modal panel and setting the `0x200` closing flag on `CSWGuiScriptSelect`, which prematurely closed both dialogs. Furthermore, disabling this callback unconditionally (`retq`) broke row double-clicking, preventing double-clicks from selecting scripts and closing the menu.
+- **Fix**: Verifies the call stack origin (`(%rsp) == 0x1004a9221` and `8(%rbp) == 0x1004aa8b1`). When invoked by a genuine mouse double-click, the call originates from `CSWGuiListBox::OnMouseClick` (`0x1004aa8ab`), proceeding to execute the native selection logic and auto-close. When invoked by a keyboard Enter keypress, the call originates from the input manager, causing the hook to return immediately (`retq`). This allows the Enter key to dismiss the tutorial popup cleanly on the first press without prematurely closing the Scripts menu, while preserving normal double-click selection and auto-close.
 
 ### 7. Texture Bucket Array Bounds & Maximum Safety
 - **Targets**:
