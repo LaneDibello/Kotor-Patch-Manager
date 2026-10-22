@@ -186,22 +186,42 @@ replacement_bytes = [0x48, 0x8b, 0x7b, 0x40, 0x48, 0x3b, 0x7b, 0x38, 0x75, 0x02,
 # ==============================================================================
 # 7. SCRIPTS MENU ENTER KEY BUG (K7)
 # ==============================================================================
-# Function: Enter button callback for script list rows (0x1002d3e34)
+# Function: Script list row activation/double-click callback (0x1002d3e34)
 # When the AI Scripts menu opens, Tutorial Box 10 ("Combat Scripts") appears.
 # In vanilla, each script entry row in the listbox registers a button callback
-# (0x1002d3e34) for event 0x27 (Enter). When Enter was pressed to dismiss the
-# tutorial popup, this row callback hijacked the Enter key, saving the script,
-# popping the modal panel, and setting the 0x200 closing flag on ScriptSelect.
+# (0x1002d3e34) for event 0x27 (which BioWare shared between the keyboard Enter
+# keypress and listbox row double-click activation). When Enter is pressed to
+# dismiss the tutorial popup, this row callback hijacked the Enter keypress,
+# popping the modal panel and setting the 0x200 closing flag on ScriptSelect.
 #
-# Fix: Retq (0xC3) at the very start of the callback function (0x1002d3e34).
-# Disables this redundant callback so the Enter key dismisses the tutorial popup
-# cleanly on the first press. Once dismissed, native Enter handling in
-# CSWGuiScriptSelect::HandleInputEvent and the Select button confirm scripts.
+# Fix: Check the call stack origin. When called by a genuine mouse double-click:
+# - (%rsp) == 0x1004a9221 (CSWGuiListBox::HandleInputEvent forwarder)
+# - 8(%rbp) == 0x1004aa8b1 (CSWGuiListBox::OnMouseClick double-click callsite)
+# When called from a keyboard Enter keypress, 8(%rbp) does not match 0x1004aa8b1.
+# - If called from mouse double-click: executes the native prologue and jumps to
+#   0x1002d3e3e, confirming the selection and auto-closing the menu.
+# - If called from keyboard Enter: returns immediately (retq), allowing Enter to
+#   dismiss the tutorial popup cleanly on the first press without closing the menu.
 [[hooks]]
 address = 0x1002d3e34
-type = "simple"
-original_bytes = [0x55]
-replacement_bytes = [0xC3]
+type = "replace"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x56, 0x53, 0x48, 0x89, 0xFB]
+replacement_bytes = [
+    0x48, 0xB8, 0x21, 0x92, 0x4A, 0x00, 0x01, 0x00, 0x00, 0x00,
+    0x48, 0x39, 0x04, 0x24,
+    0x75, 0x28,
+    0x48, 0xB8, 0xB1, 0xA8, 0x4A, 0x00, 0x01, 0x00, 0x00, 0x00,
+    0x48, 0x39, 0x45, 0x08,
+    0x75, 0x18,
+    0x55,
+    0x48, 0x89, 0xE5,
+    0x41, 0x56,
+    0x53,
+    0x48, 0x89, 0xFB,
+    0xFF, 0x25, 0x00, 0x00, 0x00, 0x00,
+    0x3E, 0x3E, 0x2D, 0x00, 0x01, 0x00, 0x00, 0x00,
+    0xC3
+]
 
 # ==============================================================================
 # 8. LEADING NEWLINE TRIM IN GUI TEXT (K3)
