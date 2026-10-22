@@ -1,0 +1,12 @@
+[patch]
+id = "k2-activation-fix"
+name = "K2 Activation Fix"
+version = "1.0.0"
+author = "ethansm"
+description = "Fixes the intermittent hang when loading into the game, where the load screen never goes away"
+
+requires = []
+conflicts = []
+
+[patch.supported_versions]
+kotor2_steam_aspyr = "6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"
