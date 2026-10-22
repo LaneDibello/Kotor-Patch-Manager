@@ -301,7 +301,7 @@ In the Aspyr 64-bit Mac binary, `CSWGuiMainInterface::Create` (`0x10023341b`) ev
 0x1002334d8: leaq   "mipc28x6", %rsi      ## Else           -> loads "mipc28x6"   (800x600)
 ```
 
-The patch preserves 100% of the original machine instructions, registers, and branch paths by safely repointing all four `leaq` template string literal target addresses (`0x100233429`, `0x10023345e`, `0x1002334b4`, and `0x1002334d8`) directly to `"mipc212x9"` (see [Table 9.2](#92-dynamic--static-byte-level-engine-patches)).
+The patch preserves 100% of the original machine instructions, registers, and branch paths by safely repointing all four `leaq` template string literal target addresses (`0x100233429`, `0x10023345e`, `0x1002334b4`, and `0x1002334d8`) directly to `"mipc212x9"` (see [Table 10.2](#102-dynamic--static-byte-level-engine-patches)).
 
 This guarantees that KotOR loads `mipc212x9` on every resolution with deterministic control indices and complete save-load stability. HUD elements (`HudScale`, `CombatScale`, and top-right buttons) automatically scale down proportionally using `targetHeight / 982.0f`.
 
@@ -751,13 +751,17 @@ if (isMenuPanel(vtable)) {
 All top-level menus, load screens, and category tab buttons share the exact same horizontal center.
 
 ### 8.3 Dynamic Centering Displacements (`patchMenuCenteringConstants`)
-The patch dynamically updates 12 hardcoded displacements to `-targetWidth` and `-targetHeight`:
+The patch dynamically updates 20 hardcoded displacements (10 width and 10 height) to `-targetWidth` and `-targetHeight`:
 - `0x10049dcca`, `0x10049dcd4`: `HandleMouseInput` width displacements
 - `0x10049ddb2`, `0x10049ddbc`: `ScreenToClient` width displacements
 - `0x10049e855`, `0x10049e85f`: `GetLocalMousePos` width displacements
 - `0x1002b4b3b`, `0x1002b4b46`: `CSWGuiInGameMap::Draw` viewport X displacements
 - `0x1002b5615`, `0x1002b561f`: `CSWGuiInGameMap::HandleMouseInput` mouse X displacements
-- `0x10049dce9`, `0x10049dcf3`: `HandleMouseInput` height displacements
+- `0x10049dce8`, `0x10049dcf2`: `HandleMouseInput` height displacements
+- `0x10049ddd9`, `0x10049dde3`: `ScreenToClient` height displacements
+- `0x10049e872`, `0x10049e87c`: `GetLocalMousePos` height displacements
+- `0x1002b4b59`, `0x1002b4b63`: `CSWGuiInGameMap::Draw` viewport Y displacements
+- `0x1002b5631`, `0x1002b563b`: `CSWGuiInGameMap::HandleMouseInput` mouse Y displacements
 
 ### 8.4 Save & Load Game Screen (`CSWGuiSaveLoad` at `0x1005ae300`)
 - `LB_GAMES` (`r.width == 272 && r.height == 323`) calibrated with a zero-gap stride and top offset (`-2.8f * scale`), seating save entries flush inside the 6 background slots.
@@ -971,6 +975,7 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 | `0x1004a959c` | `41 89 84 24 68 03 00 00` | `90 90 90 90 90 90` | `CSWGuiListBox::RecalculateItemHeight` | NOPs prototype clamp 2, preventing scroll height calculation from reverting. |
 | `0x1002be42b` | 98 bytes | 98 bytes | `CSWGuiInGameItemEntry::SetExtent` | Loads dynamic `iconWidth`, `iconHeight`, and `iconTopOffset` into subquads. |
 | `0x1002be4da` | 64 bytes | 64 bytes | `CSWGuiInGameItemEntry::Layout` | Applies dynamic `textOffset` and `textDeduct` to item text labels. |
+| `0x1002bfb49` | `41 bd 38 00 00 00` | `44 8b 6b 14 90 90` | `CSWGuiStoreItemEntry::SetExtent` | Loads store/container icon dimensions dynamically from row height (`0x14(%rbx)`), or `movl $<containerItemHeight>, %r13d` in procedural mode. |
 | `0x1002bfbe2` | `41 83 c7 38` | `45 01 ef 90` | `CSWGuiStoreItemEntry::SetExtent` | Dynamically adds scaled icon width (`addl %r13d, %r15d`) to store button offset. |
 | `0x1002bfbe9` | `83 c0 c8` | `44 29 e8` | `CSWGuiStoreItemEntry::SetExtent` | Deducts dynamic icon width (`subl %r13d, %eax`) from store button width. |
 | `0x1002bfbbf` | `b8 38 00 00 00` | `41 8d 45 f2 90` | `CSWGuiStoreItemEntry::SetExtent` | Anchors store quantity badge flush on bottom-right of scaled icon (`leal -14(%r13), %eax`). |
@@ -1009,7 +1014,7 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 | `0x1005f4b34` | `int32_t` | `kViewportTop`: Active index into engine OpenGL viewport stack |
 | `0x1005f4b40` | `int16_t[5]` | `kViewportStack`: 10-byte viewport stack entries `{ x, y, w, h, flags }` |
 | `0x100570a14` | `float` | `kLetterboxAspect`: Dialogue letterbox aspect ratio constant (vanilla 7/3, patched to $1.5 \cdot W / H$) |
-| `0x1005f5600` | `void*` | `g_pAppManager`: Pointer to master game application manager |
+| `0x100677cf0` | `void*` | `g_pAppManager`: Pointer to master game application manager |
 | `0x1005d3210` | `void*` | `CSWGuiTooltip` vtable: Tooltip coordinate plane (exempt from direct scaling) |
 
 ---
