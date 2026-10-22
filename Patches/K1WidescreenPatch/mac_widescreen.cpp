@@ -1002,7 +1002,9 @@ void refreshPatchedListConstants() {
     
     // Scale CSWGuiStoreItemEntry::SetExtent (0x1002bfb06) for Store & Container lists:
     // Sets %r13d to containerItemHeight (icon width/height, arch border, and text button height)
-    writeMemInt(0x1002bfb4b, containerItemHeight);
+    uint8_t storeRowHeightHook[6] = { 0x41, 0xbd, 0, 0, 0, 0 }; // movl $<containerItemHeight>, %r13d
+    *(int*)&storeRowHeightHook[2] = containerItemHeight;
+    writeMemBytes(0x1002bfb49, storeRowHeightHook, 6);
     
     // Text button start X = rowX + %r13d (0x1002bfbe2)
     uint8_t storeBtnXHook[4] = { 0x45, 0x01, 0xef, 0x90 }; // addl %r13d, %r15d; nop
