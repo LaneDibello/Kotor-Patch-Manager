@@ -85,6 +85,31 @@ Check database integrity:
 SqliteTools validate --database kotor1_0_3.db
 ```
 
+## Merging and diffing
+
+The databases are binary files, so git can't merge two branches that both changed one, and `git diff` only says they differ. `tools/merge-address-db.py` does both by rows instead. It needs Python 3.9 or newer and nothing else. Set it up once per clone (git won't run a driver a repository names by itself):
+
+```bash
+git config merge.addressdb.name "KotOR address database merge"
+git config merge.addressdb.driver "python tools/merge-address-db.py %O %A %B %P"
+git config diff.addressdb.textconv "python tools/merge-address-db.py --dump"
+```
+
+Use `python3` in place of `python` where that's how Python 3 runs.
+
+**Merging.** Rows are matched by name (class and function, pointer name, class and member, class name, game hash, schema version), never by `id`: ids are autoincrement values, so two branches that each add a row give the same id to different rows, and nothing reads them. Each field takes whichever side changed it. A field changed differently on both sides is a conflict: ours is kept, each conflicting row is listed with the ancestor's, ours and theirs, and git marks the file conflicted. Fix those rows with SqliteTools (or `git checkout --theirs`/`--ours`) and `git add` the file.
+
+If one side has run a migration the other hasn't, the merge adds the newer side's tables, columns and indexes first. Every migration so far has been additive, which is all this does; anything else is refused and ours is left as it was.
+
+**Diffing.** `git diff`, `git log -p` and `git show` list the rows that changed:
+
+```
+-functions CResRef::CStrConstructor address=0x406d80
++functions CResRef::CStrConstructor address=0x3
+```
+
+The same listing for a whole database: `python tools/merge-address-db.py --dump AddressDatabases/kotor1_0_3.db`.
+
 ## Database Schema
 
 **game_version** table:

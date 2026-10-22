@@ -1,0 +1,25 @@
+[metadata]
+target_versions = ["6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"]
+
+# The movie thread ends a movie (observed after the intro movie) with
+#     PostMessageA(mainWindow, WM_ACTIVATEAPP, 0, 0)
+# (0x0040D692..0x0040D69E: push 0, push 0, push 0x1C, push [0x00A1B484], then the call below).
+# Under Wine the movie window only saw activation move to the game's own main window, so this is a
+# false "the game was deactivated". The engine then pauses and minimizes itself, and when the window
+# stays in front it never gets a WM_ACTIVATEAPP(TRUE) back, so the load screen is never hidden.
+#
+# The hook runs just before that CALL [PostMessageA] and receives a pointer to the four values the game
+# pushed (hwnd, msg, wParam, lParam). When the message is WM_ACTIVATEAPP(0, 0) and the foreground window
+# belongs to this process, it rewrites the call to PostMessageA(NULL, WM_NULL, 0, 0), a no-op, and the
+# stolen CALL then runs as usual. Anything else, such as the user really alt-tabbing away during the
+# movie, goes through untouched. The window procedure and Alt+Enter handling are not changed.
+[[hooks]]
+address = 0x0040D69E
+type = "detour"
+function = "dropSyntheticDeactivate"
+original_bytes = [0xFF, 0x15, 0x6C, 0x64, 0x98, 0x00]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "esp+0"
+type = "pointer"

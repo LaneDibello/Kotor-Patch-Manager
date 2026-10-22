@@ -158,6 +158,13 @@ public static class HooksParser
                 }
                 var parameters = parametersResult.Data ?? new List<Parameter>();
 
+                // Parse when (optional): the patch option this hook depends on
+                var whenResult = ParseWhen(hookTable, i);
+                if (!whenResult.Success)
+                {
+                    return PatchResult<List<Hook>>.Fail(whenResult.Error ?? "Failed to parse when");
+                }
+
                 var hook = new Hook
                 {
                     Address = address,
@@ -170,7 +177,8 @@ public static class HooksParser
                     ExcludeFromRestore = excludeFromRestore,
                     SkipOriginalBytes = skipOriginalBytes,
                     ConsumedExitAddress = consumedExitAddress,
-                    Parameters = parameters
+                    Parameters = parameters,
+                    When = whenResult.Data
                 };
 
                 // Validate the hook
@@ -189,6 +197,44 @@ public static class HooksParser
         {
             return PatchResult<List<Hook>>.Fail($"Failed to parse hooks TOML: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Parses a hook's <c>when</c> key. Absent means the hook is always installed.
+    /// </summary>
+    /// <remarks>
+    /// <c>when = "option-id"</c> is a toggle that is on;
+    /// <c>when = { option = "option-id", is = "value" }</c> names the value, where
+    /// <c>is</c> may be a string (a choice) or a boolean (a toggle, on or off).
+    /// Whether the option exists is the manifest's to say, so it is checked where both
+    /// are known (OptionValidator), not here.
+    /// </remarks>
+    private static PatchResult<HookCondition?> ParseWhen(TomlTable hookTable, int hookIndex)
+    {
+        if (!hookTable.TryGetValue("when", out var whenObj))
+            return PatchResult<HookCondition?>.Ok(null);
+
+        if (whenObj is string optionId && !string.IsNullOrWhiteSpace(optionId))
+            return PatchResult<HookCondition?>.Ok(new HookCondition { OptionId = optionId });
+
+        if (whenObj is TomlTable whenTable && TryGetString(whenTable, "option", out var option))
+        {
+            if (!whenTable.TryGetValue("is", out var isObj))
+                return PatchResult<HookCondition?>.Ok(new HookCondition { OptionId = option });
+
+            if (isObj is bool on)
+                return PatchResult<HookCondition?>.Ok(new HookCondition
+                {
+                    OptionId = option,
+                    Value = on ? PatchOption.On : PatchOption.Off
+                });
+
+            if (isObj is string value && !string.IsNullOrWhiteSpace(value))
+                return PatchResult<HookCondition?>.Ok(new HookCondition { OptionId = option, Value = value });
+        }
+
+        return PatchResult<HookCondition?>.Fail(
+            $"Hook [{hookIndex}] has an invalid when: expected \"option-id\" or {{ option = \"option-id\", is = value }}");
     }
 
     private static bool TryGetString(TomlTable table, string key, out string value)

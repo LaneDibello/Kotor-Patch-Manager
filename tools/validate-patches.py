@@ -135,7 +135,92 @@ def check_manifest(
     return patch, errors, warnings
 
 
-def check_hooks(path: Path, supported: set[str]) -> list[str]:
+def check_options(patch: dict) -> tuple[dict[str, set[str]], list[str]]:
+    """The values each declared option can hold, and everything wrong with them.
+
+    Mirrors ManifestParser.ParseOptions: a toggle holds "true" or "false", a
+    choice one of its choice ids.
+    """
+    errors: list[str] = []
+    options: dict[str, set[str]] = {}
+    declared = patch.get("options", [])
+    if not isinstance(declared, list):
+        return options, ["[[patch.options]] is not an array of tables"]
+
+    for index, option in enumerate(declared):
+        if not isinstance(option, dict):
+            errors.append(f"option {index} is not a table")
+            continue
+        option_id = option.get("id")
+        if not isinstance(option_id, str) or not option_id.strip():
+            errors.append(f"option {index} has no id")
+            continue
+        where = f"option {option_id!r}"
+        if not PATCH_ID.fullmatch(option_id):
+            errors.append(f"{where} has characters outside [A-Za-z0-9_-]")
+        if option_id in options:
+            errors.append(f"{where} is declared more than once")
+        if not isinstance(option.get("name"), str) or not option["name"].strip():
+            errors.append(f"{where} has no name")
+
+        kind = option.get("type", "toggle")
+        if not isinstance(kind, str) or not kind.strip():
+            errors.append(f"{where} has a type that is neither \"toggle\" nor \"choice\"")
+            continue
+        kind = kind.lower()
+        if kind == "toggle":
+            if "choices" in option:
+                errors.append(f"{where} is a toggle with choices")
+            if not isinstance(option.get("default", False), bool):
+                errors.append(f"{where} is a toggle whose default is not true or false")
+            options[option_id] = {"true", "false"}
+        elif kind == "choice":
+            choices = option.get("choices")
+            choices = choices if isinstance(choices, list) else []
+            ids = [
+                c["id"]
+                for c in choices
+                if isinstance(c, dict) and isinstance(c.get("id"), str) and c["id"].strip()
+            ]
+            if len(ids) < 2 or len(ids) != len(choices):
+                errors.append(f"{where} needs at least two choices, each a table with an id")
+            if not all(PATCH_ID.fullmatch(i) for i in ids):
+                errors.append(f"{where} has a choice id with characters outside [A-Za-z0-9_-]")
+            # A toggle's two values: the config writes them as booleans.
+            if "true" in ids or "false" in ids:
+                errors.append(f"{where} has a choice called true or false")
+            if len(set(ids)) != len(ids):
+                errors.append(f"{where} lists a choice more than once")
+            if option.get("default") not in ids:
+                errors.append(f"{where} has a default that is not one of its choices")
+            options[option_id] = set(ids)
+        else:
+            errors.append(f"{where} has unknown type {kind!r}")
+    return options, errors
+
+
+def condition(hook: dict) -> tuple[str, str] | None | str:
+    """A hook's `when` as (option id, value), None when it has none, or an error."""
+    when = hook.get("when")
+    if when is None:
+        return None
+    if isinstance(when, str) and when.strip():
+        return when, "true"
+    if isinstance(when, dict) and str(when.get("option", "")).strip():
+        value = when.get("is", True)
+        if isinstance(value, bool):
+            return str(when["option"]), "true" if value else "false"
+        if isinstance(value, str) and value.strip():
+            return str(when["option"]), value
+    return "has a when that is neither an option id nor { option, is }"
+
+
+def check_hooks(
+    path: Path,
+    supported: set[str],
+    options: dict[str, set[str]],
+    conditions: dict[tuple[str, int], list[tuple[str, str] | None]],
+) -> list[str]:
     """Everything wrong with one hooks.toml, relative to its manifest."""
     errors: list[str] = []
     try:
@@ -145,8 +230,9 @@ def check_hooks(path: Path, supported: set[str]) -> list[str]:
 
     # A bare hooks.toml carrying no [metadata] applies to every version the
     # manifest supports, so target_versions is only checked when it is present.
-    for target in document.get("metadata", {}).get("target_versions", []):
-        if str(target).upper() not in supported:
+    targets = [str(t).upper() for t in document.get("metadata", {}).get("target_versions", [])]
+    for target in targets:
+        if target not in supported:
             errors.append(
                 f"{path.name} targets a version the manifest does not "
                 f"support: {target}"
@@ -158,8 +244,45 @@ def check_hooks(path: Path, supported: set[str]) -> list[str]:
     if not isinstance(hooks, list):
         return errors
 
+    # One hook per address for any one set of option values: hooks may share an
+    # address only when they test the same option for different values. That holds
+    # per game version and across files, since the installer merges every hooks
+    # file that applies to the build it finds; `conditions` is the patch's.
+    #
+    # Only sharing that involves a `when` is reported. Two plain hooks at one
+    # address are refused by the installer as they always were, and were never
+    # this script's to report.
+    versions = targets or sorted(supported) or [""]
+
     for index, hook in enumerate(hooks):
         where = f"{path.name} hook {index}"
+
+        when = condition(hook)
+        if isinstance(when, str):
+            errors.append(f"{where} {when}")
+            when = None
+        elif when is not None:
+            option_id, value = when
+            if option_id not in options:
+                errors.append(f"{where} names option {option_id!r}, which the manifest does not declare")
+            elif value not in options[option_id]:
+                errors.append(f"{where} tests option {option_id!r} for {value!r}, which it can never hold")
+        if isinstance(hook.get("address"), int):
+            clash = False
+            for version in versions:
+                sharing = conditions.setdefault((version, hook["address"]), [])
+                clash = clash or any(
+                    (when is not None or other is not None)
+                    and (when is None or other is None or when[0] != other[0] or when[1] == other[1])
+                    for other in sharing
+                )
+                sharing.append(when)
+            if clash:
+                errors.append(
+                    f"{where} shares address {hook['address']:#010x} with a hook "
+                    f"that can be installed alongside it"
+                )
+
         kind = hook.get("type")
         if kind not in HOOK_TYPES:
             errors.append(f"{where} has unknown type {kind!r}")
@@ -230,11 +353,15 @@ def main() -> int:
         supported = {
             str(v).upper() for v in patch.get("supported_versions", {}).values()
         }
+        options, option_errors = check_options(patch)
+        errors.extend(option_errors)
+
         hook_files = sorted(directory.glob("*hooks.toml"))
         if not hook_files:
             errors.append("no *hooks.toml")
+        conditions: dict[tuple[str, int], list[tuple[str, str] | None]] = {}
         for hook_file in hook_files:
-            errors.extend(check_hooks(hook_file, supported))
+            errors.extend(check_hooks(hook_file, supported, options, conditions))
 
         if errors:
             failed += 1
