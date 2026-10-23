@@ -35,7 +35,9 @@ static void InstallDialogueReplyStretch();
      Standard Width/Height in swkotor.ini is used only if CoreGraphics hardware detection fails.
   4. Menus already laid out for the resolution (Optional):
      To use .gui sets laid out for the screen's resolution (KOTOR High Resolution Menus, KMRP)
-     and only unlock the resolution, with no layout of the patch's own:
+     and only unlock the resolution, with no layout of the patch's own, choose "GUI files" for
+     the GUI mode option in KotOR Patch Manager (gui-mode=gui-files), or, with a manager that
+     has no options:
         [Graphics Options]
         UseGuiFileLayouts=1
  ==============================================================================================
@@ -131,6 +133,56 @@ static void LoadGraphicsIniSettings() {
     fclose(f);
 }
 
+/*
+  The GUI mode option
+  ----------------------------------------------------------------------------------------------
+  The manifest's gui-mode choice: "standard", the patch's own layout of the vanilla menus, or
+  "gui-files", the layouts from the .gui files (UseGuiFileLayouts=1). KotOR Patch Manager records it
+  in configs/k1widescreenpatch.ini in the game directory, under [Patch Options]; the patch's
+  module is in patches/ there. When that entry is present it decides, whatever swkotor.ini
+  says; without it (a manager without options, or a game patched otherwise) the
+  UseGuiFileLayouts line in swkotor.ini does, as before. A patch on top that calls
+  K1Widescreen_UseGuiFileLayouts still has the last word.
+*/
+static void LoadGuiModeOption() {
+    Dl_info info;
+    if (dladdr((void*)&LoadGuiModeOption, &info) == 0 || !info.dli_fname) return;
+    char path[1024];
+    snprintf(path, sizeof(path), "%s", info.dli_fname);
+    for (int up = 0; up < 2; up++) {   // patches/<module> -> patches -> the game directory
+        char* slash = strrchr(path, '/');
+        if (!slash) return;
+        *slash = '\0';
+    }
+    size_t len = strlen(path);
+    snprintf(path + len, sizeof(path) - len, "/configs/k1widescreenpatch.ini");
+
+    FILE* f = fopen(path, "r");
+    if (!f) return;
+    char line[256];
+    bool inOptions = false;
+    while (fgets(line, sizeof(line), f)) {
+        char* p = line;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p == '[') {
+            inOptions = (strncasecmp(p, "[Patch Options]", 15) == 0);
+            continue;
+        }
+        if (!inOptions || strncasecmp(p, "gui-mode", 8) != 0) continue;
+        char* val = p + 8;
+        while (*val == ' ' || *val == '\t') val++;
+        if (*val != '=') continue;
+        val++;
+        while (*val == ' ' || *val == '\t') val++;
+        if (strncasecmp(val, "gui-files", 9) == 0) {
+            s_graphicsIni.guiFileLayouts = 1;
+        } else if (strncasecmp(val, "standard", 8) == 0) {
+            s_graphicsIni.guiFileLayouts = 0;
+        }
+    }
+    fclose(f);
+}
+
 static bool s_resolutionInitialized = false;
 
 // Not static: the Retina display-mode fix (kmrp_engine_fixes.cpp) needs the target before the
@@ -139,6 +191,7 @@ void InitTargetResolution() {
     if (s_resolutionInitialized) return;
     s_resolutionInitialized = true;
     LoadGraphicsIniSettings();
+    LoadGuiModeOption();
 
     // 1. Hardware Display Auto-Detection via macOS CoreGraphics (loaded dynamically via dlopen)
     // Obtains the active monitor's native point resolution (e.g. 1512x982 on 14" MacBook Pro,
@@ -198,14 +251,15 @@ void InitTargetResolution() {
 /*
   Layouts from the .gui files
   ----------------------------------------------------------------------------------------------
-  UseGuiFileLayouts=1 in [Graphics Options] is for .gui sets already laid out at the screen's
-  resolution in Override, such as KOTOR High Resolution Menus (and KMRP, which builds on it and
-  derives sets for the Mac displays). The patch then only unlocks the resolution: the engine's
-  UI size, viewport, GUI canvas and tooltip bounds (updateEngineGlobals), the recentring
-  constants at the full screen (as the High Resolution Menus executable patch sets them), the
-  video mode and the engine fixes. It lays nothing out itself: no menu, popup or HUD scaling,
-  no list or row constants, no font scaling, the class-selection screen runs its own loop, and
-  the store and workbench stack-count badge keeps its vanilla place.
+  The "GUI files" mode (gui-mode=gui-files, or UseGuiFileLayouts=1 in [Graphics Options]) is for
+  .gui sets already laid out at the screen's resolution in Override, such as KOTOR High
+  Resolution Menus (and KMRP, which builds on it and derives sets for the Mac displays). The
+  patch then only unlocks the resolution: the engine's UI size, viewport, GUI canvas and tooltip
+  bounds (updateEngineGlobals), the recentring constants at the full screen (as the High
+  Resolution Menus executable patch sets them), the video mode and the engine fixes. It lays
+  nothing out itself: no menu, popup or HUD scaling, no list or row constants, no font scaling,
+  the class-selection screen runs its own loop, and the store and workbench stack-count badge
+  keeps its vanilla place.
   The HUD loads mipc28x6.gui, or mipc210x7.gui at 3440x1440, as KMRP's Windows executable does,
   instead of the pinned mipc212x9.
 */
