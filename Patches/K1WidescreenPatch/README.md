@@ -1,7 +1,7 @@
 # KotOR 1 macOS Widescreen & High-Resolution UI Architecture Guide
 *A Comprehensive Engineering Reference for the Aspyr 64-bit AMD64 Port (with KMRP Engine Enhancements)*
 
-Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. This patch offers two modes: (1) a scaled-up vanilla mode (with no additional files required) and (2) an external gui mode, with specific variables (or the variables for the conventional scaling formula, see section 9.2) defined in swkotor.ini. For mode 2, add `UseGuiFileLayouts=1` under `[Graphics Options]` to your .ini file.——FTD
+Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. This patch offers two modes: (1) a scaled-up vanilla mode (with no additional files required) and (2) an external gui mode, with specific variables (or the variables for the conventional scaling formula, see section 9.2) defined in swkotor.ini. For mode 2, choose "GUI files" for the patch's GUI mode option in KotOR Patch Manager (or, with a manager that has no options, add `UseGuiFileLayouts=1` under `[Graphics Options]` to your .ini file).——FTD
 
 ---
 
@@ -250,11 +250,18 @@ extern "C" uint64_t KMRP_DisplayModeScale() {
 When a high-DPI target is requested, it provides the true pixel-to-point ratio (e.g. 2.0) in `rax`. The engine populates the HiDPI modes and handles SDL mouse scaling via its native render/window ratio (`0x100025802`), allowing native Retina rendering without cursor drift.
 
 ### 2.4 External `.gui` Layout Support (`UseGuiFileLayouts`)
-For users who prefer pre-authored high-resolution GUI files in `Override/` (such as KOTOR High Resolution Menus or KMRP GUI sets), the patch provides `UseGuiFileLayouts=1` under `[Graphics Options]` in `swkotor.ini`:
+For users who prefer pre-authored high-resolution GUI files in `Override/` (such as KOTOR High Resolution Menus or KMRP GUI sets), the patch has a **GUI mode** option in KotOR Patch Manager: **Standard** (the default, the patch's own layout) or **GUI files**. The manager records the choice in `configs/k1widescreenpatch.ini` in the game directory:
+```ini
+[Patch Options]
+gui-mode=gui-files
+```
+When that entry is present it decides the mode, whatever `swkotor.ini` says. Without it (a manager from before patch options, or a game patched another way) the patch reads `UseGuiFileLayouts=1` under `[Graphics Options]` in `swkotor.ini`, as before:
 ```ini
 [Graphics Options]
 UseGuiFileLayouts=1
 ```
+A patch that `requires` this one and brings its own `.gui` sets (KMRP) can still ask for the mode from its code, through `K1Widescreen_UseGuiFileLayouts`, and has the last word.
+
 When enabled:
 - The patch unlocks resolution, engine canvas dimensions, video modes, and stability bugfixes.
 - Procedural C++ layout overrides in `Hook_MainInterfaceDraw`, `Hook_WindowDraw`, `Hook_ClassSelectionUpdate`, and font metadata scaling return immediately, allowing the authored `.gui` files to control menu placement.
@@ -826,14 +833,14 @@ A fresh font carries unscaled TXI metrics, triggering scaling even at a recycled
 ## 9. UI Customization & Dual-Mode Engine Architecture
 
 ### 9.1 Dual-Mode Operation: Procedural Stretch vs. External GUI Files
-A core feature of this patch is its **Dual-Mode UI Architecture**, governed by the setting `UseGuiFileLayouts` under `[Graphics Options]` in `swkotor.ini`. In short, this patch actually contains two modes:
+A core feature of this patch is its **Dual-Mode UI Architecture**, governed by the patch's **GUI mode** option in KotOR Patch Manager (`gui-mode`, see section 2.4), or, without it, by the setting `UseGuiFileLayouts` under `[Graphics Options]` in `swkotor.ini`. In short, this patch actually contains two modes:
 
-1. **Procedural Mode (`UseGuiFileLayouts=0`, Default)**:
+1. **Procedural Mode (GUI mode "Standard", `UseGuiFileLayouts=0`, Default)**:
    - **Zero Dependencies**: Operates 100% out-of-the-box without requiring any custom `.gui` files, texture overrides, or external assets.
    - **Dynamic Hierarchy Scaling**: Analyzes the engine's vanilla 4:3 GUI hierarchy at runtime, stretching backdrops, centering root consoles, repositioning HUD clusters, and scaling floating target reticles across arbitrary widescreen resolutions (16:10, 16:9, 21:9, and beyond).
    - **Continuous Resolution Layout**: Derives listbox row strides, item heights, and text gutters proportionally using continuous scaling formulas.
 
-2. **External GUI Mode (`UseGuiFileLayouts=1`)**:
+2. **External GUI Mode (GUI mode "GUI files", `UseGuiFileLayouts=1`)**:
    - **Full Mod Compatibility**: Designed for use with comprehensive widescreen GUI redesigns, such as the KotOR Modding Restoration Project (KMRP) or custom high-resolution UI layouts placed in the `Override/` directory.
    - **Suppression of Procedural Stretching**: Bypasses procedural scaling (`scaleMenuPanelTree`) globally across all menus and popups (including HUD, In-Game Menu, Area Map, Options, and `skillinfo.gui` granted popups), preserving the exact dimensions and positions authored in modded `.gui` files.
    - **Windows Gold Listbox Padding Rules**: Fixes the Mac port's vertical padding anomaly. Under vanilla Mac logic, listbox `padding` was incorrectly added to the vertical row pitch, causing severe spacing blowouts. Under `UseGuiFileLayouts=1`, the patch enforces Windows Gold v11/v12 behavior: vertical row padding is zeroed, the first row starts at $Y=0$, and `padding` serves purely as a horizontal scrollbar gutter.
@@ -866,7 +873,7 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 #### `[Graphics Options]` Core Engine Settings
 | Setting Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `UseGuiFileLayouts` | `int` | `0` | Set to `1` to enable external `.gui` layout mode (KMRP compatibility, Windows Gold padding, high-res map scaling). Set to `0` for procedural stretch mode. |
+| `UseGuiFileLayouts` | `int` | `0` | Set to `1` to enable external `.gui` layout mode (KMRP compatibility, Windows Gold padding, high-res map scaling). Set to `0` for procedural stretch mode. Only read when the manager recorded no GUI mode option (section 2.4). |
 | `ForceWidth` | `int` | Auto | Overrides monitor detection to force a specific horizontal rendering resolution (e.g. `1920`, `2560`, `3024`). |
 | `ForceHeight` | `int` | Auto | Overrides monitor detection to force a specific vertical rendering resolution (e.g. `1080`, `1440`, `1964`). |
 

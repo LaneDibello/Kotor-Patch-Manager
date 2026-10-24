@@ -35,7 +35,9 @@ static void InstallDialogueReplyStretch();
      Standard Width/Height in swkotor.ini is used only if CoreGraphics hardware detection fails.
   4. Menus already laid out for the resolution (Optional):
      To use .gui sets laid out for the screen's resolution (KOTOR High Resolution Menus, KMRP)
-     and only unlock the resolution, with no layout of the patch's own:
+     and only unlock the resolution, with no layout of the patch's own, choose "GUI files" for
+     the GUI mode option in KotOR Patch Manager (gui-mode=gui-files), or, with a manager that
+     has no options:
         [Graphics Options]
         UseGuiFileLayouts=1
  ==============================================================================================
@@ -131,6 +133,56 @@ static void LoadGraphicsIniSettings() {
     fclose(f);
 }
 
+/*
+  The GUI mode option
+  ----------------------------------------------------------------------------------------------
+  The manifest's gui-mode choice: "standard", the patch's own layout of the vanilla menus, or
+  "gui-files", the layouts from the .gui files (UseGuiFileLayouts=1). KotOR Patch Manager records it
+  in configs/k1widescreenpatch.ini in the game directory, under [Patch Options]; the patch's
+  module is in patches/ there. When that entry is present it decides, whatever swkotor.ini
+  says; without it (a manager without options, or a game patched otherwise) the
+  UseGuiFileLayouts line in swkotor.ini does, as before. A patch on top that calls
+  K1Widescreen_UseGuiFileLayouts still has the last word.
+*/
+static void LoadGuiModeOption() {
+    Dl_info info;
+    if (dladdr((void*)&LoadGuiModeOption, &info) == 0 || !info.dli_fname) return;
+    char path[1024];
+    snprintf(path, sizeof(path), "%s", info.dli_fname);
+    for (int up = 0; up < 2; up++) {   // patches/<module> -> patches -> the game directory
+        char* slash = strrchr(path, '/');
+        if (!slash) return;
+        *slash = '\0';
+    }
+    size_t len = strlen(path);
+    snprintf(path + len, sizeof(path) - len, "/configs/k1widescreenpatch.ini");
+
+    FILE* f = fopen(path, "r");
+    if (!f) return;
+    char line[256];
+    bool inOptions = false;
+    while (fgets(line, sizeof(line), f)) {
+        char* p = line;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p == '[') {
+            inOptions = (strncasecmp(p, "[Patch Options]", 15) == 0);
+            continue;
+        }
+        if (!inOptions || strncasecmp(p, "gui-mode", 8) != 0) continue;
+        char* val = p + 8;
+        while (*val == ' ' || *val == '\t') val++;
+        if (*val != '=') continue;
+        val++;
+        while (*val == ' ' || *val == '\t') val++;
+        if (strncasecmp(val, "gui-files", 9) == 0) {
+            s_graphicsIni.guiFileLayouts = 1;
+        } else if (strncasecmp(val, "standard", 8) == 0) {
+            s_graphicsIni.guiFileLayouts = 0;
+        }
+    }
+    fclose(f);
+}
+
 static bool s_resolutionInitialized = false;
 
 // Not static: the Retina display-mode fix (kmrp_engine_fixes.cpp) needs the target before the
@@ -139,6 +191,7 @@ void InitTargetResolution() {
     if (s_resolutionInitialized) return;
     s_resolutionInitialized = true;
     LoadGraphicsIniSettings();
+    LoadGuiModeOption();
 
     // 1. Hardware Display Auto-Detection via macOS CoreGraphics (loaded dynamically via dlopen)
     // Obtains the active monitor's native point resolution (e.g. 1512x982 on 14" MacBook Pro,
@@ -198,14 +251,15 @@ void InitTargetResolution() {
 /*
   Layouts from the .gui files
   ----------------------------------------------------------------------------------------------
-  UseGuiFileLayouts=1 in [Graphics Options] is for .gui sets already laid out at the screen's
-  resolution in Override, such as KOTOR High Resolution Menus (and KMRP, which builds on it and
-  derives sets for the Mac displays). The patch then only unlocks the resolution: the engine's
-  UI size, viewport, GUI canvas and tooltip bounds (updateEngineGlobals), the recentring
-  constants at the full screen (as the High Resolution Menus executable patch sets them), the
-  video mode and the engine fixes. It lays nothing out itself: no menu, popup or HUD scaling,
-  no list or row constants, no font scaling, the class-selection screen runs its own loop, and
-  the store and workbench stack-count badge keeps its vanilla place.
+  The "GUI files" mode (gui-mode=gui-files, or UseGuiFileLayouts=1 in [Graphics Options]) is for
+  .gui sets already laid out at the screen's resolution in Override, such as KOTOR High
+  Resolution Menus (and KMRP, which builds on it and derives sets for the Mac displays). The
+  patch then only unlocks the resolution: the engine's UI size, viewport, GUI canvas and tooltip
+  bounds (updateEngineGlobals), the recentring constants at the full screen (as the High
+  Resolution Menus executable patch sets them), the video mode and the engine fixes. It lays
+  nothing out itself: no menu, popup or HUD scaling, no list or row constants, no font scaling,
+  the class-selection screen runs its own loop, and the store and workbench stack-count badge
+  keeps its vanilla place.
   The HUD loads mipc28x6.gui, or mipc210x7.gui at 3440x1440, as KMRP's Windows executable does,
   instead of the pinned mipc212x9.
 */
@@ -3668,29 +3722,64 @@ extern "C" void scaleLoadedTextureMetadata(void* texture) {
 }
 
 /*
-  DylibInit:
-  Invoked automatically when the dynamic library is loaded by dyld at game launch.
-  Initializes display resolution from swkotor.ini and immediately installs baseline
-  menu centering displacements and scaled row geometry into game memory.
+  The layout mode, applied once
+  ----------------------------------------------------------------------------------------------
+  What the patch writes into the game for its own layout, or for layouts from .gui files
+  (UseGuiFileLayouts). This is not done in DylibInit, when the library loads. It runs when the
+  engine first sets its video mode (KMRP_UseTargetVideoMode, K4, in kmrp_engine_fixes.cpp),
+  which is still before any panel exists, so that a patch loaded after this one can ask for the
+  .gui mode first (K1Widescreen_UseGuiFileLayouts): KotOR Patch Manager loads a patch that
+  `requires` this one after it, and a mode written at load could not be taken back (the list
+  constants of the patch's own layout have no record of what they replaced).
 */
-__attribute__((constructor))
-static void DylibInit() {
+static bool s_layoutModeApplied = false;
+
+static void WriteGuiFileHudTemplate() {
+    // The HUD file the .gui sets are laid out for: mipc28x6, or mipc210x7 at 3440x1440,
+    // on every branch of the CSWGuiMainInterface constructor's height test (the five
+    // lea rsi, [rip + string] below; strings at 0x10052ac32 ... 0x10052ac5c).
+    const uintptr_t sites[5] = { 0x100233429, 0x10023345e, 0x100233489, 0x1002334b4, 0x1002334d8 };
+    const uintptr_t hudString = (g_targetWidth == 3440 && g_targetHeight == 1440)
+                                    ? 0x10052ac52 : 0x10052ac5c;
+    for (uintptr_t site : sites) {
+        uint8_t lea[7] = { 0x48, 0x8d, 0x35, 0, 0, 0, 0 };
+        int32_t disp = (int32_t)(hudString - (site + 7));
+        memcpy(lea + 3, &disp, 4);
+        writeMemBytes(site, lea, 7);
+    }
+}
+
+// The parts of the mode that depend on the target resolution. Each keeps what it last applied,
+// so this costs nothing when the size has not changed.
+static void ApplyLayoutForTarget() {
+    if (GuiFileLayouts()) {
+        WriteGuiFileHudTemplate();
+        patchMenuCenteringConstants(g_targetWidth, g_targetHeight);
+        InstallListboxPaddingFix();
+        InstallAreaMapLayout();
+        InstallMessageBoxLayout();
+        InstallCheckboxScaling();
+        return;
+    }
+    int targetH = g_targetHeight;
+    int targetW = (g_targetHeight * 4) / 3;
+    float menuScale = ReadIniMenuScale();
+    if (menuScale > 0.0f) {
+        targetH = (int)(960 * menuScale);
+        targetW = (int)(1280 * menuScale);
+    }
+    patchMenuCenteringConstants(targetW, targetH);
+    refreshPatchedListConstants();
+}
+
+// Not static: kmrp_engine_fixes.cpp calls it from the video-mode detour.
+void ApplyLayoutMode() {
+    if (s_layoutModeApplied) return;
+    s_layoutModeApplied = true;
     InitTargetResolution();
 
     if (GuiFileLayouts()) {
         CheckAndReloadUiKnobs();
-        // The HUD file the .gui sets are laid out for: mipc28x6, or mipc210x7 at 3440x1440,
-        // on every branch of the CSWGuiMainInterface constructor's height test (the five
-        // lea rsi, [rip + string] below; strings at 0x10052ac32 ... 0x10052ac5c).
-        const uintptr_t sites[5] = { 0x100233429, 0x10023345e, 0x100233489, 0x1002334b4, 0x1002334d8 };
-        const uintptr_t hudString = (g_targetWidth == 3440 && g_targetHeight == 1440)
-                                        ? 0x10052ac52 : 0x10052ac5c;
-        for (uintptr_t site : sites) {
-            uint8_t lea[7] = { 0x48, 0x8d, 0x35, 0, 0, 0, 0 };
-            int32_t disp = (int32_t)(hudString - (site + 7));
-            memcpy(lea + 3, &disp, 4);
-            writeMemBytes(site, lea, 7);
-        }
         // The class-selection screen's own update loop, which the hooks file bypasses.
         const uint8_t vanillaClassLoop[5] = { 0xf3, 0x0f, 0x11, 0x45, 0xd4 };
         writeMemBytes(0x100337897, vanillaClassLoop, 5);
@@ -3699,12 +3788,8 @@ static void DylibInit() {
         const uint8_t vanillaBadgeX[5] = { 0xb8, 0x38, 0x00, 0x00, 0x00 };
         writeMemBytes(0x1002bfbbf, vanillaBadgeX, 5);
         writeMemBytes(0x10021c0e2, vanillaBadgeX, 5);
-        patchMenuCenteringConstants(g_targetWidth, g_targetHeight);
-        InstallListboxPaddingFix();
-        InstallAreaMapLayout();
-        InstallMessageBoxLayout();
+        ApplyLayoutForTarget();
         InstallDialogueReplyStretch();
-        InstallCheckboxScaling();
         InstallGrantedPopupLayout();
         return;
     }
@@ -3717,14 +3802,62 @@ static void DylibInit() {
     writeMemBytes(0x10023345e, (const uint8_t*)"\x48\x8d\x35\xe3\x77\x2f\x00", 7);
     writeMemBytes(0x1002334b4, (const uint8_t*)"\x48\x8d\x35\x8d\x77\x2f\x00", 7);
     writeMemBytes(0x1002334d8, (const uint8_t*)"\x48\x8d\x35\x69\x77\x2f\x00", 7);
-    
-    int targetH = g_targetHeight;
-    int targetW = (g_targetHeight * 4) / 3;
-    float menuScale = ReadIniMenuScale();
-    if (menuScale > 0.0f) {
-        targetH = (int)(960 * menuScale);
-        targetW = (int)(1280 * menuScale);
-    }
-    patchMenuCenteringConstants(targetW, targetH);
-    refreshPatchedListConstants();
+    ApplyLayoutForTarget();
+}
+
+/*
+  For a patch that brings its own .gui sets
+  ----------------------------------------------------------------------------------------------
+  A patch that `requires` this one and carries menus laid out for the screen's resolution (KMRP
+  does) can ask for the "GUI files" mode from its own code, whatever the player chose:
+
+    K1Widescreen_UseGuiFileLayouts(1)        the "GUI files" mode (0: the patch's own layout).
+                                             From the patch's constructor: it has to come before
+                                             the engine first sets its video mode, when the layout
+                                             mode is written (ApplyLayoutMode). Later it does
+                                             nothing, and returns 0.
+    K1Widescreen_SetTargetResolution(w, h)   the resolution the layout is for, changed while the
+                                             game runs: for a patch that follows the game's own
+                                             mode switch (Options, Graphics, Screen Resolution).
+                                             Everything here that depends on the size is applied
+                                             again; the caller re-initialises the renderer.
+    K1Widescreen_GetTargetResolution(&w, &h) the resolution in force.
+
+  All three are found by name in this library (dlsym), so a patch built without it still loads.
+  These are not dead code: nothing in this patch calls them, KMRP does.
+*/
+extern "C" __attribute__((visibility("default"))) int K1Widescreen_UseGuiFileLayouts(int enabled) {
+    InitTargetResolution();
+    if (s_layoutModeApplied) return (s_graphicsIni.guiFileLayouts != 0) == (enabled != 0);
+    s_graphicsIni.guiFileLayouts = enabled ? 1 : 0;
+    return 1;
+}
+
+void ResizeDialogueLetterbox(int width, int height);   // kmrp_engine_fixes.cpp
+
+extern "C" __attribute__((visibility("default"))) void K1Widescreen_SetTargetResolution(int width, int height) {
+    InitTargetResolution();
+    if (width < 640 || height < 480 || (width == g_targetWidth && height == g_targetHeight)) return;
+    g_targetWidth = width;
+    g_targetHeight = height;
+    if (!s_layoutModeApplied) return;   // the mode is still to be written, for this size
+    ApplyLayoutForTarget();
+    ResizeDialogueLetterbox(width, height);
+}
+
+extern "C" __attribute__((visibility("default"))) void K1Widescreen_GetTargetResolution(int* width, int* height) {
+    InitTargetResolution();
+    if (width) *width = g_targetWidth;
+    if (height) *height = g_targetHeight;
+}
+
+/*
+  DylibInit:
+  Invoked automatically when the dynamic library is loaded by dyld at game launch.
+  Initializes display resolution from swkotor.ini. The layout mode itself is written when the
+  engine first sets its video mode (ApplyLayoutMode above).
+*/
+__attribute__((constructor))
+static void DylibInit() {
+    InitTargetResolution();
 }
