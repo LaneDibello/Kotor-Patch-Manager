@@ -35,7 +35,9 @@ static void InstallDialogueReplyStretch();
      Standard Width/Height in swkotor.ini is used only if CoreGraphics hardware detection fails.
   4. Menus already laid out for the resolution (Optional):
      To use .gui sets laid out for the screen's resolution (KOTOR High Resolution Menus, KMRP)
-     and only unlock the resolution, with no layout of the patch's own:
+     and only unlock the resolution, with no layout of the patch's own, choose "GUI files" for
+     the GUI mode option in KotOR Patch Manager (gui-mode=gui-files), or, with a manager that
+     has no options:
         [Graphics Options]
         UseGuiFileLayouts=1
  ==============================================================================================
@@ -131,6 +133,56 @@ static void LoadGraphicsIniSettings() {
     fclose(f);
 }
 
+/*
+  The GUI mode option
+  ----------------------------------------------------------------------------------------------
+  The manifest's gui-mode choice: "standard", the patch's own layout of the vanilla menus, or
+  "gui-files", the layouts from the .gui files (UseGuiFileLayouts=1). KotOR Patch Manager records it
+  in configs/k1widescreenpatch.ini in the game directory, under [Patch Options]; the patch's
+  module is in patches/ there. When that entry is present it decides, whatever swkotor.ini
+  says; without it (a manager without options, or a game patched otherwise) the
+  UseGuiFileLayouts line in swkotor.ini does, as before. A patch on top that calls
+  K1Widescreen_UseGuiFileLayouts still has the last word.
+*/
+static void LoadGuiModeOption() {
+    Dl_info info;
+    if (dladdr((void*)&LoadGuiModeOption, &info) == 0 || !info.dli_fname) return;
+    char path[1024];
+    snprintf(path, sizeof(path), "%s", info.dli_fname);
+    for (int up = 0; up < 2; up++) {   // patches/<module> -> patches -> the game directory
+        char* slash = strrchr(path, '/');
+        if (!slash) return;
+        *slash = '\0';
+    }
+    size_t len = strlen(path);
+    snprintf(path + len, sizeof(path) - len, "/configs/k1widescreenpatch.ini");
+
+    FILE* f = fopen(path, "r");
+    if (!f) return;
+    char line[256];
+    bool inOptions = false;
+    while (fgets(line, sizeof(line), f)) {
+        char* p = line;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p == '[') {
+            inOptions = (strncasecmp(p, "[Patch Options]", 15) == 0);
+            continue;
+        }
+        if (!inOptions || strncasecmp(p, "gui-mode", 8) != 0) continue;
+        char* val = p + 8;
+        while (*val == ' ' || *val == '\t') val++;
+        if (*val != '=') continue;
+        val++;
+        while (*val == ' ' || *val == '\t') val++;
+        if (strncasecmp(val, "gui-files", 9) == 0) {
+            s_graphicsIni.guiFileLayouts = 1;
+        } else if (strncasecmp(val, "standard", 8) == 0) {
+            s_graphicsIni.guiFileLayouts = 0;
+        }
+    }
+    fclose(f);
+}
+
 static bool s_resolutionInitialized = false;
 
 // Not static: the Retina display-mode fix (kmrp_engine_fixes.cpp) needs the target before the
@@ -139,6 +191,7 @@ void InitTargetResolution() {
     if (s_resolutionInitialized) return;
     s_resolutionInitialized = true;
     LoadGraphicsIniSettings();
+    LoadGuiModeOption();
 
     // 1. Hardware Display Auto-Detection via macOS CoreGraphics (loaded dynamically via dlopen)
     // Obtains the active monitor's native point resolution (e.g. 1512x982 on 14" MacBook Pro,
@@ -198,14 +251,15 @@ void InitTargetResolution() {
 /*
   Layouts from the .gui files
   ----------------------------------------------------------------------------------------------
-  UseGuiFileLayouts=1 in [Graphics Options] is for .gui sets already laid out at the screen's
-  resolution in Override, such as KOTOR High Resolution Menus (and KMRP, which builds on it and
-  derives sets for the Mac displays). The patch then only unlocks the resolution: the engine's
-  UI size, viewport, GUI canvas and tooltip bounds (updateEngineGlobals), the recentring
-  constants at the full screen (as the High Resolution Menus executable patch sets them), the
-  video mode and the engine fixes. It lays nothing out itself: no menu, popup or HUD scaling,
-  no list or row constants, no font scaling, the class-selection screen runs its own loop, and
-  the store and workbench stack-count badge keeps its vanilla place.
+  The "GUI files" mode (gui-mode=gui-files, or UseGuiFileLayouts=1 in [Graphics Options]) is for
+  .gui sets already laid out at the screen's resolution in Override, such as KOTOR High
+  Resolution Menus (and KMRP, which builds on it and derives sets for the Mac displays). The
+  patch then only unlocks the resolution: the engine's UI size, viewport, GUI canvas and tooltip
+  bounds (updateEngineGlobals), the recentring constants at the full screen (as the High
+  Resolution Menus executable patch sets them), the video mode and the engine fixes. It lays
+  nothing out itself: no menu, popup or HUD scaling, no list or row constants, no font scaling,
+  the class-selection screen runs its own loop, and the store and workbench stack-count badge
+  keeps its vanilla place.
   The HUD loads mipc28x6.gui, or mipc210x7.gui at 3440x1440, as KMRP's Windows executable does,
   instead of the pinned mipc212x9.
 */
@@ -213,10 +267,6 @@ static bool GuiFileLayouts() {
     InitTargetResolution();
     return s_graphicsIni.guiFileLayouts != 0;
 }
-
-// Native template dimensions used internally by the Mac 4:3 GUI layout (mipc212x9)
-int g_refWidth     = 1280;
-int g_refHeight    = 960;
 
 struct Rect {
     int left, top, width, height;
@@ -509,27 +559,6 @@ static void writeMemBytes(uintptr_t addr, const uint8_t* src, size_t len) {
                    VM_PROT_READ | VM_PROT_EXECUTE);
     }
 }
-
-/*
-  GetScaledItemRowHeight:
-  Calculates the scaled row height for list items across menus.
-  In vanilla KotOR, standard item rows are 56px (0x38) high, skill/save rows are 42px (0x2A) high,
-  designed for a 480px vertical canvas.
-  - Save & Load screen: 89px row height with 19px padding (108.5px stride, 6 visible slots).
-  - In-Game Inventory & Equipment: 96px row height (5 visible slots, 197 image px stride matching background slots).
-  - Container / Store Popups: 96px row height with dynamic root/child dialog scaling.
-  - Skill rows: 86px row height (42 * scale).
-*/
-int GetScaledItemRowHeight(int baseHeight = 56) {
-    float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
-    float menuScale = ReadIniMenuScale();
-    if (menuScale > 0.0f) {
-        scale = menuScale;
-    }
-    return (int)(baseHeight * scale + 0.5f);
-}
-
-static int s_lastPatchedTargetHeight = -1;
 
 /*
   Calibrated Item List & Container Geometry:
@@ -875,6 +904,41 @@ extern "C" int MapHider_GetPlayerMapCoords(char* pMapInfo, int partyIdx, int* ou
 
 namespace ScaledFont { static float GetEffectiveFontScale(); }
 
+static void InstallAreaMapBridges() {
+    static bool s_bridgesInstalled = false;
+    if (s_bridgesInstalled) return;
+    s_bridgesInstalled = true;
+
+    // Bridge 1 at 0x1000f4f68: jump to MapHider_WorldToMapCoords (12 bytes)
+    uint8_t bridgeWorld[12] = { 0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0 };
+    *(void**)&bridgeWorld[2] = (void*)&MapHider_WorldToMapCoords;
+    writeMemBytes(0x1000f4f68, bridgeWorld, 12);
+
+    // Bridge 2 at 0x1000f4f78: jump to MapHider_GetPlayerMapCoords (12 bytes)
+    uint8_t bridgePlayer[12] = { 0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0 };
+    *(void**)&bridgePlayer[2] = (void*)&MapHider_GetPlayerMapCoords;
+    writeMemBytes(0x1000f4f78, bridgePlayer, 12);
+
+    // Patch callsites in CSWGuiMapHider::Draw:
+    // 0x1002b4fca: callq 0x1000f4f68 (Map notes / quest markers)
+    uint8_t callWorld[5] = { 0xe8, 0x99, 0xff, 0xe3, 0xff };
+    writeMemBytes(0x1002b4fca, callWorld, 5);
+
+    // 0x1002b541b: callq 0x1000f4f78 (Party members)
+    uint8_t callParty[5] = { 0xe8, 0x58, 0xfb, 0xe3, 0xff };
+    writeMemBytes(0x1002b541b, callParty, 5);
+
+    // 0x1002b54c2: callq 0x1000f4f78 (Player arrow)
+    uint8_t callPlayer[5] = { 0xe8, 0xb1, 0xfa, 0xe3, 0xff };
+    writeMemBytes(0x1002b54c2, callPlayer, 5);
+
+    // CSWGuiMapHider::Draw: scale fog tile step X & Y from this->width (0x10(%r12)) and this->height (0x14(%r12))
+    uint8_t mapHiderWidthHook[8] = { 0xf3, 0x41, 0x0f, 0x2a, 0x4c, 0x24, 0x10, 0x90 };
+    writeMemBytes(0x1002b4ce9, mapHiderWidthHook, 8);
+    uint8_t mapHiderHeightHook[8] = { 0xf3, 0x41, 0x0f, 0x2a, 0x54, 0x24, 0x14, 0x90 };
+    writeMemBytes(0x1002b4cfc, mapHiderHeightHook, 8);
+}
+
 /*
   StackBadgeHeight (KMRP):
   The quantity badge's label must grow with the FONT, not only with the layout. The text
@@ -1032,14 +1096,6 @@ void refreshPatchedListConstants() {
     writeMemInt(0x10030688d, g_targetWidth);
     writeMemInt(0x1003068ff, g_targetHeight);
 
-    // CSWGuiMapHider::Draw: scale fog tile step X from this->width (0x10(%r12)) instead of hardcoded 440.0f
-    uint8_t mapHiderWidthHook[8] = { 0xf3, 0x41, 0x0f, 0x2a, 0x4c, 0x24, 0x10, 0x90 };
-    writeMemBytes(0x1002b4ce9, mapHiderWidthHook, 8);
-
-    // CSWGuiMapHider::Draw: scale fog tile step Y from this->height (0x14(%r12)) instead of hardcoded 256.0f
-    uint8_t mapHiderHeightHook[8] = { 0xf3, 0x41, 0x0f, 0x2a, 0x54, 0x24, 0x14, 0x90 };
-    writeMemBytes(0x1002b4cfc, mapHiderHeightHook, 8);
-
     // Restore 0x1004a1f3d to vanilla (9 bytes: movl 0x10(%r15), %r11d; leal (%r13,%r13), %eax)
     uint8_t vanillaBorderF3D[9] = { 0x45, 0x8b, 0x5f, 0x10, 0x43, 0x8d, 0x44, 0x2d, 0x00 };
     writeMemBytes(0x1004a1f3d, vanillaBorderF3D, 9);
@@ -1089,29 +1145,8 @@ void refreshPatchedListConstants() {
     writeMemBytes(0x1002bfe55, itemInitBorder, 3); // Unselected border
     writeMemBytes(0x1002bff0e, itemInitBorder, 3); // Selected border
 
-    // CSWGuiMapHider::Draw dynamic coordinate scaling hooks:
-    // Bridge 1 at 0x1000f4f68: jump to MapHider_WorldToMapCoords (12 bytes)
-    uint8_t bridgeWorld[12] = { 0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0 };
-    *(void**)&bridgeWorld[2] = (void*)&MapHider_WorldToMapCoords;
-    writeMemBytes(0x1000f4f68, bridgeWorld, 12);
-
-    // Bridge 2 at 0x1000f4f78: jump to MapHider_GetPlayerMapCoords (12 bytes)
-    uint8_t bridgePlayer[12] = { 0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0 };
-    *(void**)&bridgePlayer[2] = (void*)&MapHider_GetPlayerMapCoords;
-    writeMemBytes(0x1000f4f78, bridgePlayer, 12);
-
-    // Patch callsites in CSWGuiMapHider::Draw:
-    // 0x1002b4fca: callq 0x1000f4f68 (Map notes / quest markers)
-    uint8_t callWorld[5] = { 0xe8, 0x99, 0xff, 0xe3, 0xff };
-    writeMemBytes(0x1002b4fca, callWorld, 5);
-
-    // 0x1002b541b: callq 0x1000f4f78 (Party members)
-    uint8_t callParty[5] = { 0xe8, 0x58, 0xfb, 0xe3, 0xff };
-    writeMemBytes(0x1002b541b, callParty, 5);
-
-    // 0x1002b54c2: callq 0x1000f4f78 (Player arrow)
-    uint8_t callPlayer[5] = { 0xe8, 0xb1, 0xfa, 0xe3, 0xff };
-    writeMemBytes(0x1002b54c2, callPlayer, 5);
+    // CSWGuiMapHider::Draw dynamic coordinate & fog tile step scaling hooks:
+    InstallAreaMapBridges();
 
     // Restore vanilla marker centering arithmetic in CSWGuiMapHider::Draw
     uint8_t vanillaNoteUnsel[] = {
@@ -1153,8 +1188,6 @@ void refreshPatchedListConstants() {
     writeMemBytes(0x1002b54cf, vanillaArrow, sizeof(vanillaArrow));
 
     InstallDialogueReplyStretch();
-
-    s_lastPatchedTargetHeight = g_targetHeight;
 }
 
 static int s_lastPatchedCenteringW = -1;
@@ -1297,12 +1330,6 @@ void scalePopupPanel(char* panel) {
         // arches and center seams. By enforcing FILLSTYLE = 2 (DrawStretched) and DIMENSION = 0,
         // the engine stretches lbl_char_scr as a single continuous quad across the entire
         // scaled console without any tiling seams or duplicate frames!
-        float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
-        float menuScale = ReadIniMenuScale();
-        if (menuScale > 0.0f) {
-            scale = menuScale;
-        }
-        
         int targetW = (int)(640 * scale + 0.5f);
         int targetH = (int)(480 * scale + 0.5f);
         int targetLeft = (g_targetWidth - targetW) / 2;
@@ -2635,7 +2662,6 @@ extern "C" {
 
 static void InstallListboxPaddingFix() {
     InitTargetResolution();
-    CheckAndReloadUiKnobs();
 
     static bool s_stubsInstalled = false;
     if (!s_stubsInstalled) {
@@ -2741,35 +2767,9 @@ static void InstallListboxPaddingFix() {
 
 static void InstallAreaMapLayout() {
     InitTargetResolution();
-    CheckAndReloadUiKnobs();
 
     // 1. Install coordinate scaling bridges to MapHider_WorldToMapCoords & MapHider_GetPlayerMapCoords
-    static bool s_bridgesInstalled = false;
-    if (!s_bridgesInstalled) {
-        s_bridgesInstalled = true;
-        uint8_t bridgeWorld[12] = { 0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0 };
-        *(void**)&bridgeWorld[2] = (void*)&MapHider_WorldToMapCoords;
-        writeMemBytes(0x1000f4f68, bridgeWorld, 12);
-
-        uint8_t bridgePlayer[12] = { 0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0 };
-        *(void**)&bridgePlayer[2] = (void*)&MapHider_GetPlayerMapCoords;
-        writeMemBytes(0x1000f4f78, bridgePlayer, 12);
-
-        uint8_t callWorld[5] = { 0xe8, 0x99, 0xff, 0xe3, 0xff };
-        writeMemBytes(0x1002b4fca, callWorld, 5);
-
-        uint8_t callParty[5] = { 0xe8, 0x58, 0xfb, 0xe3, 0xff };
-        writeMemBytes(0x1002b541b, callParty, 5);
-
-        uint8_t callPlayer[5] = { 0xe8, 0xb1, 0xfa, 0xe3, 0xff };
-        writeMemBytes(0x1002b54c2, callPlayer, 5);
-
-        // Ensure fog tile step X and Y hooks are installed
-        uint8_t mapHiderWidthHook[8] = { 0xf3, 0x41, 0x0f, 0x2a, 0x4c, 0x24, 0x10, 0x90 };
-        writeMemBytes(0x1002b4ce9, mapHiderWidthHook, 8);
-        uint8_t mapHiderHeightHook[8] = { 0xf3, 0x41, 0x0f, 0x2a, 0x54, 0x24, 0x14, 0x90 };
-        writeMemBytes(0x1002b4cfc, mapHiderHeightHook, 8);
-    }
+    InstallAreaMapBridges();
 
     static int s_lastAppliedMapKnobVersion = -1;
     static int s_lastAppliedMapHeight = -1;
@@ -2963,7 +2963,6 @@ extern "C" void GuiMode_FitMessageBox(void* box) {
 
 static void InstallMessageBoxLayout() {
     InitTargetResolution();
-    CheckAndReloadUiKnobs();
 
     static bool s_popupHookInstalled = false;
     if (!s_popupHookInstalled) {
@@ -3079,8 +3078,10 @@ static void InstallCheckboxScaling() {
         writeMemBytes(0x1002cecee, jump, sizeof(jump));
     }
 
+    static int s_lastAppliedKnobVersion = -1;
     static int s_lastAppliedHeight = -1;
-    if (s_lastAppliedHeight == g_targetHeight) return;
+    if (s_lastAppliedKnobVersion == s_knobVersion && s_lastAppliedHeight == g_targetHeight) return;
+    s_lastAppliedKnobVersion = s_knobVersion;
     s_lastAppliedHeight = g_targetHeight;
 
     float baseRefH = (s_currentKnobs.baseReferenceHeight > 0) ? (float)s_currentKnobs.baseReferenceHeight : 720.0f;
@@ -3390,12 +3391,11 @@ extern "C" float Hook_WindowDraw(char* window, float delta) {
         char* mgr = *(char**)(window + 0x20);
         updateEngineGlobals(mgr);
         if (GuiFileLayouts()) {
+            CheckAndReloadUiKnobs();
             InstallListboxPaddingFix();
             InstallAreaMapLayout();
             InstallMessageBoxLayout();
-            InstallDialogueReplyStretch();
             InstallCheckboxScaling();
-            InstallGrantedPopupLayout();
 
             void* vtable = *(void**)window;
             if (vtable == (void*)0x1005ab010) {
@@ -3549,19 +3549,6 @@ extern "C" float Hook_WindowDraw(char* window, float delta) {
   Every matched floating target control is scaled uniformly with nearest-integer rounding (+0.5f),
   ensuring 1:1 square action icons, crisp readable health bars, and perfect alignment on any display.
 */
-
-/*
-  Note on 0x1004a17c2:
-  In earlier drafts, 0x1004a17c2 was misidentified as CSWGuiControl::SetBounds.
-  As confirmed by the binary symbol table in addresses.db, 0x1004a17c2 is actually:
-      CSWGuiBorderParams::SetFillImage(CResRef const&, int)
-  The detour has been removed from hooks.toml. UniversalSetBounds is retained as an
-  exported stub for backward compatibility.
-*/
-extern "C" void UniversalSetBounds(void* control, const Rect* rect) {
-    (void)control;
-    (void)rect;
-}
 
 /*
  ==============================================================================================
@@ -3738,10 +3725,10 @@ extern "C" void scaleLoadedTextureMetadata(void* texture) {
   The layout mode, applied once
   ----------------------------------------------------------------------------------------------
   What the patch writes into the game for its own layout, or for layouts from .gui files
-  (UseGuiFileLayouts). Until 2026-10-04 this ran in DylibInit, when the library loads. It runs
-  when the engine first sets its video mode instead (KMRP_UseTargetVideoMode, K4), which is
-  still before any panel exists, so that a patch loaded after this one can ask for the .gui
-  mode first (K1Widescreen_UseGuiFileLayouts): KotOR Patch Manager loads a patch that
+  (UseGuiFileLayouts). This is not done in DylibInit, when the library loads. It runs when the
+  engine first sets its video mode (KMRP_UseTargetVideoMode, K4, in kmrp_engine_fixes.cpp),
+  which is still before any panel exists, so that a patch loaded after this one can ask for the
+  .gui mode first (K1Widescreen_UseGuiFileLayouts): KotOR Patch Manager loads a patch that
   `requires` this one after it, and a mode written at load could not be taken back (the list
   constants of the patch's own layout have no record of what they replaced).
 */
@@ -3792,6 +3779,7 @@ void ApplyLayoutMode() {
     InitTargetResolution();
 
     if (GuiFileLayouts()) {
+        CheckAndReloadUiKnobs();
         // The class-selection screen's own update loop, which the hooks file bypasses.
         const uint8_t vanillaClassLoop[5] = { 0xf3, 0x0f, 0x11, 0x45, 0xd4 };
         writeMemBytes(0x100337897, vanillaClassLoop, 5);
@@ -3821,9 +3809,9 @@ void ApplyLayoutMode() {
   For a patch that brings its own .gui sets
   ----------------------------------------------------------------------------------------------
   A patch that `requires` this one and carries menus laid out for the screen's resolution (KMRP
-  does) can ask for what the player otherwise sets in swkotor.ini, from its own code:
+  does) can ask for the "GUI files" mode from its own code, whatever the player chose:
 
-    K1Widescreen_UseGuiFileLayouts(1)        as UseGuiFileLayouts=1, whatever the file says.
+    K1Widescreen_UseGuiFileLayouts(1)        the "GUI files" mode (0: the patch's own layout).
                                              From the patch's constructor: it has to come before
                                              the engine first sets its video mode, when the layout
                                              mode is written (ApplyLayoutMode). Later it does
@@ -3836,6 +3824,7 @@ void ApplyLayoutMode() {
     K1Widescreen_GetTargetResolution(&w, &h) the resolution in force.
 
   All three are found by name in this library (dlsym), so a patch built without it still loads.
+  These are not dead code: nothing in this patch calls them, KMRP does.
 */
 extern "C" __attribute__((visibility("default"))) int K1Widescreen_UseGuiFileLayouts(int enabled) {
     InitTargetResolution();
