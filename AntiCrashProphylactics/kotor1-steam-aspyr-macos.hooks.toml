@@ -148,3 +148,79 @@ type = "replace"
 original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x57, 0x41, 0x56]
 replacement_bytes = [0x48, 0x85, 0xFF, 0x75, 0x03, 0x31, 0xC0, 0xC3, 0x55, 0x48, 0x89, 0xE5, 0x41, 0x57, 0x41, 0x56]
 
+# ==============================================================================
+# 8. NULL ACTION QUEUE GUARD IN CSWSObject::AddActionToQueue (CRASH FIX)
+# ==============================================================================
+# Function: CSWSObject::AddActionToQueue (0x1003948ec)
+# When a script executes an action (such as ActionPauseConversation() in Brotherhood
+# of Shadow), the engine attempts to queue an action node onto the target object.
+# On Windows (0x52D36C), the engine verifies that the object is a valid CSWSObject
+# and that pObject->m_pActionQueue != NULL (test %ecx, %ecx; je 0x52D431) before
+# attempting to queue the action. If NULL, Windows exits cleanly without crashing.
+#
+# On 64-bit macOS, Aspyr omitted this check in ExecuteCommandActionPauseConversation
+# (0x1003a3a2e). If an action is queued onto an object without an action queue (or
+# with an unallocated/NULL action_nodes list at 0x148(%rdi)), AddActionToQueue
+# passes the NULL pointer to CExoLinkedListInternal::AddTail (0x10034c102), which
+# immediately dereferences 0x8(%rbx) and crashes (EXC_BAD_ACCESS / SIGSEGV at 0x8).
+# Furthermore, AddActionToQueue dereferences 0x148(%this) at 0x100394ce6.
+#
+# Fix: At the entry of CSWSObject::AddActionToQueue (0x1003948ec), check if this (%rdi)
+# is NULL or if this->action_nodes (0x148(%rdi)) is NULL. If either is NULL, return
+# immediately without attempting to queue the action, exactly matching Windows behavior.
+[[hooks]]
+address = 0x1003948ec
+type = "replace"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+replacement_bytes = [0x48, 0x85, 0xFF, 0x74, 0x0A, 0x48, 0x83, 0xBF, 0x48, 0x01, 0x00, 0x00, 0x00, 0x75, 0x01, 0xC3, 0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+
+# ==============================================================================
+# 9. UNMAPPED CONTROLLER VTABLE CORRUPTION GUARD IN ApplyController (CRASH FIX)
+# ==============================================================================
+# Function: ApplyController (0x1001adb22) & MapControllerTypeToNodeOffset (0x1001d43b4)
+# In 32-bit Windows KotOR, MDL controller type numbers (e.g. 8 = Position, 20 = Orientation,
+# 36 = Scale, 100 = SelfIllumColor, 132 = Alpha) are direct byte offsets into 32-bit CModelNode
+# structs. For the 64-bit macOS port, Aspyr added MapControllerTypeToNodeOffset (0x1001d43b4),
+# which looks up (controller_type, node_type) in per-class std::map<int, int> tables to translate
+# the 32-bit controller number into a 64-bit CModelNode struct offset.
+#
+# However, if a model contains a controller attached to a node type whose lookup map does not
+# include that controller (for example, sith_lnd4.mdl in Yavin 4 module yav_99.mod and plc_acd.mdl
+# in yav_92.mod have Alpha controller 132 attached to Dummy nodes of type 0x0001),
+# MapControllerTypeToNodeOffset reaches map.end() (0x1001d468f: je 0x1001d46b3) and returns 0
+# (0x1001d46b3: xorl %eax, %eax).
+#
+# ApplyController (0x1001adb22) caches that 0 return value into the controller record and uses
+# offset 0x0 as the destination offset inside the runtime CModelNode (%r15). Because offset 0x0
+# of CModelNode is the 64-bit C++ vtable pointer (e.g. 0x00000001005a2cc0), writing the float
+# controller value (0.0f = 0x00000000) to (%r15, 0) overwrites the lower 32 bits of the node's
+# vtable pointer, turning it into 0x0000000100000000 (the Mach-O header of KOTOR_Exe)!
+# Immediately afterward, InitHierarchy (0x1001d8277) and TraverseModelHierarchy (0x1001dcc6b)
+# dereference the corrupted vtable 0x0000000100000000 and crash (EXC_BAD_ACCESS at 0x0 or
+# Rosetta SIGABRT jumping into the Mach-O header at 0x100000000).
+#
+# Fix: At all three controller application branches in ApplyController (0x1001adba1 for 4-column
+# quaternion controllers, 0x1001adc1c for 1-column float controllers, and 0x1001adccf for 3-column
+# vector/color controllers), test if the resolved struct offset %eax is <= 0. If %eax <= 0, jump
+# directly to the function epilogue (0x1001ade47) without reading or writing (%r15, 0).
+
+# 9a. 4-Column Controller Branch (0x1001adba1)
+[[hooks]]
+address = 0x1001adba1
+type = "replace"
+original_bytes = [0x4C, 0x63, 0xE8, 0xF2, 0x43, 0x0F, 0x10, 0x04, 0x2F]
+replacement_bytes = [0x85, 0xC0, 0x7F, 0x0C, 0x48, 0xB8, 0x47, 0xDE, 0x1A, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xE0, 0x4C, 0x63, 0xE8, 0xF2, 0x43, 0x0F, 0x10, 0x04, 0x2F]
+
+# 9b. 1-Column Controller Branch (0x1001adc1c)
+[[hooks]]
+address = 0x1001adc1c
+type = "replace"
+original_bytes = [0x4C, 0x63, 0xE0, 0x43, 0x8B, 0x04, 0x27]
+replacement_bytes = [0x85, 0xC0, 0x7F, 0x0C, 0x48, 0xB8, 0x47, 0xDE, 0x1A, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xE0, 0x4C, 0x63, 0xE0, 0x43, 0x8B, 0x04, 0x27]
+
+# 9c. 3-Column Controller Branch (0x1001adccf)
+[[hooks]]
+address = 0x1001adccf
+type = "replace"
+original_bytes = [0x4C, 0x63, 0xE8, 0xF2, 0x43, 0x0F, 0x10, 0x04, 0x2F]
+replacement_bytes = [0x85, 0xC0, 0x7F, 0x0C, 0x48, 0xB8, 0x47, 0xDE, 0x1A, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xE0, 0x4C, 0x63, 0xE8, 0xF2, 0x43, 0x0F, 0x10, 0x04, 0x2F]
