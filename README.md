@@ -165,7 +165,7 @@ choices = [
 default = "classic"
 ```
 
-Options are resolved when patches are applied. The launcher lists a patch's options in its details (see [Usage](#usage)); on the command line they are set with `--option <patch_id>.<option_id>=<value>`, alongside `--patches` (a toggle takes `true` or `false`; a choice takes one of its ids, spelled as the manifest spells it). An option that is not set takes its default. Changing an option afterwards means applying again, like ticking a patch.
+Options are resolved when patches are applied. The launcher lists a patch's options in its details (the right side of the screen); on the command line they are set with `--option <patch_id>.<option_id>=<value>`, alongside `--patches` (a toggle takes `true` or `false`; a choice takes one of its ids, spelled as the manifest spells it). An option that is not set takes its default. Changing an option afterwards means applying again, like ticking a patch.
 
 A hook uses an option through its `when` field (see [Shared Fields](#shared-fields)): a hook whose condition does not hold is left out of the install. The chosen values are also written to the `configs` folder in the game directory, where each patch has one INI file named after its id for all of its settings. The manager writes a `[Patch Options]` section into it, which the patch's own code and scripts can read with the usual INI functions. A toggle is `1` or `0`; a choice is its id. For a patch with the id `my_patch` that is `configs/my_patch.ini`:
 
