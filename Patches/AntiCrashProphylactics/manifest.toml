@@ -2,7 +2,7 @@
 id = "anti-crash-prophylactics"
 name = "Anti-Crash Prophylactics"
 version = "0.0.1"
-description = "Some mods can have flaws that cause game-crashing errors (possibly only on certain versions of the game). This patch attempts to add some protection against those crashes."
+description = "Some mods have flaws that cause game-crashing errors. This patch attempts to add some protection against those crashes."
 author = "FTD"
 
 [patch.supported_versions]
