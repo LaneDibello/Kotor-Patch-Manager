@@ -102,6 +102,43 @@ A patch typically contains 2 to 3 parts:
 - `supported_versions`: key/value pair of game versions and their SHA-256s.
 - `options`: Choices the player can make inside the patch (optional, see [Options](#options)).
 
+#### Hooks
+There are currently 4 different types of hooks, `simple`, `replace`, `detour`, and `static`. They all share certain fields.
+
+##### Shared Fields
+- `address`: The hexadecimal (`0x########`) address where the hook will be applied.
+- `type`: The type of hook, either `"simple"`, `"replace"`, `"detour"`, or `"static"`.
+- `when`: The [option](#options) this hook depends on (optional). `when = "map-notes"` installs the hook only while that toggle is on; `when = { option = "hud-style", is = "compact" }` only while that option holds that value (`is` may also be `true` or `false`). Hooks may share an `address` only when their `when` tests the same option for different values, so that at most one of them is ever installed.
+
+##### Simple Hooks
+Simple hooks replace a finite set of bytes with a new set of bytes of the same length. They must specify:
+
+- `original_bytes`: Any number of bytes starting from `address` that will be overwritten.
+- `replacement_bytes`: Bytes equal in length to `original_bytes` that will overwrite them.
+
+##### Replace Hooks
+Replace hooks allow for more advanced instruction replacement. They will allocate executable memory, write out the specified instructions, and then have the code at `address` jump to those instructions. Use these if you want to replace instructions with more complex logic that wouldn't fit into the existing logic. They require the specification of:
+
+- `original_bytes`: 5 or more bytes, starting from `address`, that will be replaced with a JUMP instruction and NOPs.
+- `replacement_bytes`: Any number of bytes that will be jumped to by the above instruction and executed as x86, after which logic will jump back to `address+original_bytes.length`.
+
+##### Detour Hooks
+Detour hooks are our most advanced option. They replace the code at `address` with a JUMP to a wrapper that (1) stores register values, (2) prepares parameters, and (3) calls an external function defined and compiled within your patch. Use these for very complex patches, especially those that need to call an existing in-game function, output debug strings, or reference specific addresses. Specify:
+
+- `original_bytes`: 5 or more bytes starting from `address` that will be replaced with a JUMP instruction and NOPs.
+- `function`: The name of an exported `extern "C"`/`__cdecl` function that will be compiled and run from your additional C++ code.
+- `skip_original_bytes`: If `false`, the `original_bytes` will be re-run after the function finishes execution, making it a true detour. If `true`, the `original_bytes` will never be run.
+- `exclude_from_restore`: List of registers to keep modified after hook execution completes.
+- `parameters`: Parameters to be passed in (cdecl/stack style) to your `function`:
+	- `source`: The register from which the parameter will be sourced.
+	- `type`: The type of the parameter. Currently we support: `Int`, `Uint`, `Pointer`, `Float`, `Byte`, and `Short`.
+
+##### Static Hooks
+Static hooks are applied directly to the executable file at install-time, before the game runs. This is necessary for patches that modify the PE header or other structures that must be patched before the executable loads into memory. Unlike other hook types, static hooks do not require runtime injection. Specify:
+
+- `original_bytes`: Any number of bytes starting from `address` that will be verified before patching.
+- `replacement_bytes`: Bytes equal in length to `original_bytes` that will overwrite the original bytes in the file.
+
 #### Options
 A patch can offer choices of its own, so that one patch can carry an optional extra or more than one variant instead of being split into several. Each is declared as a `[[patch.options]]` table:
 - `id`: A program-friendly identifier with `[a-zA-Z0-9_-]`, unique within the patch
@@ -146,43 +183,6 @@ A patch whose options leave none of its hooks installed has nothing installed bu
 **Managers without options.** A release from before this feature ignores `[[patch.options]]` and `when`: it installs every hook of the patch and writes no `[Patch Options]` section. So:
 - A patch whose hooks all have their own `address` still installs there, as if every toggle were on. Give such toggles `default = true`, and have the patch's code treat a missing file, section or entry as the default.
 - A patch with two hooks at one `address` (one per value of an option) is refused there with "Hook conflicts detected", as any two hooks at one address are. If the patch should still install on those releases, keep one hook at the address and choose between the variants in the patch's own code, from its file in `configs`.
-
-#### Hooks
-There are currently 4 different types of hooks, `simple`, `replace`, `detour`, and `static`. They all share certain fields.
-
-##### Shared Fields
-- `address`: The hexadecimal (`0x########`) address where the hook will be applied.
-- `type`: The type of hook, either `"simple"`, `"replace"`, `"detour"`, or `"static"`.
-- `when`: The [option](#options) this hook depends on (optional). `when = "map-notes"` installs the hook only while that toggle is on; `when = { option = "hud-style", is = "compact" }` only while that option holds that value (`is` may also be `true` or `false`). Hooks may share an `address` only when their `when` tests the same option for different values, so that at most one of them is ever installed.
-
-##### Simple Hooks
-Simple hooks replace a finite set of bytes with a new set of bytes of the same length. They must specify:
-
-- `original_bytes`: Any number of bytes starting from `address` that will be overwritten.
-- `replacement_bytes`: Bytes equal in length to `original_bytes` that will overwrite them.
-
-##### Replace Hooks
-Replace hooks allow for more advanced instruction replacement. They will allocate executable memory, write out the specified instructions, and then have the code at `address` jump to those instructions. Use these if you want to replace instructions with more complex logic that wouldn't fit into the existing logic. They require the specification of:
-
-- `original_bytes`: 5 or more bytes, starting from `address`, that will be replaced with a JUMP instruction and NOPs.
-- `replacement_bytes`: Any number of bytes that will be jumped to by the above instruction and executed as x86, after which logic will jump back to `address+original_bytes.length`.
-
-##### Detour Hooks
-Detour hooks are our most advanced option. They replace the code at `address` with a JUMP to a wrapper that (1) stores register values, (2) prepares parameters, and (3) calls an external function defined and compiled within your patch. Use these for very complex patches, especially those that need to call an existing in-game function, output debug strings, or reference specific addresses. Specify:
-
-- `original_bytes`: 5 or more bytes starting from `address` that will be replaced with a JUMP instruction and NOPs.
-- `function`: The name of an exported `extern "C"`/`__cdecl` function that will be compiled and run from your additional C++ code.
-- `skip_original_bytes`: If `false`, the `original_bytes` will be re-run after the function finishes execution, making it a true detour. If `true`, the `original_bytes` will never be run.
-- `exclude_from_restore`: List of registers to keep modified after hook execution completes.
-- `parameters`: Parameters to be passed in (cdecl/stack style) to your `function`:
-	- `source`: The register from which the parameter will be sourced.
-	- `type`: The type of the parameter. Currently we support: `Int`, `Uint`, `Pointer`, `Float`, `Byte`, and `Short`.
-
-##### Static Hooks
-Static hooks are applied directly to the executable file at install-time, before the game runs. This is necessary for patches that modify the PE header or other structures that must be patched before the executable loads into memory. Unlike other hook types, static hooks do not require runtime injection. Specify:
-
-- `original_bytes`: Any number of bytes starting from `address` that will be verified before patching.
-- `replacement_bytes`: Bytes equal in length to `original_bytes` that will overwrite the original bytes in the file.
  
 #### Building Patches
 To build a patch, use the `create-patch.bat` batch file or `create-patch.py` Python script in the Patches/ directory. Usually, from within a patch's specific folder, this will look like:
