@@ -1,0 +1,79 @@
+[metadata]
+target_versions = ["1C536C3EF2E8BED348B38934B381E3DC427F3EBEE21FADDFBD7524FBB2388D77"]
+
+# ==============================================================================
+# 1. ACTION DO COMMAND ON NON-OBJECT / AREA GUARD (CRASH FIX)
+# ==============================================================================
+# Function: CSWSObject::AddDoCommandAction (0x1003a9900)
+# Hook site: 0x1003a990e
+# Target binary: macOS Steam Aspyr 64-bit AMD64 binary (KOTOR2sub)
+#
+# Trigger Mod: KotOR 3: The Jedi Masters 2.1 (TJM)
+# Trigger Scripts: templestart.ncs (Area OnEnter in 001ebo.mod, 504ond.mod, 506ond.mod, 710kor.mod, etc.)
+#
+# Issue:
+# In NWScript, ActionDoCommand() queues a script situation to be executed by the caller's
+# action queue. In TJM, templestart and hundreds of other scripts execute ActionDoCommand()
+# directly in an Area OnEnter script where OBJECT_SELF is an Area (CSWSArea, type 4), not a
+# game object with an action queue (CSWSObject).
+#
+# When CSWVirtualMachineCommands::ExecuteCommandActionDoCommand (0x10030046a) runs, it retrieves
+# the caller object from CGameObjectArray. Unlike other action commands (such as
+# ExecuteCommandActionPauseConversation 0x10030249a or ExecuteCommandCloseDoor 0x100300400) which
+# dynamically query the polymorphic downcast via CGameObject::AsSWSObject() (*0x28(%vtable)),
+# ExecuteCommandActionDoCommand unconditionally casts the CGameObject* to CSWSObject* and calls
+# CSWSObject::AddDoCommandAction(pSituation).
+#
+# On 32-bit Windows KotOR 2 (0x6BD530), the engine checked `cmpl $0, 0xec(%eax); je 0x6bd54b`.
+# Because offset 0xEC on CSWSArea happened to be 0, the check branched to the error handler,
+# deleted pSituation via DeleteScriptSituation, and returned cleanly without crashing.
+#
+# On 64-bit macOS KotOR 2 (0x1003a9900), struct alignment and 64-bit pointer expansion shifted
+# member offsets. Offset 0x130 on CSWSArea overlaps non-zero data, bypassing the original
+# `cmpl $0, 0x130(%rdi); je 0x1003a9a14` guard. AddDoCommandAction then proceeds to call
+# CSWSObject::AddAction (0x1003ae994), which reads 0x148(%CSWSArea) (0x00000000ffffff00) as
+# an action linked list pointer and calls CExoLinkedListInternal::AddTail (0x1002c7310).
+# AddTail attempts to dereference 0x8(%rbx) (0x00000000ffffff08), triggering an instant
+# EXC_BAD_ACCESS (SIGSEGV) crash.
+#
+# Fix:
+# In CSWSObject::AddDoCommandAction at 0x1003a990e, replace the naive 0x130 offset check with a
+# polymorphic downcast verification:
+# 1. Check if this (%rdi) is NULL.
+# 2. Check if the object's virtual method at 0x28(%vtable) points to CSWSObject::AsSWSObject
+#    (0x10042bf90). On CSWSArea and other non-action objects, this entry points to
+#    CGameObject::AsSWSObject (0x1001cafe0, which returns NULL).
+# 3. Check if 0x130(%rdi) is non-zero.
+# If any check fails, branch to 0x1003a9a14 where CVirtualMachine::DeleteScriptSituation(pSituation)
+# is invoked cleanly to discard the command situation and return 0.
+# If valid, jump back to 0x1003a991b to continue normal action initialization.
+[[hooks]]
+address = 0x1003a990e
+type = "replace"
+original_bytes = [0x83, 0xBF, 0x30, 0x01, 0x00, 0x00, 0x00, 0x0F, 0x84, 0xF9, 0x00, 0x00, 0x00]
+replacement_bytes = [0x48, 0x85, 0xFF, 0x74, 0x1C, 0x4C, 0x8B, 0x17, 0x49, 0xBB, 0x90, 0xBF, 0x42, 0x00, 0x01, 0x00, 0x00, 0x00, 0x4D, 0x39, 0x5A, 0x28, 0x75, 0x09, 0x83, 0xBF, 0x30, 0x01, 0x00, 0x00, 0x00, 0x75, 0x0D, 0x49, 0xBB, 0x14, 0x9A, 0x3A, 0x00, 0x01, 0x00, 0x00, 0x00, 0x41, 0xFF, 0xE3]
+
+# ==============================================================================
+# 2. GENERAL ACTION QUEUE DOWNCAST & NULL GUARD (CRASH FIX)
+# ==============================================================================
+# Function: CSWSObject::AddAction (0x1003ae994)
+# Target binary: macOS Steam Aspyr 64-bit AMD64 binary (KOTOR2sub)
+#
+# Issue:
+# Paralleling the KotOR 1 engine hardening hook in CSWSObject::AddActionToQueue, any script
+# action command (e.g. ActionWait, ActionPlayAnimation, ActionPauseConversation) queued onto
+# a non-CSWSObject (such as an Area or Module) or an unallocated action list (0x148(%this) == NULL)
+# passes an invalid list pointer to CExoLinkedListInternal::AddTail, crashing at 0x8(%rbx).
+#
+# Fix:
+# At the entry of CSWSObject::AddAction (0x1003ae994), verify that:
+# 1. this (%rdi) != NULL
+# 2. 0x28(%vtable) == CSWSObject::AsSWSObject (0x10042bf90)
+# 3. this->action_nodes (0x148(%rdi)) != NULL
+# If any condition fails, return immediately (retq) without attempting to allocate or queue
+# the action node.
+[[hooks]]
+address = 0x1003ae994
+type = "replace"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+replacement_bytes = [0x48, 0x85, 0xFF, 0x74, 0x25, 0x4C, 0x8B, 0x17, 0x49, 0xBB, 0x90, 0xBF, 0x42, 0x00, 0x01, 0x00, 0x00, 0x00, 0x4D, 0x39, 0x5A, 0x28, 0x75, 0x12, 0x48, 0x83, 0xBF, 0x48, 0x01, 0x00, 0x00, 0x00, 0x74, 0x08, 0x55, 0x48, 0x89, 0xE5, 0x41, 0x57, 0xEB, 0x01, 0xC3]
