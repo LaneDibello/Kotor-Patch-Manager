@@ -267,7 +267,107 @@ replacement_bytes = [
 ]
 
 # ==============================================================================
-# 9. LEADING NEWLINE TRIM IN GUI TEXT (K3)
+# 9. SWITCHPLAYERCHARACTER CLIENT PARTY TABLE & FIRST-PERSON CAMERA SAFETY
+# ==============================================================================
+# Functions: CSWSPartyTable::SwitchPlayerCharacter (0x1003e1b34),
+#            CClientGui::HandleKeyEvent (0x1002fa0a1)
+# When SwitchPlayerCharacter(nNPC) is called for an NPC whose creature object
+# already exists in the area (for example, when a companion was in the active
+# party on module entry and the module's OnEnter script calls RemovePartyMember
+# followed by SwitchPlayerCharacter, as in Brotherhood of Shadow: Solomon's
+# Revenge's bos_ebovis module), SwitchPlayerCharacter reuses the existing
+# server CSWSCreature (0x10(%r12,%rbx,8)) instead of calling SpawnAvailableNPC,
+# then calls CSWPartyTable::ClearPartyTable() (0x1002a7220) to wipe the client
+# party table (m_nNumPartyMembers = 0), and sets SetPC(1, 1) on the server
+# creature (0x100490adc). Unlike AddNPC (0x1003df52f) and LoadPartyTable
+# (0x1003df6ba), however, SwitchPlayerCharacter forgets to call
+# CSWCCreature::SetPartyMember(1) (0x1002a18f4) on the already-existing client
+# CSWCCreature, and subsequent client GameObjUpdate_AddCreature ticks
+# (0x10030bd2a) skip SetPartyMember(1) because the client creature already
+# exists. This leaves the client party table permanently empty
+# (m_nNumPartyMembers == 0):
+#   1. CClientGui::Update (0x1002684ea) sees GetPartyMember(0) == NULL once any
+#      opening dialog camera ends and skips CClientGui::UpdateActiveRoom
+#      (0x100269b34) on every frame, freezing Scene->m_pActiveRoom at the starting
+#      room and culling non-adjacent rooms to the solid glClearColor backdrop.
+#   2. The HUD has no party leader (GetPartyLeader() == NULL).
+#   3. Pressing Caps Lock to enter First-Person Look Mode (0x1002faf82) calls
+#      CSWPartyTable::GetPartyLeader() and dereferences 0x8(%rax) at 0x1002faf87
+#      without a NULL check, causing an immediate EXC_BAD_ACCESS crash.
+# Additionally, if SwitchPlayerCharacter(nNPC) is called while nNPC is still in
+# the server active party list (without calling RemovePartyMember first), the
+# cleanup loop at 0x1003e2012 calls DestroyAvailableNPC(nNPC, 1) (0x1003e1660)
+# on every active party member including nNPC itself, destroying the newly
+# switched player character.
+#
+# 9.1 Register Existing Client Creature in Client Party Table on SwitchPlayerCharacter (0x1003e1f67)
+# Right after CSWSCreature::SetPC(1, 1) (0x100490adc), looks up the switched PC's
+# client CSWCCreature via ServerToClientObjectID (0x10028c0be) and
+# GetCreatureByGameObjectID (0x10028bca2). If the client creature already exists,
+# resets m_bPartyMember (+0x508) to 0 and calls CSWCCreature::SetPartyMember(1)
+# (0x1002a18f4) to add it to slot 0 of the client CSWPartyTable.
+[[hooks]]
+address = 0x1003e1f67
+type = "replace"
+original_bytes = [0x45, 0x89, 0xF7, 0x49, 0x8B, 0x85, 0x30, 0x0E, 0x00, 0x00]
+replacement_bytes = [
+    0x45, 0x89, 0xF7,
+    0x48, 0x8B, 0x7D, 0x80,
+    0x49, 0x8B, 0x75, 0x08,
+    0x48, 0xB8, 0xBE, 0xC0, 0x28, 0x00, 0x01, 0x00, 0x00, 0x00,
+    0xFF, 0xD0,
+    0x48, 0x8B, 0x7D, 0x80,
+    0x48, 0x89, 0xC6,
+    0x48, 0xB8, 0xA2, 0xBC, 0x28, 0x00, 0x01, 0x00, 0x00, 0x00,
+    0xFF, 0xD0,
+    0x48, 0x85, 0xC0,
+    0x74, 0x1E,
+    0xC7, 0x80, 0x08, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x48, 0x89, 0xC7,
+    0xBE, 0x01, 0x00, 0x00, 0x00,
+    0x48, 0xB8, 0xF4, 0x18, 0x2A, 0x00, 0x01, 0x00, 0x00, 0x00,
+    0xFF, 0xD0,
+    0x49, 0x8B, 0x85, 0x30, 0x0E, 0x00, 0x00
+]
+
+# 9.2 Prevent SwitchPlayerCharacter Party Cleanup Loop from Destroying Target NPC (0x1003e202d)
+# Skips DestroyAvailableNPC(%r14d, 1) (0x1003e1660) when %r14d matches the target
+# NPC slot (-0x44(%rbp)) being switched to.
+[[hooks]]
+address = 0x1003e202d
+type = "replace"
+original_bytes = [0xBA, 0x01, 0x00, 0x00, 0x00, 0x4C, 0x89, 0xE7, 0x44, 0x89, 0xF6]
+replacement_bytes = [
+    0x44, 0x3B, 0x75, 0xBC,
+    0x74, 0x0D,
+    0xBA, 0x01, 0x00, 0x00, 0x00,
+    0x4C, 0x89, 0xE7,
+    0x44, 0x89, 0xF6,
+    0xEB, 0x0E,
+    0xFF, 0x25, 0x00, 0x00, 0x00, 0x00,
+    0x16, 0x20, 0x3E, 0x00, 0x01, 0x00, 0x00, 0x00
+]
+
+# 9.3 First-Person Camera Toggle NULL Party Leader Guard (0x1002faf87)
+# Guards against CSWPartyTable::GetPartyLeader() (0x1002a70ae) returning NULL when
+# Caps Lock is pressed while the client party table is empty, jumping cleanly to
+# the function epilogue (0x1002fadee) instead of dereferencing 0x8(%rax).
+[[hooks]]
+address = 0x1002faf87
+type = "replace"
+original_bytes = [0x48, 0x8B, 0x70, 0x08, 0x4C, 0x89, 0xF7]
+replacement_bytes = [
+    0x48, 0x85, 0xC0,
+    0x74, 0x09,
+    0x48, 0x8B, 0x70, 0x08,
+    0x4C, 0x89, 0xF7,
+    0xEB, 0x0E,
+    0xFF, 0x25, 0x00, 0x00, 0x00, 0x00,
+    0xEE, 0xAD, 0x2F, 0x00, 0x01, 0x00, 0x00, 0x00
+]
+
+# ==============================================================================
+# 10. LEADING NEWLINE TRIM IN GUI TEXT (K3)
 # ==============================================================================
 # Function: CSWGuiTextParams::SetText (0x1004a3714)
 # Descriptions that open with a property block start with "\n" and render an
