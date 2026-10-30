@@ -56,15 +56,11 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 - **Issue**: When unloading a module capsule (`.mod`/`.rim`/`.sav`), `DestroyTable` iterates over entries before freeing `m_pEntries`. If a resource is still in demand (`m_nDemands > 0`), the engine failed to clear `m_pRes->m_pKeyEntry` (`+0x20`) and `m_pRes->m_nID` (`+0x0c`), leaving a dangling pointer into the freed table. Subsequent resource release wrote zeroes to the freed block, corrupting malloc checksums and causing `SIGABRT` crashes during module transitions.
 - **Fix**: Clears `m_pRes->m_pKeyEntry` to `NULL` and `m_pRes->m_nID` to `0xFFFFFFFF` in both `DestroyTable` and `RebuildTable`.
 
-### 9. `SwitchPlayerCharacter` Client Party Table & First-Person Camera Safety
-- **Targets**: `CSWSPartyTable::SwitchPlayerCharacter` (`0x1003e1b34`), `CClientGui::HandleKeyEvent` (`0x1002fa0a1`)
-- **Hooks**: Replace at `0x1003e1f67`, `0x1003e202d`, `0x1002faf87`
-- **Issue**: When `SwitchPlayerCharacter(nNPC)` is called for an NPC whose creature object already exists in the area (for example, when a companion was in the active party on module entry and the module's `OnEnter` script calls `RemovePartyMember` followed by `SwitchPlayerCharacter`, as in *Brotherhood of Shadow: Solomon's Revenge*'s `bos_ebovis` module), `SwitchPlayerCharacter` reuses the existing server `CSWSCreature` (`0x10(%r12,%rbx,8)`) instead of calling `SpawnAvailableNPC`, then calls `CSWPartyTable::ClearPartyTable()` (`0x1002a7220`) to clear the client party table (`m_nNumPartyMembers = 0`), and calls `CSWSCreature::SetPC(1, 1)` (`0x100490adc`) on the server creature. Unlike `AddNPC` (`0x1003df52f`) and `LoadPartyTable` (`0x1003df6ba`), however, `SwitchPlayerCharacter` forgets to call `CSWCCreature::SetPartyMember(1)` (`0x1002a18f4`) on the already-existing client `CSWCCreature`, and subsequent client `GameObjUpdate_AddCreature` ticks (`0x10030bd2a`) skip `SetPartyMember(1)` because the client creature already exists. This leaves the client party table permanently empty (`m_nNumPartyMembers == 0`), causing:
-  1. `CClientGui::Update` (`0x1002684ea`) to see `GetPartyMember(0) == NULL` once any opening dialog camera ends and skip `CClientGui::UpdateActiveRoom` (`0x100269b34`) on every frame, freezing `Scene->m_pActiveRoom` at the starting room and culling non-adjacent rooms to the solid `glClearColor` backdrop.
-  2. The HUD to have no party leader (`GetPartyLeader() == NULL`).
-  3. Pressing <kbd>Caps Lock</kbd> to enter First-Person Look Mode (`0x1002faf82`) to call `CSWPartyTable::GetPartyLeader()` and dereference `0x8(%rax)` at `0x1002faf87` without a `NULL` check, causing an immediate `EXC_BAD_ACCESS` crash.
-  Additionally, if `SwitchPlayerCharacter(nNPC)` is called while `nNPC` is still in the server active party list, the cleanup loop at `0x1003e2012` calls `DestroyAvailableNPC(nNPC, 1)` (`0x1003e1660`) on every active party member including `nNPC` itself, destroying the newly switched player character.
-- **Fix**: Hook `0x1003e1f67` looks up the switched PC's client `CSWCCreature` right after `SetPC(1, 1)` and, if it already exists, resets `m_bPartyMember` (`+0x508`) to `0` and calls `CSWCCreature::SetPartyMember(1)` (`0x1002a18f4`) to register it in slot 0 of the client `CSWPartyTable`. Hook `0x1003e202d` skips `DestroyAvailableNPC` when the loop index matches the target NPC (`-0x44(%rbp)`). Hook `0x1002faf87` guards against `GetPartyLeader() == NULL` on <kbd>Caps Lock</kbd> by jumping cleanly to the function epilogue (`0x1002fadee`).
+### 9. First-Person Camera Toggle `NULL` Party Leader Safety (<kbd>Caps Lock</kbd> Crash)
+- **Target**: `CClientGui::HandleKeyEvent` (`0x1002fa0a1`)
+- **Hook**: Replace at `0x1002faf87`
+- **Issue**: Pressing <kbd>Caps Lock</kbd> to enter First-Person Look Mode (`0x1002faf82`) calls `CSWPartyTable::GetPartyLeader()` (`0x1002a70ae`) and immediately dereferences `0x8(%rax)` at `0x1002faf87` without a `NULL` check. If the client party table is empty (for example, during scripted sequences or after `UT_ClearAllPartyMembers` when no party leader is active), `GetPartyLeader()` returns `NULL` and pressing <kbd>Caps Lock</kbd> causes an immediate `EXC_BAD_ACCESS` crash.
+- **Fix**: Guards against `GetPartyLeader() == NULL` at `0x1002faf87` by jumping cleanly to the function epilogue (`0x1002fadee`) instead of dereferencing `0x8(%rax)`.
 
 ### 10. Leading Newline Trim in GUI Text
 - **Target**: `CSWGuiTextParams::SetText` (`0x1004a3714`)
@@ -74,7 +70,7 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 
 ---
 
-## Summary of All 21 Hooks
+## Summary of All 19 Hooks
 
 | # | Address | Function / Target | Type | Bug Category | What It Does |
 |---|---------|-------------------|------|--------------|--------------|
@@ -95,15 +91,5 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 | 15 | `0x1002d3e34` | Script List Row Callback | `replace` | 7. Scripts Enter Key | Inspects call stack: allows mouse double-clicks to select scripts, but ignores keyboard <kbd>Enter</kbd>. |
 | 16 | `0x10035bf7a` | `CExoKeyTable::DestroyTable` | `simple` | 8. Key Table UAF | Clears dangling `m_pKeyEntry` and `m_nID` on demanded resources during table destruction. |
 | 17 | `0x10035c434` | `CExoKeyTable::RebuildTable` | `replace` | 8. Key Table UAF | Clears dangling `m_pKeyEntry` and `m_nID` during key table rebuilds. |
-| 18 | `0x1003e1f67` | `CSWSPartyTable::SwitchPlayerCharacter` | `replace` | 9. SwitchPlayerCharacter | Registers already-existing client `CSWCCreature` in `CSWPartyTable` after `ClearPartyTable()`, preventing frozen room culling and missing party leader. |
-| 19 | `0x1003e202d` | `CSWSPartyTable::SwitchPlayerCharacter` | `replace` | 9. SwitchPlayerCharacter | Prevents party cleanup loop from calling `DestroyAvailableNPC` on the newly switched PC. |
-| 20 | `0x1002faf87` | `CClientGui::HandleKeyEvent` | `replace` | 9. SwitchPlayerCharacter | Guards First-Person Look Mode (<kbd>Caps Lock</kbd>) against `GetPartyLeader() == NULL`. |
-| 21 | `0x1004a3726` | `CSWGuiTextParams::SetText` | `detour` | 10. Leading Newlines | Calls `KMRP_TrimLeadingNewlines` to strip leading `\n` from item/quest descriptions. |
-
----
-
-## Packaging & Dependencies
-
-- **Patch ID**: `k1-stray-bug-fixes-patch`
-- **Supported Binary**: Aspyr macOS 64-bit AMD64 (`C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71`)
-- **Integration**: The Widescreen Patch declares `requires = ["k1-stray-bug-fixes-patch"]` in its `manifest.toml`. KotOR Patch Manager (KPM) automatically verifies and installs this patch prior to installing the Widescreen Patch.
+| 18 | `0x1002faf87` | `CClientGui::HandleKeyEvent` | `replace` | 9. Caps Lock Crash | Guards First-Person Look Mode (<kbd>Caps Lock</kbd>) against `GetPartyLeader() == NULL`. |
+| 19 | `0x1004a3726` | `CSWGuiTextParams::SetText` | `detour` | 10. Leading Newlines | Calls `KMRP_TrimLeadingNewlines` to strip leading `\n` from item/quest descriptions. |
