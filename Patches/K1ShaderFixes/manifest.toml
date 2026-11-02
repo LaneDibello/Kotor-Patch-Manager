@@ -1,0 +1,12 @@
+[patch]
+id = "k1_shader_fixes"
+name = "K1 Shader Fixes"
+version = "0.1"
+author = "J, FTD"
+description = "Fixes KOTOR 1 fog, grass fog, reflections, and overbright lightmaps."
+
+requires = []
+conflicts =[]
+
+[patch.supported_versions]
+kotor1_steam_aspyr_macos = "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"
