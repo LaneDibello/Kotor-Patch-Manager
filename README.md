@@ -78,9 +78,11 @@ To also target KOTOR II's native Linux build, run `./build-linux.sh`, which comp
 #### On macOS
 Mac users will need to run:
 ```
-CXX_MAC=clang++ make dylib
+CXX_MAC=clang++ make -C src/KotorPatcher dylib
 dotnet run --project src/KPatchLauncher/KPatchLauncher.csproj
 ```
+(The latter command will launch KPM.)
+
 Build a patch with `python3 ../create-patch.py` from within the patch's directory.
 
 ### Patch Creation
