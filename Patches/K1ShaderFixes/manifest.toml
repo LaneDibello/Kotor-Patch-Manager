@@ -34,7 +34,7 @@ default = true
 
 [[patch.options]]
 id = "particle-texture-fix"
-name = "Particle Texture Fix"
+name = "Particle-Texture Fix"
 description = "Fixes a bug where particle effects like smoke, sparks, and explosions can accidentally turn off textures on the next object drawn on screen."
 type = "toggle"
 default = true
