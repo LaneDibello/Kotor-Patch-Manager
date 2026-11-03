@@ -3,7 +3,7 @@ id = "k1_shader_fixes"
 name = "K1 Shader Fixes"
 version = "0.2"
 author = "FTD, J, Synchro, Vriff"
-description = "Fixes KOTOR 1 fog, grass fog, reflections, overbright lightmaps, and particle texture state."
+description = "Fixes KOTOR 1 fog (includy foggy grass), reflections, overbright lightmaps, and particle texture state."
 
 requires = []
 conflicts = []
