@@ -1,6 +1,21 @@
 # KotOR 1 Shader Fixes (macOS)
 
-Ports the applicable OpenGL `ARB_fragment_program` shader, distance fog, grass fog, environment cubemap, lightmap saturation, and client-state fixes from **J, Vriff, and Synchro's**'s *KotOR II Aspyr Shader Fixes* and *Grass Fog Fix* to **Star Wars: Knights of the Old Republic** (Steam, Aspyr macOS 64-bit).
+Ports the applicable OpenGL `ARB_fragment_program` shader, distance fog, grass fog, environment cubemap, lightmap saturation, and client-state fixes from **J, Synchro and Vriff**'s *KotOR II Aspyr Shader Fixes* and *Grass Fog Fix* to **Star Wars: Knights of the Old Republic** (Steam, Aspyr macOS 64-bit).
+
+---
+
+## Patch Options
+
+In **KotOR Patch Manager**, this patch provides four independent toggles (all enabled by default):
+
+1. **Fog Fix (`fog-fix`)** *(Default: Enabled)*
+   Restores missing distance fog on walls/floors, outdoor grass, and transparent foliage, prevents indoor rooms from staying foggy after leaving a foggy area, and fixes characters and creatures turning pitch-black in fog.
+2. **Reflections Fix (`reflections-fix`)** *(Default: Enabled)*
+   Fixes broken shiny and metallic reflections on character armor, visors, clothing, and reflective room surfaces so they reflect the environment properly instead of glowing solid white or grey.
+3. **Lightmap Fix (`lightmap-fix`)** *(Default: Enabled)*
+   Prevents brightly lit rooms and reflective floors or walls from looking overly bright, washed-out, or blown out.
+4. **Particle Texture Fix (`particle-texture-fix`)** *(Default: Enabled)*
+   Fixes a bug where particle effects like smoke, sparks, and explosions can accidentally turn off textures on the next object drawn on screen.
 
 ---
 
@@ -15,7 +30,7 @@ When Aspyr ported *Knights of the Old Republic* to macOS, they replaced several 
 3. **Malformed Environment Reflections (`2D` vs. `CUBE` Sampler Bug):**
    In Fragment Shaders 1 (`0x100526031`), 3 (`0x100526321`), and 7 (`0x100526CB1`), Aspyr sampled the bound 6-sided environment cubemap texture using `2D` (`TEX r1, T1, texture[1], 2D;` and `TEX r2, T2, texture[2], 2D;`) instead of `CUBE`, even though the corresponding enabler paths (`RenderEnvmapSkinnedMesh` at `0x1001B346C`, `0x1001B0F48`, and `0x1001B1068`) bind a cubemap texture via `CTexture::UseCubeMap` (`0x1001FA5C6`) and `BindFragmentShader` (`0x1001A8E4E`) selects the `is_cubemap == 0` branch whenever `CTexture` vtable `+0x20` returns `0`. On environment-mapped skinned characters (such as Canderous's armor and visor, Jedi robes, Twi'leks, and Taris citizens), sampling the unbound `2D` target on texture unit 1 reads the default white fallback texture `(1, 1, 1)`, causing diffuse alpha masks (`r0.a < 1.0`) to glow solid white/grey instead of reflecting the cubemap.
 4. **Overbright Lightmaps and Additive Cubemap Blowout:**
-   In Fragment Shader 0 (`0x100525F20`), vertex lighting (`v0`) and the lightmap (`r1`) were summed with an unclamped `ADD` instruction before multiplying by the diffuse texture, washing out brightly lit surfaces. Similarly, Fragment Shaders 3, 4, 7, and 8 used unclamped sums (`ADD` / `MAD`) or additive cubemap blending instead of clamped sums (`ADD_SAT` / `MAD_SAT`) and alpha interpolation (`LRP`).
+   In Fragment Shader 0 (`0x100525F20`), vertex lighting (`v0`) and the lightmap (`r1`) were summed with an unclamped `ADD` instruction before multiplying by the diffuse texture, washing out brightly lit surfaces. Similarly, Fragment Shaders 7 and 8 used unclamped sums (`ADD` / `MAD`) instead of clamped sums (`ADD_SAT` / `MAD_SAT`).
 5. **Disabled Primary UV Array After Particle Cleanup:**
    At the end of the particle rendering cleanup function (`0x1001E3770`), `0x1001E380C` tail-calls `glDisableClientState(GL_TEXTURE_COORD_ARRAY)` on texture unit 0, leaving primary texture coordinates disabled for subsequent draw calls that assume unit 0's UV array remains enabled.
 6. **`Scene::DoGrass` Disables `GL_FOG` Before Grass & Transparent Mesh Passes:**
@@ -25,28 +40,35 @@ When Aspyr ported *Knights of the Old Republic* to macOS, they replaced several 
 
 ---
 
-## Included Fixes (10 Hooks)
+## Included Fixes (15 Non-Overlapping Hooks Across 4 Options)
 
-| # | Address | Size | Target Function / Shader | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| **1** | `0x100525F20` | 272 B | **Fragment Shader 0** (Render Path 12: Lightmap + Diffuse) | Adds `OPTION ARB_fog_linear;` so opaque lightmapped room geometry receives distance fog, and replaces `ADD` with `ADD_SAT` when summing vertex color and lightmap lighting to prevent washed-out surfaces. |
-| **2** | `0x100526CB1` | 459 B | **Fragment Shader 7** (Render Path 10: Lightmap + 2D Envmap) | Changes `TEX r2, T2, texture[2], 2D` to `CUBE` to match the bound cubemap texture, clamps both lighting sums with `MAD_SAT` and `ADD_SAT`, and enables `OPTION ARB_fog_linear;`. |
-| **3** | `0x100526E7D` | 461 B | **Fragment Shader 8** (Render Path 11: Lightmap + Cubemap Envmap) | Clamps both lighting sums with `MAD_SAT` and `ADD_SAT` and enables `OPTION ARB_fog_linear;` on lightmapped cubemap-reflective room surfaces. |
-| **4** | `0x100526321` | 309 B | **Fragment Shader 3** (Render Path 6: Vertex-Lit + 2D Envmap) | Changes `TEX r1, T1, texture[1], 2D` to `CUBE`, replaces additive cubemap blending (`SUB` + `MAD`) with `LRP r0.rgb, r0.a, r0, r1`, and enables `OPTION ARB_fog_linear;`. |
-| **5** | `0x100526457` | 311 B | **Fragment Shader 4** (Render Path 7: Vertex-Lit + Cubemap Envmap) | Replaces additive cubemap blending (`SUB` + `MAD`) with `LRP r0.rgb, r0.a, r0, r1` and enables `OPTION ARB_fog_linear;`. |
-| **6** | `0x10019898C` | 174 B | **`Scene::DoFog`** (`0x1001988B0`) | When `scene->m_bFogEnabled` (`+0x70`) is `0`, calls `glDisable(GL_FOG)` and sets `GL_FOG_END = 1000000.0f` (`0x49742400`) via `glFogf` so `ARB_fragment_program` shaders with `OPTION ARB_fog_linear;` do not render stale fog in unfogged modules. Preserves the internal branch target at `0x100198A3A`. |
-| **7** | `0x1001E380C` | 5 B | **Particle Cleanup** (`0x1001E3770`) | Replaces the tail-call `jmp _glDisableClientState` (`E9 D7 CD 2C 00`) with `ret; nop; nop; nop; nop` (`C3 90 90 90 90`) so `GL_TEXTURE_COORD_ARRAY` remains enabled on texture unit 0 after particle rendering. |
-| **8** | `0x100196184` | 50 B | **`Scene::DoGrass`** (`0x100196128`) | Compacts the grass setup block after the initial `glDisable(GL_FOG)` call to invoke `Scene::DoFog(this)` (`0x1001988B0`), restoring area distance fog for grass and all subsequent transparent mesh passes. |
-| **9** | `0x100526031` | 374 B | **Fragment Shader 1** (`BindFragmentShader` Case 20: Skinned Mesh + Envmap) | Changes `TEX r1, T1, texture[1], 2D` to `CUBE` so environment-mapped skinned characters (Canderous's armor/visor, Jedi robes, Twi'leks, armored NPCs) sample the bound cubemap texture instead of the unbound white 2D fallback texture. |
-| **10** | `0x10052742E` | 288 B | **Fragment Shader 11** (`BindFragmentShader` Case 3: Skinned Mesh Fog Shader) | Replaces `PARAM c[2] = { program.env[0..1] };` with `PARAM c1 = state.fog.color;` and `LRP r0.rgb, v1.r, c[1], r0;` with `LRP r0.rgb, v1.r, c1, r0;` so non-envmapped skinned characters and creatures read `GL_FOG_COLOR` directly instead of fading to pitch black `(0, 0, 0)`. |
+Each shader that touches multiple options (Fragment Shaders 0, 3, 7, and 8) is partitioned into non-overlapping byte slices so that all four options can be toggled in any combination without hook address conflicts:
+
+| # | Address | Size | Option (`when`) | Target Function / Shader | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1** | `0x100525F2B` | 177 B | `fog-fix` | **Fragment Shader 0** (`0x100525F20`, Lightmap + Diffuse) | Adds `OPTION ARB_fog_linear;` so opaque lightmapped room geometry receives distance fog. |
+| **2** | `0x100525FDC` | 38 B | `lightmap-fix` | **Fragment Shader 0** (`0x100525F20`, Lightmap + Diffuse) | Replaces `ADD` with `ADD_SAT` when summing vertex color and lightmap lighting to prevent washed-out surfaces. |
+| **3** | `0x100526CBC` | 265 B | `fog-fix` | **Fragment Shader 7** (`0x100526CB1`, Lightmap + 2D Envmap) | Adds `OPTION ARB_fog_linear;` so lightmapped environment-mapped room surfaces receive distance fog. |
+| **4** | `0x100526DC5` | 28 B | `reflections-fix` | **Fragment Shader 7** (`0x100526CB1`, Lightmap + 2D Envmap) | Changes `TEX r2, T2, texture[2], 2D;` to `CUBE` to match the bound cubemap texture. |
+| **5** | `0x100526DF5` | 91 B | `lightmap-fix` | **Fragment Shader 7** (`0x100526CB1`, Lightmap + 2D Envmap) | Clamps both the lightmap and reflection sums with `MAD_SAT` and `ADD_SAT`. |
+| **6** | `0x100526E88` | 265 B | `fog-fix` | **Fragment Shader 8** (`0x100526E7D`, Lightmap + Cubemap Envmap) | Adds `OPTION ARB_fog_linear;` so lightmapped cubemap-reflective room surfaces receive distance fog. |
+| **7** | `0x100526FC3` | 91 B | `lightmap-fix` | **Fragment Shader 8** (`0x100526E7D`, Lightmap + Cubemap Envmap) | Clamps both the lightmap and cubemap-reflection sums with `MAD_SAT` and `ADD_SAT`. |
+| **8** | `0x10052632C` | 182 B | `fog-fix` | **Fragment Shader 3** (`0x100526321`, Vertex-Lit + 2D Envmap) | Adds `OPTION ARB_fog_linear;` on vertex-lit environment-mapped meshes. |
+| **9** | `0x1005263E2` | 28 B | `reflections-fix` | **Fragment Shader 3** (`0x100526321`, Vertex-Lit + 2D Envmap) | Changes `TEX r1, T1, texture[1], 2D;` to `CUBE` on vertex-lit environment-mapped meshes. |
+| **10** | `0x100526457` | 311 B | `fog-fix` | **Fragment Shader 4** (`0x100526457`, Vertex-Lit + Cubemap Envmap) | Adds `OPTION ARB_fog_linear;` on vertex-lit cubemap-mapped meshes. |
+| **11** | `0x10019898C` | 174 B | `fog-fix` | **`Scene::DoFog`** (`0x1001988B0`) | When `scene->m_bFogEnabled` (`+0x70`) is `0`, calls `glDisable(GL_FOG)` and sets `GL_FOG_END = 1000000.0f` (`0x49742400`) via `glFogf` so `ARB_fragment_program` shaders with `OPTION ARB_fog_linear;` do not render stale fog in unfogged modules. Preserves the internal branch target at `0x100198A3A`. |
+| **12** | `0x1001E380C` | 5 B | `particle-texture-fix` | **Particle Cleanup** (`0x1001E3770`) | Replaces the tail-call `jmp _glDisableClientState` (`E9 D7 CD 2C 00`) with `ret; nop; nop; nop; nop` (`C3 90 90 90 90`) so `GL_TEXTURE_COORD_ARRAY` remains enabled on texture unit 0 after particle rendering. |
+| **13** | `0x100196184` | 50 B | `fog-fix` | **`Scene::DoGrass`** (`0x100196128`) | Compacts the grass setup block after the initial `glDisable(GL_FOG)` call to invoke `Scene::DoFog(this)` (`0x1001988B0`), restoring area distance fog for grass and all subsequent transparent mesh passes. |
+| **14** | `0x100526031` | 374 B | `reflections-fix` | **Fragment Shader 1** (`BindFragmentShader` Case 20: Skinned Mesh + Envmap) | Changes `TEX r1, T1, texture[1], 2D` to `CUBE` so environment-mapped skinned characters (Canderous's armor/visor, Jedi robes, Twi'leks, armored NPCs) sample the bound cubemap texture instead of the unbound white 2D fallback texture. |
+| **15** | `0x10052742E` | 288 B | `fog-fix` | **Fragment Shader 11** (`BindFragmentShader` Case 3: Skinned Mesh Fog Shader) | Replaces `PARAM c[2] = { program.env[0..1] };` with `PARAM c1 = state.fog.color;` and `LRP r0.rgb, v1.r, c[1], r0;` with `LRP r0.rgb, v1.r, c1, r0;` so non-envmapped skinned characters and creatures read `GL_FOG_COLOR` directly instead of fading to pitch black `(0, 0, 0)`. |
 
 ---
 
 ## Differences Between KotOR 1 and KotOR 2 (`K2AspyrShaderFixes`)
 
-During reverse engineering of the KotOR 1 macOS binary (`KOTOR_Exe`), every hook from **J, Synchro, and Vriff's**'s `K2AspyrShaderFixes` and **J's** `K2GrassFogFix` was audited against KotOR 1:
+During reverse engineering of the KotOR 1 macOS binary (`KOTOR_Exe`), every hook from **J, Synchro and Vriff's**'s `K2AspyrShaderFixes` and **J**'s `K2GrassFogFix` was audited against KotOR 1:
 
-- **Included (10 Hooks above):** Fragment Shaders 0, 1, 3, 4, 7, 8, 11, `Scene::DoFog` fog-disable neutralization, the particle `GL_TEXTURE_COORD_ARRAY` state fix, and `Scene::DoGrass` fog state restoration.
+- **Included (15 Hooks above):** Fragment Shaders 0, 1, 3, 4, 7, 8, 11, `Scene::DoFog` fog-disable neutralization, the particle `GL_TEXTURE_COORD_ARRAY` state fix, and `Scene::DoGrass` fog state restoration.
 - **KotOR 1-Specific Fix in Fragment Shader 11 (`0x10052742E`):**
   - In KotOR 2, Obsidian/Aspyr wrote `MOV r0.a, v0.x;` (copying the red channel into alpha), whereas KotOR 1 already had the correct `MOV r0.a, v0;`. However, in KotOR 1's `SkinMesh::Render` (`0x10017FDB7`), Aspyr forgot to call `glProgramEnvParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, 1, &fog_color)` on the non-envmapped skinned-mesh branch (`0x100180965`–`0x1001809D4`), causing `c[1]` to retain `(0, 0, 0, 1)` from bump-mapped meshes and turning non-envmapped characters/creatures pitch-black in fog. Binding `state.fog.color` in Fragment Shader 11 (`0x10052742E`) fixes this directly.
 - **Not Needed in KotOR 1 (Already Correct in Stock K1):**
@@ -65,4 +87,4 @@ During reverse engineering of the KotOR 1 macOS binary (`KOTOR_Exe`), every hook
 
 ## Credits
 
-- **J, Synchro, Vriff** — Original research and creation of *KotOR II Aspyr Shader Fixes*
+- **J, Synchro and Vriff** — Original research and creation of *KotOR II Aspyr Shader Fixes*
