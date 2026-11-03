@@ -1,6 +1,6 @@
 # KotOR 1 Shader Fixes (macOS)
 
-Ports the applicable OpenGL `ARB_fragment_program` shader, distance fog, grass fog, environment cubemap, lightmap saturation, and client-state fixes from **J**'s *KotOR II Aspyr Shader Fixes* and *Grass Fog Fix* to **Star Wars: Knights of the Old Republic** (Steam, Aspyr macOS 64-bit).
+Ports the applicable OpenGL `ARB_fragment_program` shader, distance fog, grass fog, environment cubemap, lightmap saturation, and client-state fixes from **J, Vriff, and Synchro's**'s *KotOR II Aspyr Shader Fixes* and *Grass Fog Fix* to **Star Wars: Knights of the Old Republic** (Steam, Aspyr macOS 64-bit).
 
 ---
 
@@ -44,7 +44,7 @@ When Aspyr ported *Knights of the Old Republic* to macOS, they replaced several 
 
 ## Differences Between KotOR 1 and KotOR 2 (`K2AspyrShaderFixes`)
 
-During reverse engineering of the KotOR 1 macOS binary (`KOTOR_Exe`), every hook from **J**'s `K2AspyrShaderFixes` and `K2GrassFogFix` was audited against KotOR 1:
+During reverse engineering of the KotOR 1 macOS binary (`KOTOR_Exe`), every hook from **J, Synchro, and Vriff's**'s `K2AspyrShaderFixes` and **J's** `K2GrassFogFix` was audited against KotOR 1:
 
 - **Included (10 Hooks above):** Fragment Shaders 0, 1, 3, 4, 7, 8, 11, `Scene::DoFog` fog-disable neutralization, the particle `GL_TEXTURE_COORD_ARRAY` state fix, and `Scene::DoGrass` fog state restoration.
 - **KotOR 1-Specific Fix in Fragment Shader 11 (`0x10052742E`):**
@@ -65,4 +65,4 @@ During reverse engineering of the KotOR 1 macOS binary (`KOTOR_Exe`), every hook
 
 ## Credits
 
-- **J** — Original research and creation of *KotOR II Aspyr Shader Fixes*
+- **J, Synchro, Vriff** — Original research and creation of *KotOR II Aspyr Shader Fixes*
