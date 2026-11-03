@@ -2,7 +2,7 @@
 id = "k1_shader_fixes"
 name = "K1 Shader Fixes"
 version = "0.1"
-author = "J, FTD"
+author = "FTD, J, Synchro"
 description = "Fixes KOTOR 1 fog, grass fog, reflections, and overbright lightmaps."
 
 requires = []
