@@ -420,15 +420,19 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandRespecCreature(DWORD routine, 
 				void* ptr = stats->GetPtr();
 				int before = getLevel(ptr, 0);
 				int records = *(int*)((BYTE*)ptr + LEVEL_STATS_COUNT);
-				// only a level the engine has a record of, and never the first
-				if (before > 1 && records > 1) {
+				// last level first, down to the first, which is never removed;
+				// only levels the engine has a record of, and stop if one won't come off
+				while (getLevel(ptr, 0) > 1 && records > 1) {
 					void* last = getLevelStats(ptr, (BYTE)(records - 1));
-					if (last) {
-						levelDown(ptr, last);
-						outcome = getLevel(ptr, 0);
-					}
+					if (!last) break;
+					levelDown(ptr, last);
+					int left = *(int*)((BYTE*)ptr + LEVEL_STATS_COUNT);
+					if (left >= records) break;
+					records = left;
 				}
-				debugLog("[ScriptExtender] RespecCreature: level %d, %d records -> %d", before, records, outcome);
+				int after = getLevel(ptr, 0);
+				if (after < before) outcome = after;
+				debugLog("[ScriptExtender] RespecCreature: level %d -> %d", before, after);
 			}
 			if (stats) delete stats;
 			delete serverCreature;
