@@ -27,6 +27,9 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandAdjustCreatureSkills(DWORD rou
 const int GetSkillRankBaseIndex = 786;
 VirtualMachineReturnTypes __stdcall ExecuteCommandGetSkillRankBase(DWORD routine, int paramCount);
 
+const int LevelDownCreatureIndex = 804;
+VirtualMachineReturnTypes __stdcall ExecuteCommandLevelDownCreature(DWORD routine, int paramCount);
+
 inline void* getServerCreatureStats(void* serverCreature) {
 	return *(void**)((char*)serverCreature + 0xa74);
 }

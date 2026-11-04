@@ -5367,3 +5367,13 @@ void WriteIniEntry(string sValue, string sFilename, string sCategory, string sKe
 
 // 803. ForceHeartbeat
 void ForceHeartbeat(object oObject);
+
+// 804. LevelDownCreature
+// Takes oCreature down one level, undoing its last level up through the
+// engine's own routine: the class level, the feats, skills and powers and
+// the hit points that level gave are removed. Experience is not changed,
+// so a player taken down can level up again at once.
+// Works on the player and on companions. Only a level the engine holds a
+// level record for can be undone, and the first level is never removed.
+// * Returns the creature's level after, or -1 if nothing was done.
+int LevelDownCreature(object oCreature);

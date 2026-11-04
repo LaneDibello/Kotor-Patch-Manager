@@ -378,3 +378,69 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandGetSkillRankBase(DWORD routine
 	delete vm;
 	return SUCCESS;
 }
+
+
+// CSWSCreatureStats::LevelDown takes the level record to undo (a CSWLevelStats*, as in Aurora's
+// DM level down): every return is `ret 4`, and its only caller in the exe (0x005AF5CA) pushes an
+// entry of the record array. The address database lists it with no parameters (issue #307), so it
+// is called through its own typedef here.
+typedef void (__thiscall* LevelDownFn)(void* thisPtr, void* levelStats);
+typedef BYTE (__thiscall* GetLevelFn)(void* thisPtr, int includeNegative);
+// GetLevelStats(index): 0 based into the level records, an array at +0x28 with its count at +0x2C
+typedef void* (__thiscall* GetLevelStatsFn)(void* thisPtr, BYTE index);
+static const int LEVEL_STATS_COUNT = 0x2C;
+
+VirtualMachineReturnTypes __stdcall ExecuteCommandLevelDownCreature(DWORD routine, int paramCount)
+{
+	debugLog("[ScriptExtender] Running LevelDownCreature");
+
+	static LevelDownFn levelDown = reinterpret_cast<LevelDownFn>(
+		GameVersion::GetFunctionAddress("CSWSCreatureStats", "LevelDown"));
+	static GetLevelFn getLevel = reinterpret_cast<GetLevelFn>(
+		GameVersion::GetFunctionAddress("CSWSCreatureStats", "GetLevel"));
+	static GetLevelStatsFn getLevelStats = reinterpret_cast<GetLevelStatsFn>(
+		GameVersion::GetFunctionAddress("CSWSCreatureStats", "GetLevelStats"));
+
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return COMMAND_PARAM_ERROR;
+
+	DWORD creature;
+	if (!vm->StackPopObject(&creature)) {
+		delete vm;
+		return COMMAND_PARAM_ERROR;
+	}
+
+	int outcome = -1;
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (server) {
+		CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
+		if (serverCreature) {
+			CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
+			if (stats && stats->GetPtr() && levelDown && getLevel && getLevelStats) {
+				void* ptr = stats->GetPtr();
+				int before = getLevel(ptr, 0);
+				int records = *(int*)((BYTE*)ptr + LEVEL_STATS_COUNT);
+				// only a level the engine has a record of, and never the first
+				if (before > 1 && records > 1) {
+					void* last = getLevelStats(ptr, (BYTE)(records - 1));
+					if (last) {
+						levelDown(ptr, last);
+						outcome = getLevel(ptr, 0);
+					}
+				}
+				debugLog("[ScriptExtender] LevelDownCreature: level %d, %d records -> %d", before, records, outcome);
+			}
+			if (stats) delete stats;
+			delete serverCreature;
+		}
+		delete server;
+	}
+
+	if (!vm->StackPushInteger(outcome)) {
+		delete vm;
+		return COMMAND_RETURN_ERROR;
+	}
+
+	delete vm;
+	return SUCCESS;
+}
