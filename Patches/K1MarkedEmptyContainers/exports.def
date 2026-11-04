@@ -1,0 +1,3 @@
+LIBRARY K1MarkedEmptyContainers2
+EXPORTS
+    MarkEmptyContainer
