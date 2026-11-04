@@ -56,7 +56,13 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 - **Issue**: When unloading a module capsule (`.mod`/`.rim`/`.sav`), `DestroyTable` iterates over entries before freeing `m_pEntries`. If a resource is still in demand (`m_nDemands > 0`), the engine failed to clear `m_pRes->m_pKeyEntry` (`+0x20`) and `m_pRes->m_nID` (`+0x0c`), leaving a dangling pointer into the freed table. Subsequent resource release wrote zeroes to the freed block, corrupting malloc checksums and causing `SIGABRT` crashes during module transitions.
 - **Fix**: Clears `m_pRes->m_pKeyEntry` to `NULL` and `m_pRes->m_nID` to `0xFFFFFFFF` in both `DestroyTable` and `RebuildTable`.
 
-### 9. Leading Newline Trim in GUI Text
+### 9. First-Person Camera Toggle `NULL` Party Leader Safety (<kbd>Caps Lock</kbd> Crash)
+- **Target**: `CClientGui::HandleKeyEvent` (`0x1002fa0a1`)
+- **Hook**: Replace at `0x1002faf87`
+- **Issue**: Pressing <kbd>Caps Lock</kbd> to enter First-Person Look Mode (`0x1002faf82`) calls `CSWPartyTable::GetPartyLeader()` (`0x1002a70ae`) and immediately dereferences `0x8(%rax)` at `0x1002faf87` without a `NULL` check. If the client party table is empty (for example, during scripted sequences or after `UT_ClearAllPartyMembers` when no party leader is active), `GetPartyLeader()` returns `NULL` and pressing <kbd>Caps Lock</kbd> causes an immediate `EXC_BAD_ACCESS` crash.
+- **Fix**: Guards against `GetPartyLeader() == NULL` at `0x1002faf87` by jumping cleanly to the function epilogue (`0x1002fadee`) instead of dereferencing `0x8(%rax)`.
+
+### 10. Leading Newline Trim in GUI Text
 - **Target**: `CSWGuiTextParams::SetText` (`0x1004a3714`)
 - **Hook**: Detour at `0x1004a3726` calling `KMRP_TrimLeadingNewlines`
 - **Issue**: Item and quest descriptions prefix each property line with `\n`. Descriptions that start with property blocks open with a newline, rendering an unnecessary empty top line (~16px in vanilla, worse with scaled fonts).
@@ -64,7 +70,7 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 
 ---
 
-## Summary of All 18 Hooks
+## Summary of All 19 Hooks
 
 | # | Address | Function / Target | Type | Bug Category | What It Does |
 |---|---------|-------------------|------|--------------|--------------|
@@ -85,12 +91,5 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 | 15 | `0x1002d3e34` | Script List Row Callback | `replace` | 7. Scripts Enter Key | Inspects call stack: allows mouse double-clicks to select scripts, but ignores keyboard <kbd>Enter</kbd>. |
 | 16 | `0x10035bf7a` | `CExoKeyTable::DestroyTable` | `simple` | 8. Key Table UAF | Clears dangling `m_pKeyEntry` and `m_nID` on demanded resources during table destruction. |
 | 17 | `0x10035c434` | `CExoKeyTable::RebuildTable` | `replace` | 8. Key Table UAF | Clears dangling `m_pKeyEntry` and `m_nID` during key table rebuilds. |
-| 18 | `0x1004a3726` | `CSWGuiTextParams::SetText` | `detour` | 9. Leading Newlines | Calls `KMRP_TrimLeadingNewlines` to strip leading `\n` from item/quest descriptions. |
-
----
-
-## Packaging & Dependencies
-
-- **Patch ID**: `k1-stray-bug-fixes-patch`
-- **Supported Binary**: Aspyr macOS 64-bit AMD64 (`C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71`)
-- **Integration**: The Widescreen Patch declares `requires = ["k1-stray-bug-fixes-patch"]` in its `manifest.toml`. KotOR Patch Manager (KPM) automatically verifies and installs this patch prior to installing the Widescreen Patch.
+| 18 | `0x1002faf87` | `CClientGui::HandleKeyEvent` | `replace` | 9. Caps Lock Crash | Guards First-Person Look Mode (<kbd>Caps Lock</kbd>) against `GetPartyLeader() == NULL`. |
+| 19 | `0x1004a3726` | `CSWGuiTextParams::SetText` | `detour` | 10. Leading Newlines | Calls `KMRP_TrimLeadingNewlines` to strip leading `\n` from item/quest descriptions. |

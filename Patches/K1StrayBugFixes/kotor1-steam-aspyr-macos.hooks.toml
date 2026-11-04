@@ -267,7 +267,36 @@ replacement_bytes = [
 ]
 
 # ==============================================================================
-# 9. LEADING NEWLINE TRIM IN GUI TEXT (K3)
+# 9. FIRST-PERSON CAMERA TOGGLE NULL PARTY LEADER SAFETY (CAPS LOCK CRASH)
+# ==============================================================================
+# Function: CClientGui::HandleKeyEvent (0x1002fa0a1)
+# Pressing Caps Lock to toggle First-Person Look Mode (0x1002faf82) calls
+# CSWPartyTable::GetPartyLeader() (0x1002a70ae) and immediately dereferences
+# 0x8(%rax) at 0x1002faf87 without a NULL check. If the client party table is
+# empty (for example, during scripted sequences or after UT_ClearAllPartyMembers
+# when no party leader is active), GetPartyLeader() returns NULL and pressing
+# Caps Lock causes an immediate EXC_BAD_ACCESS crash.
+#
+# 9.1 First-Person Camera Toggle NULL Party Leader Guard (0x1002faf87)
+# Guards against CSWPartyTable::GetPartyLeader() (0x1002a70ae) returning NULL when
+# Caps Lock is pressed while the client party table is empty, jumping cleanly to
+# the function epilogue (0x1002fadee) instead of dereferencing 0x8(%rax).
+[[hooks]]
+address = 0x1002faf87
+type = "replace"
+original_bytes = [0x48, 0x8B, 0x70, 0x08, 0x4C, 0x89, 0xF7]
+replacement_bytes = [
+    0x48, 0x85, 0xC0,
+    0x74, 0x09,
+    0x48, 0x8B, 0x70, 0x08,
+    0x4C, 0x89, 0xF7,
+    0xEB, 0x0E,
+    0xFF, 0x25, 0x00, 0x00, 0x00, 0x00,
+    0xEE, 0xAD, 0x2F, 0x00, 0x01, 0x00, 0x00, 0x00
+]
+
+# ==============================================================================
+# 10. LEADING NEWLINE TRIM IN GUI TEXT (K3)
 # ==============================================================================
 # Function: CSWGuiTextParams::SetText (0x1004a3714)
 # Descriptions that open with a property block start with "\n" and render an
