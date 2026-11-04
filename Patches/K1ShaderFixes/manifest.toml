@@ -1,0 +1,40 @@
+[patch]
+id = "k1_shader_fixes"
+name = "K1 Shader Fixes"
+version = "0.2"
+author = "FTD, J, Synchro, Vriff"
+description = "Fixes KOTOR 1 fog (includy foggy grass), reflections, overbright lightmaps, and particle texture state."
+
+requires = []
+conflicts = []
+
+[patch.supported_versions]
+kotor1_steam_aspyr_macos = "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"
+
+[[patch.options]]
+id = "fog-fix"
+name = "Fog Fix"
+description = "Restores missing distance fog on walls/floors, outdoor grass, and transparent foliage, prevents indoor rooms from staying foggy after leaving a foggy area, and fixes characters and creatures turning pitch-black in fog."
+type = "toggle"
+default = true
+
+[[patch.options]]
+id = "reflections-fix"
+name = "Reflections Fix"
+description = "Fixes broken shiny and metallic reflections on character armor, visors, clothing, and reflective room surfaces so they reflect the environment properly instead of glowing solid white or grey."
+type = "toggle"
+default = true
+
+[[patch.options]]
+id = "lightmap-fix"
+name = "Lightmap Fix"
+description = "Prevents brightly lit rooms and reflective floors or walls from looking overly bright, washed-out, or blown out."
+type = "toggle"
+default = true
+
+[[patch.options]]
+id = "particle-texture-fix"
+name = "Particle-Texture Fix"
+description = "Fixes a bug where particle effects like smoke, sparks, and explosions can accidentally turn off textures on the next object drawn on screen."
+type = "toggle"
+default = true
