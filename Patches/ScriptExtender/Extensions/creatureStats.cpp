@@ -390,9 +390,9 @@ typedef BYTE (__thiscall* GetLevelFn)(void* thisPtr, int includeNegative);
 typedef void* (__thiscall* GetLevelStatsFn)(void* thisPtr, BYTE index);
 static const int LEVEL_STATS_COUNT = 0x2C;
 
-VirtualMachineReturnTypes __stdcall ExecuteCommandLevelDownCreature(DWORD routine, int paramCount)
+VirtualMachineReturnTypes __stdcall ExecuteCommandRespecCreature(DWORD routine, int paramCount)
 {
-	debugLog("[ScriptExtender] Running LevelDownCreature");
+	debugLog("[ScriptExtender] Running RespecCreature");
 
 	static LevelDownFn levelDown = reinterpret_cast<LevelDownFn>(
 		GameVersion::GetFunctionAddress("CSWSCreatureStats", "LevelDown"));
@@ -428,7 +428,7 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandLevelDownCreature(DWORD routin
 						outcome = getLevel(ptr, 0);
 					}
 				}
-				debugLog("[ScriptExtender] LevelDownCreature: level %d, %d records -> %d", before, records, outcome);
+				debugLog("[ScriptExtender] RespecCreature: level %d, %d records -> %d", before, records, outcome);
 			}
 			if (stats) delete stats;
 			delete serverCreature;
