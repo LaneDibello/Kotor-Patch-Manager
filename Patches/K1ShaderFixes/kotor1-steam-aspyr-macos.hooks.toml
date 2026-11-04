@@ -1,7 +1,5 @@
 [metadata]
-target_versions = [
-    "C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"
-]
+target_versions = ["C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"]
 
 # Enable linear distance fog on lightmapped surfaces (Fragment Shader 0).
 [[hooks]]
