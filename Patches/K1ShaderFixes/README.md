@@ -1,6 +1,6 @@
 # KotOR 1 Shader Fixes (macOS)
 
-Ports and expands the OpenGL `ARB_fragment_program` / `ARB_vertex_program` shader, distance fog, grass fog, environment cubemap reflection, lightmap saturation, bump-mapping, and client-state fixes from **J, Synchro and Vriff**'s *KotOR II Aspyr Shader Fixes* and *Grass Fog Fix* to **Star Wars: Knights of the Old Republic** (Steam, Aspyr macOS 64-bit). (Also drew inspiration from Synchro's [K1 Modern Driver Compatibility] (https://synchro.codeberg.page/kotor-modern-driver-compatibility/what-it-fixes.html#grass-stays-on-the-ground)).
+Ports and expands the OpenGL `ARB_fragment_program` / `ARB_vertex_program` shader, distance fog, grass fog, environment cubemap reflection, lightmap saturation, bump-mapping, and client-state fixes from **J, Synchro and Vriff**'s *KotOR II Aspyr Shader Fixes* and *Grass Fog Fix* to **Star Wars: Knights of the Old Republic** (Steam, Aspyr macOS 64-bit). (Also drew inspiration from Synchro's [K1 Modern Driver Compatibility](https://synchro.codeberg.page/kotor-modern-driver-compatibility/what-it-fixes.html#grass-stays-on-the-ground)).
 
 ---
 
