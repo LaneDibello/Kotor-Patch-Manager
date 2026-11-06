@@ -391,11 +391,14 @@ bool isPopupPanel(void* vtable) {
            vtable == (void*)0x1005ae3f0 || // CSWGuiSaveNamePanel
            vtable == (void*)0x1005aeaa8 || // CSWGuiControllerLossBox
            vtable == (void*)0x1005aee60 || // CSWGuiExamine
+           vtable == (void*)0x1005a5880 || // CSWGuiPazaakMessageBox
            vtable == (void*)0x1005acc70;   // CSWGuiScriptSelect (scriptselect.gui - AI Scripts Selection)
 }
 
 static char* g_lastGuiManager = nullptr;
 static char* g_lastScaledHud = nullptr;
+static int s_lastPatchedCenteringW = -1;
+static int s_lastPatchedCenteringH = -1;
 
 static bool isCameraModeActive(char* mgr) {
     // 1. Direct engine state check via native CGuiInGame::IsCameraDialog (0x10025d654)
@@ -469,6 +472,29 @@ void updateEngineGlobals(char* mgr) {
         g_lastGuiManager = mgr;
         *(short*)(mgr + 0xa4) = (short)g_targetWidth;
         *(short*)(mgr + 0xa6) = (short)g_targetHeight;
+
+        // If the background label (mgr + 0xc0) has already been allocated by CSWGuiManager::DrawBackground,
+        // dynamically update its extent so the central 640x480 cutout and outer metallic ring
+        // on the background texture align seamlessly with the scaled 4:3 foreground menu panel!
+        char* bgLabel = *(char**)(mgr + 0xc0);
+        if (bgLabel && is_readable(bgLabel)) {
+            int menuH = (s_lastPatchedCenteringH > 0) ? s_lastPatchedCenteringH : g_targetHeight;
+            int menuW = (s_lastPatchedCenteringW > 0) ? s_lastPatchedCenteringW : ((menuH * 4) / 3);
+            int nomW = 800, nomH = 600;
+            if (g_targetHeight >= 1200)      { nomW = 1600; nomH = 1200; }
+            else if (g_targetHeight >= 1024) { nomW = 1280; nomH = 1024; }
+            else if (g_targetHeight >= 960)  { nomW = 1280; nomH = 960; }
+            else if (g_targetHeight >= 768)  { nomW = 1024; nomH = 768; }
+            int bgW = (menuW * nomW + 320) / 640;
+            int bgH = (menuH * nomH + 240) / 480;
+            int bgX = (g_targetWidth - bgW) / 2;
+            int bgY = (g_targetHeight - bgH) / 2;
+            Rect* curBg = (Rect*)(bgLabel + 0x8);
+            if (curBg->left != bgX || curBg->top != bgY || curBg->width != bgW || curBg->height != bgH) {
+                Rect newBg = { bgX, bgY, bgW, bgH };
+                SetControlRect(bgLabel, newBg);
+            }
+        }
     }
 
     // Floating Tooltip Window bounds (CSWGuiToolTipPanel via global tooltip manager)
@@ -961,6 +987,8 @@ static int StackBadgeHeight(float layoutScale) {
   save entry layout routines in memory. Also dynamically updates quantity badge constants
   to position and size item stack count numbers properly on scaled icons.
 */
+static void InstallMessageBoxFitHook();
+
 void refreshPatchedListConstants() {
     InitTargetResolution();
     if (GuiFileLayouts()) return;
@@ -1090,11 +1118,12 @@ void refreshPatchedListConstants() {
     writeMemInt(0x1002bfbb1, qWidthShort);
     
     // FixMessageLabel / CSWGuiMessageBox fit ceilings and icon inset
+    InstallMessageBoxFitHook();
     writeMemInt(0x1003065a2, (int)(34 * scale + 0.5f));
     writeMemInt(0x100306879, g_targetWidth);
-    writeMemInt(0x100306881, g_targetHeight);
-    writeMemInt(0x10030688d, g_targetWidth);
-    writeMemInt(0x1003068ff, g_targetHeight);
+    writeMemInt(0x100306881, g_targetHeight - 1);
+    writeMemInt(0x10030688d, g_targetWidth - 1);
+    writeMemInt(0x1003068ff, g_targetHeight - 1);
 
     // Restore 0x1004a1f3d to vanilla (9 bytes: movl 0x10(%r15), %r11d; leal (%r13,%r13), %eax)
     uint8_t vanillaBorderF3D[9] = { 0x45, 0x8b, 0x5f, 0x10, 0x43, 0x8d, 0x44, 0x2d, 0x00 };
@@ -1190,9 +1219,6 @@ void refreshPatchedListConstants() {
     InstallDialogueReplyStretch();
 }
 
-static int s_lastPatchedCenteringW = -1;
-static int s_lastPatchedCenteringH = -1;
-
 /*
   patchMenuCenteringConstants:
   In vanilla KotOR, CSWGuiPanel, CSWGuiWindow, and CSWGuiInGameMap calculate centering
@@ -1256,6 +1282,32 @@ void patchMenuCenteringConstants(int targetWidth, int targetHeight) {
     writeMemInt(0x1002b5631, -targetHeight);
     writeMemInt(0x1002b563b, -targetHeight);
     
+    // Scale the background frame texture (e.g. 800x600back, 1024x768back, 1280x960back,
+    // 1280x1024back, 1600x1200back) in CSWGuiManager::DrawBackground (0x10049f9fb..0x10049fa27)
+    // by the exact same factor around the screen center so its central 640x480 cutout and
+    // curved metallic rings align seamlessly with the scaled 640x480 foreground menu panel!
+    int nomW = 800, nomH = 600;
+    if (g_targetHeight >= 1200)      { nomW = 1600; nomH = 1200; }
+    else if (g_targetHeight >= 1024) { nomW = 1280; nomH = 1024; }
+    else if (g_targetHeight >= 960)  { nomW = 1280; nomH = 960; }
+    else if (g_targetHeight >= 768)  { nomW = 1024; nomH = 768; }
+    int bgW = (targetWidth * nomW + 320) / 640;
+    int bgH = (targetHeight * nomH + 240) / 480;
+    int bgX = (g_targetWidth - bgW) / 2;
+    int bgY = (g_targetHeight - bgH) / 2;
+    uint8_t bgExtentHook[44] = {
+        0xc7, 0x85, 0xd8, 0xfe, 0xff, 0xff, 0, 0, 0, 0, // movl $bgX, -0x128(%rbp)
+        0xc7, 0x85, 0xdc, 0xfe, 0xff, 0xff, 0, 0, 0, 0, // movl $bgY, -0x124(%rbp)
+        0xc7, 0x85, 0xe0, 0xfe, 0xff, 0xff, 0, 0, 0, 0, // movl $bgW, -0x120(%rbp)
+        0xc7, 0x85, 0xe4, 0xfe, 0xff, 0xff, 0, 0, 0, 0, // movl $bgH, -0x11c(%rbp)
+        0x90, 0x90, 0x90, 0x90                          // 4 nops
+    };
+    *(int*)&bgExtentHook[6]  = bgX;
+    *(int*)&bgExtentHook[16] = bgY;
+    *(int*)&bgExtentHook[26] = bgW;
+    *(int*)&bgExtentHook[36] = bgH;
+    writeMemBytes(0x10049f9fb, bgExtentHook, 44);
+
     // Bypass vanilla CSWGuiClassSelection::Update loop (0x100337897 -> jmp 0x100337b38)
     // Ensures the vanilla mutating delta animation math is disabled, preventing rapid flashing
     // With UseGuiFileLayouts the vanilla loop runs instead (the hook lays nothing out).
@@ -1319,7 +1371,8 @@ void scalePopupPanel(char* panel) {
     void* vtable = *(void**)panel;
     bool isMsgBox = (vtable == (void*)0x1005a8c60 || vtable == (void*)0x1005ae880 ||
                      vtable == (void*)0x1005a5cb8 || vtable == (void*)0x1005ae9a0 ||
-                     vtable == (void*)0x1005abea0 || vtable == (void*)0x1005aeaa8);
+                     vtable == (void*)0x1005abea0 || vtable == (void*)0x1005aeaa8 ||
+                     vtable == (void*)0x1005aee60 || vtable == (void*)0x1005a5880);
     bool isScriptSelect = (vtable == (void*)0x1005acc70);
     
     if (isScriptSelect) {
@@ -1899,6 +1952,14 @@ void scaleMenuPanelTree(char* panel) {
         targetH = (int)(baseH * menuScale);
         targetW = (int)(baseW * menuScale);
     }
+
+    // Full-screen stretch for Main Menu (0x1005aefa0) and Load Screen (0x1005abd60)
+    // so neither shows side bars or background borders at the left/right edges!
+    bool isFullStretchScreen = (vtable == (void*)0x1005aefa0 || vtable == (void*)0x1005abd60);
+    if (isFullStretchScreen) {
+        targetW = g_targetWidth;
+        targetH = g_targetHeight;
+    }
     
     auto snapIt = s_menuPanelSnapshots.find(panel);
     if (snapIt == s_menuPanelSnapshots.end() || rect->width <= 350 || (rect->width == baseW && rect->height == baseH && rect->width != targetW)) {
@@ -1940,8 +2001,11 @@ void scaleMenuPanelTree(char* panel) {
     
     // Dynamically patch centering displacements in executable memory so
     // CSWGuiWindow::Draw and CSWGuiPanel::HandleMouseInput / GetLocalMousePos
-    // use exact targetWidth and targetHeight
-    patchMenuCenteringConstants(targetW, targetH);
+    // use exact targetWidth and targetHeight (keep 4:3 centering for in-game menus
+    // and popups when a full-stretch screen clears its own 0x60 centering flag).
+    if (!isFullStretchScreen) {
+        patchMenuCenteringConstants(targetW, targetH);
+    }
     
     // 1. Scale panel root extent
     Rect scaledRoot = { 0, 0, targetW, targetH };
@@ -2145,7 +2209,11 @@ void scaleMenuPanelTree(char* panel) {
     // This guarantees that all menu screens, the loading screen, the menu backdrop curtain,
     // and the 8 category tab buttons all share the exact same horizontal center!
     // Bit 0x08 stays: it is the engine's backdrop bookkeeping (see scaleSmallChargenPanel).
-    if (isMenuPanel(vtable)) {
+    if (isFullStretchScreen) {
+        // Full-screen Main Menu and Load Screen sit at (0, 0) across the full display width;
+        // clear 0x60 centering flags while preserving bit 0x08 backdrop bookkeeping.
+        panel[0x5c] = (panel[0x5c] & ~0x61);
+    } else if (isMenuPanel(vtable)) {
         panel[0x5c] = (panel[0x5c] & ~0x01) | 0x60;
     } else {
         panel[0x5c] = (panel[0x5c] & ~0x68) | 0x01;
@@ -2896,9 +2964,20 @@ int32_t GetInstalledTutorialIconSize() {
 }
 } // namespace
 
+extern "C" void Examine_ResetButtons(void* box) {
+    if (!box || !is_readable(box)) return;
+    reinterpret_cast<void (*)(void*)>(0x100306b40UL)(box);
+    reinterpret_cast<void (*)(void*, int)>(0x1004a30ccUL)(static_cast<char*>(box) + 0x5a8, 0x62e);
+    reinterpret_cast<void (*)(void*, int)>(0x1003063feUL)(box, 0);
+}
+
 extern "C" void GuiMode_FitMessageBox(void* box) {
     if (!box || !is_readable(box)) return;
     char* const base = static_cast<char*>(box);
+    if (*reinterpret_cast<void**>(box) == reinterpret_cast<void*>(0x1005aee60UL)) {
+        reinterpret_cast<void (*)(void*, int)>(0x1004a30ccUL)(base + 0x5a8, 0x62e);
+        reinterpret_cast<void (*)(void*, int)>(0x1003063feUL)(box, 0);
+    }
     void* list = base + kMsgList;
     if (!is_readable(list)) return;
     const int32_t item = MsgAt<int32_t>(list, kListItem);
@@ -2916,6 +2995,10 @@ extern "C" void GuiMode_FitMessageBox(void* box) {
     if (MsgShown(box, kMsgOk) && ok[2] > least) least = ok[2];
     if (MsgShown(box, kMsgCancel) && cancel[2] > least) least = cancel[2];
     if (hasIcon && icon[2] > least) least = icon[2];
+    if (!GuiFileLayouts()) {
+        const int32_t savedMsgWidth = MsgAt<int32_t>(box, 0xc08);
+        if (savedMsgWidth > least) least = savedMsgWidth;
+    }
     int32_t low = least, high = message[2];
     while (low < high) {
         message[2] = low + (high - low) / 2;
@@ -2937,6 +3020,10 @@ extern "C" void GuiMode_FitMessageBox(void* box) {
     }
 
     int32_t width = message[2] + 2 * message[0];
+    if (!GuiFileLayouts()) {
+        const int32_t savedPanelWidth = MsgAt<int32_t>(box, 0xbf8);
+        if (width < savedPanelWidth) width = savedPanelWidth;
+    }
     if (width > panel[2]) width = panel[2];
     ok[0] = MsgCentred(width, ok[2]);
     ok[1] = message[1] + message[3] + 4;
@@ -2961,26 +3048,32 @@ extern "C" void GuiMode_FitMessageBox(void* box) {
     (*reinterpret_cast<SetExtentFn*>(*reinterpret_cast<char**>(box) + 0x10))(box, panel);
 }
 
+static void InstallMessageBoxFitHook() {
+    static bool s_popupHookInstalled = false;
+    if (s_popupHookInstalled) return;
+    s_popupHookInstalled = true;
+
+    uint8_t bridge[26] = {
+        0x57,
+        0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0,
+        0xff, 0xd0,
+        0x5f,
+        0x48, 0xb8, 0x36, 0xdc, 0x49, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0xff, 0xe0
+    };
+    *(void**)&bridge[3] = (void*)&GuiMode_FitMessageBox;
+    writeMemBytes(0x1000f4fb8, bridge, sizeof(bridge));
+
+    uint8_t callFit[5] = { 0xe8, 0x2b, 0xe5, 0xde, 0xff };
+    writeMemBytes(0x100306a88, callFit, 5);
+
+    void* examineReset = (void*)&Examine_ResetButtons;
+    writeMemBytes(0x1005aef68, (const uint8_t*)&examineReset, sizeof(examineReset));
+}
+
 static void InstallMessageBoxLayout() {
     InitTargetResolution();
-
-    static bool s_popupHookInstalled = false;
-    if (!s_popupHookInstalled) {
-        s_popupHookInstalled = true;
-        uint8_t bridge[26] = {
-            0x57,
-            0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0,
-            0xff, 0xd0,
-            0x5f,
-            0x48, 0xb8, 0x36, 0xdc, 0x49, 0x00, 0x01, 0x00, 0x00, 0x00,
-            0xff, 0xe0
-        };
-        *(void**)&bridge[3] = (void*)&GuiMode_FitMessageBox;
-        writeMemBytes(0x1000f4fb8, bridge, sizeof(bridge));
-
-        uint8_t callFit[5] = { 0xe8, 0x2b, 0xe5, 0xde, 0xff };
-        writeMemBytes(0x100306a88, callFit, 5);
-    }
+    InstallMessageBoxFitHook();
 
     static int s_lastAppliedPopupHeight = -1;
     if (s_lastAppliedPopupHeight == g_targetHeight) return;
