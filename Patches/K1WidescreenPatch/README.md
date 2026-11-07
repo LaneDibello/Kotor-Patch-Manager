@@ -1018,7 +1018,8 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 | `0x1005f4b34` | `int32_t` | `kViewportTop`: Active index into engine OpenGL viewport stack |
 | `0x1005f4b40` | `int16_t[5]` | `kViewportStack`: 10-byte viewport stack entries `{ x, y, w, h, flags }` |
 | `0x100570a14` | `float` | `kLetterboxAspect`: Dialogue letterbox aspect ratio constant (vanilla 7/3, patched to $1.5 \cdot W / H$) |
-| `0x1005f5600` | `void*` | `g_pAppManager`: Pointer to master game application manager |
+| `0x100677ce0` | `void*` | `g_pGuiManager`: Global GUI manager singleton pointer (`+0x60` = tooltip panel, `+0xc0` = background frame) |
+| `0x100677cf0` | `void*` | `g_pAppManager`: Pointer to master game application manager |
 | `0x1005d3210` | `void*` | `CSWGuiTooltip` vtable: Tooltip coordinate plane (exempt from direct scaling) |
 
 ---
@@ -1131,8 +1132,8 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 #### `CSWGuiMainInterface` (Gameplay HUD at `0x1005a6220`)
 | Offset | Type | Field Description |
 | :--- | :--- | :--- |
-| `+0x180` | `int32_t` | Control count |
-| `+0x188` | `char**` | Array of HUD subcontrol pointers |
+| `+0x30` | `char**` | Array of HUD subcontrol pointers (inherited from `CSWGuiPanel`) |
+| `+0x38` | `int32_t` | Control count (`96` in `mipc212x9.gui`, inherited from `CSWGuiPanel`) |
 | `+0x2358` | `int32_t` | Index of active/hovered combat action button (`0..5`) |
 | `+0x7b10` | `int32_t` | Minimap radar width in HUD structure |
 | `+0x7b14` | `int32_t` | Minimap radar height in HUD structure |
