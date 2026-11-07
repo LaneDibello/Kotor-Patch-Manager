@@ -397,6 +397,9 @@ bool isPopupPanel(void* vtable) {
 
 static char* g_lastGuiManager = nullptr;
 static char* g_lastScaledHud = nullptr;
+static int s_lastScaledHudW = -1;
+static int s_lastScaledHudH = -1;
+static std::vector<Rect> s_hudOrigRects;
 static int s_lastPatchedCenteringW = -1;
 static int s_lastPatchedCenteringH = -1;
 
@@ -2357,6 +2360,12 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
             refreshMenuPanelTrees(mgr);
         }
 
+        // Capture root HUD extent before overwriting so we can detect a freshly constructed
+        // CSWGuiMainInterface (1280x960 from mipc212x9.gui) even when malloc recycles the exact
+        // same heap address after an area transition (CSWGuiInGame::UnloadGUI + LoadGUI).
+        int preRootW = *(int*)(hud + 0x10);
+        int preRootH = *(int*)(hud + 0x14);
+
         // ALWAYS enforce Root Window bounds directly every frame
         *(int*)(hud + 0x8) = 0;
         *(int*)(hud + 0xC) = 0;
@@ -2390,9 +2399,35 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
             setExtent(hud + 0x7970, &arrowRect);
         }
         
-        // One-time HUD scaling when HUD interface instance is created
-        if (hud != g_lastScaledHud) {
+        int numControls = *(int*)(hud + 0x38);
+        char** controls = *(char***)(hud + 0x30);
+        int btnWidth = (g_targetHeight > 0) ? (int)(42.0f * (float)g_targetHeight / 982.0f + 0.5f) : 42;
+        if (btnWidth < 28) btnWidth = 28;
+        int expectedLastBtnLeft = (g_targetWidth - 4) - btnWidth;
+
+        // Detect when a new HUD instance has been created (including when malloc recycles the
+        // exact same 0xff58-byte heap block across area transitions) or when display resolution changes.
+        bool isFreshHud = (hud != g_lastScaledHud) ||
+                          (preRootW == 1280 && preRootH == 960 && g_targetWidth != 1280);
+        bool needsHudLayout = isFreshHud ||
+                              (s_lastScaledHudW != g_targetWidth || s_lastScaledHudH != g_targetHeight);
+        if (!needsHudLayout && controls && is_readable(controls) && numControls >= 96) {
+            if (15 < numControls && controls[15] && is_readable(controls[15])) {
+                int mapBorderW = ((Rect*)(controls[15] + 0x8))->width;
+                if (mapBorderW == 144 && minimapBorder != 144) isFreshHud = true;
+                if (mapBorderW != minimapBorder) needsHudLayout = true;
+            }
+            if (26 < numControls && controls[26] && is_readable(controls[26])) {
+                Rect* optBtnR = (Rect*)(controls[26] + 0x8);
+                if (optBtnR->width == 31 && btnWidth != 31) isFreshHud = true;
+                if (optBtnR->left != expectedLastBtnLeft) needsHudLayout = true;
+            }
+        }
+
+        if (needsHudLayout) {
             g_lastScaledHud = hud;
+            s_lastScaledHudW = g_targetWidth;
+            s_lastScaledHudH = g_targetHeight;
             
             // Expand Root Window bounds exactly to target screen dimensions
             Rect rootRect = { 0, 0, g_targetWidth, g_targetHeight };
@@ -2402,17 +2437,22 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
             *(int*)(hud + 0x10) = g_targetWidth;
             *(int*)(hud + 0x14) = g_targetHeight;
             
-            int numControls = *(int*)(hud + 0x38);
-            char** controls = *(char***)(hud + 0x30);
-            
             if (controls && is_readable(controls) && numControls >= 96) {
+                if (isFreshHud || (int)s_hudOrigRects.size() != numControls) {
+                    s_hudOrigRects.resize(numControls);
+                    for (int i = 0; i < numControls; i++) {
+                        if (controls[i] && is_readable(controls[i])) {
+                            s_hudOrigRects[i] = *(Rect*)(controls[i] + 0x8);
+                        } else {
+                            s_hudOrigRects[i] = { 0, 0, 0, 0 };
+                        }
+                    }
+                }
                 
                 // -------------------------------------------------------------
                 // A. TOP-RIGHT CATEGORY BUTTONS (Scaled 42x42 & Hugging Corner)
                 // -------------------------------------------------------------
                 int btnIndices[8] = { 30, 29, 27, 28, 23, 24, 25, 26 };
-                int btnWidth = (g_targetHeight > 0) ? (int)(42.0f * (float)g_targetHeight / 982.0f + 0.5f) : 42;
-                if (btnWidth < 28) btnWidth = 28;
                 int btnHeight = btnWidth;
                 int btnSpacing = btnWidth + 1; // 1px clean separation between buttons
                 int topMargin = 2;
@@ -2445,7 +2485,7 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
                 for (int m = 0; m < 2; m++) {
                     int idx = mouldIndices[m];
                     if (idx < numControls && controls[idx]) {
-                        Rect r = *(Rect*)(controls[idx] + 0x8);
+                        Rect r = s_hudOrigRects[idx];
                         r.left = minimapBorder - 1;
                         r.width = (firstBtnLeft + 2) - r.left;
                         SetControlRect(controls[idx], r);
@@ -2468,7 +2508,7 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
                 
                 for (int i = 0; i < numControls; i++) {
                     if (!controls[i]) continue;
-                    Rect orig = *(Rect*)(controls[i] + 0x8);
+                    Rect orig = s_hudOrigRects[i];
                     // Match all action bar controls in [1090, 1280] x [870, 960]
                     if (orig.left >= 1090 && orig.left <= 1280 && orig.top >= 870 && orig.top <= 960 && orig.width > 0 && orig.height > 0) {
                         Rect r;
@@ -2495,7 +2535,7 @@ extern "C" float Hook_MainInterfaceDraw(char* hud, float delta) {
                 
                 for (int i = 0; i < numControls; i++) {
                     if (!controls[i]) continue;
-                    Rect orig = *(Rect*)(controls[i] + 0x8);
+                    Rect orig = s_hudOrigRects[i];
                     if (orig.left <= 320 && orig.top >= 750 && orig.width > 0 && orig.height > 0) {
                         Rect r;
                         r.left = portraitOrigX + (int)((orig.left - portraitOrigX) * portraitScale);
