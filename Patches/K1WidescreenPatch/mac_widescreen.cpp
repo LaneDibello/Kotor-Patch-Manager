@@ -530,20 +530,20 @@ static float ReadIniMenuScale() {
 
 static float ReadIniCombatScale() {
     InitTargetResolution();
-    if (s_graphicsIni.combatScale < 0.5f) {
-        float autoCombat = (g_targetHeight > 0) ? (1.60f * (float)g_targetHeight / 982.0f) : 1.60f;
-        s_graphicsIni.combatScale = autoCombat; // Default scaled-up combat queue (+33% over vanilla 1.20x)
+    if (s_graphicsIni.combatScale >= 0.5f) {
+        return s_graphicsIni.combatScale;
     }
-    return s_graphicsIni.combatScale;
+    // Default scaled-up combat queue (+33% over vanilla 1.20x), dynamically proportional to g_targetHeight
+    return (g_targetHeight > 0) ? (1.60f * (float)g_targetHeight / 982.0f) : 1.60f;
 }
 
 static float ReadIniHudScale() {
     InitTargetResolution();
-    if (s_graphicsIni.hudScale < 0.5f) {
-        float autoScale = (g_targetHeight > 0) ? (1.50f * (float)g_targetHeight / 982.0f) : 1.50f;
-        s_graphicsIni.hudScale = autoScale; // Default scaled-up HUD elements (+25% over vanilla 1.20x)
+    if (s_graphicsIni.hudScale >= 0.5f) {
+        return s_graphicsIni.hudScale;
     }
-    return s_graphicsIni.hudScale;
+    // Default scaled-up HUD elements (+25% over vanilla 1.20x), dynamically proportional to g_targetHeight
+    return (g_targetHeight > 0) ? (1.50f * (float)g_targetHeight / 982.0f) : 1.50f;
 }
 
 static float ReadIniFontScale() {
@@ -1006,12 +1006,14 @@ void refreshPatchedListConstants() {
     s_lastAppliedHeight = g_targetHeight;
 
     float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
+    int effectiveTargetH = g_targetHeight;
     float menuScale = ReadIniMenuScale();
     if (menuScale > 0.0f) {
         scale = menuScale;
+        effectiveTargetH = (int)(480 * menuScale);
     }
 
-    ScaledItemGeometry geom = GetScaledItemGeometry(g_targetHeight);
+    ScaledItemGeometry geom = GetScaledItemGeometry(effectiveTargetH);
 
     int itemHeight = geom.itemHeight;
     int containerItemHeight = geom.containerItemHeight;
@@ -1324,6 +1326,7 @@ void patchMenuCenteringConstants(int targetWidth, int targetHeight) {
 }
 
 struct PopupSnapshot {
+    void* vtable;
     Rect root;
     std::vector<Rect> children;
     int targetHeight;
@@ -1507,7 +1510,8 @@ void scalePopupPanel(char* panel) {
     // Check if popup root is already scaled to target dimensions.
     // If so, return early to prevent resetting CSWGuiListBox scroll offsets!
     auto it = s_popupSnapshots.find(panel);
-    if (it != s_popupSnapshots.end() && it->second.targetHeight == g_targetHeight && it->second.lastKnobVersion == s_knobVersion) {
+    if (it != s_popupSnapshots.end() && it->second.vtable == vtable &&
+        it->second.targetHeight == g_targetHeight && it->second.lastKnobVersion == s_knobVersion) {
         int curTargetW = (int)(it->second.root.width * scale + 0.5f);
         int curTargetH = (int)(it->second.root.height * scale + 0.5f);
         if (rect->width == curTargetW && rect->height == curTargetH) {
@@ -1516,8 +1520,9 @@ void scalePopupPanel(char* panel) {
     }
     
     // Capture or refresh unscaled popup geometry when popup opens with vanilla dimensions
-    if (rect->width <= (g_targetWidth * 3) / 4) {
+    if (it == s_popupSnapshots.end() || it->second.vtable != vtable || rect->width <= (g_targetWidth * 3) / 4) {
         PopupSnapshot snap;
+        snap.vtable = vtable;
         snap.root = *rect;
         snap.targetHeight = g_targetHeight;
         snap.lastKnobVersion = s_knobVersion;
@@ -1720,7 +1725,7 @@ void scaleSmallChargenPanel(char* panel) {
     
     // Capture unscaled snapshot if new instance or vanilla dimensions (width <= 350)
     auto it = s_smallPanelSnapshots.find(panel);
-    if (it == s_smallPanelSnapshots.end() || rect->width <= 350) {
+    if (it == s_smallPanelSnapshots.end() || it->second.vtable != vtable || rect->width <= 350) {
         SmallPanelSnapshot snap;
         snap.vtable = vtable;
         snap.root = *rect;
@@ -1835,8 +1840,8 @@ void positionBarkBubble(char* window) {
     
     // Dynamically query actual minimap border height from active HUD if available
     if (g_lastScaledHud && is_readable(g_lastScaledHud)) {
-        int numControls = *(int*)(g_lastScaledHud + 0x180);
-        char** controls = *(char***)(g_lastScaledHud + 0x188);
+        int numControls = *(int*)(g_lastScaledHud + 0x38);
+        char** controls = *(char***)(g_lastScaledHud + 0x30);
         if (controls && is_readable(controls) && 15 < numControls && controls[15] && is_readable(controls[15])) {
             Rect* mapRect = (Rect*)(controls[15] + 0x8);
             if (mapRect && mapRect->height > 0 && mapRect->height < 2000) {
@@ -1965,7 +1970,7 @@ void scaleMenuPanelTree(char* panel) {
     }
     
     auto snapIt = s_menuPanelSnapshots.find(panel);
-    if (snapIt == s_menuPanelSnapshots.end() || rect->width <= 350 || (rect->width == baseW && rect->height == baseH && rect->width != targetW)) {
+    if (snapIt == s_menuPanelSnapshots.end() || snapIt->second.vtable != vtable || rect->width <= 350 || (rect->width == baseW && rect->height == baseH && rect->width != targetW)) {
         MenuPanelSnapshot snap;
         snap.vtable = vtable;
         snap.baseW = baseW;
@@ -3235,8 +3240,8 @@ const uintptr_t kAddControlsAddress = 0x1004a9be6;
 const uintptr_t kRowTextExtent = 0x10022f321;
 const uintptr_t kTextSetExtentAddress = 0x1004a3d4c;
 const uintptr_t kGrantedVtable = 0x1005a9e18;
-const auto AddControls = reinterpret_cast<void (*)(void*, void*, int, int, int)>(0x1004a9be6UL);
-const auto TextSetExtent = reinterpret_cast<void (*)(void*, const int32_t*)>(0x1004a3d4cUL);
+const auto AddControls = reinterpret_cast<void (*)(void*, void*, int, int, int)>(kAddControlsAddress);
+const auto TextSetExtent = reinterpret_cast<void (*)(void*, const int32_t*)>(kTextSetExtentAddress);
 const auto ListSetExtentGranted = reinterpret_cast<void (*)(void*, const int32_t*)>(0x1004a81aeUL);
 
 const size_t kGrantedExtent = 0x8, kGrantedList = 0x80, kGrantedOk = 0x5b8, kGrantedRows = 0x7f8;
@@ -3403,8 +3408,14 @@ static void enforceItemGeometry(char* panel) {
     char** controls = *(char***)(panel + 0x30);
     if (!controls || !is_readable(controls) || numControls <= 0 || numControls > 1024) return;
     
-    ScaledItemGeometry geom = GetScaledItemGeometry(g_targetHeight);
     float scale = (g_targetHeight > 0) ? ((float)g_targetHeight / 480.0f) : 1.0f;
+    int effectiveTargetH = g_targetHeight;
+    float menuScale = ReadIniMenuScale();
+    if (menuScale > 0.0f) {
+        scale = menuScale;
+        effectiveTargetH = (int)(480 * menuScale);
+    }
+    ScaledItemGeometry geom = GetScaledItemGeometry(effectiveTargetH);
     int qHeight = StackBadgeHeight(scale);
     int qTop = geom.itemHeight - qHeight + geom.badgeTopOffset;
     
@@ -3898,8 +3909,8 @@ static void ApplyLayoutForTarget() {
     int targetW = (g_targetHeight * 4) / 3;
     float menuScale = ReadIniMenuScale();
     if (menuScale > 0.0f) {
-        targetH = (int)(960 * menuScale);
-        targetW = (int)(1280 * menuScale);
+        targetH = (int)(480 * menuScale);
+        targetW = (int)(640 * menuScale);
     }
     patchMenuCenteringConstants(targetW, targetH);
     refreshPatchedListConstants();
