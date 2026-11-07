@@ -21,7 +21,7 @@ In **KotOR Patch Manager**, this patch provides five independent toggles (all en
 
 ---
 
-## Included Fixes (29 Non-Overlapping Hooks Across 5 Options)
+## Included Fixes (28 Non-Overlapping Hooks Across 5 Options)
 
 Every shader and code path is partitioned into non-overlapping byte slices so that all five options can be toggled in any of the 32 combinations without hook address conflicts:
 
@@ -53,9 +53,8 @@ Every shader and code path is partitioned into non-overlapping byte slices so th
 | **24** | `0x1001B906A` | 64 B | `fog-fix` | **`PartTriMesh::SetupLighting`** (`0x1001B8FC2`) | Honors `PartTriMesh::m_bAffectedByFog` (`0x99(%r14)`): enables `GL_FOG` and restores `GL_FOG_END = scene->m_fFogEnd` (`0x78`) for fogged meshes (`fog 1`) without falling through into `glDisable(GL_FOG)`, and disables `GL_FOG` while setting `GL_FOG_END = 1000000.0f` (`0x49742400`) for skyboxes/backdrops (`fog 0`) so neither fixed-function nor `ARB_fog_linear` shaders fog the skybox. |
 | **25** | `0x10052742E` | 288 B | `fog-fix` | **Fragment Shader 11** (`0x10052742E`, Skinned Mesh Fog Shader) | Binds `state.fog.color` so non-envmapped skinned characters and creatures read `GL_FOG_COLOR` directly instead of fading to pitch black `(0, 0, 0)`. |
 | **26** | `0x10019DF48` | 6 B | `bumpmap-fix` | **`getATIFragmentShadersDisabled`** (`0x10019DF48`) | Returns `1` (`mov eax, 1; ret`) so all 5 bump-mapping checks in `PartTriMesh::SelectRenderPath` and `SkinMesh::Render` succeed on macOS. |
-| **27** | `0x1001949C2` | 8 B | `bumpmap-fix` | **`Material::HasSpecMap`** (`0x1001949C2`) | Jumps to `Material::HasNormalMap` (`0x1001948F0`) so non-lightmapped bump-mapped world meshes and `SkinMesh::Render` Branch C enable bump mapping when a normal map is present. |
-| **28** | `0x1005C8E5C` | 279 B | `bumpmap-fix` | **`skinBumpyVP`** (`0x1005C7B10`) | Appends `MOV result.color,{0,0,0,1};` in-place so bump-mapped skinned meshes do not leave `fragment.color.primary` undefined. |
-| **29** | `0x1005CA440` | 330 B | `bumpmap-fix` | **`renderSkinnedVPSkinVP2`** (`0x1005C93B0`) | Appends `MOV result.color,{0,0,0,1};` in-place so bump-mapped skinned meshes in fog do not leave `fragment.color.primary` undefined. |
+| **27** | `0x1005C8E5C` | 279 B | `bumpmap-fix` | **`skinBumpyVP`** (`0x1005C7B10`) | Appends `MOV result.color,{0,0,0,1};` in-place so bump-mapped skinned meshes do not leave `fragment.color.primary` undefined. |
+| **28** | `0x1005CA440` | 330 B | `bumpmap-fix` | **`renderSkinnedVPSkinVP2`** (`0x1005C93B0`) | Appends `MOV result.color,{0,0,0,1};` in-place so bump-mapped skinned meshes in fog do not leave `fragment.color.primary` undefined. |
 
 ---
 
