@@ -321,6 +321,13 @@ The master HUD render pass is intercepted on every frame via a detour on `CSWGui
 +-----------------------------------------------------------------------+
 ```
 
+#### Heap Address Reuse Detection Across Module Transitions
+When the player transitions through a door into a new module, `CSWGuiInGame::UnloadGUI` (`0x100256838`) deletes the active `CSWGuiMainInterface` instance (`0xff58` = 65,368 bytes), and `CSWGuiInGame::LoadGUI` (`0x100257050`) allocates a new `0xff58`-byte instance populated from `mipc212x9.gui` (`1280×960`). Because `0xff58` is a large allocation size in macOS `libmalloc`, the allocator frequently recycles the **exact same heap address** (`hud == g_lastScaledHud`).
+
+Relying solely on `hud != g_lastScaledHud` would skip child-control layout whenever the heap address is reused, leaving the top-right buttons, bottom-right action queue, bottom-left portraits, and `LBL_MAPBORDER` at unscaled `1280×960` coordinates while the per-frame radar viewport expands to `196×196`. To guarantee 100% deterministic scaling across every area transition:
+1. `Hook_MainInterfaceDraw` inspects the pre-override root window extent (`1280×960`) as well as `controls[15]` (`LBL_MAPBORDER` at `144px`) and `controls[26]` (`BTN_OPT` at `31px`) to detect any freshly constructed `mipc212x9.gui` instance even when `hud == g_lastScaledHud`.
+2. On a fresh HUD, all 96 baseline control `Rect`s are snapshotted into `s_hudOrigRects`, and Sections A–E scale and anchor every HUD element from those clean baseline coordinates.
+
 ### 3.3 Top-Right Button Cluster & Background Moulding
 Because `mipc212x9` is universally loaded, the 8 category buttons follow strict deterministic indices:
 - `BTN_EQU` (30), `BTN_INV` (29), `BTN_CHAR` (27), `BTN_ABI` (28), `BTN_MSG` (23), `BTN_JOU` (24), `BTN_MAP` (25), `BTN_OPT` (26).
