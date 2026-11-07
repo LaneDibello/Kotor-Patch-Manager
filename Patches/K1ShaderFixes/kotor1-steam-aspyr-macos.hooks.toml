@@ -727,18 +727,6 @@ replacement_bytes = [
     0xB8, 0x01, 0x00, 0x00, 0x00, 0xC3
 ]
 
-# Redirect Material::HasSpecMap (0x1001949C2) to Material::HasNormalMap (0x1001948F0) so non-lightmapped bump-mapped world meshes and SkinMesh Branch C enable bump mapping when a normal map is present.
-[[hooks]]
-address = 0x1001949C2
-type = "simple"
-when = "bumpmap-fix"
-original_bytes = [
-    0x55, 0x48, 0x89, 0xE5, 0x31, 0xC0, 0x5D, 0xC3
-]
-replacement_bytes = [
-    0xE9, 0x29, 0xFF, 0xFF, 0xFF, 0x90, 0x90, 0x90
-]
-
 # Clamp normal-map dot products (DP3_SAT) and fix overwritten r5/r4 specular power and bump intensity registers in Fragment Shader 5 (BumpShinyA).
 [[hooks]]
 address = 0x100526736
