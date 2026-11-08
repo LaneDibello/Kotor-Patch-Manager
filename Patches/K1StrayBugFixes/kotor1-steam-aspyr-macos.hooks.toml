@@ -371,7 +371,51 @@ replacement_bytes = [
 ]
 
 # ==============================================================================
-# 11. LEADING NEWLINE TRIM IN GUI TEXT (K3)
+# 11. WALKMESH / LINE-OF-SIGHT NULL AREA SAFETY (NoNonWalkPolys CRASH FIX)
+# ==============================================================================
+# Functions: CSWSArea::NoNonWalkPolys (0x10041912a), CSWSArea::NoNonWalkPolysDetailed (0x100422c02)
+# In CSWSCreature::AIActionMoveToPoint (0x100470234), when a creature has an active
+# MoveToPoint action node with >= 7 parameters (including a target range threshold fRange)
+# and is within fRange of its destination, the engine checks walkmesh line-of-sight at
+# 0x100470415 by calling CSWSObject::GetArea(this) (0x100397b4c) and passing the returned
+# CSWSArea* (%rax) directly as `this` (%rdi) into CSWSArea::NoNonWalkPolys (0x10041912a)
+# -> CSWSArea::NoNonWalkPolysDetailed (0x100422c02) WITHOUT checking if pArea is NULL
+# (even though later in the exact same function at 0x1004707d1 and 0x100470cc0, BioWare
+# explicitly checks `testq %rax, %rax; je ...`).
+#
+# Furthermore, CSWSCreature::AIUpdate (0x100489166) executes CSWSObject::RunActions
+# (0x100423950) at 0x10048933b BEFORE checking `if (this->GetArea() != NULL)` at
+# 0x100489359. When a creature is removed from an area (e.g., via RemovePartyMember or
+# DestroyObject during Dantooine's Ebon Hawk vision cutscene / Carth conversation in
+# vanilla k_pdan_13_load.ncs and k_pdan_addcarth.ncs), CSWSCreature::RemoveFromArea
+# (0x10048404e) calls CSWSObject::SetArea(this, NULL) (0x1003985e0), setting m_oidArea
+# (+0xd0) to 0x7f000000 (OBJECT_INVALID) and resetting m_vPosition (+0xd8..+0xe0) to
+# (0.0, 0.0, 0.0) without clearing m_pActionQueue (+0x148). If the removed creature ticks
+# one more AI update with a queued MoveToPoint action, GetArea(this) returns NULL (0x0),
+# and CSWSArea::NoNonWalkPolysDetailed dereferences 0x6c(%rdi) (this->m_nRooms) at
+# 0x100422c3d, crashing with EXC_BAD_ACCESS (SIGSEGV) at address 0x000000000000006c.
+#
+# Fix: At the entry of both CSWSArea::NoNonWalkPolys (0x10041912a, 23 callers) and
+# CSWSArea::NoNonWalkPolysDetailed (0x100422c02, 8 callers), test if `this` (%rdi) is NULL.
+# If %rdi == NULL, return 0 immediately (xorl %eax, %eax; retq), preventing NULL area
+# dereferences across all 31 walkmesh / line-of-sight call sites in the engine.
+#
+# 11.1 CSWSArea::NoNonWalkPolys NULL Area Guard (0x10041912a)
+[[hooks]]
+address = 0x10041912a
+type = "replace"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+replacement_bytes = [0x48, 0x85, 0xFF, 0x75, 0x03, 0x31, 0xC0, 0xC3, 0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+
+# 11.2 CSWSArea::NoNonWalkPolysDetailed NULL Area Guard (0x100422c02)
+[[hooks]]
+address = 0x100422c02
+type = "replace"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+replacement_bytes = [0x48, 0x85, 0xFF, 0x75, 0x03, 0x31, 0xC0, 0xC3, 0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+
+# ==============================================================================
+# 12. LEADING NEWLINE TRIM IN GUI TEXT (K3)
 # ==============================================================================
 # Function: CSWGuiTextParams::SetText (0x1004a3714)
 # Descriptions that open with a property block start with "\n" and render an
