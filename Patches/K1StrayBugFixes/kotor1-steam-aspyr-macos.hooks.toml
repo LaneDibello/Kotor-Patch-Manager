@@ -296,7 +296,126 @@ replacement_bytes = [
 ]
 
 # ==============================================================================
-# 10. LEADING NEWLINE TRIM IN GUI TEXT (K3)
+# 10. GUI SOUND EFFECT REPLAY FIX (ON-HOVER & BUTTON CLICK SOUNDS)
+# ==============================================================================
+# Functions: AIL_resume_sample (0x1000563f3), OpenALSample::Start (0x10005271c)
+# The GUI sound system triggers 2D UI sounds (such as main menu and in-game button
+# hover/click sounds like gui_scroll) by calling AIL_resume_sample on cached sample
+# handles. In Aspyr's Miles->OpenAL wrapper, AIL_resume_sample calls virtual slot
+# +0x30 (OpenALSample::SetPaused(0)), which checks alGetSourcei(AL_SOURCE_STATE)
+# and only calls alSourcePlay if the source is in AL_INITIAL (0x1011, never played)
+# or AL_PAUSED (0x1013). Once a UI sound finishes playing once, its OpenAL source
+# transitions to AL_STOPPED (0x1014), causing SetPaused(0) to return early without
+# calling alSourcePlay—silencing all subsequent plays of that UI sound.
+#
+# Fix:
+# 10.1 Redirect AIL_resume_sample (0x10005640b) from vtable slot +0x30 (SetPaused)
+#      to vtable slot +0x20 (OpenALSample::Start), which plays both AL_INITIAL and
+#      AL_STOPPED sources.
+[[hooks]]
+address = 0x10005640b
+type = "simple"
+original_bytes = [0x48, 0x8B, 0x40, 0x30]
+replacement_bytes = [0x48, 0x8B, 0x40, 0x20]
+
+# 10.2 Allow OpenALSample::Start (0x10005274e) to restart an already-playing sample
+#      from the beginning when re-triggered rapidly (e.g., sweeping the mouse across
+#      multiple menu buttons before the previous hover sound finishes). In OpenAL,
+#      calling alSourcePlay on an AL_PLAYING source restarts it from offset 0.
+[[hooks]]
+address = 0x10005274e
+type = "simple"
+original_bytes = [0x74, 0x0D]
+replacement_bytes = [0x90, 0x90]
+
+# 10.3 Allow OpenALSample::Pause(this, 0) (0x1000527f4) to play AL_STOPPED (0x1014)
+#      sources instead of returning early without calling alSourcePlay.
+[[hooks]]
+address = 0x1000527f4
+type = "simple"
+original_bytes = [0x74, 0x0D]
+replacement_bytes = [0x90, 0x90]
+
+# 10.4 Prepend 256 zero samples (512 bytes = 11.6 ms silence at 22,050 Hz, 1 CoreAudio
+#      512-frame slice) AND apply a 3x (+9.5 dB) PCM sample gain to the 3 ultra-short
+#      AL_FORMAT_MONO16 (0x1101) UI hover buffers in sounds.bif (0 < size <= 1024 B:
+#      gui_scroll.wav and gui_actscroll.wav, whose peak samples are 4981..5259 / 32767)
+#      in OpenALSample::BufferData (0x100052701).
+#      Apple's OpenAL.framework (OALSource::Play + OALSource::RampUp) and 3DMixer AudioUnit
+#      apply a ~45 ms bus-enable fade-in envelope whenever a source starts on a newly
+#      connected mixer bus (attenuating an unpadded 3.265 ms hover tick to -55.6 dB / 0.00166,
+#      39.4x quieter than normal). Shifting past the first 512-frame slice reaches 1/3 (-9.4 dB)
+#      of the steady-state envelope, and multiplying the 16-bit samples by 3 restores the
+#      output peak to -23.0 dB (0.07116), matching full steady-state volume (-23.7 dB).
+[[hooks]]
+address = 0x100052701
+type = "replace"
+original_bytes = [0x44, 0x8B, 0x47, 0x28, 0x89, 0xF7, 0x89, 0xC6, 0x4C, 0x89, 0xCA, 0x44, 0x89, 0xD1]
+replacement_bytes = [
+    0x44, 0x8B, 0x47, 0x28, 0x89, 0xF7, 0x89, 0xC6, 0x4C, 0x89, 0xCA, 0x44, 0x89, 0xD1,
+    0x81, 0xFE, 0x01, 0x11, 0x00, 0x00, 0x75, 0x72,
+    0x85, 0xC9, 0x7E, 0x6E,
+    0x81, 0xF9, 0x00, 0x04, 0x00, 0x00, 0x7F, 0x66,
+    0x57, 0x56, 0x51,
+    0x48, 0x81, 0xEC, 0x08, 0x06, 0x00, 0x00,
+    0x48, 0x89, 0xE7, 0x31, 0xC0, 0x51, 0xB9, 0xC0, 0x00, 0x00, 0x00, 0xF3, 0x48, 0xAB, 0x59,
+    0x48, 0x8D, 0xBC, 0x24, 0x00, 0x02, 0x00, 0x00, 0x48, 0x89, 0xD6,
+    0xD1, 0xE9, 0x66, 0xAD, 0x66, 0x6B, 0xC0, 0x03, 0x66, 0xAB, 0xE2, 0xF6,
+    0x48, 0x8B, 0x8C, 0x24, 0x08, 0x06, 0x00, 0x00,
+    0x48, 0x8B, 0xB4, 0x24, 0x10, 0x06, 0x00, 0x00,
+    0x48, 0x8B, 0xBC, 0x24, 0x18, 0x06, 0x00, 0x00,
+    0x48, 0x89, 0xE2, 0x81, 0xC1, 0x00, 0x02, 0x00, 0x00,
+    0x48, 0xB8, 0xCA, 0x02, 0x4B, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xD0,
+    0x48, 0x81, 0xC4, 0x20, 0x06, 0x00, 0x00, 0x5D, 0xC3,
+    0x48, 0xB8, 0x0F, 0x27, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xE0
+]
+
+# ==============================================================================
+# 11. WALKMESH / LINE-OF-SIGHT NULL AREA SAFETY (NoNonWalkPolys CRASH FIX)
+# ==============================================================================
+# Functions: CSWSArea::NoNonWalkPolys (0x10041912a), CSWSArea::NoNonWalkPolysDetailed (0x100422c02)
+# In CSWSCreature::AIActionMoveToPoint (0x100470234), when a creature has an active
+# MoveToPoint action node with >= 7 parameters (including a target range threshold fRange)
+# and is within fRange of its destination, the engine checks walkmesh line-of-sight at
+# 0x100470415 by calling CSWSObject::GetArea(this) (0x100397b4c) and passing the returned
+# CSWSArea* (%rax) directly as `this` (%rdi) into CSWSArea::NoNonWalkPolys (0x10041912a)
+# -> CSWSArea::NoNonWalkPolysDetailed (0x100422c02) WITHOUT checking if pArea is NULL
+# (even though later in the exact same function at 0x1004707d1 and 0x100470cc0, BioWare
+# explicitly checks `testq %rax, %rax; je ...`).
+#
+# Furthermore, CSWSCreature::AIUpdate (0x100489166) executes CSWSObject::RunActions
+# (0x100423950) at 0x10048933b BEFORE checking `if (this->GetArea() != NULL)` at
+# 0x100489359. When a creature is removed from an area (e.g., via RemovePartyMember or
+# DestroyObject during Dantooine's Ebon Hawk vision cutscene / Carth conversation in
+# vanilla k_pdan_13_load.ncs and k_pdan_addcarth.ncs), CSWSCreature::RemoveFromArea
+# (0x10048404e) calls CSWSObject::SetArea(this, NULL) (0x1003985e0), setting m_oidArea
+# (+0xd0) to 0x7f000000 (OBJECT_INVALID) and resetting m_vPosition (+0xd8..+0xe0) to
+# (0.0, 0.0, 0.0) without clearing m_pActionQueue (+0x148). If the removed creature ticks
+# one more AI update with a queued MoveToPoint action, GetArea(this) returns NULL (0x0),
+# and CSWSArea::NoNonWalkPolysDetailed dereferences 0x6c(%rdi) (this->m_nRooms) at
+# 0x100422c3d, crashing with EXC_BAD_ACCESS (SIGSEGV) at address 0x000000000000006c.
+#
+# Fix: At the entry of both CSWSArea::NoNonWalkPolys (0x10041912a, 23 callers) and
+# CSWSArea::NoNonWalkPolysDetailed (0x100422c02, 8 callers), test if `this` (%rdi) is NULL.
+# If %rdi == NULL, return 0 immediately (xorl %eax, %eax; retq), preventing NULL area
+# dereferences across all 31 walkmesh / line-of-sight call sites in the engine.
+#
+# 11.1 CSWSArea::NoNonWalkPolys NULL Area Guard (0x10041912a)
+[[hooks]]
+address = 0x10041912a
+type = "replace"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+replacement_bytes = [0x48, 0x85, 0xFF, 0x75, 0x03, 0x31, 0xC0, 0xC3, 0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+
+# 11.2 CSWSArea::NoNonWalkPolysDetailed NULL Area Guard (0x100422c02)
+[[hooks]]
+address = 0x100422c02
+type = "replace"
+original_bytes = [0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+replacement_bytes = [0x48, 0x85, 0xFF, 0x75, 0x03, 0x31, 0xC0, 0xC3, 0x55, 0x48, 0x89, 0xE5, 0x41, 0x57]
+
+# ==============================================================================
+# 12. LEADING NEWLINE TRIM IN GUI TEXT (K3)
 # ==============================================================================
 # Function: CSWGuiTextParams::SetText (0x1004a3714)
 # Descriptions that open with a property block start with "\n" and render an

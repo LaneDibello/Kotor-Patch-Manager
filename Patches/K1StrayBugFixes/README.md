@@ -62,7 +62,23 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 - **Issue**: Pressing <kbd>Caps Lock</kbd> to enter First-Person Look Mode (`0x1002faf82`) calls `CSWPartyTable::GetPartyLeader()` (`0x1002a70ae`) and immediately dereferences `0x8(%rax)` at `0x1002faf87` without a `NULL` check. If the client party table is empty (for example, during scripted sequences or after `UT_ClearAllPartyMembers` when no party leader is active), `GetPartyLeader()` returns `NULL` and pressing <kbd>Caps Lock</kbd> causes an immediate `EXC_BAD_ACCESS` crash.
 - **Fix**: Guards against `GetPartyLeader() == NULL` at `0x1002faf87` by jumping cleanly to the function epilogue (`0x1002fadee`) instead of dereferencing `0x8(%rax)`.
 
-### 10. Leading Newline Trim in GUI Text
+### 10. GUI Sound Effect Replay & Audibility Fix (Menu Hover & Click Sounds)
+- **Targets**: `AIL_resume_sample` (`0x1000563f3`), `OpenALSample::Start` (`0x10005271c`), `OpenALSample::Pause` (`0x1000527b0`), `OpenALSample::BufferData` (`0x1000526da`)
+- **Hooks**: Simple at `0x10005640b`, `0x10005274e`, `0x1000527f4`; Replace at `0x100052701`
+- **Issue**: Two compounding bugs in Aspyr's Miles-to-OpenAL wrapper (`OpenALSample`) and Apple's `OpenAL.framework` / `3DMixer` AudioUnit silenced 2D UI hover ticks (`gui_scroll.wav` and `gui_actscroll.wav`):
+  1. **Stopped-source replay failure**: When re-triggering a cached UI sound handle, `AIL_resume_sample` called virtual slot `+0x30` (`OpenALSample::Pause(0)`), which only called `alSourcePlay` if the OpenAL source was in `AL_INITIAL` (`0x1011`) or `AL_PAUSED` (`0x1013`), ignoring `AL_STOPPED` (`0x1014`). Similarly, `OpenALSample::Start` skipped `alSourcePlay` if the source was still `AL_PLAYING` (`0x1012`).
+  2. **`3DMixer` bus-enable fade-in attenuation**: `gui_scroll.wav` is only 72 samples (`144` bytes = `3.265 ms` at `22,050 Hz` 16-bit mono) with a peak sample of `4981 / 32767` (`-16.4 dB`). Whenever an OpenAL source starts from `AL_INITIAL` or `AL_STOPPED`, `OALSource::SetupMixerBus` connects a fresh input bus on Apple's `3DMixer` AudioUnit, which applies an internal ~45 ms (~4-slice) fade-in ramp from `0.0` before `OALSource::DoPostRender` immediately disconnects the bus at the end of the `3.265 ms` buffer. This attenuated single button hovers to `-55.6 dB` (`0.00166`, `39.4x` quieter than normal), making them completely inaudible unless the mouse was shaken violently across options fast enough (`< 10 ms`) to keep the same mixer bus connected across 5–8 consecutive slices.
+- **Fix**:
+  - Redirects `AIL_resume_sample` (`0x10005640b`) from vtable slot `+0x30` (`Pause`) to `+0x20` (`Start`), and allows both `OpenALSample::Start` (`0x10005274e`) and `OpenALSample::Pause(0)` (`0x1000527f4`) to play/restart sources in any state.
+  - In `OpenALSample::BufferData` (`0x100052701`), prepends 256 zero samples (`512` bytes = `11.6 ms` silence at `22,050 Hz`, 1 CoreAudio 512-frame slice) and applies a `3x` (`+9.5 dB`) 16-bit PCM sample gain to the 3 ultra-short `AL_FORMAT_MONO16` UI hover buffers (`0 < size <= 1024` bytes) in `sounds.bif`. Shifting past Slice 1 reaches one-third (`-9.4 dB`) of `3DMixer`'s bus-enable envelope, and the `3x` sample boost restores single-hover output to `-23.0 dB` (`0.07116`), matching full steady-state volume (`-23.7 dB`) without clipping (`4981 * 3 = 14943 < 32767`).
+
+### 11. Walkmesh / Line-of-Sight `NULL` Area Safety (`NoNonWalkPolys` Crash)
+- **Targets**: `CSWSArea::NoNonWalkPolys` (`0x10041912a`), `CSWSArea::NoNonWalkPolysDetailed` (`0x100422c02`)
+- **Hooks**: Replace at `0x10041912a`, `0x100422c02`
+- **Issue**: In `CSWSCreature::AIActionMoveToPoint` (`0x100470234`), when a creature has an active `MoveToPoint` action with a range threshold (`nParams >= 7`) and is within `fRange` of its destination, the engine checks walkmesh line-of-sight at `0x100470415` by calling `CSWSObject::GetArea(this)` (`0x100397b4c`) and passing the returned `CSWSArea*` (`%rax`) directly as `this` (`%rdi`) into `CSWSArea::NoNonWalkPolys` (`0x10041912a`) $\rightarrow$ `CSWSArea::NoNonWalkPolysDetailed` (`0x100422c02`) without a `NULL` check (even though later in the exact same function at `0x1004707d1` and `0x100470cc0`, BioWare explicitly checks `if (this->GetArea() == NULL)`). Furthermore, `CSWSCreature::AIUpdate` (`0x100489166`) runs `CSWSObject::RunActions` (`0x100423950`) at `0x10048933b` *before* checking `if (this->GetArea() != NULL)` at `0x100489359`. When a creature is removed from an area (via `RemovePartyMember` or `DestroyObject`, such as during the Dantooine Ebon Hawk vision cutscene / Carth dialogue in vanilla `k_pdan_13_load.ncs` and `k_pdan_addcarth.ncs`), `CSWSCreature::RemoveFromArea` (`0x10048404e`) calls `CSWSObject::SetArea(this, NULL)` (`0x1003985e0`), setting `m_oidArea` (`+0xd0`) to `0x7f000000` (`OBJECT_INVALID`) and resetting `m_vPosition` (`+0xd8..+0xe0`) to `(0.0, 0.0, 0.0)` without clearing `m_pActionQueue` (`+0x148`). If the removed creature executes one more AI tick with a queued `MoveToPoint` action, `GetArea(this)` returns `NULL` and `CSWSArea::NoNonWalkPolysDetailed` dereferences `0x6c(%rdi)` (`this->m_nRooms`) at `0x100422c3d`, crashing with `EXC_BAD_ACCESS (SIGSEGV)` at `0x000000000000006c`.
+- **Fix**: Guards the prologues of both `CSWSArea::NoNonWalkPolys` (`0x10041912a`, 23 callers) and `CSWSArea::NoNonWalkPolysDetailed` (`0x100422c02`, 8 callers). If `this` (`%rdi`) is `NULL`, immediately returns `0` (`false` / no clear walkmesh LOS), preventing `NULL` area dereferences across all 31 walkmesh and line-of-sight call sites in the engine.
+
+### 12. Leading Newline Trim in GUI Text
 - **Target**: `CSWGuiTextParams::SetText` (`0x1004a3714`)
 - **Hook**: Detour at `0x1004a3726` calling `KMRP_TrimLeadingNewlines`
 - **Issue**: Item and quest descriptions prefix each property line with `\n`. Descriptions that start with property blocks open with a newline, rendering an unnecessary empty top line (~16px in vanilla, worse with scaled fonts).
@@ -70,7 +86,7 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 
 ---
 
-## Summary of All 19 Hooks
+## Summary of All 25 Hooks
 
 | # | Address | Function / Target | Type | Bug Category | What It Does |
 |---|---------|-------------------|------|--------------|--------------|
@@ -92,4 +108,12 @@ These fixes resolve fundamental engine bugs present in the vanilla game that ben
 | 16 | `0x10035bf7a` | `CExoKeyTable::DestroyTable` | `simple` | 8. Key Table UAF | Clears dangling `m_pKeyEntry` and `m_nID` on demanded resources during table destruction. |
 | 17 | `0x10035c434` | `CExoKeyTable::RebuildTable` | `replace` | 8. Key Table UAF | Clears dangling `m_pKeyEntry` and `m_nID` during key table rebuilds. |
 | 18 | `0x1002faf87` | `CClientGui::HandleKeyEvent` | `replace` | 9. Caps Lock Crash | Guards First-Person Look Mode (<kbd>Caps Lock</kbd>) against `GetPartyLeader() == NULL`. |
-| 19 | `0x1004a3726` | `CSWGuiTextParams::SetText` | `detour` | 10. Leading Newlines | Calls `KMRP_TrimLeadingNewlines` to strip leading `\n` from item/quest descriptions. |
+| 19 | `0x10005640b` | `AIL_resume_sample` | `simple` | 10. GUI Sound Replay | Redirects vtable call from `+0x30` (`Pause`) to `+0x20` (`Start`) so stopped samples replay. |
+| 20 | `0x10005274e` | `OpenALSample::Start` | `simple` | 10. GUI Sound Replay | Allows `Start` to restart an already-playing (`AL_PLAYING`) sample from offset 0. |
+| 21 | `0x1000527f4` | `OpenALSample::Pause` | `simple` | 10. GUI Sound Replay | Allows `Pause(this, 0)` to play `AL_STOPPED` (`0x1014`) sources. |
+| 22 | `0x100052701` | `OpenALSample::BufferData` | `replace` | 10. GUI Sound Replay | Prepends 512 B (1 slice) silence and applies `3x` PCM gain to ultra-short `<= 1024 B` mono16 UI hover ticks to overcome `3DMixer`'s bus-enable fade-in ramp. |
+| 23 | `0x10041912a` | `CSWSArea::NoNonWalkPolys` | `replace` | 11. Walkmesh `NULL` Area | Returns `0` (`false`) if `pArea` (`%rdi`) is `NULL` (23 callers, including `CSWSCreature::AIActionMoveToPoint` on removed creatures). |
+| 24 | `0x100422c02` | `CSWSArea::NoNonWalkPolysDetailed` | `replace` | 11. Walkmesh `NULL` Area | Returns `0` (`false`) if `pArea` (`%rdi`) is `NULL` instead of dereferencing `this->m_nRooms` at `0x6c(%rdi)` (8 callers). |
+| 25 | `0x1004a3726` | `CSWGuiTextParams::SetText` | `detour` | 12. Leading Newlines | Calls `KMRP_TrimLeadingNewlines` to strip leading `\n` from item/quest descriptions. |
+
+
