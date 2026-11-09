@@ -1,7 +1,7 @@
 # KotOR 1 macOS Widescreen & High-Resolution UI Architecture Guide
 *A Comprehensive Engineering Reference for the Aspyr 64-bit AMD64 Port (with KMRP Engine Enhancements)*
 
-Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. This patch offers two modes: (1) a scaled-up vanilla mode (with no additional files required) and (2) an external gui mode, with specific variables (or the variables for the conventional scaling formula, see section 9.2) defined in swkotor.ini. For mode 2, choose "GUI files" for the patch's GUI mode option in KotOR Patch Manager (or, with a manager that has no options, add `UseGuiFileLayouts=1` under `[Graphics Options]` to your .ini file).——FTD
+Note: You do not need to read this readme! This is a technical explanation for accountability and for interest. This patch offers two modes: (1) a scaled-up vanilla mode (with no additional files required) and (2) an external gui mode, with specific variables (or the variables for the conventional scaling formula, see section 9.2) defined in swkotor.ini. For mode 2, add `UseGuiFileLayouts=1` under `[Graphics Options]` to your .ini file.——FTD
 
 ---
 
@@ -250,18 +250,11 @@ extern "C" uint64_t KMRP_DisplayModeScale() {
 When a high-DPI target is requested, it provides the true pixel-to-point ratio (e.g. 2.0) in `rax`. The engine populates the HiDPI modes and handles SDL mouse scaling via its native render/window ratio (`0x100025802`), allowing native Retina rendering without cursor drift.
 
 ### 2.4 External `.gui` Layout Support (`UseGuiFileLayouts`)
-For users who prefer pre-authored high-resolution GUI files in `Override/` (such as KOTOR High Resolution Menus or KMRP GUI sets), the patch has a **GUI mode** option in KotOR Patch Manager: **Standard** (the default, the patch's own layout) or **GUI files**. The manager records the choice in `configs/k1widescreenpatch.ini` in the game directory:
-```ini
-[Patch Options]
-gui-mode=gui-files
-```
-When that entry is present it decides the mode, whatever `swkotor.ini` says. Without it (a manager from before patch options, or a game patched another way) the patch reads `UseGuiFileLayouts=1` under `[Graphics Options]` in `swkotor.ini`, as before:
+For users who prefer pre-authored high-resolution GUI files in `Override/` (such as KOTOR High Resolution Menus or KMRP GUI sets), the patch provides `UseGuiFileLayouts=1` under `[Graphics Options]` in `swkotor.ini`:
 ```ini
 [Graphics Options]
 UseGuiFileLayouts=1
 ```
-A patch that `requires` this one and brings its own `.gui` sets (KMRP) can still ask for the mode from its code, through `K1Widescreen_UseGuiFileLayouts`, and has the last word.
-
 When enabled:
 - The patch unlocks resolution, engine canvas dimensions, video modes, and stability bugfixes.
 - Procedural C++ layout overrides in `Hook_MainInterfaceDraw`, `Hook_WindowDraw`, `Hook_ClassSelectionUpdate`, and font metadata scaling return immediately, allowing the authored `.gui` files to control menu placement.
@@ -308,7 +301,7 @@ In the Aspyr 64-bit Mac binary, `CSWGuiMainInterface::Create` (`0x10023341b`) ev
 0x1002334d8: leaq   "mipc28x6", %rsi      ## Else           -> loads "mipc28x6"   (800x600)
 ```
 
-The patch preserves 100% of the original machine instructions, registers, and branch paths by safely repointing all four `leaq` template string literal target addresses (`0x100233429`, `0x10023345e`, `0x1002334b4`, and `0x1002334d8`) directly to `"mipc212x9"` (see [Table 10.2](#102-dynamic--static-byte-level-engine-patches)).
+The patch preserves 100% of the original machine instructions, registers, and branch paths by safely repointing all four `leaq` template string literal target addresses (`0x100233429`, `0x10023345e`, `0x1002334b4`, and `0x1002334d8`) directly to `"mipc212x9"` (see [Table 9.2](#92-dynamic--static-byte-level-engine-patches)).
 
 This guarantees that KotOR loads `mipc212x9` on every resolution with deterministic control indices and complete save-load stability. HUD elements (`HudScale`, `CombatScale`, and top-right buttons) automatically scale down proportionally using `targetHeight / 982.0f`.
 
@@ -327,6 +320,13 @@ The master HUD render pass is intercepted on every frame via a detour on `CSWGui
 | y = screenH - offs                              x = screenW - offs    |
 +-----------------------------------------------------------------------+
 ```
+
+#### Heap Address Reuse Detection Across Module Transitions
+When the player transitions through a door into a new module, `CSWGuiInGame::UnloadGUI` (`0x100256838`) deletes the active `CSWGuiMainInterface` instance (`0xff58` = 65,368 bytes), and `CSWGuiInGame::LoadGUI` (`0x100257050`) allocates a new `0xff58`-byte instance populated from `mipc212x9.gui` (`1280×960`). Because `0xff58` is a large allocation size in macOS `libmalloc`, the allocator frequently recycles the **exact same heap address** (`hud == g_lastScaledHud`).
+
+Relying solely on `hud != g_lastScaledHud` would skip child-control layout whenever the heap address is reused, leaving the top-right buttons, bottom-right action queue, bottom-left portraits, and `LBL_MAPBORDER` at unscaled `1280×960` coordinates while the per-frame radar viewport expands to `196×196`. To guarantee 100% deterministic scaling across every area transition:
+1. `Hook_MainInterfaceDraw` inspects the pre-override root window extent (`1280×960`) as well as `controls[15]` (`LBL_MAPBORDER` at `144px`) and `controls[26]` (`BTN_OPT` at `31px`) to detect any freshly constructed `mipc212x9.gui` instance even when `hud == g_lastScaledHud`.
+2. On a fresh HUD, all 96 baseline control `Rect`s are snapshotted into `s_hudOrigRects`, and Sections A–E scale and anchor every HUD element from those clean baseline coordinates.
 
 ### 3.3 Top-Right Button Cluster & Background Moulding
 Because `mipc212x9` is universally loaded, the 8 category buttons follow strict deterministic indices:
@@ -600,7 +600,8 @@ Dialog boxes, loot containers, message prompts, and tutorial windows are handled
 - `0x1005a9e18`: `CSWGuiSkillInfoBox` (Granted feats / skills popup)
 - `0x1005ae3f0`: `CSWGuiSaveNamePanel` (Savegame name entry dialog)
 - `0x1005aeaa8`: `CSWGuiControllerLossBox` (Gamepad disconnect alert)
-- `0x1005aee60`: `CSWGuiExamine` (Item examination popup)
+- `0x1005aee60`: `CSWGuiExamine` (Item examination & store insufficient-credits popup)
+- `0x1005a5880`: `CSWGuiPazaakMessageBox` (Pazaak modal message box)
 - `0x1005acc70`: `CSWGuiScriptSelect` (Combat AI script selection modal console)
 
 ### 6.2 Proportional Geometry Scaling & Automatic Centering
@@ -615,7 +616,7 @@ Dialog boxes, loot containers, message prompts, and tutorial windows are handled
 When looting high-capacity containers, scaling on every frame resets the `CSWGuiListBox` scroll position to index 0. The patch maintains `s_popupSnapshots`. If the popup is already scaled for the current resolution, subsequent frame scaling calls return immediately, preserving active scroll offsets.
 
 ### 6.4 Message Box Text Ceilings & Layout Fixes
-In `CSWGuiMessageBox`, static patches at `0x1003065a2`, `0x100306879`, `0x100306881`, `0x10030688d`, and `0x1003068ff` expand text wrap ceilings and icon insets. Including `0x1005abea0` (`CSWGuiInGameSoloModeQuery`) and `0x1005aeaa8` (`CSWGuiControllerLossBox`) in `isMsgBox` prevents button ballooning by allowing the native layout to place OK/Cancel buttons.
+In `CSWGuiMessageBox`, static patches at `0x1003065a2`, `0x100306879`, `0x100306881`, `0x10030688d`, and `0x1003068ff` expand text wrap ceilings and icon insets. Including all `CSWGuiMessageBox` subclasses—including `0x1005abea0` (`CSWGuiInGameSoloModeQuery`), `0x1005aeaa8` (`CSWGuiControllerLossBox`), `0x1005aee60` (`CSWGuiExamine`), and `0x1005a5880` (`CSWGuiPazaakMessageBox`)—in `isMsgBox` prevents compound button height scaling across repeated triggers (where `FixMessageLabel` resets `panel` and `LB_MESSAGE` from saved extents at `+0xbf0`/`+0xc00` without resetting `BTN_OK.height` at `+0x3e4`). Furthermore, `InstallMessageBoxFitHook()` installs `GuiMode_FitMessageBox` at `0x100306a88` across both layout modes to strip excess vertical slack below short messages, and overrides `CSWGuiExamine`'s `ResetButtons` vtable slot (`0x1005aef68`) with `Examine_ResetButtons` so clicking `"CLOSE"` with the mouse never mutates `CSWGuiExamine` into a 2-button `"OK"`/`"CANCEL"` dialog on subsequent opens.
 
 ### 6.5 Merchant Store Screens (`CSWGuiStore` / `0x1005ad040`)
 Merchant store interfaces manage dual inventory lists: `LB_INVITEMS` (`panel + 0x1da0`) and `LB_SHOPITEMS` (`panel + 0x2140`), flanking `LB_DESCRIPTION`.
@@ -758,17 +759,13 @@ if (isMenuPanel(vtable)) {
 All top-level menus, load screens, and category tab buttons share the exact same horizontal center.
 
 ### 8.3 Dynamic Centering Displacements (`patchMenuCenteringConstants`)
-The patch dynamically updates 20 hardcoded displacements (10 width and 10 height) to `-targetWidth` and `-targetHeight`:
+The patch dynamically updates 12 hardcoded displacements to `-targetWidth` and `-targetHeight`:
 - `0x10049dcca`, `0x10049dcd4`: `HandleMouseInput` width displacements
 - `0x10049ddb2`, `0x10049ddbc`: `ScreenToClient` width displacements
 - `0x10049e855`, `0x10049e85f`: `GetLocalMousePos` width displacements
 - `0x1002b4b3b`, `0x1002b4b46`: `CSWGuiInGameMap::Draw` viewport X displacements
 - `0x1002b5615`, `0x1002b561f`: `CSWGuiInGameMap::HandleMouseInput` mouse X displacements
-- `0x10049dce8`, `0x10049dcf2`: `HandleMouseInput` height displacements
-- `0x10049ddd9`, `0x10049dde3`: `ScreenToClient` height displacements
-- `0x10049e872`, `0x10049e87c`: `GetLocalMousePos` height displacements
-- `0x1002b4b59`, `0x1002b4b63`: `CSWGuiInGameMap::Draw` viewport Y displacements
-- `0x1002b5631`, `0x1002b563b`: `CSWGuiInGameMap::HandleMouseInput` mouse Y displacements
+- `0x10049dce9`, `0x10049dcf3`: `HandleMouseInput` height displacements
 
 ### 8.4 Save & Load Game Screen (`CSWGuiSaveLoad` at `0x1005ae300`)
 - `LB_GAMES` (`r.width == 272 && r.height == 323`) calibrated with a zero-gap stride and top offset (`-2.8f * scale`), seating save entries flush inside the 6 background slots.
@@ -833,14 +830,14 @@ A fresh font carries unscaled TXI metrics, triggering scaling even at a recycled
 ## 9. UI Customization & Dual-Mode Engine Architecture
 
 ### 9.1 Dual-Mode Operation: Procedural Stretch vs. External GUI Files
-A core feature of this patch is its **Dual-Mode UI Architecture**, governed by the patch's **GUI mode** option in KotOR Patch Manager (`gui-mode`, see section 2.4), or, without it, by the setting `UseGuiFileLayouts` under `[Graphics Options]` in `swkotor.ini`. In short, this patch actually contains two modes:
+A core feature of this patch is its **Dual-Mode UI Architecture**, governed by the setting `UseGuiFileLayouts` under `[Graphics Options]` in `swkotor.ini`. In short, this patch actually contains two modes:
 
-1. **Procedural Mode (GUI mode "Standard", `UseGuiFileLayouts=0`, Default)**:
+1. **Procedural Mode (`UseGuiFileLayouts=0`, Default)**:
    - **Zero Dependencies**: Operates 100% out-of-the-box without requiring any custom `.gui` files, texture overrides, or external assets.
    - **Dynamic Hierarchy Scaling**: Analyzes the engine's vanilla 4:3 GUI hierarchy at runtime, stretching backdrops, centering root consoles, repositioning HUD clusters, and scaling floating target reticles across arbitrary widescreen resolutions (16:10, 16:9, 21:9, and beyond).
    - **Continuous Resolution Layout**: Derives listbox row strides, item heights, and text gutters proportionally using continuous scaling formulas.
 
-2. **External GUI Mode (GUI mode "GUI files", `UseGuiFileLayouts=1`)**:
+2. **External GUI Mode (`UseGuiFileLayouts=1`)**:
    - **Full Mod Compatibility**: Designed for use with comprehensive widescreen GUI redesigns, such as the KotOR Modding Restoration Project (KMRP) or custom high-resolution UI layouts placed in the `Override/` directory.
    - **Suppression of Procedural Stretching**: Bypasses procedural scaling (`scaleMenuPanelTree`) globally across all menus and popups (including HUD, In-Game Menu, Area Map, Options, and `skillinfo.gui` granted popups), preserving the exact dimensions and positions authored in modded `.gui` files.
    - **Windows Gold Listbox Padding Rules**: Fixes the Mac port's vertical padding anomaly. Under vanilla Mac logic, listbox `padding` was incorrectly added to the vertical row pitch, causing severe spacing blowouts. Under `UseGuiFileLayouts=1`, the patch enforces Windows Gold v11/v12 behavior: vertical row padding is zeroed, the first row starts at $Y=0$, and `padding` serves purely as a horizontal scrollbar gutter.
@@ -873,7 +870,7 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 #### `[Graphics Options]` Core Engine Settings
 | Setting Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `UseGuiFileLayouts` | `int` | `0` | Set to `1` to enable external `.gui` layout mode (KMRP compatibility, Windows Gold padding, high-res map scaling). Set to `0` for procedural stretch mode. Only read when the manager recorded no GUI mode option (section 2.4). |
+| `UseGuiFileLayouts` | `int` | `0` | Set to `1` to enable external `.gui` layout mode (KMRP compatibility, Windows Gold padding, high-res map scaling). Set to `0` for procedural stretch mode. |
 | `ForceWidth` | `int` | Auto | Overrides monitor detection to force a specific horizontal rendering resolution (e.g. `1920`, `2560`, `3024`). |
 | `ForceHeight` | `int` | Auto | Overrides monitor detection to force a specific vertical rendering resolution (e.g. `1080`, `1440`, `1964`). |
 
@@ -982,7 +979,6 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 | `0x1004a959c` | `41 89 84 24 68 03 00 00` | `90 90 90 90 90 90` | `CSWGuiListBox::RecalculateItemHeight` | NOPs prototype clamp 2, preventing scroll height calculation from reverting. |
 | `0x1002be42b` | 98 bytes | 98 bytes | `CSWGuiInGameItemEntry::SetExtent` | Loads dynamic `iconWidth`, `iconHeight`, and `iconTopOffset` into subquads. |
 | `0x1002be4da` | 64 bytes | 64 bytes | `CSWGuiInGameItemEntry::Layout` | Applies dynamic `textOffset` and `textDeduct` to item text labels. |
-| `0x1002bfb49` | `41 bd 38 00 00 00` | `44 8b 6b 14 90 90` | `CSWGuiStoreItemEntry::SetExtent` | Loads store/container icon dimensions dynamically from row height (`0x14(%rbx)`), or `movl $<containerItemHeight>, %r13d` in procedural mode. |
 | `0x1002bfbe2` | `41 83 c7 38` | `45 01 ef 90` | `CSWGuiStoreItemEntry::SetExtent` | Dynamically adds scaled icon width (`addl %r13d, %r15d`) to store button offset. |
 | `0x1002bfbe9` | `83 c0 c8` | `44 29 e8` | `CSWGuiStoreItemEntry::SetExtent` | Deducts dynamic icon width (`subl %r13d, %eax`) from store button width. |
 | `0x1002bfbbf` | `b8 38 00 00 00` | `41 8d 45 f2 90` | `CSWGuiStoreItemEntry::SetExtent` | Anchors store quantity badge flush on bottom-right of scaled icon (`leal -14(%r13), %eax`). |
@@ -1005,6 +1001,7 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 | `0x1002bfe55` | `31 c0 50` | `6a 02 90` | `CSWGuiStoreItemEntry::Init` | Enforces `fillStyle = 2` (stretched) on store icon neon arches. |
 | `0x1002cecee` | 17-byte prologue | 14-byte `jmp *0(%rip)` | `CSWGuiOptionsCheckbox::SetExtent` | Scales Options menu check quads dynamically by $s = H / \text{BaseRefH}$. |
 | `0x100306a88` | `e8 a9 71 19 00` | `e8 2b e5 de ff` | `CSWGuiMessageBox::FixMessageLabel` | Bridges to `GuiMode_FitMessageBox` at `0x1000f4fb8`, auto-fitting popups to text. |
+| `0x1005aef68` | `40 6b 30 00 01 00 00 00` | `&Examine_ResetButtons` | `CSWGuiExamine` vtable `+0x108` (`ResetButtons`) | Preserves `"CLOSE"` (`0x62e`) and hidden Cancel button (`ShowCancelButton(0)`) after mouse click dismissal. |
 | `0x10028ea4f` | `e8 92 b1 21 00` | `e8 [rel32]` | `CSWGuiSkillInfoBox::Fill` | Calls near-page thunk to `GuiMode_GrantedFill`, fitting granted rows to content. |
 | `0x10022f321` | `e8 26 4a 27 00` | `e8 [rel32]` | `CSWGuiInGameSkillEntry::SetExtent` | Calls near-page thunk to `GuiMode_GrantedRowText`, formatting granted hex/icon/text bounds. |
 
@@ -1021,6 +1018,7 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 | `0x1005f4b34` | `int32_t` | `kViewportTop`: Active index into engine OpenGL viewport stack |
 | `0x1005f4b40` | `int16_t[5]` | `kViewportStack`: 10-byte viewport stack entries `{ x, y, w, h, flags }` |
 | `0x100570a14` | `float` | `kLetterboxAspect`: Dialogue letterbox aspect ratio constant (vanilla 7/3, patched to $1.5 \cdot W / H$) |
+| `0x100677ce0` | `void*` | `g_pGuiManager`: Global GUI manager singleton pointer (`+0x60` = tooltip panel, `+0xc0` = background frame) |
 | `0x100677cf0` | `void*` | `g_pAppManager`: Pointer to master game application manager |
 | `0x1005d3210` | `void*` | `CSWGuiTooltip` vtable: Tooltip coordinate plane (exempt from direct scaling) |
 
@@ -1086,6 +1084,8 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 | `0x1005aeaa8` | `CSWGuiControllerLossBox` | Gamepad / Input loss alert dialog |
 | `0x1005ae9a0` | `CSWGuiStatusSummary` | Notification summary toast popup |
 | `0x1005a8c60` | `CSWGuiTutorialBox` | Tutorial popup box |
+| `0x1005aee60` | `CSWGuiExamine` | Item examination & store insufficient-credits popup (`msgbox.gui`, single `"CLOSE"` button) |
+| `0x1005a5880` | `CSWGuiPazaakMessageBox` | Pazaak modal message box (`msgbox.gui`) |
 | `0x1005a9e18` | `CSWGuiSkillInfoBox` | Granted Feats / Skills popup |
 | `0x1005ad640` | `CSWGuiInGamePause` | In-game pause notification banner (positioned via native `0x100239496`) |
 | `0x1005a5a90` | `CSWGuiPazaakStart` | Pazaak SideDeck selection screen (`pazaaksetup.gui`) |
@@ -1132,8 +1132,8 @@ All aspects of the engine layout, listbox geometry, font sizes, and map dimensio
 #### `CSWGuiMainInterface` (Gameplay HUD at `0x1005a6220`)
 | Offset | Type | Field Description |
 | :--- | :--- | :--- |
-| `+0x180` | `int32_t` | Control count |
-| `+0x188` | `char**` | Array of HUD subcontrol pointers |
+| `+0x30` | `char**` | Array of HUD subcontrol pointers (inherited from `CSWGuiPanel`) |
+| `+0x38` | `int32_t` | Control count (`96` in `mipc212x9.gui`, inherited from `CSWGuiPanel`) |
 | `+0x2358` | `int32_t` | Index of active/hovered combat action button (`0..5`) |
 | `+0x7b10` | `int32_t` | Minimap radar width in HUD structure |
 | `+0x7b14` | `int32_t` | Minimap radar height in HUD structure |
