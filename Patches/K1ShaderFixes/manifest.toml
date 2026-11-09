@@ -3,7 +3,7 @@ id = "k1_shader_fixes"
 name = "K1 Shader Fixes"
 version = "0.2"
 author = "FTD, J, Synchro, Vriff"
-description = "Fixes KOTOR 1 fog (includy foggy grass), reflections, overbright lightmaps, and particle texture state."
+description = "Fixes KOTOR 1 fog (including foggy grass), reflections, bump mapping, overbright lightmaps, and particle texture state."
 
 requires = []
 conflicts = []
@@ -34,7 +34,14 @@ default = true
 
 [[patch.options]]
 id = "particle-texture-fix"
-name = "Particle-Texture Fix"
+name = "Particle Texture Fix"
 description = "Fixes a bug where particle effects like smoke, sparks, and explosions can accidentally turn off textures on the next object drawn on screen."
+type = "toggle"
+default = true
+
+[[patch.options]]
+id = "bumpmap-fix"
+name = "Bump Mapping Fix"
+description = "Restores hardware normal-map and specular bump mapping on creatures, characters, and world surfaces that Aspyr stubbed out in the macOS port."
 type = "toggle"
 default = true
