@@ -1,16 +1,18 @@
-// Loose MP3 music for KOTOR II.
+// Loose MP3 music for KOTOR II, and for KOTOR on macOS.
 //
 // CExoStreamingSoundSourceInternal::InitializeSource rewrites every ResType_MP3
 // candidate to Left(name, len - 3) + "wav" before probing disk, discarding the ".mp3"
 // the resource system resolved. Miles is told ".mp3" regardless, which is why the
-// shipped .wav-named music decodes.
+// shipped .wav-named music decodes. KOTOR builds a single candidate where KOTOR II
+// builds a primary and alternates.
 //
 // PreferLooseMp3Candidates runs after that rewrite and before the first open. Both
 // spellings are three characters, so it edits in place.
 //
-// Off Windows the candidates are still in the engine's spelling here, and its fopen is
-// a wrapper that converts them first. ResolvePath calls that converter rather than
-// reproducing it.
+// Off Windows the candidates are still in the engine's spelling here, and the open
+// that finds them runs DOS2MacPath over them first. KOTOR II's fopen wrapper does it on
+// every open; KOTOR's does not, and its retry after a failed open does it instead.
+// ResolvePath calls that converter rather than reproducing it.
 //
 // The candidates are frame locals at offsets that differ between builds. Each build's
 // hooks file says where they are, so one entry point serves every build.
@@ -52,50 +54,38 @@ char* TextOf(const unsigned char* exoString)
 // expands into an absolute path and can outgrow its input.
 constexpr std::size_t kPathLimit = 2048;
 
-#if !defined(_WIN32)
+// The engine's DOS2MacPath, which turns its spelling of a path into one the host can
+// open. macOS drops a volume alias and expands {kMacVolumeName} through CoreFoundation;
+// Linux folds the case. Null where the engine opens names as written.
+using PathConverter = void (*)(const char* path, char* out);
 
 // The width DOS2MacPath builds into, and what its callers hand it.
 constexpr std::size_t kEnginePathLimit = 1024;
 
-// The engine's own path conversion, which its fopen wrapper runs over every name before
-// opening it. macOS drops a volume alias and expands {kMacVolumeName} through
-// CoreFoundation; Linux folds the case. Calling it rather than reproducing it is what
-// keeps the probe asking the question the open will ask.
-//
-// Pinned to the build the hooks target, like the addresses in its hooks file.
-#if defined(__APPLE__)
-constexpr std::uintptr_t kDos2MacPath = 0x100480ABD;
-#else
-constexpr std::uintptr_t kDos2MacPath = 0x080B52FD;
-#endif
-
-bool ResolvePath(const char* path, char* out, std::size_t capacity)
+// The path the engine's open would reach. Calling its converter rather than reproducing
+// it is what keeps the probe asking the question the open will ask.
+bool ResolvePath(PathConverter convert, const char* path, char* out, std::size_t capacity)
 {
+    const std::size_t length = std::strlen(path);
+
+    if (convert == nullptr) {
+        if (length >= capacity) {
+            return false;
+        }
+        std::memcpy(out, path, length + 1);
+        return true;
+    }
+
     // DOS2MacPath takes no length and its callers pass kEnginePathLimit, so a name that
-    // would overrun it is refused here rather than handed over.
-    if (capacity < kEnginePathLimit || std::strlen(path) >= kEnginePathLimit) {
+    // would overrun it is refused here.
+    if (capacity < kEnginePathLimit || length >= kEnginePathLimit) {
         return false;
     }
 
     out[0] = '\0';
-    reinterpret_cast<void (*)(const char*, char*)>(kDos2MacPath)(path, out);
+    convert(path, out);
     return out[0] != '\0';
 }
-
-#else
-
-// Windows hands fopen the name as written.
-bool ResolvePath(const char* path, char* out, std::size_t capacity)
-{
-    const std::size_t length = std::strlen(path);
-    if (length >= capacity) {
-        return false;
-    }
-    std::memcpy(out, path, length + 1);
-    return true;
-}
-
-#endif
 
 // Whether the engine's own arithmetic lands inside the file. This is its entire
 // discriminator: KOTOR's wrapper holds the data chunk's offset here and lands on the
@@ -168,7 +158,7 @@ bool GameWouldPlay(const char* path)
 
 // Swap a trailing "wav" for "mp3" when that is the file the engine would play. The
 // engine compares extensions case-insensitively, so this does too.
-void PreferLooseMp3(char* path)
+void PreferLooseMp3(PathConverter convert, char* path)
 {
     if (path == nullptr) {
         return;
@@ -192,24 +182,24 @@ void PreferLooseMp3(char* path)
     std::memcpy(extension, "mp3", sizeof(original));
 
     char resolved[kPathLimit];
-    if (!ResolvePath(path, resolved, sizeof(resolved)) || !GameWouldPlay(resolved)) {
+    if (!ResolvePath(convert, path, resolved, sizeof(resolved)) || !GameWouldPlay(resolved)) {
         std::memcpy(extension, original, sizeof(original));
     }
 }
 
 // Unused alternate slots stay default-constructed, and CExoString's default constructor
 // zeroes the pointer, so an empty slot ends the walk.
-void PreferLooseMp3Candidates(unsigned char* primary, unsigned char* alternates,
-                              std::size_t count)
+void PreferLooseMp3Candidates(PathConverter convert, unsigned char* primary,
+                              unsigned char* alternates, std::size_t count)
 {
-    PreferLooseMp3(TextOf(primary));
+    PreferLooseMp3(convert, TextOf(primary));
 
     for (std::size_t index = 0; index < count; ++index) {
         char* text = TextOf(alternates + index * kExoStringSize);
         if (text == nullptr || *text == '\0') {
             break;
         }
-        PreferLooseMp3(text);
+        PreferLooseMp3(convert, text);
     }
 }
 
@@ -274,15 +264,15 @@ std::FILE* StreamFile(const unsigned char* self, std::size_t fileOffset)
 
 }  // namespace
 
+#if defined(_WIN32)
+
 // The primary candidate, the alternates laid out after it, and how many alternates the
 // build keeps.
 extern "C" void __cdecl K2LooseMp3(unsigned char* primary, unsigned char* alternates,
                                    std::uint32_t alternateCount)
 {
-    PreferLooseMp3Candidates(primary, alternates, alternateCount);
+    PreferLooseMp3Candidates(nullptr, primary, alternates, alternateCount);
 }
-
-#if defined(_WIN32)
 
 // The RIFF size field, and the CExoString recording which candidate opened.
 extern "C" void __cdecl K2Mp3RiffOffsetByPath(std::uint32_t* sizeField,
@@ -292,6 +282,14 @@ extern "C" void __cdecl K2Mp3RiffOffsetByPath(std::uint32_t* sizeField,
 }
 
 #else
+
+// As on Windows, plus the build's DOS2MacPath. One macOS module serves both games, so
+// the address comes from the hooks file.
+extern "C" void __cdecl K2LooseMp3(unsigned char* primary, unsigned char* alternates,
+                                   std::uint32_t alternateCount, PathConverter dos2MacPath)
+{
+    PreferLooseMp3Candidates(dos2MacPath, primary, alternates, alternateCount);
+}
 
 // The RIFF size field, the sound source, and where the source keeps its FILE, which
 // moves with the build's struct layout.

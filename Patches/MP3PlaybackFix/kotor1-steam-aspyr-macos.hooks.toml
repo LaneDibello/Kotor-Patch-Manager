@@ -1,0 +1,53 @@
+[metadata]
+target_versions = ["C1FCB8D37C702849882A17751C63EE0AF7C2B9CBBC3B31B98A5F0EDBC27C6D71"]
+
+# InitializeSource is at 0x100179074; its ResType_MP3 branch rewrites m_sFileName to
+# Left(name, len - 3) + "wav" (0x1005129D7, used at 0x1001790FD). KOTOR builds that
+# one candidate and no alternates.
+#
+# The hook is the LEA that loads the candidate for the first fopen, after the
+# temporaries are destroyed. Frame-relative, so it moves into the stub safely.
+[[hooks]]
+address = 0x100179142
+function = "K2LooseMp3"
+type = "detour"
+original_bytes = [0x48, 0x8D, 0xBD, 0xC0, 0xFB, 0xFF, 0xFF]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "rbp-0x440" # The candidate, a CExoString.
+type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0" # No alternates.
+type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0" # How many alternates this build keeps.
+type = "uint"
+
+[[hooks.parameters]]
+source = "const:0x100022696" # DOS2MacPath.
+type = "pointer"
+
+# The load of the RIFF size field, before the ADD that turns it into the audio offset.
+# Reached only for a candidate opening with RIFF, so raw mp3 never pays for it.
+# Frame-relative, so it moves into the stub safely.
+[[hooks]]
+address = 0x100179314
+function = "K2Mp3RiffOffset"
+type = "detour"
+original_bytes = [0x8B, 0x9D, 0xB0, 0xFB, 0xFF, 0xFF]
+exclude_from_restore = []
+
+[[hooks.parameters]]
+source = "rbp-0x450" # The RIFF size field.
+type = "pointer"
+
+[[hooks.parameters]]
+source = "r12" # `this`, live across the function.
+type = "pointer"
+
+[[hooks.parameters]]
+source = "const:0x50" # Where `this` keeps its FILE in this build.
+type = "uint"
