@@ -29,6 +29,10 @@ type = "pointer"
 source = "const:32" # How many alternates this build keeps.
 type = "uint"
 
+[[hooks.parameters]]
+source = "const:0x100480ABD" # DOS2MacPath.
+type = "pointer"
+
 # The load of the RIFF size field, before the ADD that turns it into the audio offset.
 # Reached only for a candidate opening with RIFF, so raw mp3 never pays for it.
 # Frame-relative, so it moves into the stub safely.
