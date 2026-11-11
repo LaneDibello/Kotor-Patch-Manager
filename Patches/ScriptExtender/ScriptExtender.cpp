@@ -84,6 +84,7 @@ extern "C" void __cdecl InitializeExtensionCommands(DWORD* commands)
     commands[AdjustCreatureAttributesIndex] = (DWORD)&ExecuteCommandAdjustCreatureAttributes;
     commands[AdjustCreatureSkillsIndex] = (DWORD)&ExecuteCommandAdjustCreatureSkills;
     commands[GetSkillRankBaseIndex] = (DWORD)&ExecuteCommandGetSkillRankBase;
+    commands[RespecCreatureIndex] = (DWORD)&ExecuteCommandRespecCreature;
 
     commands[IsRunningIndex] = (DWORD)&ExecuteCommandIsRunning;
     commands[IsStealthedIndex] = (DWORD)&ExecuteCommandIsStealthed;
