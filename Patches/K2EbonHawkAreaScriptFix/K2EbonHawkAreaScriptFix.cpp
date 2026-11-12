@@ -1,7 +1,7 @@
-// K2RedEclipseFix.cpp -- Red Eclipse softlock fix (Nar Shaddaa, 301NAR). See README.md.
+// K2EbonHawkAreaScriptFix.cpp -- Red Eclipse softlock fix (Nar Shaddaa, 301NAR). See README.md.
 //
-// One hook: CVirtualMachine::RunScript, after its prologue. Two area scripts that the game runs in
-// 012EBO and 004EBO are swapped for the scripts those modules own (see redirect()).
+// One hook: CVirtualMachine::RunScript, after its prologue. In module 012EBO the area script
+// k_003ebo_enter (pulled in by a third-party Override/003ebo.are) is swapped for k_012_enter.
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <stdint.h>
@@ -19,9 +19,14 @@ struct ExoString {
     int len;
 };
 
-// Replacement name handed back to RunScript. Static, so it outlives the hook call.
-char g_swapText[16];
-ExoString g_swapExo = {g_swapText, 0};
+constexpr char kShadowScript[] = "k_003ebo_enter";  // run by the Override-shadowed area
+constexpr char kOwnScript[] = "k_012_enter";        // the script 012EBO owns
+constexpr char kModule[] = "012ebo";
+
+// Replacement name handed back to RunScript. Static, so it outlives the hook call. It is only ever written
+// with kOwnScript, so a nested RunScript call that swaps again rewrites the same bytes.
+char g_swapText[sizeof kOwnScript];
+ExoString g_swapExo = {g_swapText, static_cast<int>(sizeof kOwnScript) - 1};
 
 bool readable(uintptr_t addr, size_t n) {
     return addr != 0 && !IsBadReadPtr(reinterpret_cast<const void*>(addr), n);
@@ -42,6 +47,7 @@ bool readName(uintptr_t exo, char* out, size_t cap) {
     if (!readable(reinterpret_cast<uintptr_t>(s->text), static_cast<size_t>(s->len))) return false;
     memcpy(out, s->text, static_cast<size_t>(s->len));
     out[s->len] = '\0';
+    if (strlen(out) != static_cast<size_t>(s->len)) return false;  // embedded NUL: not a plain name
     for (char* p = out; *p; ++p) {
         if (*p >= 'A' && *p <= 'Z') *p = static_cast<char>(*p + 32);
     }
@@ -59,36 +65,27 @@ bool moduleName(char* out, size_t cap) {
     return readName(static_cast<uintptr_t>(module) + 0x38, out, cap);
 }
 
-// The script the module's own area file runs in place of the Override-shadowed one, or nullptr.
-// Lower-case names, exact match. 003EBO (the Hawk) is never changed.
-const char* redirect(const char* module, const char* script) {
-    if (strcmp(module, "012ebo") == 0 && strcmp(script, "k_003ebo_enter") == 0) return "k_012_enter";
-    if (strcmp(module, "004ebo") == 0 && strcmp(script, "k_ebo_user") == 0) return "k_004_heart";
-    return nullptr;
-}
-
 }  // namespace
 
 extern "C" {
 
 // Hook inside CVirtualMachine::RunScript after its prologue. Parameter: EBP (frame pointer). [EBP+8] is the
 // CExoString* script name the caller passed in. The hook runs for every script, so the common path is one name read.
-void __cdecl RedEclipseRunScript(int ebp) {
+void __cdecl EbonHawkRunScript(int ebp) {
     uintptr_t frame = static_cast<uint32_t>(ebp);
     uint32_t scriptPtr = 0;
-    char name[16];
-    if (!readU32(frame + 8, &scriptPtr) || !readName(scriptPtr, name, sizeof name)) return;
-    if (strcmp(name, "k_003ebo_enter") != 0 && strcmp(name, "k_ebo_user") != 0) return;
+    if (!readU32(frame + 8, &scriptPtr) || !readable(scriptPtr, sizeof(ExoString))) return;
+    // Fast path for the many other scripts: only the length is read unless it matches.
+    if (reinterpret_cast<const ExoString*>(scriptPtr)->len != static_cast<int>(sizeof kShadowScript) - 1) return;
+
+    char name[sizeof kShadowScript + 1];
+    if (!readName(scriptPtr, name, sizeof name) || strcmp(name, kShadowScript) != 0) return;
 
     char module[16];
-    if (!moduleName(module, sizeof module)) return;
-    const char* to = redirect(module, name);
-    if (!to) return;
+    if (!moduleName(module, sizeof module) || strcmp(module, kModule) != 0) return;
 
     // Point the script argument at the replacement name. RunScript reads this slot after the hook returns.
-    size_t len = strlen(to);
-    memcpy(g_swapText, to, len + 1);
-    g_swapExo.len = static_cast<int>(len);
+    memcpy(g_swapText, kOwnScript, sizeof kOwnScript);
     *reinterpret_cast<uint32_t*>(frame + 8) = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&g_swapExo));
 }
 

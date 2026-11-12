@@ -7,7 +7,7 @@ target_versions = ["6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBB
 [[hooks]]
 address = 0x006FD8D6
 type = "detour"
-function = "RedEclipseRunScript"
+function = "EbonHawkRunScript"
 original_bytes = [0x89, 0x4D, 0xF8, 0x83, 0x7D, 0x08, 0x00]
 skip_original_bytes = false
 exclude_from_restore = []
