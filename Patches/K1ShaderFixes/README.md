@@ -21,7 +21,7 @@ In **KotOR Patch Manager**, this patch provides five independent toggles (all en
 
 ---
 
-## Included Fixes (28 Non-Overlapping Hooks Across 5 Options)
+## Included Fixes (33 Non-Overlapping Hooks Across 5 Options)
 
 Every shader and code path is partitioned into non-overlapping byte slices so that all five options can be toggled in any of the 32 combinations without hook address conflicts:
 
@@ -38,7 +38,7 @@ Every shader and code path is partitioned into non-overlapping byte slices so th
 | **9** | `0x1005263E2` | 116 B | `reflections-fix` | **Fragment Shader 3** (`0x100526321`, Vertex-Lit + 2D Envmap) | Changes `TEX r1, T1, texture[1], 2D;` to `CUBE` and upgrades reflection blending from pre-lighting `LRP` to post-lighting `MAD_SAT`. |
 | **10** | `0x100526462` | 182 B | `fog-fix` | **Fragment Shader 4** (`0x100526457`, Vertex-Lit + Cubemap Envmap) | Adds `OPTION ARB_fog_linear;` on vertex-lit cubemap-mapped meshes. |
 | **11** | `0x100526518` | 118 B | `reflections-fix` | **Fragment Shader 4** (`0x100526457`, Vertex-Lit + Cubemap Envmap) | Upgrades cubemap reflection blending from pre-lighting `LRP` to post-lighting `MAD_SAT` (`SUB r1.a,1,r0.a; MUL r0,r0,v0; MAD_SAT r0,r1,r1.a,r0;`). |
-| **12** | `0x10019898C` | 174 B | `fog-fix` | **`Scene::DoFog`** (`0x1001988B0`) | When `scene->m_bFogEnabled` (`+0x70`) is `0`, calls `glDisable(GL_FOG)` and sets `GL_FOG_END = 1000000.0f` (`0x49742400`) via `glFogf` so `ARB_fragment_program` shaders with `OPTION ARB_fog_linear;` do not render stale fog in unfogged modules. |
+| **12** | `0x10019898C` | 174 B | `fog-fix` | **`Scene::DoFog`** (`0x1001988B0`) | Caches `m_bFogEnabled` and `m_vFogColor` via `0x100587420`, and when `scene->m_bFogEnabled` (`+0x70`) is `0`, calls `glDisable(GL_FOG)` and sets `GL_FOG_END = 1000000.0f` (`0x49742400`) via `glFogf` so `ARB_fragment_program` shaders with `OPTION ARB_fog_linear;` do not render stale fog in unfogged modules. |
 | **13** | `0x1001E380C` | 5 B | `particle-texture-fix` | **Particle Cleanup** (`0x1001E3770`) | Replaces the tail-call `jmp _glDisableClientState` (`E9 D7 CD 2C 00`) with `ret; nop; nop; nop; nop` (`C3 90 90 90 90`) so `GL_TEXTURE_COORD_ARRAY` remains enabled on texture unit 0 after particle rendering. |
 | **14** | `0x100196184` | 50 B | `fog-fix` | **`Scene::DoGrass`** (`0x100196128`) | Compacts the grass setup block after the initial `glDisable(GL_FOG)` call to invoke `Scene::DoFog(this)` (`0x1001988B0`), restoring area distance fog for grass and all subsequent transparent mesh passes. |
 | **15** | `0x10052603C` | 191 B | `fog-fix` | **Fragment Shader 1** (`0x100526031`, Skinned 2D Envmap in Fog) | Binds `state.fog.color` to `c[1]` so fogged environment-mapped characters do not read an uninitialized black `program.env[1]`. |
@@ -55,6 +55,11 @@ Every shader and code path is partitioned into non-overlapping byte slices so th
 | **26** | `0x10019DF48` | 6 B | `bumpmap-fix` | **`getATIFragmentShadersDisabled`** (`0x10019DF48`) | Returns `1` (`mov eax, 1; ret`) so all 5 bump-mapping checks in `PartTriMesh::SelectRenderPath` and `SkinMesh::Render` succeed on macOS. |
 | **27** | `0x1005C8E5C` | 279 B | `bumpmap-fix` | **`skinBumpyVP`** (`0x1005C7B10`) | Appends `MOV result.color,{0,0,0,1};` in-place so bump-mapped skinned meshes do not leave `fragment.color.primary` undefined. |
 | **28** | `0x1005CA440` | 330 B | `bumpmap-fix` | **`renderSkinnedVPSkinVP2`** (`0x1005C93B0`) | Appends `MOV result.color,{0,0,0,1};` in-place so bump-mapped skinned meshes in fog do not leave `fragment.color.primary` undefined. |
+| **29** | `0x1001FAEB1` | 10 B | `fog-fix` | **Frame Clear** (`0x1001FAEB1`) | Redirects `glClear(0x4500)` to the `glClearColor` helper at `0x100587390`. |
+| **30** | `0x100587390` | 122 B | `fog-fix` | **Dark-Fog `glClearColor` Helper** (`0x100587390`) | Reads the cached fog state (`0x10068AF00`–`0x10068AF10`) and sets `glClearColor` to `Scene->m_vFogColor` when fog is enabled and dark (`R, G, B < 0.25f`) so canopy gaps in skyboxless dark-fog areas like Kashyyyk Shadowlands blend into the fog instead of showing pure black, otherwise `(0, 0, 0, 0)`, then calls `glClear(0x4500)`. |
+| **31** | `0x1004AC09E` | 10 B | `fog-fix` | **Main-Loop Frame Clear A** (`0x1004AC09E`) | Redirects `glClear(0x4500)` to the `glClearColor` helper at `0x100587390`. |
+| **32** | `0x1004ADEA6` | 10 B | `fog-fix` | **Main-Loop Frame Clear B** (`0x1004ADEA6`) | Redirects `glClear(0x4500)` to the `glClearColor` helper at `0x100587390`. |
+| **33** | `0x100587420` | 35 B | `fog-fix` | **Fog-State Cache Helper** (`0x100587420`) | Called from `Scene::DoFog` (`0x10019898C`) to cache `m_bFogEnabled` (`+0x70`) and `m_vFogColor` (`+0x84`) into unused `__DATA` padding (`0x10068AF00`–`0x10068AF10`). |
 
 ---
 
