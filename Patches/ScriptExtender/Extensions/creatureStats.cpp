@@ -1,4 +1,5 @@
 #include "creatureStats.h"
+#include "GameAPI/CSWInventory.h"
 
 VirtualMachineReturnTypes __stdcall ExecuteCommandGetFeatAcquired(DWORD routine, int paramCount)
 {
@@ -375,6 +376,108 @@ VirtualMachineReturnTypes __stdcall ExecuteCommandGetSkillRankBase(DWORD routine
 	}
 
 	delete server;
+	delete vm;
+	return SUCCESS;
+}
+
+
+// CSWSCreatureStats::LevelDown takes the level record to undo (a CSWLevelStats*, as in Aurora's
+// DM level down): every return is `ret 4`, and its only caller in the exe (0x005AF5CA) pushes an
+// entry of the record array. The address database lists it with no parameters (issue #307), so it
+// is called through its own typedef here.
+typedef void (__thiscall* LevelDownFn)(void* thisPtr, void* levelStats);
+typedef BYTE (__thiscall* GetLevelFn)(void* thisPtr, int includeNegative);
+// GetLevelStats(index): 0 based into the level records, an array at +0x28 with its count at +0x2C
+typedef void* (__thiscall* GetLevelStatsFn)(void* thisPtr, BYTE index);
+static const int LEVEL_STATS_COUNT = 0x2C;
+
+// The worn items: CSWInventory holds one object ID per equipment slot, slot n at `head` + 4n
+// (head +4, torso +8, hands +16, implant +40, belt +44 in the address database). Slots 0 to 13
+// are the ones a player can fill, as INVENTORY_SLOT_HEAD to INVENTORY_SLOT_LEFTWEAPON2 in
+// nwscript.nss; 14 up are the creature's own claws and hide. An empty slot is OBJECT_INVALID.
+static const int WORN_SLOTS = 14;
+static const DWORD INVALID_OBJECT_ID = 0x7F000000;
+// returned when something is still worn: the creature is left as it was
+static const int RESPEC_STILL_EQUIPPED = -2;
+
+// true when oCreature wears anything in a slot a player can fill
+static bool WearsAnything(CSWSCreature* creature)
+{
+	static int firstSlot = GameVersion::GetOffset("CSWInventory", "head");
+	if (firstSlot < 0) return true;		// can't tell: refuse rather than lose an item
+	CSWInventory* inventory = creature->GetInventory();
+	if (!inventory) return true;
+	bool worn = false;
+	void* ptr = inventory->GetPtr();
+	if (!ptr) worn = true;
+	for (int i = 0; ptr && i < WORN_SLOTS && !worn; i++) {
+		DWORD id = *(DWORD*)((BYTE*)ptr + firstSlot + 4 * i);
+		if (id != 0 && id != INVALID_OBJECT_ID) worn = true;
+	}
+	delete inventory;
+	return worn;
+}
+
+VirtualMachineReturnTypes __stdcall ExecuteCommandRespecCreature(DWORD routine, int paramCount)
+{
+	debugLog("[ScriptExtender] Running RespecCreature");
+
+	static LevelDownFn levelDown = reinterpret_cast<LevelDownFn>(
+		GameVersion::GetFunctionAddress("CSWSCreatureStats", "LevelDown"));
+	static GetLevelFn getLevel = reinterpret_cast<GetLevelFn>(
+		GameVersion::GetFunctionAddress("CSWSCreatureStats", "GetLevel"));
+	static GetLevelStatsFn getLevelStats = reinterpret_cast<GetLevelStatsFn>(
+		GameVersion::GetFunctionAddress("CSWSCreatureStats", "GetLevelStats"));
+
+	CVirtualMachine* vm = CVirtualMachine::GetInstance();
+	if (!vm) return COMMAND_PARAM_ERROR;
+
+	DWORD creature;
+	if (!vm->StackPopObject(&creature)) {
+		delete vm;
+		return COMMAND_PARAM_ERROR;
+	}
+
+	int outcome = -1;
+	CServerExoApp* server = CServerExoApp::GetInstance();
+	if (server) {
+		CSWSCreature* serverCreature = server->GetCreatureByGameObjectID(creature);
+		if (serverCreature) {
+			CSWSCreatureStats* stats = serverCreature->GetCreatureStats();
+			if (WearsAnything(serverCreature)) {
+				// an item the creature could no longer use after a feat came off would be lost
+				outcome = RESPEC_STILL_EQUIPPED;
+				debugLog("[ScriptExtender] RespecCreature: still wearing something, nothing done");
+			}
+			else if (stats && stats->GetPtr() && levelDown && getLevel && getLevelStats) {
+				void* ptr = stats->GetPtr();
+				int before = getLevel(ptr, 0);
+				int records = *(int*)((BYTE*)ptr + LEVEL_STATS_COUNT);
+				// last level first, down to the first, which is never removed;
+				// only levels the engine has a record of, and stop if one won't come off
+				while (getLevel(ptr, 0) > 1 && records > 1) {
+					void* last = getLevelStats(ptr, (BYTE)(records - 1));
+					if (!last) break;
+					levelDown(ptr, last);
+					int left = *(int*)((BYTE*)ptr + LEVEL_STATS_COUNT);
+					if (left >= records) break;
+					records = left;
+				}
+				int after = getLevel(ptr, 0);
+				if (after < before) outcome = after;
+				debugLog("[ScriptExtender] RespecCreature: level %d -> %d", before, after);
+			}
+			if (stats) delete stats;
+			delete serverCreature;
+		}
+		delete server;
+	}
+
+	if (!vm->StackPushInteger(outcome)) {
+		delete vm;
+		return COMMAND_RETURN_ERROR;
+	}
+
 	delete vm;
 	return SUCCESS;
 }

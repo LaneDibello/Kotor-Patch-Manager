@@ -5367,3 +5367,17 @@ void WriteIniEntry(string sValue, string sFilename, string sCategory, string sKe
 
 // 803. ForceHeartbeat
 void ForceHeartbeat(object oObject);
+
+// 804. RespecCreature
+// Takes oCreature back to level 1 for a respec, undoing its level ups last
+// first through the engine's own routine: the class levels, and the feats,
+// skills, powers and hit points they gave, are removed. Experience is not
+// changed, so a player taken down can level up again at once.
+// Everything worn must come off first (an item the creature can no longer
+// use would be lost): while anything is equipped it does nothing and
+// returns -2.
+// Works on the player and on companions. Only levels the engine holds a
+// level record for can be undone, and the first level is never removed.
+// * Returns the creature's level after (1 unless a level had no record),
+//   -2 if it still wears something, or -1 if nothing else could be done.
+int RespecCreature(object oCreature);
