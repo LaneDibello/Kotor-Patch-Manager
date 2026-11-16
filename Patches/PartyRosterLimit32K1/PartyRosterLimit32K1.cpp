@@ -73,6 +73,11 @@ namespace
     int DATA_BUTTON_OFFSET = -1;
     int DATA_NOT_AVAILABLE_LABEL_OFFSET = -1;
     int DATA_CHARACTER_LABEL_OFFSET = -1;
+    int LABEL_FILL_PARAMS_OFFSET = -1;
+    int BORDER_PARAMS_FILL_RESREF_OFFSET = -1;
+    // Shown on the LBL_NA label of an empty slot past the stock nine, which have no
+    // silhouette of their own. Ships in additional/ and must be installed to Override.
+    constexpr const char* EXTENDED_SLOT_SILHOUETTE = "po_pr32slot";
     constexpr int DATA_BUTTON_BACK_POINTER_OFFSET = 0x58;
     constexpr int DATA_BUTTON_SELECTED_OFFSET = 0x1C4;
     constexpr int DATA_BUTTON_INIT_PARAMS_OFFSET = 0xF4;
@@ -119,6 +124,7 @@ namespace
         bool ready;
         bool selected[MAX_NPC_SLOTS];
         bool forced[MAX_NPC_SLOTS];
+        CResRef_struct stockSilhouettes[PARTY_SELECTION_VIEW_RECORD_COUNT];
     };
 
     PartySlotSnapshot gExtendedPartySlots[EXTRA_NPC_SLOTS];
@@ -294,6 +300,11 @@ namespace
             RequireOffset("CSWGuiPartySelectionData", "portrait_label");
         DATA_CHARACTER_LABEL_OFFSET =
             RequireOffset("CSWGuiPartySelectionData", "character_label");
+        LABEL_FILL_PARAMS_OFFSET =
+            RequireOffset("CSWGuiLabel", "border") +
+            RequireOffset("CSWGuiBorder", "border_params");
+        BORDER_PARAMS_FILL_RESREF_OFFSET =
+            RequireOffset("CSWGuiBorderParams", "fill_image_resref");
         PANEL_DONE_BUTTON_OFFSET =
             RequireOffset("CSWGuiPartySelection", "done_button");
         const int acceptButtonOffset =
@@ -789,7 +800,36 @@ namespace
         nativeCexostringDtor(&tagString);
     }
 
-    void SetUnavailableViewRecord(BYTE* record, int logicalSlot)
+    BYTE* GetUnavailableLabelFillParams(BYTE* record)
+    {
+        return record + DATA_NOT_AVAILABLE_LABEL_OFFSET + LABEL_FILL_PARAMS_OFFSET;
+    }
+
+    // The records are reused across pages, so a record that showed the generic silhouette
+    // for slot 16+ gets its own stock silhouette back when page one is shown again.
+    void SetUnavailableSilhouette(
+        BYTE* record,
+        PartySelectionViewState* state,
+        int logicalSlot)
+    {
+        CResRef_struct image = {};
+        if (logicalSlot < STOCK_NPC_SLOTS) {
+            const int physicalIndex = logicalSlot % PARTY_SELECT_PAGE_SLOTS;
+            image = state->stockSilhouettes[physicalIndex];
+        } else {
+            std::strncpy(image.str, EXTENDED_SLOT_SILHOUETTE, sizeof(image.str));
+        }
+        BYTE* fillParams = GetUnavailableLabelFillParams(record);
+        if (std::memcmp(fillParams + BORDER_PARAMS_FILL_RESREF_OFFSET,
+                image.str, sizeof(image.str)) != 0) {
+            nativeGuiBorderSetFillImage(fillParams, &image, 1);
+        }
+    }
+
+    void SetUnavailableViewRecord(
+        BYTE* record,
+        PartySelectionViewState* state,
+        int logicalSlot)
     {
         nativePartySelectionButtonSetSelected(record + DATA_BUTTON_OFFSET, 0);
         setObjectProperty<DWORD>(
@@ -807,7 +847,8 @@ namespace
         button.SetControlBitFlag(1, true);
         button.SetControlBitFlag(5, true);
         button.SetEnabled(0);
-        unavailable.SetControlBitFlag(1, logicalSlot < STOCK_NPC_SLOTS);
+        SetUnavailableSilhouette(record, state, logicalSlot);
+        unavailable.SetControlBitFlag(1, true);
         unavailable.SetControlBitFlag(5, true);
         character.SetControlBitFlag(1, false);
         character.SetControlBitFlag(5, true);
@@ -849,7 +890,7 @@ namespace
         void* creature = GetServerCreatureByObjectId(
             GetServerApplication(), objectId);
         if (!creature) {
-            SetUnavailableViewRecord(record, logicalSlot);
+            SetUnavailableViewRecord(record, state, logicalSlot);
             return false;
         }
 
@@ -912,6 +953,10 @@ namespace
         BindNamedControl(panel, record + DATA_CHARACTER_LABEL_OFFSET, tag);
         std::snprintf(tag, sizeof(tag), "BTN_NPC%d", physicalIndex);
         BindNamedControl(panel, record + DATA_BUTTON_OFFSET, tag);
+        std::memcpy(
+            state->stockSilhouettes[physicalIndex].str,
+            GetUnavailableLabelFillParams(record) + BORDER_PARAMS_FILL_RESREF_OFFSET,
+            sizeof(state->stockSilhouettes[physicalIndex].str));
 
         CSWGuiButton button(record + DATA_BUTTON_OFFSET);
         CSWGuiPanel panelView(panel);
@@ -944,7 +989,7 @@ namespace
             0);
         setObjectProperty<DWORD>(record, DATA_FLAGS_OFFSET, 0u);
         setObjectProperty<int>(record, DATA_LOGICAL_SLOT_OFFSET, physicalIndex);
-        SetUnavailableViewRecord(record, physicalIndex);
+        SetUnavailableViewRecord(record, state, physicalIndex);
     }
 
     void __fastcall PartySelectionPrevButtonCallback(void* self, void*, void*);
@@ -1175,7 +1220,7 @@ namespace
                     partyTable,
                     logicalSlot);
             } else {
-                SetUnavailableViewRecord(record, logicalSlot);
+                SetUnavailableViewRecord(record, state, logicalSlot);
             }
         }
 
