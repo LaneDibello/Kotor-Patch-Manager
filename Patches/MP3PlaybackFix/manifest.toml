@@ -1,7 +1,7 @@
 [patch]
 id = "mp3-playback-fix"
 name = "MP3 Playback Fix"
-version = "1.1.0"
+version = "1.1.1"
 author = "Synchro, FTD, Vriff, Lane"
 description = "Ensures loose .mp3 audio files can be played in KOTOR2, and in KOTOR on macOS, prioritizing those files over same-named .wav files in the event of a conflict."
 

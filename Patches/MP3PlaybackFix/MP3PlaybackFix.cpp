@@ -95,10 +95,13 @@ bool EngineStartsInsideFile(std::uint32_t sizeField, long size)
     return size > 0 && sizeField + 8 < static_cast<std::uint32_t>(size);
 }
 
+// WAVE_FORMAT_MPEGLAYER3, the format tag of an MP3 stored in a standard RIFF/WAVE.
+constexpr std::uint16_t kWaveFormatMp3 = 0x0055;
+
 // The data chunk header's offset, which is what the engine's size field holds: it adds
-// 8 to reach the audio. Shipped files declare 50 and their data chunk sits at 50. False
-// if the file is not RIFF/WAVE or has no data chunk.
-bool RiffDataChunkOffset(std::FILE* file, std::uint32_t* outField = nullptr)
+// 8 to reach the audio. False if the file is not RIFF/WAVE, has no data chunk, or holds
+// anything but MP3. PCM and ADPCM WAVs are left to the engine, which plays them itself.
+bool RiffMp3DataChunkOffset(std::FILE* file, std::uint32_t* outField = nullptr)
 {
     unsigned char preamble[12];
     if (std::fseek(file, 0, SEEK_SET) != 0 ||
@@ -109,6 +112,8 @@ bool RiffDataChunkOffset(std::FILE* file, std::uint32_t* outField = nullptr)
     }
 
     // Odd-sized chunks carry a pad byte. The bound stops a malformed file walking forever.
+    // RIFF/WAVE puts fmt before data, so the tag is known by the time data turns up.
+    bool isMp3 = false;
     std::uint32_t offset = 12;
     for (int guard = 0; guard < 64; ++guard) {
         unsigned char chunk[8];
@@ -117,14 +122,21 @@ bool RiffDataChunkOffset(std::FILE* file, std::uint32_t* outField = nullptr)
             return false;
         }
 
-        if (std::memcmp(chunk, "data", 4) == 0) {
-            if (outField != nullptr) {
+        const std::uint32_t size = ReadLe32(chunk + 4);
+
+        if (std::memcmp(chunk, "fmt ", 4) == 0) {
+            unsigned char tag[2];
+            if (size < sizeof(tag) || std::fread(tag, 1, sizeof(tag), file) != sizeof(tag)) {
+                return false;
+            }
+            isMp3 = (tag[0] | (tag[1] << 8)) == kWaveFormatMp3;
+        } else if (std::memcmp(chunk, "data", 4) == 0) {
+            if (isMp3 && outField != nullptr) {
                 *outField = offset;
             }
-            return true;
+            return isMp3;
         }
 
-        const std::uint32_t size = ReadLe32(chunk + 4);
         offset += 8 + size + (size & 1);
     }
     return false;
@@ -148,7 +160,7 @@ bool GameWouldPlay(const char* path)
     if (readHeader && std::memcmp(header, "RIFF", 4) == 0) {
         if (!EngineStartsInsideFile(ReadLe32(header + 4), size)) {
             // Only worth pointing at when CorrectRiffOffset can aim it somewhere.
-            playable = RiffDataChunkOffset(file);
+            playable = RiffMp3DataChunkOffset(file);
         }
     }
 
@@ -204,8 +216,8 @@ void PreferLooseMp3Candidates(PathConverter convert, unsigned char* primary,
 }
 
 // Aim the engine's size field at the data chunk when its own arithmetic would overrun
-// the file, which is what an ordinary RIFF/WAVE declaring filesize - 8 causes. Shipped
-// music already holds the right value and is left alone.
+// the file, which is what an MP3 in an ordinary RIFF/WAVE declaring filesize - 8 causes.
+// Shipped music already holds the right value and is left alone.
 void CorrectRiffOffset(std::uint32_t* sizeField, std::FILE* file)
 {
     if (sizeField == nullptr || file == nullptr) {
@@ -221,7 +233,7 @@ void CorrectRiffOffset(std::uint32_t* sizeField, std::FILE* file)
     }
 
     std::uint32_t corrected = 0;
-    if (RiffDataChunkOffset(file, &corrected)) {
+    if (RiffMp3DataChunkOffset(file, &corrected)) {
         *sizeField = corrected;
     }
 }
