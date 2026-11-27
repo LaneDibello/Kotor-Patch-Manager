@@ -108,6 +108,36 @@ Rather than modifying user-installed mod assets or module archives directly, **A
   ...
   ```
 
+#### 8. NULL / Invalid Child Node Pointers (`SynchronizeNodes` `0x1001c086e`, `CountNodeMemory` `0x1001c0ce0`)
+- **Trigger Mod**: *Movie-Style Holograms for End Game Cutscenes v1.1* (`S_HoloDodonna.mdl` supermodel for `DP_HoloDodonna.mdl` in `stunt_50a`)
+- **Issue**: Some modded binary MDL files contain `0x0` (`NULL`) entries inside an animation node's disk child-offset array (`S_HoloDodonna.mdl` has one `0x0` child entry at depth 8 in all 50 animations). In `SynchronizeNodes` (`0x1001c086e`), the engine adds `mdlBase + 0` and passes the MDL file header into `AllocateMdlNode` (`0x1001ff0ae`), which rejects the invalid node type and returns `NULL`. `SynchronizeNodes` still appends that `NULL` pointer into `node->children` via `CExoArrayList::Add` (`0x1001ac4e8`). Immediately afterward, `InputBinary::Reset` calls `CountNodeMemory` (`0x1001c0ce0`), which recursively walks `node->children[]` without a `NULL` check and crashes at `0x1001c0cf0` (`movl 0x60(%r15), %eax`) with `EXC_BAD_ACCESS (SIGSEGV)` at `0x0000000000000060`.
+- **Fix**:
+  - `0x1001c086e` (`SynchronizeNodes`): Skips any disk child offset $\le 0$ and any `NULL` return from `AllocateMdlNode` so `NULL` pointers are never pushed into `node->children`, and passes the returned child pointer directly into `ResetMdlNode` (avoiding an out-of-bounds index into `children.data[i]` after skipping a `NULL` entry).
+  - `0x1001c0ce0` (`CountNodeMemory`): Defense-in-depth `NULL` guard at function entry (`testq %rdi, %rdi; jne +1; retq`).
+  ```assembly
+  movslq  (%rax,%r14,4), %rsi    ; Load 32-bit disk child offset
+  testq   %rsi, %rsi             ; Is offset <= 0 (NULL)?
+  jle     .skip                  ; Skip invalid child
+  addq    %rbx, %rsi
+  movabsq $0x100675c48, %rdi
+  movabsq $0x1001ff0ae, %rax     ; AllocateMdlNode
+  callq   *%rax
+  testq   %rax, %rax             ; Did AllocateMdlNode return NULL?
+  je      .skip                  ; Never append NULL to node->children
+  pushq   %rax
+  pushq   %rax                   ; 16-byte stack alignment
+  movq    %r15, %rdi
+  movq    %rax, %rsi
+  movabsq $0x1001ac4e8, %rax     ; CExoArrayList::Add
+  callq   *%rax
+  popq    %rdi                   ; Pass exact child pointer to ResetMdlNode
+  popq    %rax
+  movq    %rbx, %rsi
+  movabsq $0x1001bf162, %rax     ; ResetMdlNode
+  callq   *%rax
+  .skip:
+  ```
+
 ---
 
 ### KotOR 2
@@ -170,6 +200,8 @@ Rather than modifying user-installed mod assets or module archives directly, **A
 | 10 | `0x1001adba1` | `ApplyController` (4-col) | `replace` | *Yavin IV* (`sith_lnd4.mdl`, `plc_acd.mdl`) | Skips 4-column controller write if resolved struct offset $\le 0$ (prevents overwriting `CModelNode` vtable at `0x0`). |
 | 11 | `0x1001adc1c` | `ApplyController` (1-col) | `replace` | *Yavin IV* (`sith_lnd4.mdl`, `plc_acd.mdl`) | Skips 1-column float controller write (e.g. `Alpha` 132 on Dummy node) if resolved struct offset $\le 0$. |
 | 12 | `0x1001adccf` | `ApplyController` (3-col) | `replace` | *Yavin IV* (`sith_lnd4.mdl`, `plc_acd.mdl`) | Skips 3-column vector/color controller write if resolved struct offset $\le 0$. |
+| 13 | `0x1001c086e` | `SynchronizeNodes` | `replace` | *Movie-Style Holograms* (`S_HoloDodonna.mdl`) | Skips disk child offsets $\le 0$ and `NULL` returns from `AllocateMdlNode` so `NULL` children are never appended to `node->children`, and passes the child pointer directly to `ResetMdlNode`. |
+| 14 | `0x1001c0ce0` | `CountNodeMemory` | `replace` | *Movie-Style Holograms* (`S_HoloDodonna.mdl`) | Defense-in-depth early return if `node` (`%rdi`) is `NULL` (prevents `SIGSEGV` at `0x60`). |
 
 ## Summary of All K2 Hooks
 
